@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>{{TITLE}}</title>
+<style>
+:root { --paper:#fdf6e3; --paper-dark:#f5ecd7; --ink:#2c2c2c; --ink-light:#555;
+        --accent:#2563eb; --accent-hover:#1d4ed8; --divider:#d6c8a8;
+        --card-bg:#fef9ef; --card-border:#e8dcc8;
+        --correct:#22c55e; --correct-bg:#f0fdf4;
+        --wrong:#ef4444; --wrong-bg:#fef2f2;
+        --radius:6px; }
+* { box-sizing: border-box; }
+body { font-family:"Microsoft YaHei","Noto Sans SC","SimSun",sans-serif;
+       font-size:13pt; line-height:1.75; color:var(--ink);
+       max-width:860px; margin:auto; padding:24px 20px 60px; background:var(--paper); }
+@media print { body { font-size:10.5pt; background:#fff; } .no-print{display:none!important;} }
+h1 { font-size:1.55em; text-align:center; border-bottom:2px solid var(--divider);
+     padding-bottom:8px; margin-top:0; }
+h2 { font-size:1.2em; border-bottom:1px solid var(--divider);
+     padding-bottom:4px; margin-top:28px; }
+h3 { font-size:1.05em; margin-top:18px; color:var(--ink); }
+p.sub { text-align:center; color:var(--ink-light); font-size:0.95em; }
+.q-card { background:var(--card-bg); border:1px solid var(--card-border);
+          border-radius:var(--radius); padding:12px 14px; margin:10px 0; }
+.q-card.correct { border-left:3px solid var(--correct); background:#f7fdf4; }
+.q-card.wrong   { border-left:3px solid var(--wrong);   background:#fef9f9; }
+.q-num  { font-weight:700; font-size:0.98em; margin-bottom:4px; }
+.q-text { margin-bottom:8px; font-size:0.98em; }
+.option { display:block; padding:4px 10px; margin:3px 0;
+          border:1px solid var(--card-border); border-radius:4px;
+          cursor:pointer; font-size:0.93em; background:#fefcf5; }
+.option:hover { background:#f0ede0; }
+.option input { margin-right:6px; }
+.option.selected { border-color:var(--accent); background:#eff6ff; }
+.option.correct-answer { border-color:var(--correct); background:var(--correct-bg); }
+.option.wrong-answer   { border-color:var(--wrong);   background:var(--wrong-bg); }
+.q-textarea { width:100%; min-height:48px; border:1px solid var(--card-border);
+              border-radius:4px; padding:6px 10px; font-family:inherit;
+              font-size:0.93em; background:#fefcf5; resize:vertical; }
+.q-textarea:focus { outline:none; border-color:var(--accent); }
+.result { display:none; margin-top:8px; padding:8px 12px;
+          background:#fefcf5; border:1px solid var(--card-border);
+          border-radius:4px; font-size:0.9em; line-height:1.6; }
+.result .badge { display:inline-block; padding:1px 9px; border-radius:3px;
+                 font-weight:700; font-size:0.82em; margin-right:6px; }
+.badge-ok { background:var(--correct-bg); color:#166534; }
+.badge-no { background:var(--wrong-bg);   color:#991b1b; }
+.result .explanation { margin-top:4px; color:var(--ink); }
+.result .pitfall { color:#b45309; margin-top:3px; font-size:0.9em; }
+.grading-bar { text-align:center; margin:20px 0; }
+.grading-bar button { font-size:1em; padding:8px 32px; background:var(--accent);
+                      color:#fff; border:none; border-radius:var(--radius);
+                      cursor:pointer; font-weight:600; }
+.grading-bar button:hover { background:var(--accent-hover); }
+.grading-bar button:disabled { background:#bbb; cursor:not-allowed; }
+#score-box { display:none; background:var(--paper-dark); color:var(--ink);
+             padding:16px 20px; border-radius:var(--radius); margin:14px 0;
+             text-align:center; border:1px solid var(--card-border); }
+#score-box .score-num { font-size:2.2em; font-weight:700; }
+#score-box .score-label { font-size:0.85em; color:var(--ink-light); }
+.tag-src { background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:3px;
+           font-size:0.78em; font-weight:600; margin-left:6px; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<h1>{{TITLE}}</h1>
+<p class="sub">满分 {{TOTAL}} 分 | 选择/判断/填空可自动批改 | 简答/计算/代码为参考题</p>
+<p class="sub"><span class="tag-src">来源</span> 老师课件 + 教材课后题 + 算法速查表</p>
+<div id="score-box"><div class="score-num" id="score-num">0</div><div class="score-label">总分（满分 {{TOTAL}}）</div></div>
+<div id="questions-container"></div>
+<div class="grading-bar no-print"><button onclick="gradeAll()" id="grade-btn">提交批改</button></div>
+
+<p class="sub" style="margin-top:30px;"><a href="{{BACK_HREF}}">← 返回题库目录</a></p>
+
+<script>
+var Q = {{QUESTIONS_JSON}};
+var LABELS = {"section":{"choice":"一、选择题","tf":"二、判断题","fill":"三、填空题","short":"四、简答题","calc":"五、计算题","code":"六、代码题"},"section_order":["choice","tf","fill","short","calc","code"],"true_label":"正确","false_label":"错误","placeholder":"在此作答…","pitfall_prefix":"易错提醒：","correct_label":"正确","wrong_label":"错误","points_suffix":"分"};
+
+function tfAnswerIndex(ans) {
+  if (typeof ans === 'boolean') return ans ? 0 : 1;
+  var s = ('' + ans).trim().toLowerCase();
+  var t = ['t','true','正确','对','是','yes','y','√','✓','1'];
+  return t.indexOf(s) !== -1 ? 0 : 1;
+}
+function choiceAnswerIndex(ans) {
+  if (typeof ans === 'number') return ans;
+  var s = ('' + ans).trim();
+  if (/^[A-Za-z]$/.test(s)) return s.toUpperCase().charCodeAt(0) - 65;
+  return parseInt(s, 10);
+}
+function normText(s) {
+  s = ('' + s).trim().toLowerCase().replace(/\s+/g,'');
+  s = s.replace(/[.,;:!?。，、；：！？"'()【】\[\]<>《》·\.\-]/g,'');
+  return s;
+}
+function sel(qid, idx) {
+  var q = Q.find(function(x){return x._id===qid;});
+  q._ans = idx;
+  var opts = document.querySelectorAll('#opt-' + qid + ' .option, #opt-' + qid + '.option');
+  // simpler: by class
+  document.querySelectorAll('.option[data-qid="' + qid + '"]').forEach(function(e){e.classList.remove('selected');});
+  var el = document.querySelector('#opt-' + qid + '-' + idx);
+  if (el) el.classList.add('selected');
+}
+function build() {
+  var c = document.getElementById('questions-container');
+  var h = '';
+  var sec = '';
+  Q.forEach(function(q, i){
+    q._i = i; q._id = 'q' + i;
+    if (q.type !== sec) { sec = q.type; if (LABELS.section[q.type]) h += '<h3>' + LABELS.section[q.type] + '</h3>'; }
+    h += '<div class="q-card" id="card-' + q._id + '">';
+    h += '<div class="q-num">' + (i+1) + '. (' + q.points + ' ' + LABELS.points_suffix + ')</div>';
+    h += '<div class="q-text">' + q.question + '</div>';
+    if (q.type === 'choice') {
+      (q.options||[]).forEach(function(o, j){
+        h += '<label class="option" id="opt-' + q._id + '-' + j + '" data-qid="' + q._id + '" onclick="sel(\'' + q._id + '\',' + j + ')">';
+        h += '<input type="radio" name="' + q._id + '" value="' + j + '">' + String.fromCharCode(65+j) + '. ' + o + '</label>';
+      });
+    } else if (q.type === 'tf') {
+      h += '<label class="option" id="opt-' + q._id + '-0" data-qid="' + q._id + '" onclick="sel(\'' + q._id + '\',0)"><input type="radio" name="' + q._id + '" value="0">' + LABELS.true_label + '</label>';
+      h += '<label class="option" id="opt-' + q._id + '-1" data-qid="' + q._id + '" onclick="sel(\'' + q._id + '\',1)"><input type="radio" name="' + q._id + '" value="1">' + LABELS.false_label + '</label>';
+    } else {
+      h += '<textarea class="q-textarea" id="text-' + q._id + '" rows="' + (q.type==='code'?8:3) + '" placeholder="' + LABELS.placeholder + '"></textarea>';
+    }
+    h += '<div class="result" id="result-' + q._id + '">';
+    h += '<span class="badge" id="badge-' + q._id + '"></span><span id="correct-' + q._id + '"></span>';
+    h += '<div class="explanation">' + (q.explanation || '') + '</div>';
+    if (q.pitfall) h += '<div class="pitfall">' + LABELS.pitfall_prefix + q.pitfall + '</div>';
+    h += '</div></div>';
+  });
+  c.innerHTML = h;
+}
+function gradeAll() {
+  var total = 0, max = 0;
+  Q.forEach(function(q){
+    max += q.points;
+    var ok = false, userAns = null;
+    if (q.type === 'choice' || q.type === 'tf') {
+      userAns = q._ans;
+      var correct = (q.type === 'tf') ? tfAnswerIndex(q.answer) : choiceAnswerIndex(q.answer);
+      if (userAns === correct) { ok = true; total += q.points; }
+      // highlight
+      (q.options||[]).forEach(function(_, j){
+        var el = document.getElementById('opt-' + q._id + '-' + j);
+        if (el) el.classList.remove('selected');
+      });
+      if (q.type === 'tf') {
+        ['0','1'].forEach(function(j){
+          var el = document.getElementById('opt-' + q._id + '-' + j);
+          if (!el) return;
+          if (parseInt(j) === correct) el.classList.add('correct-answer');
+          if (parseInt(j) === userAns && !ok) el.classList.add('wrong-answer');
+        });
+      } else {
+        (q.options||[]).forEach(function(_, j){
+          var el = document.getElementById('opt-' + q._id + '-' + j);
+          if (!el) return;
+          if (j === correct) el.classList.add('correct-answer');
+          if (j === userAns && !ok) el.classList.add('wrong-answer');
+        });
+      }
+    } else if (q.type === 'fill') {
+      var ta = document.getElementById('text-' + q._id);
+      userAns = ta ? ta.value : '';
+      var accepts = Array.isArray(q.answer) ? q.answer : [q.answer];
+      ok = accepts.some(function(a){ return normText(userAns) === normText(a); });
+      if (ok) total += q.points;
+    } else {
+      // short/calc/code：参考题，不计入自动分
+      ok = null;
+    }
+    var card = document.getElementById('card-' + q._id);
+    var res  = document.getElementById('result-' + q._id);
+    var badge= document.getElementById('badge-' + q._id);
+    var corr = document.getElementById('correct-' + q._id);
+    if (ok === true)  { card.classList.add('correct'); badge.className='badge badge-ok'; badge.textContent=LABELS.correct_label; corr.textContent=''; }
+    else if (ok === false) { card.classList.add('wrong'); badge.className='badge badge-no'; badge.textContent=LABELS.wrong_label; corr.textContent=' 正确答案：' + (Array.isArray(q.answer)?q.answer.join(' / '):q.answer); }
+    else { badge.className='badge'; badge.textContent='参考答案'; badge.style.background='#dbeafe'; badge.style.color='#1e40af'; corr.textContent='  ' + (Array.isArray(q.answer)?q.answer.join(' / '):q.answer); }
+    res.style.display = 'block';
+  });
+  document.getElementById('score-num').textContent = total;
+  document.getElementById('score-box').style.display = 'block';
+  document.getElementById('grade-btn').disabled = true;
+  window.scrollTo(0, 0);
+}
+build();
+</script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 7 课 · 磁盘调度算法 · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+    --p1:#e8f1fb; --p2:#fdebd0; --p3:#d5f5e3; --p4:#f5d5e3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; font-size: 13px; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+
+  /* 磁道条 */
+  .track-bar {
+    position: relative; background: #f0ede5; border: 1px solid var(--line);
+    border-radius: 4px; height: 26px; margin: 16px 0 4px;
+  }
+  .track-bar .lbl {
+    position: absolute; top: 4px; font-family: "SF Mono", monospace;
+    font-size: 12px; color: var(--ink); transform: translateX(-50%);
+  }
+  .track-bar .dot {
+    position: absolute; top: 4px; width: 14px; height: 14px;
+    border-radius: 50%; transform: translateX(-50%);
+  }
+  .track-bar .dot.start { background: var(--accent); }
+  .track-bar .dot.req   { background: var(--ok); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--ok); }
+  .track-scale {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--muted); font-family: "SF Mono", monospace;
+    margin: 0 0 12px;
+  }
+
+  /* 路径表 */
+  .path { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
+  .path-title { font-weight: 600; color: var(--accent); font-size: 14px; margin-bottom: 4px; }
+  .path table { margin: 0; font-size: 14px; }
+  .path td.move { background: var(--p2); font-family: "SF Mono", monospace; }
+  .path td.sum  { background: var(--p3); font-weight: 700; color: var(--ok); }
+
+  /* 模拟步骤表 */
+  .sim { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
+  .sim-title { font-weight: 600; color: var(--accent); font-size: 14px; margin-bottom: 4px; }
+  .sim table { margin: 0; font-size: 13px; }
+
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 12px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q, .path, .sim, .track-bar { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 7 课 · 期末冲刺 · 第 8 章 / IO 章必考计算题</div>
+  <h1>磁盘调度算法 · 磁头怎么跑最省路</h1>
+  <div class="sub">目标：15-20 分钟装下"寻道"概念，会算 FCFS / SSTF / SCAN / CSCAN 的总寻道长度</div>
+</header>
+
+<h2>1. 一句话 + 电梯类比</h2>
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>磁头要从当前位置出发，按某种规则去访问 N 个磁道——规则不同，总寻道长度不同。</b>核心是"按什么顺序去"。
+</blockquote>
+
+<div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0;">
+  <div style="border:2px solid var(--ink); border-radius:6px; padding:10px; background: var(--p2);">
+    <div style="font-weight:700; font-size:14px;">🏢 电梯（= 磁头）</div>
+    <div style="font-size:13px;">当前在 <b>100 楼</b>。要去的楼层请求：<br>55, 58, 39, 18, 90, 160, 150, 38, 184</div>
+  </div>
+  <div style="border:2px solid var(--ink); border-radius:6px; padding:10px; background: var(--p3);">
+    <div style="font-weight:700; font-size:14px;">📏 寻道长度</div>
+    <div style="font-size:13px;">从一格到下一格经过的<b>楼层数差</b>的<b>累加</b>。寻道长度 = ∑|当前位置 - 下一位置|</div>
+  </div>
+</div>
+
+<table>
+  <tr><th>OS 概念</th><th>电梯类比</th></tr>
+  <tr><td>磁道（0-200）</td><td>楼层（0-200 楼）</td></tr>
+  <tr><td>磁头当前位置</td><td>电梯当前在几楼</td></tr>
+  <tr><td>磁道访问请求</td><td>乘客要去的目标楼层</td></tr>
+  <tr><td>寻道（seek）</td><td>电梯从一楼层开到另一楼层</td></tr>
+  <tr><td>寻道长度</td><td>开过的楼层数（差值的绝对值）</td></tr>
+</table>
+
+<h2>2. 4 个核心算法对照表（必背）</h2>
+
+<table>
+  <tr><th>算法</th><th>调度规则</th><th>优点</th><th>缺点</th></tr>
+  <tr>
+    <td><b>FCFS</b><br>（先来先服务）</td>
+    <td>按请求<b>到达顺序</b></td>
+    <td>公平，实现最简单</td>
+    <td>寻道长，磁头乱跑</td>
+  </tr>
+  <tr>
+    <td><b>SSTF</b><br>（最短寻道优先）</td>
+    <td>每次去<b>离当前最近的</b></td>
+    <td>寻道短，<b>性能好</b></td>
+    <td>可能<b>饿死</b>远端请求</td>
+  </tr>
+  <tr>
+    <td><b>SCAN</b><br>（电梯算法）</td>
+    <td>沿一个方向跑到底，再反向</td>
+    <td>不会饿死，性能好</td>
+    <td>两端请求等待长</td>
+  </tr>
+  <tr>
+    <td><b>CSCAN</b><br>（循环扫描）</td>
+    <td>单方向跑到底，<b>跳回起点</b>重跑</td>
+    <td>所有请求等待时间<b>均匀</b></td>
+    <td>磁头空跳浪费</td>
+  </tr>
+</table>
+
+<div class="callout warn">
+<b>易记口诀</b>：<br>
+• <b>FCFS = 不动脑</b>（先来先走）<br>
+• <b>SSTF = 找最近</b>（跟 L6 页面置换的"看过去"思路一样）<br>
+• <b>SCAN = 电梯</b>（一个方向跑到底再回来）<br>
+• <b>CSCAN = 单向循环</b>（电梯只往上不回头，从一楼重走）
+</div>
+
+<h2>3. 寻道长度怎么算？</h2>
+
+<p><b>公式</b>：</p>
+
+<pre>
+寻道长度 = |当前磁道 - 目标磁道|
+总寻道长度 = 每次寻道长度 加起来
+</p>
+
+<p><b>例</b>：磁头在 100，下一个请求是 55。寻道 = |100 - 55| = <b>45</b>。</p>
+
+<h2>4. 完整例题（4 个算法都算一遍）</h2>
+
+<p><b>已知</b>：磁道访问请求 = <code>55, 58, 39, 18, 90, 160, 150, 38, 184</code>，磁头当前在 <b>100</b>，磁头方向<b>向大磁道</b>（SCAN/CSCAN 用）。磁道范围 0-199。</p>
+
+<h3>4.1 磁道请求分布图（看谁近谁远）</h3>
+<div class="track-bar">
+  <div class="lbl" style="left: 5%;">0</div>
+  <div class="dot req" style="left: calc(5% + 18*0.475%);"></div>
+  <div class="lbl" style="left: 19%;">18</div>
+  <div class="dot req" style="left: calc(5% + 38*0.475%);"></div>
+  <div class="lbl" style="left: 38%;">38</div>
+  <div class="dot req" style="left: calc(5% + 39*0.475%);"></div>
+  <div class="lbl" style="left: calc(5% + 39*0.475%);">39</div>
+  <div class="dot req" style="left: calc(5% + 55*0.475%);"></div>
+  <div class="lbl" style="left: 55%;">55</div>
+  <div class="dot req" style="left: calc(5% + 58*0.475%);"></div>
+  <div class="lbl" style="left: 58%;">58</div>
+  <div class="dot req" style="left: calc(5% + 90*0.475%);"></div>
+  <div class="lbl" style="left: 90%;">90</div>
+  <div class="dot start" style="left: calc(5% + 100*0.475%);"></div>
+  <div class="lbl" style="left: 100%;">100</div>
+</div>
+<p style="text-align:center; font-size:12px; color:var(--muted);">🟢 请求点 &nbsp;&nbsp; 🔴 磁头起始位置（100）</p>
+
+<h3>4.2 FCFS（按请求顺序）</h3>
+<div class="path">
+  <div class="path-title">FCFS 路径：100 → 55 → 58 → 39 → 18 → 90 → 160 → 150 → 38 → 184</div>
+  <table>
+    <tr><th>移动</th><td>100→55</td><td>55→58</td><td>58→39</td><td>39→18</td><td>18→90</td><td>90→160</td><td>160→150</td><td>150→38</td><td>38→184</td><td><b>总</b></td></tr>
+    <tr><th>寻道</th>
+      <td class="move">|100-55|=45</td>
+      <td class="move">3</td>
+      <td class="move">19</td>
+      <td class="move">21</td>
+      <td class="move">72</td>
+      <td class="move">70</td>
+      <td class="move">10</td>
+      <td class="move">112</td>
+      <td class="move">146</td>
+      <td class="sum">498</td>
+    </tr>
+  </table>
+</div>
+<p><b>FCFS 特点</b>：磁头在 100→55→58→39→18→90 之间来回跑（大来回），寻道长度 <b>最大</b>。</p>
+
+<h3>4.3 SSTF（找最近的）</h3>
+<div class="path">
+  <div class="path-title">SSTF 路径：100 → 90 → 58 → 55 → 39 → 38 → 18 → 150 → 160 → 184</div>
+  <table>
+    <tr><th>移动</th><td>100→90</td><td>90→58</td><td>58→55</td><td>55→39</td><td>39→38</td><td>38→18</td><td>18→150</td><td>150→160</td><td>160→184</td><td><b>总</b></td></tr>
+    <tr><th>寻道</th>
+      <td class="move">10</td>
+      <td class="move">32</td>
+      <td class="move">3</td>
+      <td class="move">16</td>
+      <td class="move">1</td>
+      <td class="move">20</td>
+      <td class="move">132</td>
+      <td class="move">10</td>
+      <td class="move">24</td>
+      <td class="sum">248</td>
+    </tr>
+  </table>
+</div>
+<p><b>SSTF 思路</b>：每次去离当前<b>最近的</b>，所以前 6 步都在磁道 18-90 之间小范围来回，<b>后面 3 步</b>（18→150→160→184）才跨过去。</p>
+
+<h3>4.4 SCAN（电梯算法，向大方向）</h3>
+<p><b>规则</b>：从 100 向大方向（→200）跑，把所有 ≥100 的请求按升序访问完，再反向访问 &lt;100 的。</p>
+
+<div class="path">
+  <div class="path-title">SCAN 路径：100 → 150 → 160 → 184 → 90 → 58 → 55 → 39 → 38 → 18</div>
+  <table>
+    <tr><th>移动</th><td>100→150</td><td>150→160</td><td>160→184</td><td>184→90</td><td>90→58</td><td>58→55</td><td>55→39</td><td>39→38</td><td>38→18</td><td><b>总</b></td></tr>
+    <tr><th>寻道</th>
+      <td class="move">50</td>
+      <td class="move">10</td>
+      <td class="move">24</td>
+      <td class="move">94</td>
+      <td class="move">32</td>
+      <td class="move">3</td>
+      <td class="move">16</td>
+      <td class="move">1</td>
+      <td class="move">20</td>
+      <td class="sum">250</td>
+    </tr>
+  </table>
+</div>
+<p><b>SCAN 思路</b>：先一路向"大"方向（150, 160, 184）跑到最大，再反向一路扫回去（90→58→55→39→38→18）。<b>像电梯从 100 楼往上到顶，再往下回来。</b></p>
+
+<h3>4.5 CSCAN（单向循环）</h3>
+<p><b>规则</b>：从 100 向大方向跑到 184（最大请求），<b>磁头空跳回 0</b>，再从小到大访问剩下的。</p>
+
+<div class="path">
+  <div class="path-title">CSCAN 路径：100 → 150 → 160 → 184 → 0（跳回）→ 18 → 38 → 39 → 55 → 58 → 90</div>
+  <table>
+    <tr><th>移动</th><td>100→150</td><td>150→160</td><td>160→184</td><td>184→0</td><td>0→18</td><td>18→38</td><td>38→39</td><td>39→55</td><td>55→58</td><td>58→90</td><td><b>总</b></td></tr>
+    <tr><th>寻道</th>
+      <td class="move">50</td>
+      <td class="move">10</td>
+      <td class="move">24</td>
+      <td class="move">184</td>
+      <td class="move">18</td>
+      <td class="move">20</td>
+      <td class="move">1</td>
+      <td class="move">16</td>
+      <td class="move">3</td>
+      <td class="move">32</td>
+      <td class="sum">358</td>
+    </tr>
+  </table>
+</div>
+<p><b>CSCAN 思路</b>：电梯到顶后，<b>瞬移回 1 楼</b>，再重新往上。每个请求"被访问前的等待"比较均匀（不会两端特别惨）。</p>
+
+<h2>5. 4 个算法结果对比</h2>
+
+<table>
+  <tr><th>算法</th><th>总寻道</th><th>排名</th><th>特点</th></tr>
+  <tr><td><b>FCFS</b></td><td>498</td><td>最差</td><td>磁头来回跑</td></tr>
+  <tr><td><b>SSTF</b></td><td><b>248</b></td><td>最优</td><td>找最近，但可能饿死远端</td></tr>
+  <tr><td><b>SCAN</b></td><td>250</td><td>次优</td><td>电梯来回，无饿死</td></tr>
+  <tr><td><b>CSCAN</b></td><td>358</td><td>一般</td><td>空跳多了，但等待均匀</td></tr>
+</table>
+
+<div class="callout warn">
+<b>关键 1 秒</b>：<br>
+• SSTF 寻道<b>最短</b>，但远端请求可能<b>饿死</b>（一直有近端请求先服务）<br>
+• SCAN / CSCAN 寻道略长，但<b>公平性</b>好，<b>实际系统最常用</b>的调度类思路
+</div>
+
+<h2>6. 必背 4 句话（考试原话）</h2>
+
+<div class="callout">
+<b>①</b> 寻道长度 = |当前磁道 - 目标磁道|，总寻道 = 累加每次的差值。<br>
+<b>②</b> <b>FCFS = 按到达顺序</b>（公平但寻道最长）。<br>
+<b>③</b> <b>SSTF = 找最近</b>（寻道短，可能饿死远端）。<br>
+<b>④</b> <b>SCAN = 电梯来回</b>，<b>CSCAN = 单向循环</b>（公平性好）。
+</div>
+
+<h2>7. 自检（先做再翻答案）</h2>
+
+<div class="q">
+<b>Q1（口述）</b> 什么是"寻道"？寻道长度怎么算？
+</div>
+
+<div class="q">
+<b>Q2（口述）</b> SSTF 的"找最近"和 SCAN 的"电梯来回"有什么区别？哪个可能"饿死"？
+</div>
+
+<div class="q">
+<b>Q3（计算）</b> 磁道请求 <code>90, 100, 50, 30, 150</code>，磁头在 <b>80</b>。用 FCFS 算总寻道长度。<br>
+（提示：90, 100, 50, 30, 150 5 个请求按顺序访问，起点 80）
+</div>
+
+<div class="q">
+<b>Q4（计算）</b> 同上，用 SSTF 算总寻道长度。
+</div>
+
+<div class="q">
+<b>Q5（选择）</b> 关于磁盘调度，下面哪个说法<b>正确</b>？<br>
+A. FCFS 寻道长度一定最短<br>
+B. SSTF 没有"饿死"问题<br>
+C. <b>SCAN 不会饿死远端请求</b><br>
+D. CSCAN 比 SCAN 寻道短
+</div>
+
+<div class="callout ok">
+<b>答案对照</b><br>
+A1：磁头从一个磁道移到另一个磁道的动作。寻道长度 = |当前磁道 - 目标磁道|（取绝对值）。<br>
+A2：SSTF 每次去最近的，可能让远端请求一直排不上（饿死）。SCAN 电梯来回，每个方向的请求都会被扫到，不会饿死。<b>SSTF 可能饿死</b>。<br>
+A3：FCFS：80→90（10）→100（10）→50（50）→30（20）→150（120）= 10+10+50+20+120 = <b>210</b>。<br>
+A4：SSTF：80→100（20）→90（10）→50（40）→30（20）→150（120）= 20+10+40+20+120 = <b>210</b>。SSTF 偶尔和 FCFS 总寻道一样，但路径不同。<br>
+A5：C。SCAN 电梯来回，远端请求迟早会被扫到；SSTF 才可能饿死。
+</div>
+
+<div class="callout warn">
+<b>老师改卷最爱挑的 2 个坑</b>：<br>
+1. <b>SCAN/CSCAN 要看清方向</b>——题目若说"磁头向小磁道方向"，要从 100 → 90 → 58 → 55 → ...（反过来）<br>
+2. <b>CSCAN 的"跳回"也算寻道</b>——从 184 跳到 0，那 184 算进去！
+</div>
+
+<h2>8. 完整流程速记（手算时按这 3 步走）</h2>
+
+<pre>
+已知：磁道请求序列 R[1..N]，磁头当前位置 C，磁头方向 D
+
+① 算每次寻道 |C - R[i]|，加起来 → 总寻道长度
+
+② FCFS：按 R 顺序访问
+   SSTF：每次找最近的（用 min |C - R[i]|）
+   SCAN：先沿 D 方向访问 D 侧的请求（升/降序），再反向访问另一侧
+   CSCAN：先沿 D 方向访问完，磁头跳回 0（或另一端），再升序访问剩下的
+</pre>
+
+<h2>9. 下一步</h2>
+
+<p>本节任何一题你不能立刻答出来，告诉我；我们就从那一题开始下一节。<br>
+如果都能答，<b>下一节 = 第 8 课：进程同步 / PV 操作（Ch2 必考综合题，10 分大题）</b>——前面的"找页"思路用不上了，要换脑子学"信号量"。</p>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> <a href="../bank/ch06-test.html">📝 第 6 章测试（磁盘调度+文件管理）</a><br><a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+<footer class="lesson-foot">
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../RESOURCES.md">RESOURCES.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a> ·
+<a href="0002-scheduling-algorithms.html">第 2 课</a> ·
+<a href="0003-bankers-algorithm.html">第 3 课</a> ·
+<a href="0004-group-linking.html">第 4 课</a> ·
+<a href="0005-paging-fundamentals.html">第 5 课</a> ·
+<a href="0006-page-replacement.html">第 6 课</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0007-disk-scheduling.html"</code>
+</footer>
+
+</div>
+</body>
+</html>

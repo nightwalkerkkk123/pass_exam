@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 3 课 · 银行家算法 · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+    --safe:#e3efe6; --unsafe:#fde2dd; --neutral:#fff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: center; vertical-align: middle; }
+  th { background: #f0ede5; font-weight: 600; }
+  table.matrix th { font-family: "SF Mono", monospace; }
+  td.feasible { background: var(--safe); color: var(--ok); font-weight: 600; }
+  td.infeasible { background: var(--unsafe); color: #8a1c11; }
+  td.changed { background: #fff0d6; }
+  td.finish { background: var(--ok); color: white; font-weight: 600; }
+  td.need { background: #f3e8f7; }
+  td.work { background: #dde7f5; font-weight: 600; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+  .pill { display:inline-block; padding: 1px 7px; border-radius: 10px;
+          font-size: 12px; background: #eee; color: var(--ink); margin-left: 4px;}
+  .pill.high { background: #fde2dd; color: #8a1c11; }
+  .pill.mid  { background: #fff0d6; color: #7a4a00; }
+  .pill.low  { background: #e3efe6; color: #1f6f43; }
+
+  .step-box {
+    border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px;
+    background: #fff; margin: 12px 0;
+  }
+  .step-box .step-num {
+    display: inline-block; background: var(--accent); color: white;
+    width: 24px; height: 24px; border-radius: 50%; text-align: center;
+    line-height: 24px; font-weight: 700; margin-right: 8px;
+  }
+  .step-box h4 { display: inline-block; margin: 0; color: var(--accent); }
+
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 13px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q, .step-box { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 3 课 · 期末冲刺</div>
+  <h1>银行家算法 · 死锁避免</h1>
+  <div class="sub">目标：20 分钟内把 4 个矩阵 + 安全性检查 + 资源请求流程装进脑子，能独立做计算大题</div>
+</header>
+
+<h2>1. 一句话：银行家算法在干什么</h2>
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>借钱之前先算一笔账</b>——算出"这条路径还得起吗"→还得起就借，还得不起就<b>拒绝</b>（让进程等），避免死锁。
+</blockquote>
+
+<p>类比：银行贷款给你之前，先<b>模拟一遍还款路径</b>：你借了 → 能还吗 → 你又借了 → 还能还吗 → …… → 都能还得起？→ 借钱。→ 中间有一步还不起？→ 拒绝。</p>
+
+<div class="callout">
+<b>银行家算法属于"避免死锁"</b>，它和"预防死锁"不一样（破坏 4 条件）。<b>避免</b>=<b>运行时算账</b>，允许条件存在但动态避免。
+</div>
+
+<h2>2. 死锁处理的 4 个层次（必背）</h2>
+<table>
+  <tr><th>层次</th><th>做法</th><th>代表方法</th><th>代价</th></tr>
+  <tr><td><b>预防</b></td><td>破坏 4 条件之一（设计阶段）</td><td>一次性申请全部资源</td><td>资源利用率低</td></tr>
+  <tr><td><b style="color:var(--ok);">避免</b></td><td>运行时算账，绕开死锁</td><td><b style="color:var(--ok);">银行家算法</b></td><td>每次都要算，开销大</td></tr>
+  <tr><td><b>检测</b></td><td>允许死锁发生，事后检测</td><td>资源分配图化简</td><td>需要检测机制</td></tr>
+  <tr><td><b>解除</b></td><td>检测到死锁后处理</td><td>撤销进程 / 资源抢占</td><td>损失已做的工作</td></tr>
+</table>
+
+<h2>3. 4 个核心数据结构（必背矩阵）</h2>
+
+<table class="matrix">
+  <tr><th>名字</th><th>符号</th><th>含义</th><th>求法</th></tr>
+  <tr><td><b>最大需求</b></td><td>Max</td><td>进程<b>总共</b>最多需要多少资源</td><td>题目给</td></tr>
+  <tr><td><b>已分配</b></td><td>Allocation</td><td>进程<b>已经拿走</b>的资源</td><td>题目给</td></tr>
+  <tr><td><b>还需要的</b></td><td><b style="color:#9a7ab0;">Need</b></td><td>进程<b>还需要</b>多少资源才能完成</td><td><b>Need = Max − Allocation</b></td></tr>
+  <tr><td><b>系统空闲</b></td><td>Available</td><td>系统<b>还剩</b>多少可用资源</td><td>题目给</td></tr>
+</table>
+
+<div class="callout warn">
+<b>必背公式（默写 3 遍）</b>：<br>
+<code>Need[i][j] = Max[i][j] − Allocation[i][j]</code><br>
+考试 90% 的第一步就是这个！
+</div>
+
+<h2>4. 两个关键流程</h2>
+
+<h3>4.1 安全性检查（找"安全序列"）</h3>
+<p><b>目的</b>：判断当前状态下<b>所有进程能不能都跑完</b>。如果能 → <b>安全</b>；不能 → <b>不安全</b>（可能死锁）。</p>
+
+<div class="step-box">
+  <span class="step-num">1</span><h4>初始化 Work = Available</h4>
+  <p style="margin:6px 0 0 32px;">Work 是个"模拟可用资源"，从系统的 Available 开始。</p>
+</div>
+
+<div class="step-box">
+  <span class="step-num">2</span><h4>找一个 Need ≤ Work 的进程</h4>
+  <p style="margin:6px 0 0 32px;">挨个看：哪个进程的 Need 全部 ≤ 当前 Work？</p>
+</div>
+
+<div class="step-box">
+  <span class="step-num">3</span><h4>假设它跑完 → Work += Allocation</h4>
+  <p style="margin:6px 0 0 32px;">跑完会<b>归还</b>它占的资源，所以 Work 加上它的 Allocation。</p>
+</div>
+
+<div class="step-box">
+  <span class="step-num">4</span><h4>把该进程标 Finish = true，循环 2-3</h4>
+  <p style="margin:6px 0 0 32px;">继续找下一个能跑完的进程。</p>
+</div>
+
+<div class="step-box">
+  <span class="step-num">5</span><h4>所有进程都 Finish？</h4>
+  <p style="margin:6px 0 0 32px;">是 → <b style="color:var(--ok);">安全</b>，安全序列就是跑完顺序；否 → <b style="color:#8a1c11;">不安全</b>，存在死锁风险。</p>
+</div>
+
+<h3>4.2 资源分配请求（"借钱"流程）</h3>
+<p>进程 Pi 提出请求 Request_i，要走 4 步：</p>
+
+<div class="step-box">
+  <span class="step-num">1</span><h4>Request ≤ Need？</h4>
+  <p style="margin:6px 0 0 32px;">否 → <b>出错</b>（要的比声明的还多）；是 → 继续。</p>
+</div>
+
+<div class="step-box">
+  <span class="step-num">2</span><h4>Request ≤ Available？</h4>
+  <p style="margin:6px 0 0 32px;">否 → <b>等</b>（系统没货了）；是 → 继续。</p>
+</div>
+
+<div class="step-box">
+  <span class="step-num">3</span><h4>试探性分配</h4>
+  <p style="margin:6px 0 0 32px;">假装真的分给它：Available −= Request；Allocation += Request；Need −= Request。</p>
+</div>
+
+<div class="step-box">
+  <span class="step-num">4</span><h4>跑安全性检查</h4>
+  <p style="margin:6px 0 0 32px;">安全 → <b style="color:var(--ok);">真正分配</b>；不安全 → <b style="color:#8a1c11;">撤销</b>（回滚到试探前状态），让进程等。</p>
+</div>
+
+<div class="callout ok">
+<b>金句（默写）</b>：「<b>试探分配后跑安全性检查</b>——安全才真分，不安全就回滚」。
+</div>
+
+<h2>5. 完整例题（教科书经典，5 进程 3 类资源）</h2>
+
+<p><b>题目</b>：5 个进程 P0~P4，3 类资源 A/B/C。系统初始：<b>Available = (10, 5, 7)</b>。</p>
+
+<h3>5.1 已知 Max 和 Allocation</h3>
+<table class="matrix">
+  <tr><th></th><th colspan="3" style="background:#fff0d6;">Max</th>
+      <th colspan="3" style="background:#dde7f5;">Allocation</th></tr>
+  <tr><th>进程</th><th>A</th><th>B</th><th>C</th><th>A</th><th>B</th><th>C</th></tr>
+  <tr><td>P0</td><td>7</td><td>5</td><td>3</td><td>0</td><td>1</td><td>0</td></tr>
+  <tr><td>P1</td><td>3</td><td>2</td><td>2</td><td>2</td><td>0</td><td>0</td></tr>
+  <tr><td>P2</td><td>9</td><td>0</td><td>2</td><td>3</td><td>0</td><td>2</td></tr>
+  <tr><td>P3</td><td>2</td><td>2</td><td>2</td><td>2</td><td>1</td><td>1</td></tr>
+  <tr><td>P4</td><td>4</td><td>3</td><td>3</td><td>0</td><td>0</td><td>2</td></tr>
+</table>
+
+<h3>5.2 第一步：算 Need = Max − Allocation</h3>
+<table class="matrix">
+  <tr><th>进程</th><th colspan="3" style="background:#f3e8f7;">Need = Max − Allocation</th></tr>
+  <tr><th></th><th>A</th><th>B</th><th>C</th></tr>
+  <tr><td>P0</td><td>7-0=<b>7</b></td><td>5-1=<b>4</b></td><td>3-0=<b>3</b></td></tr>
+  <tr><td>P1</td><td>3-2=<b>1</b></td><td>2-0=<b>2</b></td><td>2-0=<b>2</b></td></tr>
+  <tr><td>P2</td><td>9-3=<b>6</b></td><td>0-0=<b>0</b></td><td>2-2=<b>0</b></td></tr>
+  <tr><td>P3</td><td>2-2=<b>0</b></td><td>2-1=<b>1</b></td><td>2-1=<b>1</b></td></tr>
+  <tr><td>P4</td><td>4-0=<b>4</b></td><td>3-0=<b>3</b></td><td>3-2=<b>1</b></td></tr>
+</table>
+
+<h3>5.3 第二步：跑安全性检查（找安全序列）</h3>
+<p><b>初始 Work = Available = (10, 5, 7)</b>（用完所有进程后 Work 会涨到 10,5,7 + 全部 Allocation = 17,7,9）</p>
+
+<table class="matrix">
+  <tr><th>轮次</th><th>选谁？</th><th>判断（Need ≤ Work？）</th><th>Work += Allocation</th><th>新 Work</th></tr>
+  <tr>
+    <td>1</td>
+    <td><b>P1</b></td>
+    <td>(1,2,2) ≤ (10,5,7) <span class="pill low">✓</span></td>
+    <td>+ (2,0,0)</td>
+    <td class="work">(10,5,7)→(12,5,7)</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><b>P3</b></td>
+    <td>(0,1,1) ≤ (12,5,7) <span class="pill low">✓</span></td>
+    <td>+ (2,1,1)</td>
+    <td class="work">(12,5,7)→(14,6,8)</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><b>P4</b></td>
+    <td>(4,3,1) ≤ (14,6,8) <span class="pill low">✓</span></td>
+    <td>+ (0,0,2)</td>
+    <td class="work">(14,6,8)→(14,6,10)</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><b>P2</b></td>
+    <td>(6,0,0) ≤ (14,6,10) <span class="pill low">✓</span></td>
+    <td>+ (3,0,2)</td>
+    <td class="work">(14,6,10)→(17,6,12)</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td><b>P0</b></td>
+    <td>(7,4,3) ≤ (17,6,12) <span class="pill low">✓</span></td>
+    <td>+ (0,1,0)</td>
+    <td class="work">(17,6,12)→(17,7,12)</td>
+  </tr>
+</table>
+
+<div class="callout ok">
+<b>安全序列：P1 → P3 → P4 → P2 → P0</b>。所有进程都能跑完 → 当前状态 <b style="color:var(--ok);">安全</b>。
+</div>
+
+<h3>5.4 第三步：处理资源请求（典型变种）</h3>
+<p><b>题目</b>：P1 提出新请求 <b>Request = (1, 0, 2)</b>，能分吗？</p>
+
+<div class="step-box">
+  <span class="step-num">1</span><h4>Request ≤ Need(P1)？</h4>
+  <p style="margin:6px 0 0 32px;">(1,0,2) ≤ (1,2,2) <span class="pill low">✓</span></p>
+</div>
+
+<div class="step-box">
+  <span class="step-num">2</span><h4>Request ≤ Available？</h4>
+  <p style="margin:6px 0 0 32px;">(1,0,2) ≤ (10,5,7) <span class="pill low">✓</span></p>
+</div>
+
+<div class="step-box">
+  <span class="step-num">3</span><h4>试探性分配</h4>
+  <p style="margin:6px 0 0 32px;">
+    Available: (10,5,7) − (1,0,2) = <b style="color:var(--ok);">(9, 5, 5)</b><br>
+    Allocation(P1): (2,0,0) + (1,0,2) = <b style="color:var(--ok);">(3, 0, 2)</b><br>
+    Need(P1): (1,2,2) − (1,0,2) = <b style="color:var(--ok);">(0, 2, 0)</b>
+  </p>
+</div>
+
+<div class="step-box">
+  <span class="step-num">4</span><h4>跑安全性检查（Work = (9,5,5)）</h4>
+  <p style="margin:6px 0 0 32px;">
+    找 Need ≤ (9,5,5) 的进程：<br>
+    • P1 Need (0,2,0) ≤ (9,5,5) <span class="pill low">✓</span> → Work = (9,5,5)+(3,0,2) = <b>(12,5,7)</b><br>
+    • P3 Need (0,1,1) ≤ (12,5,7) <span class="pill low">✓</span> → Work = (14,6,8)<br>
+    • P4 Need (4,3,1) ≤ (14,6,8) <span class="pill low">✓</span> → Work = (14,6,10)<br>
+    • P2 Need (6,0,0) ≤ (14,6,10) <span class="pill low">✓</span> → Work = (17,6,12)<br>
+    • P0 Need (7,4,3) ≤ (17,6,12) <span class="pill low">✓</span> → Work = (17,7,12)<br>
+    <b>安全序列：P1 → P3 → P4 → P2 → P0</b> ✓
+  </p>
+</div>
+
+<div class="callout ok">
+<b>结论</b>：试探后仍然安全 → <b style="color:var(--ok);">真正把资源分给 P1</b>。
+</div>
+
+<h2>6. 关键判断点（考试最爱问）</h2>
+
+<table>
+  <tr><th>情况</th><th>判断</th><th>动作</th></tr>
+  <tr><td>Request &gt; Need</td><td>进程出错（要超量）</td><td>报错</td></tr>
+  <tr><td>Request &gt; Available</td><td>系统没货</td><td>进程等</td></tr>
+  <tr><td>试探后能找到安全序列</td><td><b>安全</b></td><td>真正分配</td></tr>
+  <tr><td>试探后找不到安全序列</td><td><b>不安全</b></td><td><b>回滚</b>，进程等</td></tr>
+</table>
+
+<h2>7. 必背口诀</h2>
+<div class="callout ok">
+<b>3 句口诀（默写）</b>：<br>
+1. <b>Need = Max − Allocation</b>（求法）<br>
+2. <b>Work += Allocation</b>（安全性检查的递推公式）<br>
+3. <b>试探后跑安全性检查</b>（资源分配流程的核心）
+</div>
+
+<h2>8. 自检（做不看答案）</h2>
+
+<div class="q">
+<b>Q1</b>（默写）Need 矩阵怎么求？递推公式 Work += ?
+</div>
+<div class="q">
+<b>Q2</b>（口述）银行家算法属于死锁处理的哪一层？和"预防"差在哪？
+</div>
+<div class="q">
+<b>Q3</b>（口述）资源请求的 4 步流程是什么？
+</div>
+<div class="q">
+<b>Q4</b>（选择）试探分配后跑安全性检查，结果是<b>不安全</b>，OS 应该怎么办？
+<br>A. 强行分配，反正只是可能死锁
+<br>B. <b>回滚到试探前，让进程等</b>
+<br>C. 把进程杀掉
+<br>D. 重启系统
+</div>
+
+<div class="callout ok">
+<b>答案对照</b><br>
+A1：Need = Max − Allocation；Work += Allocation<br>
+A2：属于"避免"层；预防是设计阶段破坏 4 条件，避免是运行时算账<br>
+A3：① Request ≤ Need？② Request ≤ Available？③ 试探分配 ④ 安全性检查<br>
+A4：B（不安全必须回滚，否则会真死锁）
+</div>
+
+<h2>9. 下一步</h2>
+<p>本节任何一题你不能立刻、不查资料地答出来，告诉我；我们就从那一题开始下一节。<br>
+如果都能答，<b>下一节 = 成组链接法（第 6 章，老师作业原题）</b>，把所有必考分拿稳。</p>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> <a href="../bank/ch03-test.html">📝 第 3 章测试</a><br><a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+<footer class="lesson-foot">
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../RESOURCES.md">RESOURCES.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a> ·
+<a href="0002-scheduling-algorithms.html">第 2 课</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0003-bankers-algorithm.html"</code>
+</footer>
+
+</div>
+</body>
+</html>

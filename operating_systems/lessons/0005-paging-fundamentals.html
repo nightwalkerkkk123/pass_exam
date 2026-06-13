@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 5 课 · 分页存储管理 · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+    --p1:#e8f1fb; --p2:#fdebd0; --p3:#d5f5e3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+
+  /* ===== 酒店类比可视化 ===== */
+  .hotel {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+    margin: 12px 0;
+  }
+  .hotel-side {
+    border: 2px solid var(--ink); border-radius: 6px; padding: 10px;
+    background: #fff;
+  }
+  .hotel-side.itin { background: var(--p1); }
+  .hotel-side.rooms { background: var(--p2); }
+  .hotel-title { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+  .slot {
+    display: flex; align-items: center; justify-content: space-between;
+    border: 1px solid #999; border-radius: 3px;
+    background: #fff; padding: 4px 8px; margin: 3px 0;
+    font-family: "SF Mono", monospace; font-size: 13px;
+  }
+  .slot.left { background: var(--p1); }
+  .slot.right { background: var(--p2); }
+  .arrow { text-align: center; font-size: 18px; color: var(--accent); margin: 4px 0; }
+
+  /* ===== 页表 ===== */
+  .ptable {
+    background: #fff; border: 1px solid var(--line); border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0;
+  }
+  .ptable-title { font-weight: 600; color: var(--accent); margin-bottom: 6px; font-size: 14px; }
+  .ptable table { margin: 0; font-size: 14px; }
+  .ptable th { background: var(--p3); }
+  .ptable td.k { font-family: "SF Mono", monospace; color: var(--accent); font-weight: 600; }
+
+  /* ===== 地址结构图 ===== */
+  .addr {
+    display: flex; border: 2px solid var(--ink); border-radius: 4px;
+    background: #fff; overflow: hidden; margin: 8px 0;
+  }
+  .addr-cell {
+    flex: 1; text-align: center; padding: 10px 6px;
+    border-right: 1px solid var(--line);
+    font-family: "SF Mono", monospace; font-size: 14px; font-weight: 600;
+  }
+  .addr-cell:last-child { border-right: none; }
+  .addr-cell.label { background: #f0ede5; }
+  .addr-cell.logic-page  { background: var(--p1); }
+  .addr-cell.phys-frame  { background: var(--p2); }
+  .addr-cell.offset      { background: var(--p3); }
+
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 13px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q, .hotel, .ptable, .addr { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 5 课 · 期末冲刺 · 第 4 章 / 为第 6 课页面置换打地基</div>
+  <h1>分页存储管理 · 程序的"格子"和内存的"格子"</h1>
+  <div class="sub">目标：15 分钟装下"页面=物理块=4KB"+"页表是啥"+"逻辑地址怎么变物理地址"——下节课页面置换就在这之上操作</div>
+</header>
+
+<h2>1. 一句话 + 酒店类比</h2>
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>把程序和内存都切成同样大小的"小格子"（4KB 一格），用一张"对应单"（页表）记下程序第几格住进了内存第几格。</b>
+</blockquote>
+
+<div class="hotel">
+  <div class="hotel-side itin">
+    <div class="hotel-title">📋 旅客行程单（= 整个程序）</div>
+    <div class="slot left">第 0 项：8:00 早餐</div>
+    <div class="slot left">第 1 项：9:30 开会</div>
+    <div class="slot left">第 2 项：14:00 游泳</div>
+    <div class="slot left">第 3 项：18:00 晚饭</div>
+    <div class="slot left">第 4 项：20:00 看电影</div>
+    <div style="font-size:12px; color:#444; margin-top:4px;">按"半天一个活动"切</div>
+  </div>
+  <div class="hotel-side rooms">
+    <div class="hotel-title">🏨 酒店房间（= 整个内存）</div>
+    <div class="slot right">305 房（空闲）</div>
+    <div class="slot right">312 房（空闲）</div>
+    <div class="slot right">408 房（空闲）</div>
+    <div class="slot right">510 房（空闲）</div>
+    <div class="slot right">607 房（空闲）</div>
+    <div style="font-size:12px; color:#444; margin-top:4px;">每个房间一样大（标准间）</div>
+  </div>
+</div>
+
+<p style="text-align:center; font-weight:600; color:var(--accent);">
+  ↓ 旅客订房单（= <b>页表</b>）：活动 0 → 305，活动 1 → 510，活动 2 → 312，活动 3 → 408，活动 4 → 607
+</p>
+
+<div class="callout">
+<b>记住 3 件事</b>：<br>
+1. <b>行程单每"半天"切一刀</b> = 程序的"页面"（大小固定 4KB）<br>
+2. <b>酒店每个房间一样大</b> = 内存的"物理块"（大小固定 4KB，跟页面<b>必须一样大</b>）<br>
+3. <b>订房单</b> = 页表，OS 替我们维护，告诉我们"活动 N 在房间 X"
+</div>
+
+<h2>2. 关键术语 2 列对照表（4 行，背）</h2>
+
+<table>
+  <tr><th style="width:50%;">程序侧（虚拟 / 程序员看到）</th><th>内存侧（物理 / 实际存在）</th></tr>
+  <tr>
+    <td><b>页面</b>（Page）：程序切出的"小格子"，大小 <b>4KB</b></td>
+    <td><b>物理块 / 页框</b>（Frame）：内存切出的"小格子"，大小 <b>4KB</b></td>
+  </tr>
+  <tr>
+    <td><b>页号</b>：第几个页面，编号 <b>0, 1, 2, ...</b></td>
+    <td><b>物理块号</b>：第几个物理块，编号 <b>0, 1, 2, ...</b></td>
+  </tr>
+  <tr>
+    <td><b>逻辑地址</b> = 页号 + 页内偏移（程序员写的）</td>
+    <td><b>物理地址</b> = 物理块号 + 页内偏移（实际送进内存的）</td>
+  </tr>
+  <tr>
+    <td colspan="2" style="text-align:center;"><b>页表</b> = 左侧"页号" → 右侧"物理块号"的对应单，OS 维护</td>
+  </tr>
+</table>
+
+<h2>3. 逻辑地址长什么样？</h2>
+
+<p>程序员写一个地址（比如 <code>0x1234</code>），OS 把它拆成两段：</p>
+
+<div class="addr">
+  <div class="addr-cell logic-page">页号 P</div>
+  <div class="addr-cell offset">页内偏移 W</div>
+</div>
+<div style="text-align:center; font-size:12px; color:var(--muted);">逻辑地址 = 页号 × 页大小 + 页内偏移</div>
+
+<p>CPU 想用逻辑地址 <code>P, W</code> 时，去查页表，假设查到 <code>P → F</code>，那实际访问的物理地址是：</p>
+
+<div class="addr">
+  <div class="addr-cell phys-frame">物理块号 F</div>
+  <div class="addr-cell offset">页内偏移 W</div>
+</div>
+<div style="text-align:center; font-size:12px; color:var(--muted);">物理地址 = F × 页大小 + W</div>
+
+<p style="text-align:center; font-weight:600; color:var(--accent);">⚠️ <b>页内偏移 W 在变换前后一字不变</b>（只换块号，不换位置）</p>
+
+<h2>4. 一个例子把全过程走一遍</h2>
+
+<p><b>已知</b>：页大小 = <b>1KB</b>（1024 字节），页表 = <code>[0→2, 1→5, 2→0]</code>，逻辑地址 = <code>2500</code>。</p>
+
+<h3>第 1 步：把逻辑地址拆成"页号 + 页内偏移"</h3>
+
+<pre>
+页号 P  = 2500 / 1024 = 2        （整除）
+页内偏移 W = 2500 % 1024 = 452   （取余）
+</pre>
+
+<h3>第 2 步：查页表，找物理块号</h3>
+
+<div class="ptable">
+  <div class="ptable-title">📋 页表（页号 → 物理块号）</div>
+  <table>
+    <tr><th>页号</th><th>物理块号</th></tr>
+    <tr><td class="k">0</td><td>2</td></tr>
+    <tr><td class="k">1</td><td>5</td></tr>
+    <tr><td class="k">2</td><td>0</td></tr>
+  </table>
+</div>
+
+<p>页号 <b>2</b> → 物理块号 <b>0</b></p>
+
+<h3>第 3 步：拼物理地址</h3>
+
+<pre>
+物理地址 = 物理块号 × 页大小 + 页内偏移
+        = 0 × 1024 + 452
+        = 452
+</pre>
+
+<div class="callout ok">
+<b>答</b>：逻辑地址 2500 对应的物理地址是 <b>452</b>。<br>
+<b>易错点</b>：页内偏移 452 一定要保留到物理地址里——只换"块号"，不换"块内位置"。
+</div>
+
+<h2>5. 必背 3 句话（考试原话）</h2>
+
+<div class="callout warn">
+<b>①</b> <b>页面大小 = 物理块大小</b>（必相等，否则对不上）。<br>
+<b>②</b> 逻辑地址 = <b>页号 + 页内偏移</b>；物理地址 = <b>物理块号 + 页内偏移</b>。<br>
+<b>③</b> 物理地址 = 物理块号 × 页大小 + 页内偏移（<b>整除取号，取余取位置</b>）。
+</div>
+
+<h2>6. 自检（先做再翻答案）</h2>
+
+<div class="q">
+<b>Q1（口述）</b> 用一句话告诉我：什么是"分页"？<br>
+（提示：程序和内存两边都切了 + 一张对应单）
+</div>
+
+<div class="q">
+<b>Q2（口述）</b> 页面大小是 4KB，物理块大小可以是 8KB 吗？为什么？
+</div>
+
+<div class="q">
+<b>Q3（计算）</b> 页大小 = 1KB，逻辑地址 = 1500，求页号和页内偏移。
+</div>
+
+<div class="q">
+<b>Q4（选择）</b> 页大小 1KB，页表 = <code>[0→1, 1→2, 2→3]</code>，逻辑地址 1500 对应的物理地址是？<br>
+A. 1500（不变）<br>
+B. 476（= 0×1024 + 476）<br>
+C. <b>2524</b>（= 2×1024 + 476）<br>
+D. 1500 + 1 = 1501
+</div>
+
+<div class="q">
+<b>Q5（计算）</b> 页大小 = 4KB，逻辑地址 = 5000，求页号和页内偏移。（页大小变了，注意！）
+</div>
+
+<div class="callout ok">
+<b>答案对照</b><br>
+A1：把程序和内存都切成同样大小的小格子（4KB），用页表记下程序第几格对应内存第几格。<br>
+A2：不行。页面和物理块必须等大，否则"格子"对不上号（装不进去 / 装不满）。<br>
+A3：P = 1500 / 1024 = <b>1</b>，W = 1500 % 1024 = <b>476</b>。<br>
+A4：C。P = 1500 / 1024 = 1，W = 1500 % 1024 = 476，查页表 F = 页表[1] = 2，物理地址 = 2 × 1024 + 476 = <b>2524</b>。<br>
+A. 错：忘了查页表，块号默认当成 0；B. 错：把 F 当成 0（漏查页表）；C. <b>对</b>；D. 错：无关的"加 1"干扰项。<br>
+A5：P = 5000 / 4096 = <b>1</b>，W = 5000 % 4096 = <b>904</b>。
+</div>
+
+<div class="callout warn">
+<b>老师改卷最爱挑的 2 个坑</b>：<br>
+1. <b>页内偏移不参与变换</b>——从逻辑地址抄到物理地址，一字不变（自己算一遍才能保证不错）。<br>
+2. <b>页大小单位</b>——4KB = 4096 字节，不是 4000；1KB = 1024 字节，不是 1000。算之前先看清单位。
+</div>
+
+<h2>7. 完整流程速记（手算时按这 3 步走）</h2>
+
+<pre>
+已知：页大小 L，页表，逻辑地址 A
+
+① 拆地址   P = A / L           （整除 → 页号）
+          W = A % L           （取余 → 页内偏移）
+
+② 查页表   F = 页表[P]         （页号 → 物理块号）
+
+③ 拼地址   物理地址 = F × L + W
+</pre>
+
+<h2>8. 下一步</h2>
+
+<p>本节任何一题你不能立刻答出来，告诉我；我们就从那一题开始下一节。<br>
+如果都能答，<b>下一节 = 第 6 课：页面置换算法（FIFO / LRU / OPT）</b>——分页之后"格子不够用"怎么办？下节课揭晓。</p>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> <a href="../bank/ch04-test.html">📝 第 4 章测试</a><br><a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+<footer class="lesson-foot">
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../RESOURCES.md">RESOURCES.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a> ·
+<a href="0002-scheduling-algorithms.html">第 2 课</a> ·
+<a href="0003-bankers-algorithm.html">第 3 课</a> ·
+<a href="0004-group-linking.html">第 4 课</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0005-paging-fundamentals.html"</code>
+</footer>
+
+</div>
+</body>
+</html>

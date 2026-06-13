@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 11 课 · 经典同步问题 · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+    --p1:#e8f1fb; --p2:#fdebd0; --p3:#d5f5e3; --p4:#f5d5e3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  pre .c { color: var(--muted); }
+  pre .k { color: var(--accent); font-weight: 700; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; font-size: 13px; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+
+  /* 5 哲学家桌 */
+  .table {
+    background: #fff; border: 2px solid var(--ink); border-radius: 8px;
+    padding: 16px; margin: 12px 0; position: relative;
+  }
+  .table-row {
+    display: flex; justify-content: space-around; align-items: center;
+    margin: 8px 0; font-size: 13px;
+  }
+  .phil { text-align: center; flex: 1; }
+  .phil-icon { font-size: 22px; }
+  .phil-name { font-size: 12px; color: var(--muted); }
+  .stick {
+    flex: 0.5; height: 4px; background: #b0856a; border-radius: 2px;
+    text-align: center; position: relative; min-width: 50px;
+  }
+  .stick::after {
+    content: "🥢"; position: absolute; top: -10px; left: 50%;
+    transform: translateX(-50%); font-size: 14px;
+  }
+  .phil.eating .phil-icon { color: var(--ok); }
+
+  /* 读者-写者图 */
+  .rw {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 12px 0;
+  }
+  .rw-side {
+    border: 2px solid var(--ink); border-radius: 6px; padding: 10px;
+    background: #fff;
+  }
+  .rw-side.reader { background: var(--p3); }
+  .rw-side.writer { background: var(--p4); }
+  .rw-icon { font-size: 22px; text-align: center; }
+  .rw-title { font-weight: 700; font-size: 14px; text-align: center; margin: 4px 0; }
+  .rw-desc { font-size: 13px; }
+
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 12px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q, .table, .rw, pre { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 11 课 · 期末冲刺 · 第 2 章 / 同步问题变形综合题</div>
+  <h1>经典同步问题 · 哲学家进餐 + 读者-写者</h1>
+  <div class="sub">目标：15-20 分钟装下 2 个经典问题 + 3 种防死锁方法 + 读者优先伪代码</div>
+</header>
+
+<h2>1. 一句话 + 圆桌类比</h2>
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>同步问题</b> = "N 个人抢 N 个东西，谁抢不到就阻塞"。
+<b>哲学家问题</b>考死锁；<b>读者-写者问题</b>考互斥和优先权。
+</blockquote>
+
+<div class="callout">
+<b>共通思路</b>（和 L10 同源）：<br>
+① 找资源 → 设信号量 S<br>
+② 申请顺序：先资源后互斥<br>
+③ P/V 配对，方向对
+</div>
+
+<h2>2. 哲学家进餐问题</h2>
+
+<h3>2.1 设定</h3>
+<p><b>场景</b>：5 个哲学家围圆桌，5 根筷子（每两人之间 1 根）。每人左右各 1 根，<b>必须拿 2 根才能吃</b>。</p>
+
+<div class="table">
+  <div class="table-row">
+    <div class="phil"><div class="phil-icon">🧑</div><div class="phil-name">哲学 0</div></div>
+    <div class="stick"></div>
+    <div class="phil"><div class="phil-icon">🧑</div><div class="phil-name">哲学 1</div></div>
+    <div class="stick"></div>
+    <div class="phil"><div class="phil-icon">🧑</div><div class="phil-name">哲学 2</div></div>
+  </div>
+  <div style="text-align:center; color:var(--muted); font-size:12px;">↑ 上方 3 人</div>
+  <div style="text-align:center; color:var(--muted); font-size:12px;">↓ 下方 2 人</div>
+  <div class="table-row">
+    <div class="phil"><div class="phil-icon">🧑</div><div class="phil-name">哲学 4</div></div>
+    <div class="stick"></div>
+    <div class="phil"><div class="phil-icon">🧑</div><div class="phil-name">哲学 3</div></div>
+    <div class="stick"></div>
+    <div class="phil" style="visibility:hidden;">-</div>
+  </div>
+</div>
+
+<p><b>死锁场景</b>（5 人同时饿）：</p>
+<ul>
+  <li>哲学 0 拿<b>左</b>筷 0，等<b>右</b>筷 1</li>
+  <li>哲学 1 拿<b>左</b>筷 1，等<b>右</b>筷 2</li>
+  <li>……</li>
+  <li>哲学 4 拿<b>左</b>筷 4，等<b>右</b>筷 0</li>
+</ul>
+<p style="text-align:center; color:var(--accent); font-weight:700;">⛔ 5 人都在等"右筷"，永远等不到 → <b>死锁</b></p>
+
+<h3>2.2 3 种防死锁方法（必背）</h3>
+
+<table>
+  <tr><th>方法</th><th>核心思路</th><th>代价</th></tr>
+  <tr>
+    <td><b>① 最多 4 人同时进餐</b></td>
+    <td>设信号量 <code>count=4</code>，P(count) 进门。保证至少 1 人能同时拿 2 根。</td>
+    <td>最多浪费 1 个位置</td>
+  </tr>
+  <tr>
+    <td><b>② 奇偶分拿</b></td>
+    <td>奇数号哲学家先拿<b>左</b>再拿<b>右</b>；偶数号反过来。</td>
+    <td>相邻 2 人必有一人先拿右，必有一根筷子留空</td>
+  </tr>
+  <tr>
+    <td><b>③ 同时拿左右</b></td>
+    <td>用一个 mutex 锁住"拿 2 根"这个动作，要么都拿，要么都不拿。</td>
+    <td>拿筷子是"原子"操作，实现稍复杂</td>
+  </tr>
+</table>
+
+<div class="callout warn">
+<b>考试答法（任选一种）</b>：<br>
+方案 ② 最常考——把"先拿左再拿右"按奇偶颠倒，<b>相邻 2 人中必有一人先拿右</b>，必有一根筷子留空，<b>必然不会 5 人同时持 1 根</b>。
+</div>
+
+<h3>2.3 方案 ② 伪代码（奇偶分拿）</h3>
+
+<pre>
+<span class="k">semaphore</span> chopstick[5] = {1,1,1,1,1};  <span class="c">// 5 根筷子</span>
+
+philosopher_i() {  <span class="c">// i = 0,1,2,3,4</span>
+    <span class="k">while</span>(true) {
+        think();
+        <span class="k">if</span> (i % 2 == 0) {     <span class="c">// 偶数号：先拿左再拿右</span>
+            <span class="k">P</span>(chopstick[i]);
+            <span class="k">P</span>(chopstick[(i+1) % 5]);
+        } <span class="k">else</span> {              <span class="c">// 奇数号：先拿右再拿左</span>
+            <span class="k">P</span>(chopstick[(i+1) % 5]);
+            <span class="k">P</span>(chopstick[i]);
+        }
+        eat();
+        <span class="k">V</span>(chopstick[i]);
+        <span class="k">V</span>(chopstick[(i+1) % 5]);
+    }
+}
+</pre>
+
+<h2>3. 读者-写者问题</h2>
+
+<h3>3.1 设定</h3>
+<ul>
+  <li><b>读者</b>：只读文件，<b>多个读者可同时</b>读（互不冲突）</li>
+  <li><b>写者</b>：改文件，<b>必须独占</b>（写时不能有别人）</li>
+  <li>关键：<b>读者之间不互斥</b>，<b>写者与任何人互斥</b></li>
+</ul>
+
+<div class="rw">
+  <div class="rw-side reader">
+    <div class="rw-icon">👀</div>
+    <div class="rw-title">读者（&gt;=1 个）</div>
+    <div class="rw-desc">图书馆借书：<br>多个人<b>同时</b>看一本书 OK</div>
+  </div>
+  <div class="rw-side writer">
+    <div class="rw-icon">✍️</div>
+    <div class="rw-title">写者（只能 1 个）</div>
+    <div class="rw-desc">图书馆改书：<br>改的时候<b>不能有别人</b>在场</div>
+  </div>
+</div>
+
+<h3>3.2 2 个信号量（必背）</h3>
+
+<table>
+  <tr><th>信号量</th><th>初值</th><th>作用</th></tr>
+  <tr><td><code>rmutex</code></td><td>1</td><td>保护读者计数 <code>readcount</code></td></tr>
+  <tr><td><code>wmutex</code></td><td>1</td><td>写者与"第一个/最后一个读者"互斥</td></tr>
+</table>
+
+<h3>3.3 读者优先伪代码（标准答案）</h3>
+
+<pre>
+<span class="k">semaphore</span> rmutex = 1, wmutex = 1;
+<span class="k">int</span> readcount = 0;
+
+<span class="k">reader</span>() {
+    <span class="k">while</span>(true) {
+        <span class="k">P</span>(rmutex);              <span class="c">// 锁住"改 readcount"的动作</span>
+        <span class="k">if</span> (readcount == 0)
+            <span class="k">P</span>(wmutex);           <span class="c">// 第 1 个读者：把写者挡门外</span>
+        readcount++;
+        <span class="k">V</span>(rmutex);
+
+        read_file();                  <span class="c">// 真正读</span>
+
+        <span class="k">P</span>(rmutex);
+        readcount--;
+        <span class="k">if</span> (readcount == 0)
+            <span class="k">V</span>(wmutex);           <span class="c">// 最后一个读者：放写者进来</span>
+        <span class="k">V</span>(rmutex);
+    }
+}
+
+<span class="k">writer</span>() {
+    <span class="k">while</span>(true) {
+        <span class="k">P</span>(wmutex);                <span class="c">// 门外排队等</span>
+        write_file();                  <span class="c">// 真正写</span>
+        <span class="k">V</span>(wmutex);
+    }
+}
+</pre>
+
+<div class="callout warn">
+<b>关键 1 秒</b>：<br>
+• <b>第 1 个读者</b>进门时 P(wmutex)——告诉写者"我在读"<br>
+• <b>最后 1 个读者</b>出门时 V(wmutex)——告诉写者"没人了"<br>
+• <b>中间的读者</b>只改 readcount，不碰 wmutex（实现"读者之间不互斥"）<br>
+→ 写者一直要等"readcount 变 0"，可能<b>饿死</b>（读者优先的代价）
+</div>
+
+<h2>4. 必背 4 句话（考试原话）</h2>
+
+<div class="callout">
+<b>①</b> 哲学家问题核心是<b>防死锁</b>，3 种方法：最多 4 人 / 奇偶分拿 / 同时拿左右。<br>
+<b>②</b> 读者-写者核心是<b>多读单写</b>，用 readcount 计数 + 2 个 mutex。<br>
+<b>③</b> 读者优先 → 写者可能<b>饿死</b>；写者优先 → 读者可能饿死。<br>
+<b>④</b> P/V 配对，方向对，先资源后互斥。
+</div>
+
+<h2>5. 自检（先做再翻答案）</h2>
+
+<div class="q">
+<b>Q1（口述）</b> 哲学家问题为什么会死锁？5 人同时饿的具体过程是什么？
+</div>
+
+<div class="q">
+<b>Q2（口述）</b> 哲学家问题"奇偶分拿"为什么能防死锁？
+</div>
+
+<div class="q">
+<b>Q3（口述）</b> 读者-写者问题中"rmutex"和"wmutex"各自保护什么？
+</div>
+
+<div class="q">
+<b>Q4（默写）</b> 默写读者优先的核心 4 句：<br>
+① 第 1 个读者进门时 ________<br>
+② 最后一个读者出门时 ________<br>
+③ 中间读者只改 ________<br>
+④ 写者只 ________
+</div>
+
+<div class="q">
+<b>Q5（选择）</b> 关于读者-写者，下面哪个说法<b>正确</b>？<br>
+A. 多个读者之间需要互斥<br>
+B. <b>读者优先策略下，写者可能饿死</b><br>
+C. 写者可以和读者同时操作<br>
+D. rmutex 初值应为 0
+</div>
+
+<div class="callout ok">
+<b>答案对照</b><br>
+A1：5 人同时饿 → 每人拿左筷 → 每人在等右筷 → 右筷都在别人手里 → 永远等不到 → 死锁。<br>
+A2：奇数号先拿右，偶数号先拿左。<b>相邻 2 人</b>（一奇一偶）<b>必有一人先拿右</b>，这根筷子被先抢走，<b>另一人拿不到这根</b>，从而无法"5 人各持 1 根"形成死锁环。<br>
+A3：<br>
+• rmutex：保护 <b>readcount</b> 这个共享变量（多个读者同时改 count 会乱）<br>
+• wmutex：让写者与"正在读的人"互斥<br>
+A4：<br>
+① P(wmutex) 把写者挡门外<br>
+② V(wmutex) 放写者进来<br>
+③ readcount（不改 wmutex）<br>
+④ P(wmutex) 等、V(wmutex) 放<br>
+A5：B。A 错（读者之间不互斥）；B 对（读者优先的代价）；C 错（写者必须独占）；D 错（rmutex 初值 1）。
+</div>
+
+<h2>6. 完整流程速记（手写 PV 时按这 4 步走）</h2>
+
+<pre>
+已知：N 哲学家 / 读者写者
+
+① 找资源 → 信号量（S 初值 = 资源数）
+② 区分互斥/资源
+   互斥：mutex 初值 1
+   资源：S 初值 = 资源数
+③ 申请顺序：先资源后互斥（除非有特殊安排，如读者优先的 rmutex 套 wmutex）
+④ P/V 配对
+</pre>
+
+<h2>7. 下一步</h2>
+
+<p>本节任何一题你不能立刻答出来，告诉我；我们就从那一题开始下一节。<br>
+如果都能答，<b>下一节 = 第 12 课：进程/线程 + 死锁 4 条件</b>（选择题扫一遍 + 死锁定义）——把 Ch2 剩下的选择题考点收尾。</p>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> <a href="../bank/ch02-test.html">📝 第 2 章测试（PV 编程大题）</a><br><a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+<footer class="lesson-foot">
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../RESOURCES.md">RESOURCES.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a> ·
+<a href="0002-scheduling-algorithms.html">第 2 课</a> ·
+<a href="0003-bankers-algorithm.html">第 3 课</a> ·
+<a href="0004-group-linking.html">第 4 课</a> ·
+<a href="0005-paging-fundamentals.html">第 5 课</a> ·
+<a href="0006-page-replacement.html">第 6 课</a> ·
+<a href="0007-disk-scheduling.html">第 7 课</a> ·
+<a href="0008-io-system.html">第 8 课</a> ·
+<a href="0009-mixed-index.html">第 9 课</a> ·
+<a href="0010-process-sync.html">第 10 课</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0011-classic-sync.html"</code>
+</footer>
+
+</div>
+</body>
+</html>

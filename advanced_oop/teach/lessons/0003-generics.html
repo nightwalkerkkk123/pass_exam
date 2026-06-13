@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lesson 0003 · 泛型 4 条代码识别</title>
+<style>
+  :root {
+    --fg: #1a1a1a; --muted: #6b6b6b; --line: #e6e6e6; --bg: #fafaf7;
+    --card: #fff; --accent: #0a6b3a; --wrong: #b3261e; --right: #0a6b3a;
+    --code-bg: #f3f3ee; --scaffold-bg: #fffbe6;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.65;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 40px 24px 100px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 28px; }
+  .eyebrow { color: var(--muted); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+  h1 { font-size: 26px; margin: 6px 0 8px; }
+  h2 { font-size: 19px; margin: 36px 0 12px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; line-height: 1.55; font-size: 13.5px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; }
+  pre code { background: transparent; padding: 0; }
+  .open-cmd { background: var(--code-bg); padding: 6px 10px; border-radius: 4px; font-size: 13px; display: inline-block; margin: 6px 0 12px; }
+  .scaffold {
+    background: var(--scaffold-bg);
+    border-left: 4px solid #d4a017;
+    padding: 16px 20px;
+    border-radius: 0 6px 6px 0;
+    margin: 18px 0 24px;
+  }
+  .scaffold h3 { margin-top: 0; }
+  .scaffold ul { padding-left: 20px; }
+  .scaffold li { margin: 6px 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 18px 20px; margin: 18px 0; }
+  .q-meta { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+  .q-stem { font-weight: 600; margin-bottom: 10px; }
+  .options { list-style: none; padding: 0; margin: 0; }
+  .options li { margin: 6px 0; }
+  .options label { display: flex; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+  .options label:hover { background: #f0f0e8; }
+  .explanation { display: none; margin-top: 14px; padding: 12px 14px; background: #f6f6f0; border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; font-size: 14.5px; }
+  .explanation.show { display: block; }
+  .explanation strong { color: var(--accent); }
+  .explanation.wrong { border-left-color: var(--wrong); }
+  .explanation.wrong strong { color: var(--wrong); }
+  .actions { margin: 32px 0 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  button.primary { font: inherit; background: var(--accent); color: white; border: 0; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+  button.secondary { font: inherit; background: var(--fg); color: white; border: 0; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+  .review-list { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+  .review-row { padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 5px; display: grid; grid-template-columns: 60px 1fr auto; gap: 10px; align-items: center; }
+  .review-row.right { border-left: 4px solid var(--right); }
+  .review-row.wrong { border-left: 4px solid var(--wrong); }
+  #summary { display: none; margin-top: 28px; }
+  footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  @media print {
+    body { background: white; font-size: 12px; }
+    .actions, button { display: none; }
+    .explanation { display: block !important; }
+    .card { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Lesson 0003 · 第 5 章批处理</div>
+  <h1>泛型 4 条 · 代码反例识别</h1>
+  <p class="muted">覆盖条款 23 / 25 / 27 / 28。先读 90 秒脚手架，再做 4 题。预计 8 分钟。</p>
+  <div class="open-cmd">open /Users/wangzihao/Code/pass_exam/advanced_oop/teach/lessons/0003-generics.html</div>
+</header>
+
+<section class="scaffold">
+  <h3>90 秒脚手架：泛型 vs 数组</h3>
+  <ul>
+    <li><strong>类型擦除</strong>：泛型信息只存在于<strong>编译期</strong>。运行期 <code>List&lt;String&gt;</code> 和 <code>List&lt;Integer&gt;</code> 是<strong>同一个类</strong>。</li>
+    <li><strong>数组协变</strong>：<code>String[]</code> 是 <code>Object[]</code> 的子类（数组<strong>记着</strong>元素类型，运行期也知道）。</li>
+    <li><strong>泛型不变</strong>：<code>List&lt;String&gt;</code> <strong>不是</strong> <code>List&lt;Object&gt;</code> 的子类（擦除后类型没了，硬转就炸）。</li>
+    <li><strong>为什么混用不安全</strong>：数组具体化（记得类型） + 泛型擦除（不记得）= 同一套代码两套规则。所以 Java 直接禁止"创建泛型数组"。</li>
+  </ul>
+  <p style="margin: 8px 0 0; color: var(--muted); font-size: 13.5px;">条款 23/25/27/28 全是这套规则的不同侧面。下面 4 题各打一条。</p>
+</section>
+
+<form id="quiz">
+
+<div class="card" data-q="1" data-correct="B">
+  <div class="q-meta">条款 23 · 不要在新代码中使用原始类型</div>
+  <div class="q-stem">下面这段代码，<strong>跑起来</strong>会怎样？</div>
+<pre><code>public static void main(String[] args) {
+    List list = new ArrayList();   // 原始类型 List,没有 &lt;String&gt;
+    list.add("hello");
+    list.add(42);                  // 编译居然通过!
+    for (Object o : list) {
+        String s = (String) o;     // 强转
+        System.out.println(s.length());
+    }
+}</code></pre>
+  <ul class="options">
+    <li><label><input type="radio" name="q1" value="A"><span>A. 编译失败,add(42) 报错</span></label></li>
+    <li><label><input type="radio" name="q1" value="B"><span>B. 编译通过,运行到 42 时 ClassCastException</span></label></li>
+    <li><label><input type="radio" name="q1" value="C"><span>C. 正常运行,打印 5</span></label></li>
+    <li><label><input type="radio" name="q1" value="D"><span>D. 编译通过但运行期 NPE</span></label></li>
+  </ul>
+  <div class="explanation">
+    <strong>答案:B</strong>。原始类型 <code>List</code> 绕过了泛型检查,add(42) 编译期不报错。运行期类型擦除后全是 <code>Object</code>,循环到 42 时强转 String → <code>ClassCastException</code>。这正是条款 23 要避的坑——原始类型不报错是因为它没在做检查,不是它"能用"。
+  </div>
+</div>
+
+<div class="card" data-q="2" data-correct="A">
+  <div class="q-meta">条款 25 · 列表优先于数组</div>
+  <div class="q-stem">下面这个工具方法,经典地违反/符合哪条?</div>
+<pre><code>public static &lt;E&gt; E[] toArray(Collection&lt;E&gt; c) {
+    E[] arr = (E[]) new Object[c.size()];  // 这行是经典 hack
+    int i = 0;
+    for (E e : c) arr[i++] = e;
+    return arr;                            // 返回数组
+}</code></pre>
+  <ul class="options">
+    <li><label><input type="radio" name="q2" value="A"><span>A. 违反条款 25: 应返回 <code>List&lt;E&gt;</code> 而非数组</span></label></li>
+    <li><label><input type="radio" name="q2" value="B"><span>B. 违反条款 23: 用了原始 <code>Object</code></span></label></li>
+    <li><label><input type="radio" name="q2" value="C"><span>C. 违反条款 27: 方法没泛型</span></label></li>
+    <li><label><input type="radio" name="q2" value="D"><span>D. 违反条款 28: 创建了泛型数组</span></label></li>
+  </ul>
+  <div class="explanation">
+    <strong>答案:A</strong>。<code>(E[]) new Object[size]</code> 是"骗"数组的经典 hack——编译期能过,运行期调方强转就 ClassCastException。条款 25 的核心:返回 <code>List&lt;E&gt;</code> 给调用者,让调用方自己决定要不要 <code>toArray</code>(用 <code>Collection.toArray(T[])</code> 重载),既安全又灵活。
+  </div>
+</div>
+
+<div class="card" data-q="3" data-correct="B">
+  <div class="q-meta">条款 27 · 优先考虑泛型方法</div>
+  <div class="q-stem">看这个静态工具方法,主要问题在哪?</div>
+<pre><code>public static Set union(Set s1, Set s2) {  // ← 原始 Set
+    Set result = new HashSet(s1);
+    result.addAll(s2);
+    return result;
+}</code></pre>
+  <ul class="options">
+    <li><label><input type="radio" name="q3" value="A"><span>A. 编译失败</span></label></li>
+    <li><label><input type="radio" name="q3" value="B"><span>B. 类型不安全:应改为 <code>&lt;E&gt; Set&lt;E&gt; union(Set&lt;? extends E&gt;, Set&lt;? extends E&gt;)</code></span></label></li>
+    <li><label><input type="radio" name="q3" value="C"><span>C. 应该返回 <code>List</code> 不是 <code>Set</code></span></label></li>
+    <li><label><input type="radio" name="q3" value="D"><span>D. <code>addAll</code> 性能差,应用 <code>add</code> 循环</span></label></li>
+  </ul>
+  <div class="explanation">
+    <strong>答案:B</strong>。参数和返回都是原始 <code>Set</code> → 接受任何类型、返回任何类型,调用方必须强转。条款 27 的标准修法:加类型参数 <code>&lt;E&gt;</code> + PECS 通配符 <code>Set&lt;? extends E&gt;</code>。A 错(原始类型编译通过),C/D 错(不是核心问题)。
+  </div>
+</div>
+
+<div class="card" data-q="4" data-correct="B">
+  <div class="q-meta">条款 28 · 列表优先于泛型数组</div>
+  <div class="q-stem">这段代码编译会怎样?</div>
+<pre><code>public static &lt;E&gt; List&lt;E&gt;[] createLists(int n) {
+    List&lt;E&gt;[] arr = new List&lt;E&gt;[n];   // ← 创建泛型数组
+    return arr;
+}</code></pre>
+  <ul class="options">
+    <li><label><input type="radio" name="q4" value="A"><span>A. 编译通过</span></label></li>
+    <li><label><input type="radio" name="q4" value="B"><span>B. 编译失败:generic array creation</span></label></li>
+    <li><label><input type="radio" name="q4" value="C"><span>C. 编译通过,运行期 OOM</span></label></li>
+    <li><label><input type="radio" name="q4" value="D"><span>D. 改用 <code>List[]</code> 就行</span></label></li>
+  </ul>
+  <div class="explanation">
+    <strong>答案:B</strong>。Java 直接禁止创建参数化类型的数组:数组具体化(运行期记类型)+ 泛型擦除(运行期忘类型)冲突,无解。改法:返回 <code>List&lt;List&lt;E&gt;&gt;</code>。D 错(<code>List[]</code> 是原始类型数组,绕过泛型后类型信息全丢)。
+  </div>
+</div>
+
+<div class="actions">
+  <button type="button" id="submitBtn" class="primary">提交并查看解析</button>
+  <button type="button" id="resetBtn" class="secondary">重置</button>
+</div>
+</form>
+
+<div id="summary">
+  <h2>本课结果</h2>
+  <div class="review-list" id="reviewList"></div>
+  <p style="margin-top: 18px;">完成后把"4 道题中错几道"告诉 teacher。若全对 → 这 4 条升级为"待 GLOSSARY 升格",lesson 0004 进入下一组(第 2 章 batch)。若 1+ 错 → 我们先把这 4 条再过一遍,再做下一组。</p>
+  <p class="muted" style="font-size: 13.5px;">通过/未通过都会写进 <code>learning-records/0003-generics.md</code>——尤其是错的位置,会决定后续 lesson 的着力点。</p>
+</div>
+
+<footer>
+  <p>配套：<a href="../reference/cheatsheet.html">条款速查表</a> · <a href="0002-vocabulary.html">Lesson 0002</a> · <a href="../MISSION.md">Mission</a></p>
+  <p>设计原则：先讲脚手架(1 段),再做 4 题——比直接看 4 条独立的概念节省 30% 时间。</p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById('quiz');
+  var submitBtn = document.getElementById('submitBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var summary = document.getElementById('summary');
+  var reviewList = document.getElementById('reviewList');
+  var cards = form.querySelectorAll('.card');
+
+  submitBtn.addEventListener('click', function () {
+    var right = 0;
+    var rows = [];
+    cards.forEach(function (c) {
+      var name = c.querySelector('input[type=radio]').name;
+      var sel = form.querySelector('input[name="' + name + '"]:checked');
+      var exp = c.querySelector('.explanation');
+      var correct = c.dataset.correct;
+      var meta = c.querySelector('.q-meta').textContent;
+      var ok = sel && sel.value === correct;
+      if (ok) right++;
+      exp.classList.add('show');
+      exp.classList.toggle('wrong', !ok);
+      rows.push({ meta: meta, ok: ok, ans: correct });
+    });
+    reviewList.innerHTML = '';
+    rows.forEach(function (r) {
+      var div = document.createElement('div');
+      div.className = 'review-row ' + (r.ok ? 'right' : 'wrong');
+      div.innerHTML = '<span style="font-weight:600">' + (r.ok ? '✓' : '✗') + '</span>' +
+                      '<span>' + r.meta + '</span>' +
+                      '<span style="color:' + (r.ok ? 'var(--right)' : 'var(--wrong)') + ';font-weight:600">' + (r.ok ? '对' : '错(答 ' + r.ans + ')') + '</span>';
+      reviewList.appendChild(div);
+    });
+    summary.style.display = 'block';
+    summary.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  resetBtn.addEventListener('click', function () {
+    form.reset();
+    cards.forEach(function (c) {
+      var exp = c.querySelector('.explanation');
+      exp.classList.remove('show', 'wrong');
+    });
+    summary.style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
+</script>
+</body>
+</html>

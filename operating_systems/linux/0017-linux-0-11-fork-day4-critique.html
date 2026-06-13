@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 17 课 · Linux 0.11 fork Day 4（质疑训练） · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+  .pill { display:inline-block; padding: 1px 7px; border-radius: 10px;
+          font-size: 12px; background: #eee; color: var(--ink); margin-left: 4px;}
+  .pill.high { background: #fde2dd; color: #8a1c11; }
+  .pill.mid  { background: #fff0d6; color: #7a4a00; }
+  .pill.low  { background: #e3efe6; color: #1f6f43; }
+  .script {
+    background: #faf6e8; border: 1px dashed #a85d00; padding: 14px 16px;
+    border-radius: 6px; margin: 14px 0; font-size: 15px; line-height: 1.8;
+  }
+  .script b { color: #a85d00; }
+  .critique {
+    background: #fff8ee; border: 1px solid var(--warn); border-left: 4px solid var(--warn);
+    padding: 12px 14px; border-radius: 4px; margin: 14px 0;
+  }
+  .critique b { color: var(--warn); }
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 13px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <p class="eyebrow">第 17 课 · 源码精讲专题 Day 4 / 6</p>
+  <h1>质疑训练：Linux 0.11 的 3 个设计问题</h1>
+  <p class="sub">本期目标：敢说「老师,这段我觉得有问题」 · 约 60 分钟</p>
+</header>
+
+<div class="callout warn">
+<b>⚠ 这是关键一课</b>。<br>
+讲 fork 的同学有 100 个,99 个只会「翻译代码」,1 个会「质疑设计」。你是那 1 个,老师就记住你。<br>
+质疑 ≠ 抬杠。质疑 = 说出「为什么这样不好」+「如果是现代会怎么做」。
+</div>
+
+<h2>0. 质疑的三段式结构</h2>
+
+<p>讲质疑时,要用这个模板,老师听了会觉得你「有想法」：</p>
+
+<div class="script">
+<b>🎤 质疑句式（背下来）：</b><br><br>
+"<b>第 X 行这段代码,[引用代码],它在 [描述它做什么]。</b><br>
+<b>但是我有一个疑问 / 有一个不同的看法</b>：[说出你看到的具体问题,引用具体现象或后果]。<br>
+<b>如果是现代 Linux / 如果是我来改,我会 [你的方案]。</b><br>
+<b>当然,1991 年的 [历史背景] 决定了 Linus 必须这么做,所以这是 [评价:可理解的取舍 / 真实的设计缺陷]。</b>"
+</div>
+
+<p>这个句式为什么有用？</p>
+<ul>
+  <li>它<b>不是全盘否定</b>——「当然历史背景」让你显得有分寸</li>
+  <li>它<b>有具体引用</b>——「第 X 行」显得你真读了</li>
+  <li>它<b>有替代方案</b>——「如果是我」显得你有思考</li>
+</ul>
+
+<h2>1. 质疑 1: 64 进程上限</h2>
+
+<h3>1.1 问题代码</h3>
+<p>在 <code>find_empty_process()</code> 里：</p>
+<pre>
+#define NR_TASKS 64   // kernel/sched.c 顶部
+for (i = 0; i &lt; NR_TASKS; i++)
+    if (!task[i]) return i;
+</pre>
+
+<h3>1.2 为什么是问题</h3>
+<ul>
+  <li><b>第 64 个 fork() 直接失败</b>——用户进程得到 EAGAIN,根本不知道为啥失败</li>
+  <li><b>共享 16MB 物理内存</b>——task[64] × 1 页 = 256KB,占 1.5% 内存,这在当时很奢侈</li>
+  <li><b>无法支持多用户</b>——一个学校机房 30 台终端同时登录,内核自己就吃光 64 槽位</li>
+</ul>
+
+<h3>1.3 替代方案</h3>
+<p>现代 Linux：</p>
+<ul>
+  <li><b>动态分配</b> task_struct（用 kmem_cache slab 分配器）</li>
+  <li><b>PID 上限</b> 单独配置（默认 32768,可调到 4194304）</li>
+  <li><b>PID 命名空间</b>（pid namespace）：容器内 1-1000 看起来就是完整 PID 空间,实际只是宿主机 PID 空间的一段</li>
+</ul>
+
+<h3>1.4 评价</h3>
+<div class="critique">
+<b>💡 评价：可理解的取舍,但确实是缺陷</b><br>
+1991 年 Linus 在 16MB 物理内存的 386 上写内核,静态数组+上限是合理简化。<b>但 64 这个数字,即使在 1991 年也偏小</b>——当时 Minix 都已经支持到 256 进程了。这是 Linus 的"先简单,后扩展"哲学——后来确实扩展了,2.x 就动态化了。
+</div>
+
+<div class="script">
+<b>🎤 讲稿（直接用）：</b><br><br>
+"老师,fork.c 第 XX 行那段 find_empty_process 我看的时候有一个疑问——NR_TASKS=64 这个上限是不是太低了？我的理解是 1991 年 16MB 物理内存确实紧,但<b>即使 1991 年的 Minix 都已经支持到 256 进程了</b>。如果父进程创建第 65 个子进程,直接返回 EAGAIN,用户态根本不知道是资源耗尽还是其他错误。<br>
+如果是现代 Linux,会用 <b>kmem_cache slab 分配器动态分配 task_struct</b>,PID 单独配 namespace,默认 32768,可调到 400 多万。这是从静态数组 → 动态分配 → 命名空间的三段进化。<br>
+当然,1991 年 Linus 是「先让它跑起来,再优化」的思路,这个限制后来也解掉了,所以这是<b>可理解的取舍,不是设计缺陷</b>。"
+</div>
+
+<h2>2. 质疑 2: 没有 COW（写时复制）</h2>
+
+<h3>2.1 问题代码</h3>
+<p>在 <code>copy_mem(nr, p)</code> 里（<code>mm/memory.c</code>）：</p>
+<pre>
+int copy_mem(int nr, struct task_struct *p) {
+    // 复制父进程的所有页表项 (1 页 1 页拷)
+    for (i = 0; i &lt; 1024; i++) {
+        if (p-&gt;tss.cr3 == old_page_dir[i])  // 父的页目录项
+            copy_one_page(...);             // 直接整页拷贝!
+    }
+}
+</pre>
+
+<h3>2.2 为什么是问题（量化）</h3>
+<p>假设父进程占用 4MB 内存（256 页），fork 一次要拷贝 256 页 = 1MB 物理内存<b>立即</b>被占满。<b>如果子进程只是简单 exec() 一个新程序</b>（如 ls），这 1MB 拷过来的页立刻全部作废——<b>100% 浪费</b>。</p>
+
+<p>真实场景：shell 每敲一条命令,都要 fork + exec。如果用户敲 `ls /tmp`,Linux 0.11 要先拷 1MB 数据再丢弃 1MB。命令行体验会非常差。</p>
+
+<h3>2.3 替代方案</h3>
+<p>COW (Copy-on-Write) 1994 年加入 Linux 1.x：</p>
+<ul>
+  <li>fork 时<b>不复制页</b>,只把父子页表项都标记为<b>只读</b></li>
+  <li>任意一方<b>写入</b>触发<b>页错误</b> → 内核才真正复制这一页</li>
+  <li>shell 的 fork+exec 场景：从「拷 1MB」变成「拷 0 字节」（exec 直接换页表）</li>
+</ul>
+
+<h3>2.4 评价</h3>
+<div class="critique">
+<b>💡 评价：真实设计缺陷,Linus 自己也承认</b><br>
+1991 年 Linus 没加 COW 是因为<b>「我没想到这个需求」</b>。他在 1994 年的 LKML 上承认：<br>
+"<i>I should have implemented COW in 0.12, but didn't have time.</i>"<br>
+COW 让 fork 性能提升 50-100 倍,这是 Linux 从「玩具」变成「严肃服务器 OS」的关键一环。
+</div>
+
+<div class="script">
+<b>🎤 讲稿（直接用）：</b><br><br>
+"老师,copy_mem 这步我有比较强烈的看法——0.11 的 fork 是<b>整页复制</b>,没有 COW。<b>假设父进程占 4MB 内存,fork 一次立即多耗 1MB 物理</b>。如果子进程马上 exec() 一个新程序,这 1MB 拷过来的页立刻全废——<b>100% 浪费</b>。<br>
+现代 Linux 的 COW (1994 年加的) 是这样的：fork 时<b>不拷页,只把父子页表项都标成只读</b>,任意一方写入才触发页错误 → 内核才拷那一页。这样 shell 的 fork+exec 从「拷 1MB」变成「拷 0 字节」。<br>
+Linus 1994 年在 LKML 上自己承认过：<i>'I should have implemented COW in 0.12, but didn't have time.'</i> 所以这个不是历史局限性,这是<b>真实的设计缺陷,Linus 自己也认</b>。"
+</div>
+
+<h2>3. 质疑 3: 全局 runqueue 锁竞争</h2>
+
+<h3>3.1 问题代码</h3>
+<p>在 <code>schedule()</code> 里（<code>kernel/sched.c</code>）：</p>
+<pre>
+void schedule(void) {
+    cli();  // 关中断
+    // ...遍历 task[] 找最大 counter
+    // ...切换 tss
+    sti();  // 开中断
+}
+</pre>
+
+<p>所有 64 个进程共用一个就绪队列（隐式 = <code>task[]</code> 数组里 state==RUNNING 的所有 PCB）。</p>
+
+<h3>3.2 为什么是问题</h3>
+<ul>
+  <li><b>单核系统</b>（0.11 是单核）：关中断期间,其他硬件中断全部丢失 → 鼠标/键盘抖动</li>
+  <li><b>多核系统</b>（现代）：多个 CPU 同时遍历 task[] → 必须加自旋锁 → 锁竞争</li>
+  <li><b>不可扩展</b>：进程越多,扫 task[] 时间越长（O(N) 扫描找最大 counter）</li>
+</ul>
+
+<h3>3.3 替代方案</h3>
+<p>现代 Linux 的 <b>CFS (Completely Fair Scheduler)</b>：</p>
+<ul>
+  <li>用 <b>红黑树</b>（O(log N) 找最小 vruntime）代替线性扫描</li>
+  <li><b>per-CPU runqueue</b>：每个 CPU 一个就绪队列,无锁访问</li>
+  <li><b>cgroup</b> 层级调度：容器场景下,某个容器的进程不会饿死其他容器</li>
+</ul>
+
+<h3>3.4 评价</h3>
+<div class="critique">
+<b>💡 评价：单核时代的合理设计,多核时代不够用</b><br>
+0.11 是单核 386,关中断调度是合理的——没有并发问题。多核时代(Linux 2.0+) 才暴露:锁竞争 + 不可扩展。CFS 是 2007 年 Linux 2.6.23 引入的,这是调度器 16 年的大改动。
+</div>
+
+<div class="script">
+<b>🎤 讲稿（直接用）：</b><br><br>
+"老师,schedule() 里 <code>cli()</code> 关中断 + 遍历 task[] 找最大 counter,这个我有不同看法。<br>
+<b>在 0.11 单核上</b>,关中断调度是合理的——没有并发问题,简单可靠。<b>但如果拿到多核上</b>,多个 CPU 同时遍历 task[],必须加锁——锁竞争就来了,64 进程就锁竞争,4000 进程直接不能用。<br>
+而且扫 task[] 是 <b>O(N)</b>,进程越多扫得越慢,不可扩展。<br>
+现代 Linux 的 CFS 用了<b>红黑树 (O(log N)) + per-CPU runqueue + cgroup 层级调度</b>。CFS 是 2007 年 Linux 2.6.23 才加的,这是 16 年才完成的一次大改。<br>
+所以这个不是缺陷,是<b>时代局限</b>——但 0.11 至少应该把 'cli()' 这种 hack 标个 TODO 提醒后人。"
+</div>
+
+<h2>4. 质疑训练的 3 个要点</h2>
+
+<div class="callout">
+<b>📌 3 个要点：</b><br>
+1. <b>不要质疑 1991 年的具体技术选择</b>(比如为啥用 cli)——这是时代限制,老师会替你圆。<br>
+2. <b>要质疑「不该犯的小错」</b>(比如 NR_TASKS=64 偏小)——这是设计能力,老师加分。<br>
+3. <b>要质疑「Linus 自己承认的错误」</b>(比如 COW)——这是工业界共识,你敢讲出来 = 看过 LKML 历史。
+</div>
+
+<h2>5. 自测 3 题</h2>
+
+<div class="q">
+<b>Q1.</b> 0.11 的 NR_TASKS=64 是「设计缺陷」还是「历史局限」？为什么？<span class="pill high">必答</span><br>
+<input type="text" id="q1" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a1').style.display='block'">显示参考答案</button>
+<div id="a1" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：<b>可理解的取舍</b>。1991 年 16MB 物理内存紧,静态数组合理简化。<b>但 64 这个数字,即使 1991 年也偏小</b>——当时 Minix 都支持到 256。是「先让它跑,后扩展」的哲学,2.x 就动态化了。
+</div>
+</div>
+
+<div class="q">
+<b>Q2.</b> 0.11 没有 COW,后果是什么？量化说明。<span class="pill high">必答</span><br>
+<input type="text" id="q2" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a2').style.display='block'">显示参考答案</button>
+<div id="a2" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：父 4MB 内存,fork 一次多耗 1MB(256 页×4KB)。子 exec 新程序,这 1MB 立即全部作废——<b>100% 浪费</b>。shell 场景下命令行体验差。COW(1994 加)把 fork 性能提升 50-100 倍。
+</div>
+</div>
+
+<div class="q">
+<b>Q3.</b> 0.11 用 cli() 关中断调度,多核时代为什么不可用？<span class="pill mid">扩展</span><br>
+<input type="text" id="q3" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a3').style.display='block'">显示参考答案</button>
+<div id="a3" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：多核 CPU 同时遍历 task[] → 必须加自旋锁 → 锁竞争 + O(N) 不可扩展。CFS 用红黑树 (O(log N)) + per-CPU runqueue + cgroup 解决。
+</div>
+</div>
+
+<div class="callout ok">
+<b>✅ Day 4 通过标准</b>：Q1 + Q2 答对（2/3）。Q3 是 Day 5 观点训练的前置。
+</div>
+
+<h2>6. 今日作业（20 分钟内完成）</h2>
+
+<ol>
+  <li>把 3 个质疑点的讲稿<b>各读 3 遍</b>——能用自己的话讲,不要背原文</li>
+  <li>回答 3 道自测题</li>
+  <li>录制一段 1 分钟「质疑 2 (COW)」的手机录音——回放,看自己的语速、停顿、眼神</li>
+</ol>
+
+<div class="callout">
+<b>📅 明天 Day 5 预告</b>：<b>观点训练</b>——用现代视角说「如果是我来改」。<b>质疑</b>是挑毛病,<b>观点</b>是给方案——这是「专家级」的标志。
+</div>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> · <a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+
+<footer class="lesson-foot">
+<p>第 17 课 · Linux 0.11 fork 源码精讲 Day 4 · 6 天专题</p>
+</footer>
+
+</div>
+</body>
+</html>

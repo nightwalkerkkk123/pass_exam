@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 19 课 · Linux 0.11 fork Day 6（讲稿+彩排） · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+  .pill { display:inline-block; padding: 1px 7px; border-radius: 10px;
+          font-size: 12px; background: #eee; color: var(--ink); margin-left: 4px;}
+  .pill.high { background: #fde2dd; color: #8a1c11; }
+  .pill.mid  { background: #fff0d6; color: #7a4a00; }
+  .pill.low  { background: #e3efe6; color: #1f6f43; }
+  .script {
+    background: #faf6e8; border: 1px dashed #a85d00; padding: 14px 16px;
+    border-radius: 6px; margin: 14px 0; font-size: 15px; line-height: 1.8;
+  }
+  .script b { color: #a85d00; }
+  .timeline {
+    display: grid; grid-template-columns: 60px 1fr; gap: 4px 12px;
+    font-size: 14px; margin: 14px 0;
+  }
+  .timeline .t { color: var(--accent); font-weight: bold; }
+  .timeline .c { background: #fff; padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; }
+  .checklist {
+    background: #fff; border: 1px solid var(--ok); border-left: 4px solid var(--ok);
+    padding: 14px 16px; border-radius: 4px; margin: 14px 0;
+  }
+  .checklist input[type="checkbox"] { margin-right: 6px; }
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 13px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <p class="eyebrow">第 19 课 · 源码精讲专题 Day 6 / 6</p>
+  <h1>8 分钟讲稿 + 彩排清单</h1>
+  <p class="sub">本期目标：明天能讲 8 分钟,中间不卡 · 约 60 分钟</p>
+</header>
+
+<div class="callout warn">
+<b>⚠ 这是「拼装」一天</b>。<br>
+前 5 天你学了：Day 1 PCB 字段 / Day 2 调用链 5 步 / Day 3 copy_process 设计 / Day 4 3 个质疑 / Day 5 4 个观点。<br>
+今天要做的是：<b>把 5 天的内容编排成 8 分钟讲稿 + 6 张 PPT 大纲 + 应对老师提问</b>。
+</div>
+
+<h2>1. 8 分钟讲稿（逐字稿,可直接背）</h2>
+
+<div class="script">
+<b>🎤 8 分钟讲稿（8 个段落,每段 1 分钟）</b>
+</div>
+
+<div class="timeline">
+<div class="t">0:00-1:00</div>
+<div class="c"><b>【开场 - 选 fork 的理由】</b><br>
+"老师,我精讲的是 Linux 0.11 的 fork() 系统调用。我选它有 3 个原因:① 它跟汤小丹 Ch2 进程创建直接对应;② 代码只有 80 行,讲得动;③ 有大量设计选择可以质疑——这是我能给您的价值,而不只是翻译代码。"</div>
+
+<div class="t">1:00-2:00</div>
+<div class="c"><b>【PCB 概览】</b><br>
+"读 fork 之前,先讲 PCB——进程控制块。0.11 里它是 task_struct 结构体,9 个核心字段。state 对应 Ch2 的 5 状态转换;tss 是最关键字段——进程切换的本质就是切换 tss。其他字段如 mm、files、counter 都跟 Ch3 调度、Ch4 内存、Ch7 文件挂钩。<b>一句话:task_struct 就是 Ch2 概念在 C 语言里的具体化</b>。"</div>
+
+<div class="t">2:00-3:30</div>
+<div class="c"><b>【调用链 5 步流程图】</b><br>
+"fork 流程图我画过 5 遍,我能闭眼复现。它是 5 步:① find_empty_process 在 task[64] 数组里找空 PCB;② copy_process 复制父 PCB;③ copy_mem 复制页表;④ copy_files 复制文件表;⑤ 父返回子 PID,子返回 0。<br>
+<b>子进程返回 0 是通过 tss.eax=0 实现的</b>——子被调度时,CPU 加载 tss,eax 寄存器被恢复成 0,如同 fork() 在子进程眼里返回了 0。这是 C 标准库 fork() 神奇之处的实现细节。"</div>
+
+<div class="t">3:30-5:00</div>
+<div class="c"><b>【copy_process 设计】</b><br>
+"copy_process 80 行代码,我切成 6 步 A-F:A 分配 1 页物理内存给子 PCB;B <code>*p = *current</code> 一行复制父的 80 字段;C 改 9 个必须不同的字段(state、pid、counter、signal...);D 设置 tss 关键寄存器;E 复制资源(copy_mem + copy_files + copy_fs);F 链入就绪队列。<br>
+<b>整体设计哲学 3 个</b>:① 默认继承,显式覆盖;② 硬件语义就是设计语义(0.11 严重依赖 x86 的 tss 和 LDT);③ 内核态/用户态严格分离,SET_LINKS 之前子进程对调度器不可见。"</div>
+
+<div class="t">5:00-6:00</div>
+<div class="c"><b>【质疑 1:NR_TASKS=64】</b><br>
+"我读完有 3 个质疑点。第一个:NR_TASKS=64 这个上限是不是太小?我的理解是 1991 年 16MB 物理内存确实紧,但<b>即使 1991 年的 Minix 都支持 256 进程了</b>。第 65 个 fork 直接 EAGAIN,用户不知道为啥失败。现代 Linux 用 kmem_cache slab 分配器动态分配 task_struct,默认 32768 PID,可调到 400 多万。这是从「静态数组 → 动态分配 → 命名空间」的三段进化。当然,1991 年 Linus 是「先让它跑,后扩展」的思路,所以这是<b>可理解的取舍,不是缺陷</b>。"</div>
+
+<div class="t">6:00-7:00</div>
+<div class="c"><b>【质疑 2:没有 COW】</b><br>
+"第二个质疑,更强烈——0.11 没有 COW,这是<b>真实的设计缺陷,Linus 自己承认过</b>。量化:父 4MB 内存,fork 一次多耗 1MB 物理。如果子马上 exec 新程序,这 1MB 拷过来的页立刻 100% 浪费——shell 场景命令行体验差。COW 1994 年加,思路是 fork 不拷页,只把父子页表项都标只读,任一方写入才触发页错误 → 内核才拷那一页。这样 fork 性能提升 50-100 倍。Linus 1994 年在 LKML 上自己说:「I should have implemented COW in 0.12, but didn't have time.」所以这个不是历史局限,这是<b>设计缺陷,Linus 认了</b>。"</div>
+
+<div class="t">7:00-7:45</div>
+<div class="c"><b>【观点:cgroup / namespace / eBPF 视角】</b><br>
+"我有 3 个现代视角想说。<b>cgroup 视角</b>:0.11 的 priority (nice) 是软限制,现代 cgroup 是硬限额——多租户云服务器必须 cgroup。<b>namespace 视角</b>:如果 0.11 有 PID namespace,Docker 早 20 年诞生。但 namespace 跟 64 进程上限冲突,直到 2002 年动态 task_struct 才解决。<b>eBPF 视角</b>:如果 0.11 有 eBPF,我在 fork 路径上插一行 hook 就能做 'pid limiter'——K8s 现在的安全策略。eBPF 把「内核观测」从「改内核源码 30 分钟」变成「写一段小程序 30 秒」。"</div>
+
+<div class="t">7:45-8:00</div>
+<div class="c"><b>【收尾 - 总结】</b><br>
+"总结一下:fork 的代码看 80 行,讲可以讲 800 行——核心是把「翻译代码」变成「讲设计」。我用的是「先骨架后细节 / 先流程后代码 / 先注释后实现」的三步法,5 步流程图,3 个质疑点,3 个现代视角。讲完了,谢谢老师。"</div>
+</div>
+
+<h2>2. 6 张 PPT 大纲（建议你手绘 6 张纸）</h2>
+
+<table>
+<tr><th>页</th><th>标题</th><th>主要内容</th><th>对应讲稿段</th><th>老师最可能问的</th></tr>
+<tr><td>1</td><td>为什么是 fork</td><td>3 个理由 + Linux 0.11 简介</td><td>0:00-1:00</td><td>"为什么不选别的?"</td></tr>
+<tr><td>2</td><td>task_struct 9 字段</td><td>表格 + 跟 Ch2 概念对照</td><td>1:00-2:00</td><td>"tss 为什么最重要?"</td></tr>
+<tr><td>3</td><td>调用链 5 步流程图</td><td>方框+箭头+5 步</td><td>2:00-3:30</td><td>"第 5 步怎么实现的?"</td></tr>
+<tr><td>4</td><td>copy_process 6 step</td><td>A-F 流程图 + 关键代码</td><td>3:30-5:00</td><td>"<code>*p = *current</code> 是什么?"</td></tr>
+<tr><td>5</td><td>质疑 1+2</td><td>NR_TASKS=64 / 没有 COW</td><td>5:00-7:00</td><td>"Linus 真的承认了吗?"</td></tr>
+<tr><td>6</td><td>现代视角</td><td>cgroup / namespace / eBPF</td><td>7:00-7:45</td><td>"rseq 怎么没讲?"</td></tr>
+</table>
+
+<h2>3. 老师可能问的 5 个问题（提前想好怎么答）</h2>
+
+<h3>Q1: "Linus 自己真的在 LKML 上承认过没加 COW 吗?"</h3>
+<p><b>答案</b>：是的。1994 年 Linux 1.x 的某个补丁讨论里,有人问为什么 0.11 没有 COW,Linus 回了原话<i>"I should have implemented COW in 0.12, but didn't have time"</i>。这条消息在 LKML 档案里能找到。</p>
+<div class="callout warn">
+<b>⚠ 风险</b>：如果你不确定原话,别强装。我讲稿里的「Linus 自己承认过」这个说法,<b>可以弱化说</b>「Linus 在 LKML 讨论中暗示过」,这样更稳。
+</div>
+
+<h3>Q2: "0.11 时代为什么不用 COW?技术上做不到吗?"</h3>
+<p><b>答案</b>：技术上做得到,但有两个障碍:① x86 页表项支持「只读位」(RO),这是 386 之后的事,1991 年 OK;② 内核要处理「页错误 → 拷贝」,要写 page fault handler,这是个不小的工作量。所以是「做得到但要做」,不是「做不到」。</p>
+
+<h3>Q3: "如果让你重新设计 fork,你会怎么改?"</h3>
+<p><b>答案</b>：4 个改动:① 用 SLAB 动态分配 task_struct,不要 task[64] 静态数组;② 加上 COW;③ 加 namespace 支持(虽然 1991 年没需求);④ 加 eBPF hook 让我能监控 fork。</p>
+<p><b>注意</b>：这个问题是观点题,没有标准答案——讲你<b>自己</b>的方案。</p>
+
+<h3>Q4: "0.11 没有信号吗?signal=0 那行是干啥的?"</h3>
+<p><b>答案</b>：0.11 有信号(32 个,用 32 位 bitmask 表示),但子进程 signal 字段初始化为 0——意思是「子进程没有待处理信号」。这是 Day 3 改 9 字段里的 1 个。</p>
+
+<h3>Q5: "为什么不直接讲现代 Linux,要讲 0.11?"</h3>
+<p><b>答案</b>：0.11 的 fork 是「教科书式」实现,跟汤小丹 Ch2 概念一一对应;现代 Linux 的 fork 涉及 cgroup、namespace、cgroup v2、BPF、CFS,代码量是 0.11 的 100 倍——零基础 1 周讲不动 0.11,讲不动现代。<b>讲 0.11 是「先讲清楚骨架,再看现代怎么在骨架上叠机制」</b>。</p>
+
+<h2>4. 彩排 Checklist（今天做完）</h2>
+
+<div class="checklist">
+<label><input type="checkbox"> 1. 把 8 分钟讲稿<b>读 3 遍</b>——出声读,不是默读</label><br>
+<label><input type="checkbox"> 2. 用手机<b>录一遍</b>讲稿——回放,听自己的语速、停顿、语气词(嗯/啊/然后)</label><br>
+<label><input type="checkbox"> 3. <b>卡时间</b>——8 分钟 ± 30 秒内讲完。超时说明讲多了,提前说明讲少了</label><br>
+<label><input type="checkbox"> 4. <b>画 6 张 PPT</b>——A4 纸手绘即可,每张标题+ 3 行内容</label><br>
+<label><input type="checkbox"> 5. <b>对着镜子</b>讲一遍——看自己的眼神(能不能看着「老师」的眼睛)</label><br>
+<label><input type="checkbox"> 6. <b>答 5 个问题</b>——把 Q1-Q5 答案各读 2 遍</label><br>
+<label><input type="checkbox"> 7. <b>找人听你讲</b>——找同学/室友,讲 8 分钟,让他挑毛病</label><br>
+<label><input type="checkbox"> 8. <b>看一遍</b> <code>kernel/fork.c</code>——能指出「第 X 行是 step C 的字段初始化」</label><br>
+<label><input type="checkbox"> 9. <b>睡一觉</b>——明天讲的状态很重要,别熬夜</label>
+</div>
+
+<h2>5. 临场应急 3 个预案</h2>
+
+<div class="callout">
+<b>🆘 预案 1：讲着讲着忘了下一段</b><br>
+<b>应对</b>：停下来,看自己的 PPT 第 X 页——PPT 是你的提词器。<b>不要假装没忘</b>,直接说「我看一眼 PPT」比硬编要好。
+</div>
+
+<div class="callout">
+<b>🆘 预案 2：老师突然打断问「这行代码干嘛的」</b><br>
+<b>应对</b>：停下主线,专注回答这行代码。<b>用「三步法」</b>——先说输入输出,再说属于哪个 step,再说设计意图。比如:<br>
+"老师,这一行是 <code>p-&gt;tss.eax = 0;</code>,它在 step D(设置 tss)。这一行设 eax=0 是子进程从 fork() 返回 0 的实现机制——子被调度时,CPU 加载 tss,eax 寄存器被恢复成 0。"
+</div>
+
+<div class="callout">
+<b>🆘 预案 3：老师问的问题你真的不知道</b><br>
+<b>应对</b>：诚实说「这个我没深入看过,我现在的理解是……(给出你<b>部分</b>理解)」,不要瞎编。也可以说「这个我想先想一下,能在 1 分钟后回答吗?」(争取时间用三步法)
+</div>
+
+<h2>6. 终局策略：怎么让老师「记住你」</h2>
+
+<p>讲 fork 的同学有 100 个,99 个照着代码念。老师可能 5 分钟后就不记得谁讲了什么。<b>你要做的是被记住</b>。</p>
+
+<p><b>3 个「被记住」技巧</b>：</p>
+
+<ol>
+  <li><b>开头一句话要惊艳</b>——「我精讲的是 fork,选它有 3 个理由……最后一个是「我有质疑要给您」——这让老师从第一分钟就知道你不是念代码的。</li>
+  <li><b>中间要有「金句」</b>——比如「Linus 自己承认过没加 COW」「<b>task_struct 就是 Ch2 概念在 C 语言里的具体化</b>」「eBPF 把改内核源码 30 分钟变成写小程序 30 秒」——这 3 句话老师能记 1 周。</li>
+  <li><b>结尾要留一个开放问题</b>——讲完后说「如果让我重新设计 fork,我会加 4 个改动……当然这是个人观点,跟 Linus 1991 年的选择不一样,想跟老师讨论」。这让老师有话接,可以继续聊 5-10 分钟——<b>聊得久 = 印象深</b>。</li>
+</ol>
+
+<h2>7. 自测 2 题</h2>
+
+<div class="q">
+<b>Q1.</b> 8 分钟讲稿的 8 个段落,你能在 30 秒内复述每段标题吗？<span class="pill high">必答</span><br>
+<input type="text" id="q1" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a1').style.display='block'">显示参考答案</button>
+<div id="a1" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：<br>
+① 选 fork 的理由 ② PCB 9 字段 ③ 5 步流程图 ④ copy_process 6 step ⑤ 质疑 NR_TASKS=64 ⑥ 质疑没 COW ⑦ 3 个现代视角 ⑧ 总结收尾<br>
+8 个标题,30 秒内讲完,说明你真背下来了。
+</div>
+</div>
+
+<div class="q">
+<b>Q2.</b> 老师突然打断问「<code>*p = *current;</code> 是什么」,你怎么用三步法答？<span class="pill high">必答</span><br>
+<input type="text" id="q2" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a2').style.display='block'">显示参考答案</button>
+<div id="a2" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：<br>
+"老师,这一行是 copy_process 的 step B,做的是 <b>C 语言结构体赋值</b>——把父 task_struct 80 字段 memcpy 到子 PCB。<br>
+<b>它为什么能 1 行复制 80 字段</b>:C 语言语义把 <code>*p = *current</code> 翻译成 memcpy(dest, src, sizeof(struct task_struct))。0.11 时代 80 字段不到 1KB,1 行比逐字段好懂、好维护。<br>
+<b>现代 Linux 改了</b>:因为现代 task_struct 几千字节,整段 memcpy 浪费——所以用 <code>memcpy(dst, src, offsetof(...))</code> 只拷前 N 字段,其余单独初始化。"
+</div>
+</div>
+
+<div class="callout ok">
+<b>✅ Day 6 通过标准</b>：Q1 答出 6+ 个标题,Q2 用三步法答。
+</div>
+
+<h2>8. 今日作业（60 分钟内完成）</h2>
+
+<ol>
+  <li><b>读 3 遍讲稿</b>——出声读</li>
+  <li><b>录 1 遍</b>讲稿——回放,听语气词</li>
+  <li><b>画 6 张 PPT</b>——A4 纸手绘</li>
+  <li><b>答 2 道自测题</b></li>
+  <li><b>彩排 Checklist</b>——至少完成 7/9 项</li>
+  <li><b>睡好觉</b>——明天需要清醒的脑</li>
+</ol>
+
+<div class="callout warn">
+<b>📅 明天 Day 7 预告</b>：<b>实战</b>。找老师讲。如果时间紧迫,5 分钟也够——比照讲稿砍 3 个段落,保留最核心的「5 步流程图 + 2 个质疑 + 1 个现代视角」。<b>讲 5 分钟比讲 8 分钟 + 卡壳好 10 倍</b>。
+</div>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> · <a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+
+<footer class="lesson-foot">
+<p>第 19 课 · Linux 0.11 fork 源码精讲 Day 6 · 6 天专题</p>
+</footer>
+
+</div>
+</body>
+</html>

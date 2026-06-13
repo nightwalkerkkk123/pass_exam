@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>操作系统题库 · 期末冲刺</title>
+<style>
+:root { --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+        --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; }
+* { box-sizing: border-box; }
+body { font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       color:var(--ink); background:var(--bg); line-height:1.7; max-width:920px;
+       margin:0 auto; padding:40px 28px 80px; }
+h1 { font-size:28px; border-bottom:2px solid var(--ink); padding-bottom:8px; }
+h2 { font-size:20px; margin-top:32px; border-left:4px solid var(--accent); padding-left:10px; }
+h3 { font-size:16px; margin-top:18px; color:var(--accent); }
+.eyebrow { color:var(--accent); font-weight:600; font-size:13px; }
+.bank-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:20px 0; }
+.bank-card { background:#fff; border:1px solid var(--line); border-left:4px solid var(--accent);
+             padding:14px 16px; border-radius:6px; }
+.bank-card h4 { margin:0 0 6px; font-size:15px; color:var(--accent); }
+.bank-card p { margin:4px 0; font-size:13px; color:var(--muted); }
+.bank-card a { display:inline-block; margin-top:6px; color:var(--accent); font-weight:600; }
+.tag { display:inline-block; padding:1px 6px; border-radius:3px; font-size:11px;
+       font-weight:600; margin-right:4px; }
+.tag-ch { background:#fef3c7; color:#92400e; }
+.tag-q { background:#dbeafe; color:#1e40af; }
+.tag-easy { background:#d5f5e3; color:#1f6f43; }
+.tag-med { background:#fdebd0; color:#a85d00; }
+.tag-hard { background:#fadbd8; color:#b03a2e; }
+table { border-collapse:collapse; width:100%; margin:12px 0; font-size:14px; }
+th, td { border:1px solid var(--line); padding:6px 10px; text-align:left; }
+th { background:#f0ede5; }
+.tip { background:var(--soft); border:1px solid var(--line); border-left:4px solid var(--accent);
+       padding:10px 14px; border-radius:4px; margin:14px 0; }
+code { background:#efece6; padding:1px 5px; border-radius:3px; font-family:"SF Mono",Menlo,monospace; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<p class="eyebrow">题库目录 · 期末冲刺</p>
+<h1>操作系统题库 · 6 套章节测试 + 1 套仿真期末卷</h1>
+
+<p>本目录下的 7 个 HTML 是期末冲刺的「题库」。配合 <a href="../lessons/0001-overview-and-question-map.html">12 节课</a> 使用，路径建议：</p>
+<ol>
+  <li>每节 lesson 看完 → 立即做对应章节测试（巩固）</li>
+  <li>6 章都做完 → 做仿真期末卷（自测）</li>
+  <li>错题回到对应 lesson 重新看（复习）</li>
+</ol>
+
+<h2>📚 6 套章节测试</h2>
+
+<div class="bank-grid">
+  <div class="bank-card">
+    <h4>第 1 章 操作系统引论</h4>
+    <p><span class="tag tag-ch">Ch1</span><span class="tag tag-q">25 题</span><span class="tag tag-easy">100 分</span></p>
+    <p>覆盖：四大特征、五大功能、批处理/分时/实时对比（含老师课件作业题-1/2）</p>
+    <a href="ch01-test.html">打开测试 →</a>
+  </div>
+  <div class="bank-card">
+    <h4>第 2 章 进程的描述与控制</h4>
+    <p><span class="tag tag-ch">Ch2</span><span class="tag tag-q">40 题</span><span class="tag tag-hard">100 分</span></p>
+    <p>覆盖：进程 3 状态、PV 操作、生产者-消费者、哲学家、读者-写者、线程（含老师课件习题+3 个思考题）</p>
+    <a href="ch02-test.html">打开测试 →</a>
+  </div>
+  <div class="bank-card">
+    <h4>第 3 章 处理机调度与死锁</h4>
+    <p><span class="tag tag-ch">Ch3</span><span class="tag tag-q">30 题</span><span class="tag tag-hard">100 分</span></p>
+    <p>覆盖：FCFS/SJF/RR/HRRN/MFQ、调度计算、银行家算法（含老师课件完整 P0-P4 例题）、死锁 4 条件</p>
+    <a href="ch03-test.html">打开测试 →</a>
+  </div>
+  <div class="bank-card">
+    <h4>第 4 章 存储器管理</h4>
+    <p><span class="tag tag-ch">Ch4</span><span class="tag tag-q">35 题</span><span class="tag tag-hard">100 分</span></p>
+    <p>覆盖：连续分配（FF/BF/WF）、分页、二级页表、地址转换（含老师课件习题 1/2/3）、分段</p>
+    <a href="ch04-test.html">打开测试 →</a>
+  </div>
+  <div class="bank-card">
+    <h4>第 5 章 虚拟存储器</h4>
+    <p><span class="tag tag-ch">Ch5</span><span class="tag tag-q">30 题</span><span class="tag tag-hard">100 分</span></p>
+    <p>覆盖：OPT/FIFO/LRU/CLOCK 算法对比、Belady 异常（含老师课件 7,0,1,2,... 例题）、抖动、工作集</p>
+    <a href="ch05-test.html">打开测试 →</a>
+  </div>
+  <div class="bank-card">
+    <h4>第 6 章 文件管理</h4>
+    <p><span class="tag tag-ch">Ch6</span><span class="tag tag-q">30 题</span><span class="tag tag-hard">100 分</span></p>
+    <p>覆盖：IO 4 控制方式、SPOOLing、3 种文件分配、FAT、成组链接法（含老师课件范例 1-9）、混合索引</p>
+    <a href="ch06-test.html">打开测试 →</a>
+  </div>
+</div>
+
+<h2>📝 仿真期末卷</h2>
+
+<div class="bank-card" style="border-left-color: var(--ok);">
+  <h4 style="color:var(--ok);">2026 春季 · 仿真期末卷</h4>
+  <p><span class="tag tag-q">46 题</span><span class="tag tag-easy">100 分</span> 难度配比：basic 30% / medium 50% / hard 20%</p>
+  <p>题型分布：选择 20×2 = 40 分 / 判断 10×1 = 10 分 / 填空 10×2 = 20 分 / 简答 2×5 = 10 分（参考）/ 计算 4×5 = 20 分（参考）</p>
+  <p>覆盖 Ch1-Ch6 全部 6 章，按学校自命题风格出题。做完这份 → 你的分数 ≈ 期末实际分数（误差 ±10 分）</p>
+  <a href="final-test.html" style="font-size:16px;">打开仿真期末卷 →</a>
+</div>
+
+<h2>🗺️ 推荐做题顺序</h2>
+
+<table>
+  <tr><th>阶段</th><th>顺序</th><th>目标</th><th>预计用时</th></tr>
+  <tr><td>1. 基础</td><td>6 套章节测试，每套 80-100 分</td><td>概念清、计算准</td><td>2-3 天</td></tr>
+  <tr><td>2. 提分</td><td>错题回 lesson 复习，二刷错的</td><td>消灭失分点</td><td>2-3 天</td></tr>
+  <tr><td>3. 仿真</td><td>仿真期末卷（限时 120 分钟）</td><td>测整体水平</td><td>半天</td></tr>
+  <tr><td>4. 查漏</td><td>仿真卷错题回 lesson 复习</td><td>查漏补缺</td><td>1-2 天</td></tr>
+  <tr><td>5. 临场</td><td>看错题本 + 翻公式</td><td>考前 1 天</td><td>2 小时</td></tr>
+</table>
+
+<h2>📊 分值地图（学校自命题视角）</h2>
+
+<table>
+  <tr><th>章节</th><th>选择</th><th>填空</th><th>简答</th><th>计算大题</th><th>重点</th></tr>
+  <tr><td>Ch1 引论</td><td>★★★</td><td>★★</td><td>★</td><td>—</td><td>四大特征、OS 类型</td></tr>
+  <tr><td>Ch2 进程同步</td><td>★★</td><td>★</td><td>★★</td><td>★★★★★</td><td>PV 操作 3 类大题（必考）</td></tr>
+  <tr><td>Ch3 调度死锁</td><td>★★</td><td>★★</td><td>★★</td><td>★★★★★</td><td>银行家算法（必考）+ 调度计算</td></tr>
+  <tr><td>Ch4 存储管理</td><td>★★</td><td>★★★</td><td>★★</td><td>★★★★</td><td>分页计算、连续分配 FF/BF</td></tr>
+  <tr><td>Ch5 虚拟存储</td><td>★★</td><td>★★</td><td>★</td><td>★★★★</td><td>页面置换（必考）</td></tr>
+  <tr><td>Ch6 文件</td><td>★★</td><td>★★</td><td>★★★</td><td>★★★★★</td><td>混合索引计算 + 成组链接法（必考）</td></tr>
+</table>
+
+<h2>💡 使用方法</h2>
+
+<div class="tip">
+<b>建议 1：先 lesson 后题库</b><br>
+lesson 是「讲故事」让你懂，题库是「让你写出来」证明你懂。<br>
+顺序：lesson → 题库对应章节 → 错题回 lesson。
+</div>
+
+<div class="tip">
+<b>建议 2：题库要做 2 遍</b><br>
+第 1 遍：开卷做，看每题的 <code>explanation</code> 字段（解析）。<br>
+第 2 遍：闭卷做，能答对才算真的会。
+</div>
+
+<div class="tip">
+<b>建议 3：错题本</b><br>
+所有答错的题，抄题号 + 错因到错题本。<br>
+仿真期末卷前 1 天只看错题本，效率最高。
+</div>
+
+<div class="tip">
+<b>建议 4：注意老师课件的「作业题」</b><br>
+本套题库的简答/计算题有 ★ 标记的是直接来源于老师课件的作业题/思考题，<b>一定要会做</b>。
+</div>
+
+<h2>🛠️ 题库使用方式</h2>
+
+<p>每个题库 HTML 都是可交互的：</p>
+<ul>
+  <li>选择题：点选项</li>
+  <li>判断题：点「正确」或「错误」</li>
+  <li>填空题：在框里输入答案（不区分大小写、忽略标点）</li>
+  <li>简答/计算：参考题，参考答案在「提交批改」后显示</li>
+  <li><b>「提交批改」</b>按钮：自动判分，显示每题对错和解析</li>
+</ul>
+
+<p>打开命令（macOS 终端）：</p>
+<pre><code>open "/Users/wangzihao/Code/pass_exam/operating_systems/exams/final-test.html"</code></pre>
+
+<h2>📂 文件清单</h2>
+<table>
+  <tr><th>文件</th><th>大小</th><th>题目数</th><th>分值</th></tr>
+  <tr><td>ch01-test.html</td><td>~20KB</td><td>25</td><td>100</td></tr>
+  <tr><td>ch02-test.html</td><td>~25KB</td><td>40</td><td>100</td></tr>
+  <tr><td>ch03-test.html</td><td>~22KB</td><td>30</td><td>100</td></tr>
+  <tr><td>ch04-test.html</td><td>~23KB</td><td>35</td><td>100</td></tr>
+  <tr><td>ch05-test.html</td><td>~21KB</td><td>30</td><td>100</td></tr>
+  <tr><td>ch06-test.html</td><td>~22KB</td><td>30</td><td>100</td></tr>
+  <tr><td><b>final-test.html</b></td><td>~26KB</td><td>46</td><td>100</td></tr>
+  <tr><td><b>合计</b></td><td>~160KB</td><td><b>236 题</b></td><td><b>700 分</b></td></tr>
+</table>
+
+<p style="margin-top:30px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px;">
+<a href="../MISSION.md">MISSION.md</a> · <a href="../RESOURCES.md">RESOURCES.md</a> · <a href="../../operating_systems_tangxiaodan/SKILL.md">教材技能</a>
+</p>
+
+</body>
+</html>

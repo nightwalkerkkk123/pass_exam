@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 2 课 · 调度算法 4 件套 + RR 实战 · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+  .pill { display:inline-block; padding: 1px 7px; border-radius: 10px;
+          font-size: 12px; background: #eee; color: var(--ink); margin-left: 4px;}
+  .pill.high { background: #fde2dd; color: #8a1c11; }
+  .pill.mid  { background: #fff0d6; color: #7a4a00; }
+  .pill.low  { background: #e3efe6; color: #1f6f43; }
+
+  /* ===== 甘特图样式 ===== */
+  .gantt-wrap { overflow-x: auto; margin: 16px 0; }
+  table.gantt {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 12px; border-collapse: collapse; width: max-content; min-width: 100%;
+  }
+  table.gantt th, table.gantt td {
+    width: 36px; min-width: 36px; max-width: 36px;
+    text-align: center; padding: 6px 2px; border: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  table.gantt th:first-child, table.gantt td:first-child {
+    width: 60px; min-width: 60px; max-width: 60px;
+    background: #f0ede5; font-weight: 600;
+  }
+  table.gantt th { background: #f0ede5; font-weight: 500; color: var(--muted); }
+  table.gantt td.A { background: #fde2dd; }
+  table.gantt td.B { background: #dde7f5; }
+  table.gantt td.C { background: #e3efe6; }
+  table.gantt td.D { background: #fff0d6; }
+  table.gantt td.E { background: #f3e8f7; }
+  table.gantt td.idle { background: #fff; color: var(--muted); }
+  table.gantt td.divider { border-left: 2px solid var(--ink); }
+
+  /* 关键值高亮 */
+  td.hi { font-weight: 700; color: var(--accent); }
+  td.ok { font-weight: 700; color: var(--ok); }
+
+  /* 时间线标记 */
+  .marker { display:inline-block; width: 10px; height: 10px; border-radius: 50%;
+            margin-right: 4px; vertical-align: middle; }
+  .marker.A { background: #fde2dd; border: 1px solid #c97164; }
+  .marker.B { background: #dde7f5; border: 1px solid #6a8db8; }
+  .marker.C { background: #e3efe6; border: 1px solid #6a9d7a; }
+  .marker.D { background: #fff0d6; border: 1px solid #c4a05c; }
+  .marker.E { background: #f3e8f7; border: 1px solid #9a7ab0; }
+
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 13px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q, .gantt-wrap { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 2 课 · 期末冲刺</div>
+  <h1>调度算法 4 件套 + RR 实战</h1>
+  <div class="sub">目标：20 分钟内把 FCFS / SJF / HRRN / RR 的走法 + 周转时间计算 + 关键 trade-off 装进脑子</div>
+</header>
+
+<h2>1. 一句话：4 个调度算法</h2>
+<p>OS 的"处理机调度"要回答 1 个问题：<b>就绪队列里这么多进程，让谁先上 CPU？</b>常见 4 个答案：</p>
+
+<table>
+  <tr><th>算法</th><th>英文</th><th>核心思想</th><th>类比</th></tr>
+  <tr><td><b>先来先服务</b></td><td>FCFS</td><td>按到达顺序，谁先到谁先跑</td><td>银行排号，先来先办</td></tr>
+  <tr><td><b>短作业优先</b></td><td>SJF</td><td>谁的服务时间短，谁先跑</td><td>医院看病，小病先看</td></tr>
+  <tr><td><b>高响应比优先</b></td><td>HRRN</td><td>响应比最高的先跑</td><td>等得越久越优先（兼顾长短）</td></tr>
+  <tr><td><b>轮转调度</b></td><td>RR</td><td>每人轮流跑 1 个时间片 q</td><td>老师让每人发言 1 分钟</td></tr>
+</table>
+
+<h2>2. 评价指标：两个公式（必背）</h2>
+<div class="callout">
+<b>周转时间 T = 完成时间 − 到达时间</b><br>
+<b>带权周转时间 W = T / 服务时间</b><br><br>
+W 越大 = 这个进程"等得久 / 跑得短" = 越不划算。SJF 的目标就是让 W 最小。
+</div>
+
+<h2>3. 公共题面（贯穿下面 3 个算法）</h2>
+<p>5 个进程 <span class="marker A"></span><span class="marker B"></span><span class="marker C"></span><span class="marker D"></span><span class="marker E"></span><b>都在时刻 0 到达</b>，服务时间如下：</p>
+
+<table>
+  <tr><th>进程</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
+  <tr><td><b>服务时间</b></td><td>3</td><td>6</td><td>4</td><td>2</td><td>5</td></tr>
+</table>
+
+<h2>4. FCFS 走法（最简单：按字母顺序）</h2>
+<p>顺序：A → B → C → D → E，每个跑完才换下一个。</p>
+
+<div class="gantt-wrap">
+<table class="gantt">
+  <tr><th>时间</th>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td>
+    <td>9</td><td>10</td><td>11</td><td>12</td><td>13</td><td>14</td>
+    <td>15</td><td>16</td><td>17</td><td>18</td><td>19</td><td>20</td>
+  </tr>
+  <tr><th>CPU</th>
+    <td class="A">A</td><td class="A">A</td><td class="A">A</td>
+    <td class="B">B</td><td class="B">B</td><td class="B">B</td><td class="B">B</td><td class="B">B</td><td class="B">B</td>
+    <td class="C">C</td><td class="C">C</td><td class="C">C</td><td class="C">C</td>
+    <td class="D">D</td><td class="D">D</td>
+    <td class="E">E</td><td class="E">E</td><td class="E">E</td><td class="E">E</td><td class="E">E</td>
+  </tr>
+</table>
+</div>
+
+<table>
+  <tr><th>进程</th><th>开始</th><th>完成</th><th>服务</th><th>T</th><th>W</th></tr>
+  <tr><td>A</td><td>0</td><td>3</td><td>3</td><td><b>3</b></td><td>1.00</td></tr>
+  <tr><td>B</td><td>3</td><td>9</td><td>6</td><td><b>9</b></td><td>1.50</td></tr>
+  <tr><td>C</td><td>9</td><td>13</td><td>4</td><td><b>13</b></td><td>3.25</td></tr>
+  <tr><td>D</td><td>13</td><td>15</td><td>2</td><td><b>15</b></td><td class="hi">7.50</td></tr>
+  <tr><td>E</td><td>15</td><td>20</td><td>5</td><td><b>20</b></td><td>4.00</td></tr>
+  <tr><th colspan="4">平均</th><th class="ok">12.0</th><th class="ok">3.45</th></tr>
+</table>
+
+<div class="callout warn">
+<b>FCFS 的坑</b>：D 只服务 2 分钟，却等了 13 分钟才跑（<b>W=7.5，全场最亏</b>）。先来的是长作业 → 短作业全被卡。
+</div>
+
+<h2>5. SJF 走法（按服务时间从短到长排序）</h2>
+<p>排序后顺序：<b>D(2) → A(3) → C(4) → E(5) → B(6)</b></p>
+
+<div class="gantt-wrap">
+<table class="gantt">
+  <tr><th>时间</th>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td>
+    <td>10</td><td>11</td><td>12</td><td>13</td><td>14</td>
+    <td>15</td><td>16</td><td>17</td><td>18</td><td>19</td><td>20</td>
+  </tr>
+  <tr><th>CPU</th>
+    <td class="D">D</td><td class="D">D</td>
+    <td class="A">A</td><td class="A">A</td><td class="A">A</td>
+    <td class="C">C</td><td class="C">C</td><td class="C">C</td><td class="C">C</td>
+    <td class="E">E</td><td class="E">E</td><td class="E">E</td><td class="E">E</td><td class="E">E</td>
+    <td class="B">B</td><td class="B">B</td><td class="B">B</td><td class="B">B</td><td class="B">B</td><td class="B">B</td>
+  </tr>
+</table>
+</div>
+
+<table>
+  <tr><th>进程</th><th>开始</th><th>完成</th><th>服务</th><th>T</th><th>W</th></tr>
+  <tr><td>D</td><td>0</td><td>2</td><td>2</td><td><b>2</b></td><td>1.00</td></tr>
+  <tr><td>A</td><td>2</td><td>5</td><td>3</td><td><b>5</b></td><td>1.67</td></tr>
+  <tr><td>C</td><td>5</td><td>9</td><td>4</td><td><b>9</b></td><td>2.25</td></tr>
+  <tr><td>E</td><td>9</td><td>14</td><td>5</td><td><b>14</b></td><td>2.80</td></tr>
+  <tr><td>B</td><td>14</td><td>20</td><td>6</td><td><b>20</b></td><td>3.33</td></tr>
+  <tr><th colspan="4">平均</th><th class="ok">10.0</th><th class="ok">2.21</th></tr>
+</table>
+
+<div class="callout ok">
+<b>SJF 的胜利</b>：D 不用等，A 也几乎不卡。平均 T 从 12 降到 10，平均 W 从 3.45 降到 2.21。<b>这就是教材金句：「SJF 是使系统平均周转时间最短的算法」</b>。
+</div>
+
+<h2>6. RR 走法（重点：4 步流程 + 甘特图）</h2>
+<p>假设时间片 <b>q = 2</b>（每个进程最多跑 2 分钟，时间片到了就送回队尾）。</p>
+
+<h3>6.1 四步走法（背下来）</h3>
+<ol>
+  <li>就绪队列按 FCFS 排：<code>[A, B, C, D, E]</code></li>
+  <li>调度<b>队首</b>进程上 CPU</li>
+  <li>让它跑 <b>min(剩余, q)</b> 分钟：剩余 ≤ q 就一次跑完；否则跑满 q</li>
+  <li>没跑完 → <b>送回队尾</b>；跑完 → 撤出</li>
+</ol>
+
+<h3>6.2 逐步走（看队列变化）</h3>
+<table>
+  <tr><th>时间段</th><th>谁跑</th><th>剩余</th><th>队列变化</th></tr>
+  <tr><td>0-2</td><td>A</td><td>3-2 = <b>1</b></td><td>[B, C, D, E, A]</td></tr>
+  <tr><td>2-4</td><td>B</td><td>6-2 = <b>4</b></td><td>[C, D, E, A, B]</td></tr>
+  <tr><td>4-6</td><td>C</td><td>4-2 = <b>2</b></td><td>[D, E, A, B, C]</td></tr>
+  <tr><td>6-8</td><td>D</td><td>2-2 = <b>0 ✓ 完</b></td><td>[E, A, B, C]</td></tr>
+  <tr><td>8-10</td><td>E</td><td>5-2 = <b>3</b></td><td>[A, B, C, E]</td></tr>
+  <tr><td>10-11</td><td>A</td><td>1 ≤ q，<b>0 ✓ 完</b>（只跑 1 分钟）</td><td>[B, C, E]</td></tr>
+  <tr><td>11-13</td><td>B</td><td>4-2 = <b>2</b></td><td>[C, E, B]</td></tr>
+  <tr><td>13-15</td><td>C</td><td>2-2 = <b>0 ✓ 完</b></td><td>[E, B]</td></tr>
+  <tr><td>15-17</td><td>E</td><td>3-2 = <b>1</b></td><td>[B, E]</td></tr>
+  <tr><td>17-19</td><td>B</td><td>2-2 = <b>0 ✓ 完</b></td><td>[E]</td></tr>
+  <tr><td>19-20</td><td>E</td><td>1 ≤ q，<b>0 ✓ 完</b>（只跑 1 分钟）</td><td>[]</td></tr>
+</table>
+
+<h3>6.3 甘特图</h3>
+<div class="gantt-wrap">
+<table class="gantt">
+  <tr><th>时间</th>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td>
+    <td>10</td><td>11</td><td>12</td><td>13</td><td>14</td>
+    <td>15</td><td>16</td><td>17</td><td>18</td><td>19</td><td>20</td>
+  </tr>
+  <tr><th>CPU</th>
+    <td class="A">A</td><td class="A">A</td>
+    <td class="B">B</td><td class="B">B</td>
+    <td class="C">C</td><td class="C">C</td>
+    <td class="D">D</td><td class="D">D</td>
+    <td class="E">E</td><td class="E">E</td>
+    <td class="A">A</td>
+    <td class="B">B</td><td class="B">B</td>
+    <td class="C">C</td><td class="C">C</td>
+    <td class="E">E</td><td class="E">E</td>
+    <td class="B">B</td><td class="B">B</td>
+    <td class="B">B</td>
+    <td class="E">E</td>
+  </tr>
+</table>
+</div>
+
+<p>注意 <b>10-11 这一格</b>：A 只剩 1 分钟就跑完，<b>不用占满整个 q=2</b>。这是 RR 的标准规则："剩多少跑多少"。</p>
+
+<h3>6.4 完成时间 + 周转时间</h3>
+<table>
+  <tr><th>进程</th><th>完成时间</th><th>服务</th><th>T = 完成 − 0</th><th>W = T / 服务</th></tr>
+  <tr><td>A</td><td>11</td><td>3</td><td><b>11</b></td><td>3.67</td></tr>
+  <tr><td>B</td><td>19</td><td>6</td><td><b>19</b></td><td>3.17</td></tr>
+  <tr><td>C</td><td>15</td><td>4</td><td><b>15</b></td><td>3.75</td></tr>
+  <tr><td>D</td><td>8</td><td>2</td><td><b>8</b></td><td class="hi">4.00</td></tr>
+  <tr><td>E</td><td>20</td><td>5</td><td><b>20</b></td><td class="hi">4.00</td></tr>
+  <tr><th colspan="3">平均</th><th class="ok">14.6</th><th class="ok">3.72</th></tr>
+</table>
+
+<h2>7. 三个算法对比：响应时间 vs 周转时间</h2>
+<table>
+  <tr><th>算法</th><th>平均 T</th><th>平均 W</th><th>响应时间</th><th>谁赢？</th></tr>
+  <tr><td>FCFS</td><td>12.0</td><td>3.45</td><td>差（D 等了 13 分钟）</td><td>短作业亏</td></tr>
+  <tr><td><b>SJF</b></td><td><b class="ok">10.0</b></td><td><b class="ok">2.21</b></td><td>中</td><td><b>周转时间最短</b></td></tr>
+  <tr><td><b>RR (q=2)</b></td><td>14.6</td><td>3.72</td><td><b class="ok">最好</b></td><td><b>响应最快</b></td></tr>
+</table>
+
+<div class="callout">
+<b>必背 trade-off（金句）</b>：<br>
+「<b>RR 的平均周转时间不是最短，但响应时间最快</b>」——分时系统（如 Windows / Linux 桌面）就要<b>响应快</b>，让每个用户感觉"自己独占 CPU"。<br>
+时间片 q 太大 → 退化为 FCFS；q 太小 → 切换开销爆炸。通常 q ≈ 10-100 ms。
+</div>
+
+<h2>8. HRRN（一句话）</h2>
+<p>响应比 = (等待时间 + 服务时间) / 服务时间 = 1 + 等待/服务。<b>每次调度选响应比最高的</b>。</p>
+<ul>
+  <li><b>短作业</b>：服务小 → 响应比大 → 优先 ✓</li>
+  <li><b>长作业</b>：等久了等待变大 → 响应比会升高 → <b>不会饥饿</b> ✓</li>
+  <li>缺点：每次调度都要算响应比，<b>开销大</b></li>
+</ul>
+
+<div class="callout ok">
+<b>一句话总结</b>：<b>HRRN = SJF + FCFS 的折中</b>，兼顾短作业和不饥饿。
+</div>
+
+<h2>9. 4 个算法的"何时用"</h2>
+<table>
+  <tr><th>算法</th><th>适用场景</th><th>关键弱点</th></tr>
+  <tr><td>FCFS</td><td>批处理、辅助调度</td><td>短作业等长作业</td></tr>
+  <tr><td>SJF</td><td>批处理（要求预估服务时间）</td><td>长作业可能饥饿</td></tr>
+  <tr><td>HRRN</td><td>批处理（折中方案）</td><td>每次都要算响应比</td></tr>
+  <tr><td>RR</td><td><b>分时系统</b>（Windows / Linux 桌面）</td><td>q 不当会退化</td></tr>
+</table>
+
+<h2>10. 自检（做不看答案）</h2>
+
+<div class="q">
+<b>Q1</b>（口述）周转时间 T 和带权周转时间 W 的公式是什么？W 越大说明什么？
+</div>
+<div class="q">
+<b>Q2</b>（口述）SJF 为什么平均周转时间比 FCFS 短？（提示：从 D 说起）
+</div>
+<div class="q">
+<b>Q3</b>（选择）RR 调度算法最大的优点是？
+<br>A. 平均周转时间最短
+<br>B. <b>响应时间最快，适合分时系统</b>
+<br>C. 实现最复杂
+<br>D. 适用于批处理
+</div>
+<div class="q">
+<b>Q4</b>（口述）RR 的时间片 q 太大或太小各会出什么问题？
+</div>
+
+<div class="callout ok">
+<b>答案对照（自检后再看）</b><br>
+A1：T = 完成 − 到达；W = T / 服务；W 越大说明这个进程"等得久 / 跑得短"，越不划算。<br>
+A2：SJF 把短作业（D=2）放在最前面，D 不用等就跑完；FCFS 把它压在最后，D 苦等 13 分钟（W=7.5）。所以 SJF 的 W 整体更小。<br>
+A3：B（SJF 才是 A；RR 的优势是响应快）<br>
+A4：q 太大 → 退化为 FCFS（响应慢）；q 太小 → 切换开销爆炸。
+</div>
+
+<h2>11. 下一步</h2>
+<p>本节任何一题你不能立刻、不查资料地答出来，告诉我；我们就从那一题开始下一节。<br>
+如果都能答，<b>下一节 = 银行家算法（死锁避免）</b>，和 PV 完全不同味道的另一道 15-20 分计算大题。</p>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> <a href="../bank/ch03-test.html">📝 第 3 章测试</a> · <a href="../bank/ch01-test.html">📝 第 1 章测试</a><br><a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+<footer class="lesson-foot">
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../RESOURCES.md">RESOURCES.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0002-scheduling-algorithms.html"</code>
+</footer>
+
+</div>
+</body>
+</html>

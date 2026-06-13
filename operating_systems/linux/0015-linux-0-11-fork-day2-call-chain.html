@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 15 课 · Linux 0.11 fork Day 2（调用链） · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+  .pill { display:inline-block; padding: 1px 7px; border-radius: 10px;
+          font-size: 12px; background: #eee; color: var(--ink); margin-left: 4px;}
+  .pill.high { background: #fde2dd; color: #8a1c11; }
+  .pill.mid  { background: #fff0d6; color: #7a4a00; }
+  .pill.low  { background: #e3efe6; color: #1f6f43; }
+  .script {
+    background: #faf6e8; border: 1px dashed #a85d00; padding: 14px 16px;
+    border-radius: 6px; margin: 14px 0; font-size: 15px; line-height: 1.8;
+  }
+  .script b { color: #a85d00; }
+  .flow {
+    background: #fff; border: 2px solid var(--accent); padding: 16px;
+    border-radius: 8px; margin: 14px 0; font-family: "SF Mono", monospace;
+    font-size: 13px; line-height: 1.5; overflow-x: auto;
+  }
+  .flow .step {
+    background: var(--soft); border-left: 3px solid var(--accent);
+    padding: 8px 10px; margin: 6px 0; border-radius: 3px;
+  }
+  .flow .step b { color: var(--accent); }
+  .arrow { text-align: center; color: var(--accent); font-weight: bold; }
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 13px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <p class="eyebrow">第 15 课 · 源码精讲专题 Day 2 / 6</p>
+  <h1>fork() 调用链 5 步流程图</h1>
+  <p class="sub">本期目标：能向老师画出 fork 完整调用链,从用户态到内核态到子进程开始执行 · 约 60 分钟</p>
+</header>
+
+<h2>0. 复盘：Day 1 学了什么？</h2>
+
+<p>5 秒回忆：</p>
+<ul>
+  <li>PCB = 进程控制块 = task_struct 结构体（9 个核心字段）</li>
+  <li>fork 本质 = 复制一个 task_struct + 复制它的资源</li>
+  <li>3 个必读文件：<code>sched.h</code>、<code>fork.c</code>、<code>system_call.s</code></li>
+  <li>读源码三步法：先骨架后细节 / 先流程后代码 / 先注释后实现</li>
+</ul>
+
+<p>如果上面 4 点你都答得出来,Day 1 通过。直接进入 Day 2。</p>
+
+<h2>1. fork 的全貌（一张图讲完整个调用）</h2>
+
+<p>在画流程图之前,先理解 fork 在<b>「用户态 - 内核态 - 子进程」</b>三个空间里发生的事：</p>
+
+<div class="flow">
+<div class="step"><b>【用户态】</b> 用户调用 <code>fork()</code> —— C 标准库函数,gcc 会把它替换成 <code>int $0x80</code> 软中断</div>
+<div class="arrow">↓</div>
+<div class="step"><b>【内核态 入口】</b> <code>system_call.s</code> 的 <code>sys_fork</code> 处理 —— 保存寄存器,调用 C 函数</div>
+<div class="arrow">↓</div>
+<div class="step"><b>【内核态 step 1】</b> <code>find_empty_process()</code> —— 在 task[64] 数组里找空 PCB</div>
+<div class="arrow">↓</div>
+<div class="step"><b>【内核态 step 2】</b> <code>copy_process(nr, ...)</code> —— 复制父进程 PCB 到 nr 号 PCB,设 state=TASK_RUNNING</div>
+<div class="arrow">↓</div>
+<div class="step"><b>【内核态 step 3】</b> <code>copy_mem(nr, p)</code> —— 复制父进程的页表 (0.11 直接整页拷,慢)</div>
+<div class="arrow">↓</div>
+<div class="step"><b>【内核态 step 4】</b> <code>copy_files()</code> / <code>copy_fs()</code> —— 复制文件描述符表 + FS 信息</div>
+<div class="arrow">↓</div>
+<div class="step"><b>【内核态 step 5】</b> 父进程返回子 PID;子进程被设 state=RUNNING,等调度器挑中</div>
+<div class="arrow">↓</div>
+<div class="step"><b>【用户态 分叉】</b> 父进程: <code>fork()</code> 返回 &gt; 0 的子 PID;子进程: <code>fork()</code> 返回 0。同一段代码,两个返回值。</div>
+</div>
+
+<div class="callout warn">
+<b>⚠ 这张图是 Day 2 的核心产物</b>。把它画 5 遍以上,直到闭眼能复现。<b>老师一定会让你画这张图</b>。
+</div>
+
+<h2>2. 5 个 step 详解</h2>
+
+<h3>Step 1: find_empty_process() —— 找空 PCB</h3>
+
+<p><b>在做什么</b>：在 <code>task[64]</code> 数组里从 0 扫到 63,找第一个 <code>state == 0</code>（空）的槽位。</p>
+
+<p><b>为什么这样设计</b>：0.11 内核<b>最多支持 64 个进程</b>（这是它最大的限制之一,Day 4 会详细质疑）。</p>
+
+<pre>
+// 简化版
+int find_empty_process(void) {
+    int i;
+    for (i = 0; i &lt; 64; i++)
+        if (!task[i])
+            return i;
+    return -EAGAIN;  // 没空位
+}
+</pre>
+
+<div class="callout">
+<b>🎤 讲稿钩子</b><br>
+"这里要特别说一下,Linux 0.11 用的是<b>静态数组</b> task[64] —— 最多 64 进程,这是 1991 年的内存限制(16MB 物理内存装不下更多 PCB)。现代 Linux 用的是<b>动态分配</b>的 task_struct,理论上能跑到 PID 上限 4 百万。"
+</div>
+
+<h3>Step 2: copy_process() —— 复制 PCB</h3>
+
+<p><b>在做什么</b>：把父进程 task[father_pid] 整个 memcpy 到 task[nr]（new pid）,然后初始化子进程的 state、tss、ldt。</p>
+
+<p><b>关键点</b>：</p>
+<ul>
+  <li><code>p-&gt;pid = last_pid</code>（分配新 PID）</li>
+  <li><code>p-&gt;state = TASK_RUNNING</code>（<b>注意:这里设成 RUNNING 而不是 UNINTERRUPTIBLE</b>,所以子进程立即可被调度）</li>
+  <li><code>p-&gt;father = current-&gt;pid</code>（记录父进程,后面 <code>getppid()</code> 用）</li>
+  <li><code>SET_LINKS(p)</code>（把子 PCB 链入就绪队列双向链表）</li>
+</ul>
+
+<h3>Step 3: copy_mem() —— 复制内存页表</h3>
+
+<p><b>在做什么</b>：</p>
+<ol>
+  <li>给子进程分配一页 PCB 用的物理页(给 task_struct 本身用)</li>
+  <li>把父进程的页表项全拷过来（<b>这里是性能瓶颈！</b>）</li>
+  <li>设置子进程的页目录项,指向新拷的页表</li>
+</ol>
+
+<p><b>为什么 0.11 没有 COW</b>：COW (Copy-on-Write) 是 1994 年 Linux 1.x 才加的特性。0.11 直接整页复制内存,父进程有多少页,子进程就复制多少页。所以 0.11 的 fork <b>慢得离谱</b>。</p>
+
+<div class="script">
+<b>🎤 讲稿钩子（这是 Day 4 质疑点的前置铺垫）</b>：<br><br>
+"老师,这一步是 0.11 性能最差的一步——它直接把父进程的所有页都复制一遍。我们后面会看到,这一步如果用 COW 可以快几十倍。"
+</div>
+
+<h3>Step 4: copy_files() / copy_fs() —— 复制文件表</h3>
+
+<p><b>在做什么</b>：把父进程的 <code>files_struct</code>（fd 表）复制一份给子进程。</p>
+
+<p><b>关键点</b>：</p>
+<ul>
+  <li>子进程和父进程 <b>共享同一个 file 结构体</b>（file-&gt;f_count++ 增加引用计数）</li>
+  <li>这就是为什么父子进程写同一个文件,会「覆盖」——<b>他们写的是同一个 file offset</b>（除非用 O_APPEND 或各自 lseek）</li>
+</ul>
+
+<h3>Step 5: 父进程返回,子进程等调度</h3>
+
+<p><b>关键技巧</b>：父进程从 sys_fork 返回时,返回值是<b>子进程的 PID</b>（&gt; 0）；子进程被调度器选中后,从 copy_process 末尾返回时,返回值是 <b>0</b>。</p>
+
+<p>这是怎么做到的？看 copy_process 末尾：</p>
+<pre>
+if (last_pid != pid)  // 父进程走的分支
+    return last_pid;
+else  // 子进程走的分支（通过 goto 或 set regs.eax = 0）
+    return 0;
+</pre>
+
+<p>子进程返回 0 是通过<b>修改 tss.eax</b> 实现的——子进程的 eax 寄存器被预先设成 0,等调度器切换到子进程时,CPU 一加载 tss,看到 eax=0,以为 fork() 返回了 0。</p>
+
+<div class="callout ok">
+<b>✅ 设计精妙之处</b>：父子进程共用同一段 <code>fork()</code> 调用代码,但通过 <b>「eax 寄存器的不同初值」</b> 实现了「同代码,不同返回值」。这正是 C 标准库 <code>fork()</code> 神奇之处的实现细节。
+</div>
+
+<h2>3. 完整流程图（闭眼可复现版）</h2>
+
+<div class="flow">
+<div class="step"><b>用户态</b>: <code>pid = fork();</code></div>
+<div class="arrow">↓ libc 把它换成 <code>int $0x80</code> + eax=2 (sys_fork 编号)</div>
+<div class="step"><b>内核入口</b>: <code>system_call</code> (system_call.s) → <code>sys_fork</code></div>
+<div class="arrow">↓</div>
+<div class="step"><b>Step 1</b>: <code>find_empty_process()</code> → 返回 nr (空槽位号 0-63)</div>
+<div class="arrow">↓ 没空位返回 -EAGAIN (用户态 errno=EAGAIN)</div>
+<div class="step"><b>Step 2</b>: <code>copy_process(nr, eip, ebp, ...)</code></div>
+<div class="arrow">↓</div>
+<div class="step"><b>Step 3</b>: <code>copy_mem(nr, p)</code> 复制页表 (慢!没有 COW)</div>
+<div class="arrow">↓</div>
+<div class="step"><b>Step 4</b>: <code>copy_files()</code> + <code>copy_fs()</code> 复制 fd 表</div>
+<div class="arrow">↓</div>
+<div class="step"><b>Step 5</b>: 设子 p-&gt;state=RUNNING,链入就绪队列</div>
+<div class="arrow">↓ 父进程: <code>return last_pid;</code> (子 PID &gt; 0)</div>
+<div class="step"><b>用户态 分叉</b>:</div>
+<div class="arrow">→ 父进程继续 if(pid &gt; 0) 分支</div>
+<div class="arrow">→ 调度器挑中子进程,tss.eax=0 被加载,子进程从 <code>fork()</code> 返回 0</div>
+</div>
+
+<h2>4. 自测 4 题</h2>
+
+<div class="q">
+<b>Q1.</b> fork 流程有 5 个 step,你能完整说出吗？<span class="pill high">必答</span><br>
+<input type="text" id="q1" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a1').style.display='block'">显示参考答案</button>
+<div id="a1" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：① find_empty_process 找空 PCB;② copy_process 复制 PCB;③ copy_mem 复制页表;④ copy_files 复制文件表;⑤ 父返回子 PID,子返回 0。
+</div>
+</div>
+
+<div class="q">
+<b>Q2.</b> 父进程从 fork 返回的是？子进程从 fork 返回的是？<span class="pill high">必答</span><br>
+<input type="text" id="q2" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a2').style.display='block'">显示参考答案</button>
+<div id="a2" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：父进程返回<b>子进程 PID</b>（&gt; 0 的整数）;子进程返回 <b>0</b>。通过子进程 tss.eax 预设为 0 实现。
+</div>
+</div>
+
+<div class="q">
+<b>Q3.</b> 子进程被创建后,state 字段被设成什么值？为什么这么设？<span class="pill mid">扩展</span><br>
+<input type="text" id="q3" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a3').style.display='block'">显示参考答案</button>
+<div id="a3" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：<b>TASK_RUNNING（值为 0）</b>。意味着子进程一被创建就立即可被调度,而不是等父进程显式唤醒（vfork 才需要等）。
+</div>
+</div>
+
+<div class="q">
+<b>Q4.</b> 父子进程为什么能区分返回值（一个返回子 PID,一个返回 0）？底层机制是什么？<span class="pill high">必答</span><br>
+<input type="text" id="q4" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a4').style.display='block'">显示参考答案</button>
+<div id="a4" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：通过 <b>tss.eax 预设值</b>。子进程的 tss.eax 被预设为 0,等调度器切到子进程时,CPU 一加载 tss,eax=0,如同 fork() 返回 0。父进程走的是 <code>return last_pid;</code> 路径。
+</div>
+</div>
+
+<div class="callout ok">
+<b>✅ Day 2 通过标准</b>：Q1 + Q2 + Q4 答对（3/4）。Q3 是 Day 3 copy_process 详解的前置。
+</div>
+
+<h2>5. 今日作业（20 分钟内完成）</h2>
+
+<ol>
+  <li><b>在纸上画 3 遍流程图</b>,闭眼可复现</li>
+  <li><b>回答 4 道自测题</b></li>
+  <li><b>打开 <code>kernel/fork.c</code></b>,对照流程图,把每个 step 在源码里的行号标出来（明天讲）</li>
+</ol>
+
+<div class="callout">
+<b>📅 明天 Day 3 预告</b>：我们逐行读 <b>copy_process()</b> 的 80 行代码。讲清「为什么这样设计」——这不是翻译代码,是讲设计的取舍。
+</div>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> · <a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+
+<footer class="lesson-foot">
+<p>第 15 课 · Linux 0.11 fork 源码精讲 Day 2 · 6 天专题</p>
+</footer>
+
+</div>
+</body>
+</html>

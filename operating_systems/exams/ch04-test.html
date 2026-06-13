@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>第 4 章 存储器管理 · 章节测试</title>
+<style>
+:root { --paper:#fdf6e3; --paper-dark:#f5ecd7; --ink:#2c2c2c; --ink-light:#555;
+        --accent:#2563eb; --accent-hover:#1d4ed8; --divider:#d6c8a8;
+        --card-bg:#fef9ef; --card-border:#e8dcc8;
+        --correct:#22c55e; --correct-bg:#f0fdf4;
+        --wrong:#ef4444; --wrong-bg:#fef2f2;
+        --radius:6px; }
+* { box-sizing: border-box; }
+body { font-family:"Microsoft YaHei","Noto Sans SC","SimSun",sans-serif;
+       font-size:13pt; line-height:1.75; color:var(--ink);
+       max-width:860px; margin:auto; padding:24px 20px 60px; background:var(--paper); }
+@media print { body { font-size:10.5pt; background:#fff; } .no-print{display:none!important;} }
+h1 { font-size:1.55em; text-align:center; border-bottom:2px solid var(--divider);
+     padding-bottom:8px; margin-top:0; }
+h2 { font-size:1.2em; border-bottom:1px solid var(--divider);
+     padding-bottom:4px; margin-top:28px; }
+h3 { font-size:1.05em; margin-top:18px; color:var(--ink); }
+p.sub { text-align:center; color:var(--ink-light); font-size:0.95em; }
+.q-card { background:var(--card-bg); border:1px solid var(--card-border);
+          border-radius:var(--radius); padding:12px 14px; margin:10px 0; }
+.q-card.correct { border-left:3px solid var(--correct); background:#f7fdf4; }
+.q-card.wrong   { border-left:3px solid var(--wrong);   background:#fef9f9; }
+.q-num  { font-weight:700; font-size:0.98em; margin-bottom:4px; }
+.q-text { margin-bottom:8px; font-size:0.98em; }
+.option { display:block; padding:4px 10px; margin:3px 0;
+          border:1px solid var(--card-border); border-radius:4px;
+          cursor:pointer; font-size:0.93em; background:#fefcf5; }
+.option:hover { background:#f0ede0; }
+.option input { margin-right:6px; }
+.option.selected { border-color:var(--accent); background:#eff6ff; }
+.option.correct-answer { border-color:var(--correct); background:var(--correct-bg); }
+.option.wrong-answer   { border-color:var(--wrong);   background:var(--wrong-bg); }
+.q-textarea { width:100%; min-height:48px; border:1px solid var(--card-border);
+              border-radius:4px; padding:6px 10px; font-family:inherit;
+              font-size:0.93em; background:#fefcf5; resize:vertical; }
+.q-textarea:focus { outline:none; border-color:var(--accent); }
+.result { display:none; margin-top:8px; padding:8px 12px;
+          background:#fefcf5; border:1px solid var(--card-border);
+          border-radius:4px; font-size:0.9em; line-height:1.6; }
+.result .badge { display:inline-block; padding:1px 9px; border-radius:3px;
+                 font-weight:700; font-size:0.82em; margin-right:6px; }
+.badge-ok { background:var(--correct-bg); color:#166534; }
+.badge-no { background:var(--wrong-bg);   color:#991b1b; }
+.result .explanation { margin-top:4px; color:var(--ink); }
+.result .pitfall { color:#b45309; margin-top:3px; font-size:0.9em; }
+.grading-bar { text-align:center; margin:20px 0; }
+.grading-bar button { font-size:1em; padding:8px 32px; background:var(--accent);
+                      color:#fff; border:none; border-radius:var(--radius);
+                      cursor:pointer; font-weight:600; }
+.grading-bar button:hover { background:var(--accent-hover); }
+.grading-bar button:disabled { background:#bbb; cursor:not-allowed; }
+#score-box { display:none; background:var(--paper-dark); color:var(--ink);
+             padding:16px 20px; border-radius:var(--radius); margin:14px 0;
+             text-align:center; border:1px solid var(--card-border); }
+#score-box .score-num { font-size:2.2em; font-weight:700; }
+#score-box .score-label { font-size:0.85em; color:var(--ink-light); }
+.tag-src { background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:3px;
+           font-size:0.78em; font-weight:600; margin-left:6px; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<h1>第 4 章 存储器管理 · 章节测试</h1>
+<p class="sub">满分 100 分 | 选择/判断/填空可自动批改 | 简答/计算/代码为参考题</p>
+<p class="sub"><span class="tag-src">来源</span> 老师课件 + 教材课后题 + 算法速查表</p>
+<div id="score-box"><div class="score-num" id="score-num">0</div><div class="score-label">总分（满分 100）</div></div>
+<div id="questions-container"></div>
+<div class="grading-bar no-print"><button onclick="gradeAll()" id="grade-btn">提交批改</button></div>
+
+<p class="sub" style="margin-top:30px;"><a href="../lessons/0005-paging-fundamentals.html">← 返回题库目录</a></p>
+
+<script>
+var Q = [{"type":"choice","points":3,"question":"存储管理的 4 大功能是？","options":["内存分配、地址映射、内存保护、内存扩充","装入、链接、运行、退出","读、写、打开、关闭","分配、回收、置换、对换"],"answer":0,"explanation":"存储管理 4 功能：分配、映射、保护、扩充。","pitfall":"老师课件原文。"},{"type":"choice","points":3,"question":"【老师课件·引子】int a; printf(\"%p\", &a); 打印出的 a 的地址是？","options":["真实物理地址","逻辑地址（虚幻）","段号","不确定"],"answer":1,"explanation":"程序中看到的地址都是逻辑地址（虚地址），不是真实物理地址。","pitfall":"这是老师课件第 1 张引入题。"},{"type":"choice","points":3,"question":"绝对装入方式的特点是？","options":["程序中地址在编译时已经确定","装入时动态重定位","运行时动态重定位","硬件自动完成"],"answer":0,"explanation":"绝对装入：编译时地址就已经定好，只能装入固定位置。","pitfall":"可重定位装入 = 静态重定位；运行时重定位 = 动态重定位。"},{"type":"choice","points":3,"question":"连续分配方式的主要缺点是？","options":["实现复杂","产生外部碎片","地址转换慢","不能多道程序"],"answer":1,"explanation":"连续分配（可变分区）会产生外部碎片，需要「紧凑」合并。","pitfall":"分页产生内部碎片；连续/分段产生外部碎片。"},{"type":"choice","points":3,"question":"首次适应（FF）算法是？","options":["从空闲分区链首查找第一个满足的分区","从上次查找位置继续","找最小的满足分区","找最大的满足分区"],"answer":0,"explanation":"FF = First Fit，顺序查找第一个满足的。","pitfall":"NF = Next Fit（下次适应）；BF = Best Fit；WF = Worst Fit。"},{"type":"choice","points":3,"question":"最佳适应（BF）算法的缺点是？","options":["分配慢","产生很多难以利用的小碎片","实现复杂","不能多道程序"],"answer":1,"explanation":"BF 优先用最小满足的，剩下大量微小碎片，无法利用。","pitfall":"WF 反过来，剩大碎片但缺大分区。"},{"type":"choice","points":3,"question":"分页存储管理中，页表的作用是？","options":["记录文件名到目录项的映射","记录页号到页框号的映射","记录进程优先级","记录磁盘坏块位置"],"answer":1,"explanation":"页表 = 页号 → 物理块号（页框号）的映射。","pitfall":"页表服务于地址转换。"},{"type":"choice","points":3,"question":"分页系统中，逻辑地址的组成是？","options":["段号 + 段内地址","页号 + 页内地址","基址 + 限长","块号 + 偏移"],"answer":1,"explanation":"分页：逻辑地址 = 页号 + 页内地址（页内偏移）。","pitfall":"分段是「段号 + 段内地址」。"},{"type":"choice","points":3,"question":"页面大小 4KB，页内地址占几位？","options":["10 位","12 位","14 位","16 位"],"answer":1,"explanation":"4KB = 2^12，所以页内地址占 12 位。","pitfall":"1KB=2^10, 4KB=2^12, 1MB=2^20, 4MB=2^22。"},{"type":"choice","points":3,"question":"分段的优点不包括？","options":["便于编程","便于共享和保护","可动态增长","产生内部碎片少"],"answer":3,"explanation":"分段便于编程/共享/保护/动态增长，但**产生外部碎片**（段长可变）。","pitfall":"分页产生内部碎片；分段产生外部碎片。"},{"type":"choice","points":3,"question":"虚拟存储器的理论基础是？","options":["时间局部性","空间局部性","局部性原理","程序顺序执行"],"answer":2,"explanation":"局部性原理 = 时间局部性 + 空间局部性，是虚存的基础。","pitfall":"Denning 1968 年提出。"},{"type":"choice","points":3,"question":"请求分页系统中，页表项中哪个字段表示该页是否在内存？","options":["访问字段 A","修改位 M","状态位 P","外存地址"],"answer":2,"explanation":"状态位 P（Present）= 1 在内存，= 0 不在内存（缺页）。","pitfall":"P 是 Presence/Present；A 是 Accessed；M 是 Modified。"},{"type":"choice","points":3,"question":"【老师课件·习题 1】32 位地址，二级页表分 9 位顶级 + 11 位二级（偏移），页面长度是？","options":["2^9=512B","2^11=2048B","2^(32-9-11)=2^12=4KB","2^32=4GB"],"answer":2,"explanation":"32 - 9 - 11 = 12 位页内地址 → 2^12 = 4KB。","pitfall":"注意是「偏移位数」对应「页大小」。"},{"type":"choice","points":3,"question":"【同上】该系统共有多少个页面？","options":["2^9=512","2^11=2048","2^20","2^9 × 2^11=2^20"],"answer":2,"explanation":"顶级页号 9 位 + 二级页号 11 位 → 总页号 20 位 → 2^20 个页面。","pitfall":"2^9 × 2^11 = 2^20 也能算出。"},{"type":"choice","points":3,"question":"请求分页系统中，进程获得的最少物理块数取决于？","options":["进程大小","计算机硬件结构（指令格式/寻址方式）","OS 调度","页面大小"],"answer":1,"explanation":"最少物理块数 = 让进程能正常运行所需的最少块数，取决于硬件。","pitfall":"单地址直接寻址 → 2 块；间接寻址 → 3 块。"},{"type":"choice","points":3,"question":"抖动（thrashing）是指？","options":["CPU 切换太快","页面频繁换入换出导致系统效率急剧下降","进程频繁切换","磁盘 I/O 错误"],"answer":1,"explanation":"抖动 = 缺页率极高，CPU 大部分时间在等换页。","pitfall":"工作集模型用来防止抖动。"},{"type":"tf","points":2,"question":"连续分配方式不会产生内部碎片。","answer":false,"explanation":"连续分配的固定分区会有内部碎片；可变分区没内部碎片但有外部碎片。","pitfall":"分页才有内部碎片。"},{"type":"tf","points":2,"question":"分页系统的页表长度 = 进程的页数。","answer":true,"explanation":"页表一项对应一页，进程多大（多少页）页表就多长。","pitfall":"页框号 = 物理块号；每项大小固定。"},{"type":"tf","points":2,"question":"分页系统中，页面大小由 OS 决定，进程不能改。","answer":true,"explanation":"页面大小是 OS 全局参数，进程不参与决定。","pitfall":"页面大小通常 4KB，进程按页对齐。"},{"type":"tf","points":2,"question":"分页对用户可见，分段对用户不可见。","answer":false,"explanation":"反过来：分页对用户**不可见**（OS 自动分），分段对用户**可见**（按逻辑分）。","pitfall":"分段是面向程序员的逻辑结构。"},{"type":"tf","points":2,"question":"缺页中断发生在访问的页面不在内存时。","answer":true,"explanation":"缺页中断 = Page Fault，触发页面调入。","pitfall":"缺页是「需要但没在」，不是错误。"},{"type":"tf","points":2,"question":"虚拟存储器的容量由内存 + 外存共同决定。","answer":false,"explanation":"虚存最大容量 = min(内存+外存, 计算机地址位数能表示的范围)。","pitfall":"例：32 位系统虚存最大 4GB。"},{"type":"tf","points":2,"question":"请求分页系统的页表项比基本分页多了几个字段。","answer":true,"explanation":"请求分页页表项多了状态位 P、访问字段 A、修改位 M、外存地址。","pitfall":"基本分页只有页框号。"},{"type":"fill","points":3,"question":"存储管理的 4 大功能：内存分配、地址映射、内存保护和______。","answer":["内存扩充","扩充","虚存"],"explanation":"4 大功能：分配、映射、保护、扩充。","pitfall":"不要写「对换」（那是中级调度）。"},{"type":"fill","points":3,"question":"【老师课件·引子】int a; &a 打印的地址属于______地址。","answer":["逻辑","虚","虚拟"],"explanation":"程序里看到的都是逻辑地址。","pitfall":"不是物理地址。"},{"type":"fill","points":3,"question":"分页存储管理中，逻辑地址结构为：页号 + ______。","answer":["页内地址","页内偏移","偏移"],"explanation":"页内地址 = 页内偏移。","pitfall":"不要写「段内地址」（那是分段）。"},{"type":"fill","points":3,"question":"【老师课件·练习 2】逻辑地址 16 位，页大小 4096B = 2^12B，页号占 ______ 位。","answer":["4","16-12","四"],"explanation":"页号 = 16 - 12 = 4 位。","pitfall":"4096B=2^12B，12 位页内地址。"},{"type":"fill","points":3,"question":"分段地址结构是二维的：段号 + ______。","answer":["段内地址","段内偏移","偏移"],"explanation":"分页 = 一维（页号+偏移），分段 = 二维（段号+段内地址）。","pitfall":"分段是面向逻辑的。"},{"type":"fill","points":3,"question":"请求分页的页表项比基本分页多了：状态位、访问字段、修改位和______。","answer":["外存地址","外存块号","磁盘地址"],"explanation":"4 个字段：P、A、M、外存地址。","pitfall":"外存地址是「该页在外存的物理块号」。"},{"type":"fill","points":3,"question":"【老师课件·习题 1】32 位地址系统，9 位顶级页表 + 11 位二级页表 + 12 位偏移，总地址位数 = ______。","answer":["32","三十二"],"explanation":"9 + 11 + 12 = 32 位。","pitfall":"检查是否等于计算机位数。"},{"type":"calc","points":0,"question":"【老师课件·练习 2 改编】逻辑地址 16 位，页大小 4096B，第 0/1/2 页存在物理块 10/12/14。逻辑地址 2F6AH 求物理地址。","answer":"2F6AH = 0010 1111 0110 1010B, 高 4 位页号 = 0010B = 2, 页内地址 = 1111 0110 1010B. 第 2 页 → 物理块 14. 物理地址 = 14 × 4096 + 0xF6A = 14 × 0x1000 + 0xF6A = 0xE000 + 0xF6A = 0xEF6A.","explanation":"物理地址 = 物理块号 × 页大小 + 页内地址。","pitfall":"物理块号 14 转十六进制是 0xE。"},{"type":"calc","points":0,"question":"【老师课件·练习 3】页式管理，逻辑地址空间最大 16 页，每页 2048B，内存 8 块。问逻辑地址至少多少位？内存空间多大？","answer":"16 页 = 2^4 → 页号 4 位. 每页 2048B = 2^11 → 页内 11 位. 逻辑地址 = 4+11 = 15 位. 内存空间 = 8 × 2048 = 16384B = 16KB.","explanation":"逻辑地址 = 页号 + 页内. 内存 = 块数 × 块大小.","pitfall":"注意「逻辑地址空间最大 16 页」= 2^N。"},{"type":"calc","points":0,"question":"【扩展】某系统页大小 4KB，页表项 4B。采用一级页表，最大可寻址多少虚拟空间？采用二级页表呢？","answer":"一级页表：一页页表 = 4KB / 4B = 1024 项 = 2^10 项 → 最大寻址 1024 × 4KB = 4MB. 二级页表：每级 1024 项 → 1024 × 1024 = 1M 项 → 1M × 4KB = 4GB.","explanation":"页大小 = 4KB = 2^12B；每页页表项数 = 4KB/4B = 2^10。","pitfall":"一级寻址能力受页表页大小限制。"},{"type":"short","points":0,"question":"简述分页和分段的主要区别。","answer":"分页：按固定大小划分，面向系统内存管理，页对用户不可见，一维地址（页号+偏移）；分段：按程序逻辑结构划分，段长可变，面向用户逻辑，二维地址（段号+段内地址），便于共享和保护。分页内部碎片少、外部无；分段外部碎片多。","explanation":"对比「固定/可变 + 系统/用户 + 一维/二维 + 碎片类型」。","pitfall":"不要说「分段比分页好」或反之。"},{"type":"short","points":0,"question":"简述什么是「抖动」，如何减少抖动？","answer":"抖动 = 页面频繁换入换出，CPU 大部分时间在等换页，系统效率急剧下降。减少方法：① 给进程分配足够多的物理块；② 调整置换算法（如 LRU 比 FIFO 抖动少）；③ 采用工作集模型；④ 暂停部分进程减少多道度。","explanation":"抖动 = thrashing，常见原因是多道度太高。","pitfall":"工作集是「进程在某个时间段实际使用的页面集合」。"}];
+var LABELS = {"section":{"choice":"一、选择题","tf":"二、判断题","fill":"三、填空题","short":"四、简答题","calc":"五、计算题","code":"六、代码题"},"section_order":["choice","tf","fill","short","calc","code"],"true_label":"正确","false_label":"错误","placeholder":"在此作答…","pitfall_prefix":"易错提醒：","correct_label":"正确","wrong_label":"错误","points_suffix":"分"};
+
+function tfAnswerIndex(ans) {
+  if (typeof ans === 'boolean') return ans ? 0 : 1;
+  var s = ('' + ans).trim().toLowerCase();
+  var t = ['t','true','正确','对','是','yes','y','√','✓','1'];
+  return t.indexOf(s) !== -1 ? 0 : 1;
+}
+function choiceAnswerIndex(ans) {
+  if (typeof ans === 'number') return ans;
+  var s = ('' + ans).trim();
+  if (/^[A-Za-z]$/.test(s)) return s.toUpperCase().charCodeAt(0) - 65;
+  return parseInt(s, 10);
+}
+function normText(s) {
+  s = ('' + s).trim().toLowerCase().replace(/\s+/g,'');
+  s = s.replace(/[.,;:!?。，、；：！？"'()【】\[\]<>《》·\.\-]/g,'');
+  return s;
+}
+function sel(qid, idx) {
+  var q = Q.find(function(x){return x._id===qid;});
+  q._ans = idx;
+  var opts = document.querySelectorAll('#opt-' + qid + ' .option, #opt-' + qid + '.option');
+  // simpler: by class
+  document.querySelectorAll('.option[data-qid="' + qid + '"]').forEach(function(e){e.classList.remove('selected');});
+  var el = document.querySelector('#opt-' + qid + '-' + idx);
+  if (el) el.classList.add('selected');
+}
+function build() {
+  var c = document.getElementById('questions-container');
+  var h = '';
+  var sec = '';
+  Q.forEach(function(q, i){
+    q._i = i; q._id = 'q' + i;
+    if (q.type !== sec) { sec = q.type; if (LABELS.section[q.type]) h += '<h3>' + LABELS.section[q.type] + '</h3>'; }
+    h += '<div class="q-card" id="card-' + q._id + '">';
+    h += '<div class="q-num">' + (i+1) + '. (' + q.points + ' ' + LABELS.points_suffix + ')</div>';
+    h += '<div class="q-text">' + q.question + '</div>';
+    if (q.type === 'choice') {
+      (q.options||[]).forEach(function(o, j){
+        h += '<label class="option" id="opt-' + q._id + '-' + j + '" data-qid="' + q._id + '" onclick="sel(\'' + q._id + '\',' + j + ')">';
+        h += '<input type="radio" name="' + q._id + '" value="' + j + '">' + String.fromCharCode(65+j) + '. ' + o + '</label>';
+      });
+    } else if (q.type === 'tf') {
+      h += '<label class="option" id="opt-' + q._id + '-0" data-qid="' + q._id + '" onclick="sel(\'' + q._id + '\',0)"><input type="radio" name="' + q._id + '" value="0">' + LABELS.true_label + '</label>';
+      h += '<label class="option" id="opt-' + q._id + '-1" data-qid="' + q._id + '" onclick="sel(\'' + q._id + '\',1)"><input type="radio" name="' + q._id + '" value="1">' + LABELS.false_label + '</label>';
+    } else {
+      h += '<textarea class="q-textarea" id="text-' + q._id + '" rows="' + (q.type==='code'?8:3) + '" placeholder="' + LABELS.placeholder + '"></textarea>';
+    }
+    h += '<div class="result" id="result-' + q._id + '">';
+    h += '<span class="badge" id="badge-' + q._id + '"></span><span id="correct-' + q._id + '"></span>';
+    h += '<div class="explanation">' + (q.explanation || '') + '</div>';
+    if (q.pitfall) h += '<div class="pitfall">' + LABELS.pitfall_prefix + q.pitfall + '</div>';
+    h += '</div></div>';
+  });
+  c.innerHTML = h;
+}
+function gradeAll() {
+  var total = 0, max = 0;
+  Q.forEach(function(q){
+    max += q.points;
+    var ok = false, userAns = null;
+    if (q.type === 'choice' || q.type === 'tf') {
+      userAns = q._ans;
+      var correct = (q.type === 'tf') ? tfAnswerIndex(q.answer) : choiceAnswerIndex(q.answer);
+      if (userAns === correct) { ok = true; total += q.points; }
+      // highlight
+      (q.options||[]).forEach(function(_, j){
+        var el = document.getElementById('opt-' + q._id + '-' + j);
+        if (el) el.classList.remove('selected');
+      });
+      if (q.type === 'tf') {
+        ['0','1'].forEach(function(j){
+          var el = document.getElementById('opt-' + q._id + '-' + j);
+          if (!el) return;
+          if (parseInt(j) === correct) el.classList.add('correct-answer');
+          if (parseInt(j) === userAns && !ok) el.classList.add('wrong-answer');
+        });
+      } else {
+        (q.options||[]).forEach(function(_, j){
+          var el = document.getElementById('opt-' + q._id + '-' + j);
+          if (!el) return;
+          if (j === correct) el.classList.add('correct-answer');
+          if (j === userAns && !ok) el.classList.add('wrong-answer');
+        });
+      }
+    } else if (q.type === 'fill') {
+      var ta = document.getElementById('text-' + q._id);
+      userAns = ta ? ta.value : '';
+      var accepts = Array.isArray(q.answer) ? q.answer : [q.answer];
+      ok = accepts.some(function(a){ return normText(userAns) === normText(a); });
+      if (ok) total += q.points;
+    } else {
+      // short/calc/code：参考题，不计入自动分
+      ok = null;
+    }
+    var card = document.getElementById('card-' + q._id);
+    var res  = document.getElementById('result-' + q._id);
+    var badge= document.getElementById('badge-' + q._id);
+    var corr = document.getElementById('correct-' + q._id);
+    if (ok === true)  { card.classList.add('correct'); badge.className='badge badge-ok'; badge.textContent=LABELS.correct_label; corr.textContent=''; }
+    else if (ok === false) { card.classList.add('wrong'); badge.className='badge badge-no'; badge.textContent=LABELS.wrong_label; corr.textContent=' 正确答案：' + (Array.isArray(q.answer)?q.answer.join(' / '):q.answer); }
+    else { badge.className='badge'; badge.textContent='参考答案'; badge.style.background='#dbeafe'; badge.style.color='#1e40af'; corr.textContent='  ' + (Array.isArray(q.answer)?q.answer.join(' / '):q.answer); }
+    res.style.display = 'block';
+  });
+  document.getElementById('score-num').textContent = total;
+  document.getElementById('score-box').style.display = 'block';
+  document.getElementById('grade-btn').disabled = true;
+  window.scrollTo(0, 0);
+}
+build();
+</script>
+</body>
+</html>

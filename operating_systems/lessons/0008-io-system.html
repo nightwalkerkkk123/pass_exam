@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 8 课 · IO 系统 · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+    --p1:#e8f1fb; --p2:#fdebd0; --p3:#d5f5e3; --p4:#f5d5e3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; font-size: 13px; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+
+  /* 餐厅类比 */
+  .restaurant {
+    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px;
+    margin: 12px 0;
+  }
+  .mode {
+    border: 2px solid var(--ink); border-radius: 6px; padding: 10px;
+    background: #fff; text-align: center;
+  }
+  .mode.polling { background: #fde2dd; }
+  .mode.int     { background: var(--p1); }
+  .mode.dma     { background: var(--p3); }
+  .mode.chan    { background: var(--p2); }
+  .mode-icon { font-size: 28px; }
+  .mode-title { font-weight: 700; font-size: 14px; margin: 4px 0; }
+  .mode-desc { font-size: 12px; color: var(--muted); }
+
+  /* 4 张设备表 */
+  .tbls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+  .tbl {
+    border: 2px solid var(--ink); border-radius: 6px; padding: 8px 12px;
+    background: #fff;
+  }
+  .tbl-name { font-weight: 700; color: var(--accent); font-size: 14px; }
+  .tbl-en   { font-family: "SF Mono", monospace; color: var(--muted); font-size: 12px; }
+  .tbl-rows { font-size: 13px; margin-top: 4px; }
+  .tbl-rows li { margin: 2px 0; }
+
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 12px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q, .restaurant, .tbls { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 8 课 · 期末冲刺 · 第 6 章 / 概念扫一遍</div>
+  <h1>IO 系统 · CPU 怎么和"慢家伙"打交道</h1>
+  <div class="sub">目标：15 分钟装下"中断是啥"+"4 种 IO 控制方式"+"SPOOLing 是啥"——本章全是选择题考点，没有大题</div>
+</header>
+
+<h2>1. 一句话 + 餐厅类比</h2>
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>CPU 很快，IO 设备很慢</b>——OS 要想办法让 CPU 不傻等 IO，但又能在 IO 完事时及时知道。
+<b>核心机制 = 中断（Interrupt）</b>。
+</blockquote>
+
+<div class="restaurant">
+  <div class="mode polling">
+    <div class="mode-icon">🚶‍♂️</div>
+    <div class="mode-title">程序查询（轮询）</div>
+    <div class="mode-desc">服务员<b>一直跑</b>去厨房问"好了吗？"</div>
+  </div>
+  <div class="mode int">
+    <div class="mode-icon">🔔</div>
+    <div class="mode-title">中断驱动</div>
+    <div class="mode-desc">菜好了<b>按铃</b>，服务员才来</div>
+  </div>
+  <div class="mode dma">
+    <div class="mode-icon">📦</div>
+    <div class="mode-title">DMA</div>
+    <div class="mode-desc">厨房自己用推车把菜送到桌</div>
+  </div>
+  <div class="mode chan">
+    <div class="mode-icon">👨‍🍳</div>
+    <div class="mode-title">通道</div>
+    <div class="mode-desc">整支厨师团队独立作业，全做完才通知</div>
+  </div>
+</div>
+
+<table>
+  <tr><th>OS 概念</th><th>餐厅类比</th></tr>
+  <tr><td>CPU</td><td>服务员（很快很忙）</td></tr>
+  <tr><td>IO 设备</td><td>厨房（很慢）</td></tr>
+  <tr><td>忙等（轮询）</td><td>服务员一直跑去看菜好没好</td></tr>
+  <tr><td>中断（Interrupt）</td><td>厨房按铃，<b>叫</b>服务员来</td></tr>
+  <tr><td>DMA 控制器</td><td>推车（自动送菜到桌）</td></tr>
+  <tr><td>通道</td><td>独立厨师长（带一队人做完所有菜）</td></tr>
+</table>
+
+<h2>2. 4 种 IO 控制方式对照表（必背）</h2>
+
+<table>
+  <tr><th>方式</th><th>CPU 怎么"等"设备</th><th>CPU 干预频率</th><th>适用</th></tr>
+  <tr>
+    <td><b>程序查询</b><br>（轮询）</td>
+    <td>CPU <b>不停问</b>"好了吗？"</td>
+    <td><b>全程</b>忙等</td>
+    <td>极简单嵌入式</td>
+  </tr>
+  <tr>
+    <td><b>中断驱动</b></td>
+    <td>设备<b>按铃</b>叫 CPU</td>
+    <td><b>每个字</b>中断 1 次</td>
+    <td>中低速字符设备<br>（键盘、鼠标）</td>
+  </tr>
+  <tr>
+    <td><b>DMA</b></td>
+    <td>DMA 控制器<b>自己搬</b>整块数据</td>
+    <td><b>每块</b>中断 1 次</td>
+    <td>高速块设备<br>（磁盘、网卡）</td>
+  </tr>
+  <tr>
+    <td><b>通道</b></td>
+    <td>通道（专门处理器）<b>独立干完</b></td>
+    <td><b>整序列</b>结束才中断 1 次</td>
+    <td>大型机/服务器</td>
+  </tr>
+</table>
+
+<div class="callout warn">
+<b>易记口诀</b>：<br>
+• <b>轮询</b> = CPU 累死（一直问）<br>
+• <b>中断</b> = 设备主动按铃（每个字都按）<br>
+• <b>DMA</b> = 整块一起搬（每块按一次）<br>
+• <b>通道</b> = 一队人独立干（整件事按一次）<br>
+→ CPU 干预越来越少，<b>并行度越来越高</b>。
+</div>
+
+<h2>3. 缓冲（Buffer）4 种</h2>
+
+<p>缓冲 = 在内存里开一块"等候区"，让 CPU 和设备不用互相等。</p>
+
+<table>
+  <tr><th>类型</th><th>有几块</th><th>特点</th></tr>
+  <tr><td><b>单缓冲</b></td><td>1 块</td><td>设备写 → CPU 读，<b>轮流</b>用</td></tr>
+  <tr><td><b>双缓冲</b></td><td>2 块</td><td>设备和 CPU <b>同时</b>用，效率翻倍</td></tr>
+  <tr><td><b>循环缓冲</b></td><td>N 块组成环</td><td>3 个指针，生产者/消费者轮转</td></tr>
+  <tr><td><b>缓冲池</b></td><td>系统统一管理</td><td>所有进程共享，<b>最常用</b></td></tr>
+</table>
+
+<div class="callout">
+<b>关键 1 秒</b>：<b>缓冲池</b>是现代 OS 的标配（Linux 的页缓存就是缓冲池思路）。<br>
+考试会问"哪种缓冲最灵活 / 共享性好"——答：<b>缓冲池</b>。
+</div>
+
+<h2>4. 设备分配的 4 张表</h2>
+
+<p>OS 用 4 张表记录"谁有设备、谁有控制器、谁有通道"。</p>
+
+<div class="tbls">
+  <div class="tbl" style="background: var(--p1);">
+    <div class="tbl-name">DCT</div>
+    <div class="tbl-en">Device Control Table · 设备控制表</div>
+    <ul class="tbl-rows">
+      <li><b>每设备 1 张</b></li>
+      <li>记录：设备状态、指向 COCT、等待队列</li>
+    </ul>
+  </div>
+  <div class="tbl" style="background: var(--p2);">
+    <div class="tbl-name">COCT</div>
+    <div class="tbl-en">Controller Control Table · 控制器表</div>
+    <ul class="tbl-rows">
+      <li><b>每控制器 1 张</b></li>
+      <li>记录：控制器状态、指向 CHCT</li>
+    </ul>
+  </div>
+  <div class="tbl" style="background: var(--p3);">
+    <div class="tbl-name">CHCT</div>
+    <div class="tbl-en">Channel Control Table · 通道表</div>
+    <ul class="tbl-rows">
+      <li><b>每通道 1 张</b></li>
+      <li>记录：通道状态、等待队列</li>
+    </ul>
+  </div>
+  <div class="tbl" style="background: var(--p4);">
+    <div class="tbl-name">SDT</div>
+    <div class="tbl-en">System Device Table · 系统设备表</div>
+    <ul class="tbl-rows">
+      <li><b>整个系统 1 张</b></li>
+      <li>记录：所有设备 + 驱动程序入口</li>
+    </ul>
+  </div>
+</div>
+
+<div class="callout warn">
+<b>易记 1 句话</b>：<b>设备→控制器→通道</b>，从下到上 = <b>DCT→COCT→CHCT</b>，最上面挂一张 <b>SDT</b> 做总目录。
+</div>
+
+<h2>5. SPOOLing（假脱机）—— 重点</h2>
+
+<p><b>问题</b>：打印机这种"独占设备"1 次只能 1 个人用，其他人都在等。</p>
+<p><b>SPOOLing 解法</b>：<b>把数据先存到磁盘"输出井"</b>，让用户进程感觉"我立刻打完了"。后台再慢慢真打。</p>
+
+<div style="background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px; margin:10px 0;">
+  <b>SPOOLing 三大件</b>：
+  <ol>
+    <li><b>输入井 / 输出井</b>：磁盘上的两块"等待区"</li>
+    <li><b>输入/输出缓冲区</b>：内存里的小缓冲</li>
+    <li><b>输入/输出进程</b>：后台两个"搬运工"</li>
+  </ol>
+</div>
+
+<div class="callout ok">
+<b>典型应用</b>：<b>假脱机打印</b>——多个用户都按"打印"，数据先进输出井排队，用户感觉<b>立即</b>完成；打印机后台慢慢打。<br>
+→ 打印机这种"独占"被改造成了"共享"。
+</div>
+
+<h2>6. 必背 4 句话（考试原话）</h2>
+
+<div class="callout">
+<b>①</b> <b>中断</b>是 CPU 和设备"打招呼"的核心机制（程序查询除外）。<br>
+<b>②</b> 4 种 IO 控制：<b>轮询（最累）→ 中断（每字）→ DMA（每块）→ 通道（整序列）</b>，并行度递增。<br>
+<b>③</b> 4 张表：<b>DCT（每设备）→ COCT（每控制器）→ CHCT（每通道）→ SDT（全系统 1 张）</b>。<br>
+<b>④</b> <b>SPOOLing = 假脱机</b>，用<b>输出井</b>把独占设备改造成共享设备（典型：打印机共享）。
+</div>
+
+<h2>7. 自检（先做再翻答案）</h2>
+
+<div class="q">
+<b>Q1（口述）</b> 什么是"中断"？为什么说"程序查询"不算用中断？
+</div>
+
+<div class="q">
+<b>Q2（口述）</b> DMA 和中断驱动有什么区别？为什么磁盘常用 DMA？
+</div>
+
+<div class="q">
+<b>Q3（选择）</b> 下面哪个说法<b>正确</b>？<br>
+A. 程序查询方式下 CPU 利用率最高<br>
+B. 通道方式下 CPU 全程参与数据传输<br>
+C. <b>DMA 方式下，数据传输由 DMA 控制器完成，CPU 不参与</b><br>
+D. 中断驱动方式适合高速块设备
+</div>
+
+<div class="q">
+<b>Q4（口述）</b> 4 张设备表（DCT / COCT / CHCT / SDT）的关系是？SDT 为什么是"全系统 1 张"？
+</div>
+
+<div class="q">
+<b>Q5（口述）</b> SPOOLing 解决什么问题？典型应用是什么？
+</div>
+
+<div class="callout ok">
+<b>答案对照</b><br>
+A1：中断 = 设备完成后"按铃"叫 CPU。程序查询是 CPU 主动一直问，<b>不是</b>设备通知，所以不算中断。<br>
+A2：<br>
+• 中断驱动：每个<b>字</b>都要中断一次，让 CPU 传，CPU 累<br>
+• DMA：<b>整块</b>数据由 DMA 控制器自己搬，CPU 不参与，CPU 轻松<br>
+磁盘要传的数据量大，<b>每字中断一次</b>CPU 受不了，所以用 DMA。<br>
+A3：C。A 错（轮询 CPU 累死）；B 错（通道独立于 CPU）；C 对；D 错（高速块设备用 DMA，字符设备才用中断）。<br>
+A4：从设备到通道的层级是 <b>DCT → COCT → CHCT</b>。SDT 是总目录，记录所有设备和它们的 DCT 地址，<b>全系统 1 张</b>就能索引所有设备。<br>
+A5：把"独占设备"（如打印机）改造成"共享设备"——用磁盘的"输出井"做中转。典型应用：<b>假脱机打印</b>。
+</div>
+
+<h2>8. 下一步</h2>
+
+<p>本节任何一题你不能立刻答出来，告诉我；我们就从那一题开始下一节。<br>
+如果都能答，<b>下一节 = 第 9 课：Ch7 混合索引 / UNIX inode（文件大小计算题 5-10 分）</b>——把"直接地址 + 间接地址"算明白。</p>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> <a href="../bank/ch06-test.html">📝 第 6 章测试</a><br><a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+<footer class="lesson-foot">
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../RESOURCES.md">RESOURCES.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a> ·
+<a href="0002-scheduling-algorithms.html">第 2 课</a> ·
+<a href="0003-bankers-algorithm.html">第 3 课</a> ·
+<a href="0004-group-linking.html">第 4 课</a> ·
+<a href="0005-paging-fundamentals.html">第 5 课</a> ·
+<a href="0006-page-replacement.html">第 6 课</a> ·
+<a href="0007-disk-scheduling.html">第 7 课</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0008-io-system.html"</code>
+</footer>
+
+</div>
+</body>
+</html>

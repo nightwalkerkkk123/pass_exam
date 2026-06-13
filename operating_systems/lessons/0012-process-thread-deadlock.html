@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 12 课 · 进程·线程·死锁 · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+    --p1:#e8f1fb; --p2:#fdebd0; --p3:#d5f5e3; --p4:#f5d5e3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; font-size: 13px; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+
+  /* 进程状态图 */
+  .states {
+    background: #fff; border: 1px solid var(--line); border-radius: 6px;
+    padding: 16px; margin: 12px 0;
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;
+    text-align: center;
+  }
+  .state-box {
+    border: 2px solid var(--ink); border-radius: 6px; padding: 12px;
+    font-weight: 700;
+  }
+  .state-box.run     { background: var(--p3); }
+  .state-box.ready   { background: var(--p1); }
+  .state-box.block   { background: var(--p2); }
+  .state-desc { font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+
+  /* 死锁 4 条件 */
+  .deadlock {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0;
+  }
+  .dl-cond {
+    border: 2px solid var(--ink); border-radius: 6px; padding: 10px;
+    background: #fff;
+  }
+  .dl-cond-num {
+    display: inline-block; width: 26px; height: 26px; line-height: 26px;
+    text-align: center; border-radius: 50%;
+    background: var(--accent); color: #fff; font-weight: 700; font-size: 13px;
+  }
+  .dl-cond-name {
+    font-weight: 700; margin: 6px 0 2px;
+  }
+  .dl-cond-desc { font-size: 13px; color: var(--muted); }
+
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 12px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q, .states, .deadlock { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 12 课 · 期末冲刺 · 第 2-3 章 / 选择题扫一遍</div>
+  <h1>进程·线程·死锁 · 概念收尾</h1>
+  <div class="sub">目标：15 分钟装下"进程 vs 程序"、"进程 vs 线程"、"死锁 4 条件"——全是选择题考点</div>
+</header>
+
+<h2>1. 进程 vs 程序（4 行对照）</h2>
+
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>程序</b> = 死的，一份代码躺在硬盘上<br>
+<b>进程</b> = 活的，程序的一次执行（有生命周期、有状态）
+</blockquote>
+
+<table>
+  <tr><th>维度</th><th>程序</th><th>进程</th></tr>
+  <tr><td>本质</td><td>一段<b>静态代码</b></td><td>程序的<b>一次执行</b></td></tr>
+  <tr><td>存在位置</td><td>磁盘上</td><td>内存里（PCB + 代码 + 数据）</td></tr>
+  <tr><td>动态性</td><td>静态</td><td>动态（创建 → 运行 → 撤销）</td></tr>
+  <tr><td>并发性</td><td>不能并发</td><td>可以并发（多进程同时跑）</td></tr>
+</table>
+
+<div class="callout warn">
+<b>考试最爱问</b>："程序和进程的最本质区别是什么？"——答：<b>动态性</b>。程序是死的，进程是活的。
+</div>
+
+<h2>2. PCB（进程控制块）</h2>
+
+<p><b>PCB</b> = 进程的"身份证"，OS 用 PCB 描述和管理进程。<b>PCB 是进程存在的唯一标志</b>。</p>
+
+<table>
+  <tr><th>分类</th><th>内容</th></tr>
+  <tr><td><b>标识信息</b></td><td>进程 ID (PID)、用户 ID、父进程 ID</td></tr>
+  <tr><td><b>状态信息</b></td><td>就绪/运行/阻塞、各种寄存器值（PC、PSW）</td></tr>
+  <tr><td><b>控制信息</b></td><td>优先级、信号、文件描述符、资源清单</td></tr>
+  <tr><td><b>组织信息</b></td><td>PCB 链表 / 索引（OS 用这些结构管理所有进程）</td></tr>
+</table>
+
+<h2>3. 进程 3 状态（必背图）</h2>
+
+<div class="states">
+  <div class="state-box run">
+    🏃<br>运行 (Running)
+    <div class="state-desc">正在 CPU 上跑（单核 CPU 同时只有 1 个）</div>
+  </div>
+  <div class="state-box ready">
+    ⏳<br>就绪 (Ready)
+    <div class="state-desc">万事俱备，只等 CPU</div>
+  </div>
+  <div class="state-box block">
+    😴<br>阻塞 (Blocked)
+    <div class="state-desc">等 IO / 等资源，没法跑</div>
+  </div>
+</div>
+
+<p style="text-align:center; font-size:14px; color:var(--accent);">
+  <b>就绪 → 运行</b>（调度）→ <b>阻塞</b>（等 IO）→ <b>就绪</b>（IO 完成）→ <b>运行</b>……
+</p>
+
+<div class="callout">
+<b>易记 1 句话</b>：<b>就绪是"等 CPU"</b>，<b>阻塞是"等别的"</b>（IO/资源）。就绪 ↔ 运行 互相转，运行 → 阻塞 → 就绪。
+</div>
+
+<h2>4. 进程 vs 线程（4 行对照）</h2>
+
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>进程</b> = 一家公司（一栋楼 + 一套制度）<br>
+<b>线程</b> = 公司里的员工（共享公司的资源，但各干各的活）
+</blockquote>
+
+<table>
+  <tr><th>维度</th><th>进程</th><th>线程</th></tr>
+  <tr><td>资源</td><td>拥有独立<b>内存空间</b></td><td>共享所属进程的内存</td></tr>
+  <tr><td>切换</td><td>切换<b>慢</b>（要换内存）</td><td>切换<b>快</b>（只换寄存器和栈）</td></tr>
+  <tr><td>通信</td><td>难（要 IPC：管道/消息/共享内存）</td><td>易（直接读共享变量）</td></tr>
+  <tr><td>并发</td><td>并发粗（一公司干一件事）</td><td>并发细（一公司多人各干各的）</td></tr>
+</table>
+
+<div class="callout warn">
+<b>考试最爱问</b>："线程和进程的最本质区别是什么？"——答：<b>是否共享地址空间</b>。同进程线程共享；不同进程不共享。
+</div>
+
+<h2>5. 死锁的 4 个必要条件（必背）</h2>
+
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>死锁</b> = 一组进程互相等对方手里的资源，<b>谁也跑不动</b>。<br>
+发生死锁，<b>4 个条件必须同时成立</b>——破坏任意 1 个就不会死锁。
+</blockquote>
+
+<div class="deadlock">
+  <div class="dl-cond" style="background: var(--p1);">
+    <span class="dl-cond-num">1</span>
+    <div class="dl-cond-name">互斥条件</div>
+    <div class="dl-cond-desc">资源一次只能 1 个进程用<br>（打印机、临界区）</div>
+  </div>
+  <div class="dl-cond" style="background: var(--p2);">
+    <span class="dl-cond-num">2</span>
+    <div class="dl-cond-name">请求和保持</div>
+    <div class="dl-cond-desc">手里有 A 还想要 B<br>（拿到不释放）</div>
+  </div>
+  <div class="dl-cond" style="background: var(--p3);">
+    <span class="dl-cond-num">3</span>
+    <div class="dl-cond-name">不可抢占</div>
+    <div class="dl-cond-desc">别人手里的资源，<br>OS 也不能抢走</div>
+  </div>
+  <div class="dl-cond" style="background: var(--p4);">
+    <span class="dl-cond-num">4</span>
+    <div class="dl-cond-name">循环等待</div>
+    <div class="dl-cond-desc">A 等 B，B 等 C，C 等 A<br>（形成环）</div>
+  </div>
+</div>
+
+<div class="callout warn">
+<b>易记口诀</b>：<b>"独、占、等、环"</b><br>
+• <b>独</b>占（互斥）<br>
+• <b>占</b>着不释放（请求和保持）<br>
+• <b>等</b>着不能抢（不可抢占）<br>
+• <b>环</b>形等待（循环等待）
+</div>
+
+<h3>5.1 对应"破坏"方法（了解即可）</h3>
+
+<table>
+  <tr><th>死锁 4 条件</th><th>如何破坏</th></tr>
+  <tr><td>互斥</td><td>把独占资源改成共享（但有些资源天生独占）</td></tr>
+  <tr><td>请求和保持</td><td>一次性申请所有资源（运行前全拿）</td></tr>
+  <tr><td>不可抢占</td><td>OS 可以强行抢走（优先级高的能抢低的）</td></tr>
+  <tr><td>循环等待</td><td>给资源编号，<b>按编号顺序</b>申请（L3 银行家算法的思路）</td></tr>
+</table>
+
+<h2>6. 必背 4 句话（考试原话）</h2>
+
+<div class="callout">
+<b>①</b> <b>进程 = 程序的执行实例</b>（动态）；<b>程序 = 静态代码</b>。最本质区别是<b>动态性</b>。<br>
+<b>②</b> PCB 是进程存在的<b>唯一标志</b>，OS 用 PCB 管理进程。<br>
+<b>③</b> 进程 3 状态：<b>就绪（等 CPU）/ 运行（在跑）/ 阻塞（等 IO）</b>。<br>
+<b>④</b> 死锁 4 条件：<b>互斥、请求和保持、不可抢占、循环等待</b>（"独占等候环"）——破坏任意 1 个就解决。
+</div>
+
+<h2>7. 自检（先做再翻答案）</h2>
+
+<div class="q">
+<b>Q1（口述）</b> 程序和进程的最本质区别是什么？
+</div>
+
+<div class="q">
+<b>Q2（口述）</b> 进程 3 状态之间的转换关系？就绪和阻塞的关键区别？
+</div>
+
+<div class="q">
+<b>Q3（口述）</b> 进程和线程的最本质区别？切换谁更快？
+</div>
+
+<div class="q">
+<b>Q4（默写）</b> 死锁的 4 个必要条件（按"独、占、等、环"口诀默写）。
+</div>
+
+<div class="q">
+<b>Q5（选择）</b> 下面哪种情况<b>一定不会</b>发生死锁？<br>
+A. 4 个条件都满足<br>
+B. 破坏"循环等待"（资源按编号申请）<br>
+C. 2 个进程都不可抢占<br>
+D. 所有资源都互斥
+</div>
+
+<div class="callout ok">
+<b>答案对照</b><br>
+A1：<b>动态性</b>。程序是死的（一段代码），进程是活的（一次执行，有生命周期）。<br>
+A2：<br>
+• 就绪 → 运行：被调度<br>
+• 运行 → 就绪：时间片用完<br>
+• 运行 → 阻塞：等 IO / 等资源<br>
+• 阻塞 → 就绪：IO 完成 / 资源到位<br>
+• <b>就绪 = 等 CPU</b>；<b>阻塞 = 等别的东西</b>（没法跑）<br>
+A3：是否<b>共享地址空间</b>。同进程线程共享；不同进程不共享。线程切换快（不换内存）。<br>
+A4：<b>独（互斥）、占（请求和保持）、等（不可抢占）、环（循环等待）</b>。<br>
+A5：B。破坏任意 1 个条件就不会死锁——B 破坏了"循环等待"。A、C、D 都是死锁必要条件。
+</div>
+
+<h2>8. 下一步</h2>
+
+<p>本节任何一题你不能立刻答出来，告诉我；我们就从那一题开始下一节。<br>
+如果都能答，<b>所有 12 节课就齐了</b>——可以开始刷真题或回顾薄弱点。</p>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> <a href="../bank/ch02-test.html">📝 第 2 章测试</a> · <a href="../bank/ch03-test.html">📝 第 3 章测试（死锁 4 条件）</a> · <a href="../bank/final-test.html">📝 仿真期末卷</a><br><a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+<footer class="lesson-foot">
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../RESOURCES.md">RESOURCES.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a> ·
+<a href="0002-scheduling-algorithms.html">第 2 课</a> ·
+<a href="0003-bankers-algorithm.html">第 3 课</a> ·
+<a href="0004-group-linking.html">第 4 课</a> ·
+<a href="0005-paging-fundamentals.html">第 5 课</a> ·
+<a href="0006-page-replacement.html">第 6 课</a> ·
+<a href="0007-disk-scheduling.html">第 7 课</a> ·
+<a href="0008-io-system.html">第 8 课</a> ·
+<a href="0009-mixed-index.html">第 9 课</a> ·
+<a href="0010-process-sync.html">第 10 课</a> ·
+<a href="0011-classic-sync.html">第 11 课</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0012-process-thread-deadlock.html"</code>
+</footer>
+
+</div>
+</body>
+</html>

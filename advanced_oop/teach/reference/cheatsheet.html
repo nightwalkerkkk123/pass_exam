@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>条款速查表 · 过线级 · Advanced OOP 复习</title>
+<style>
+  :root {
+    --fg: #1a1a1a; --muted: #6b6b6b; --line: #e6e6e6; --bg: #fafaf7;
+    --high: #b3261e; --mid: #c47b00; --low: #6b6b6b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+    font-size: 14px; line-height: 1.55;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 32px 24px 80px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 24px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .eyebrow { color: var(--muted); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+  .meta { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  h2 { font-size: 17px; margin: 28px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  h2 .tag { font-size: 11px; color: var(--muted); margin-left: 8px; font-weight: normal; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px dashed var(--line); vertical-align: top; }
+  th { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  td.n { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+  td.t { font-weight: 600; }
+  td.cx { color: #444; }
+  .pri-high { color: var(--high); font-weight: 700; }
+  .pri-mid  { color: var(--mid);  font-weight: 600; }
+  .pri-low  { color: var(--low);  font-weight: 500; }
+  .legend { display: flex; gap: 18px; margin: 12px 0 24px; font-size: 13px; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .dot.h { background: var(--high); }
+  .dot.m { background: var(--mid); }
+  .dot.l { background: var(--low); }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #f0f0e8; padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+  @media print {
+    body { background: white; font-size: 11px; }
+    h2 { page-break-after: avoid; }
+    table { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Reference · Cheatsheet</div>
+  <h1>条款速查表 · 过线级</h1>
+  <div class="meta">覆盖 Effective Java 第 2–8 章（条款 1–56） · 配套 Lesson 0002 使用 · 打印 2 页</div>
+</header>
+
+<div class="legend">
+  <span><span class="dot h"></span><span><strong>高</strong>：必须记名 + 核心反例</span></span>
+  <span><span class="dot m"></span><span><strong>中</strong>：必须记名，反例过一眼</span></span>
+  <span><span class="dot l"></span><span><strong>低</strong>：过线可放，本周不优先</span></span>
+</div>
+
+<h2>第 2 章 · 创建和销毁对象 <span class="tag">条款 1–9</span></h2>
+<table>
+  <thead>
+    <tr><th style="width:60px">#</th><th style="width:170px">条款</th><th style="width:60px">优先级</th><th>核心反例 / 一句话</th></tr>
+  </thead>
+  <tbody>
+    <tr><td class="n">1</td><td class="t">静态工厂方法代替构造器</td><td class="pri-high">高</td><td class="cx">5 大优点：有名字 / 可复用 / 可返子类 / 按参数变 / 服务提供者框架</td></tr>
+    <tr><td class="n">2</td><td class="t">Builder 处理多参数</td><td class="pri-high">高</td><td class="cx">≥4 个参数时用 Builder；避免重叠构造器 / JavaBeans 半构造</td></tr>
+    <tr><td class="n">3</td><td class="t">私有构造器 / enum 强化 Singleton</td><td class="pri-mid">中</td><td class="cx">单元素 enum 是最佳实现</td></tr>
+    <tr><td class="n">4</td><td class="t">私有构造器禁止实例化</td><td class="pri-low">低</td><td class="cx">工具类：私有构造器 + 抛 AssertionError</td></tr>
+    <tr><td class="n">5</td><td class="t">依赖注入</td><td class="pri-mid">中</td><td class="cx">资源（连接、工厂）通过构造器 / setter 注入，不用 <code>static</code></td></tr>
+    <tr><td class="n">6</td><td class="t">避免创建不必要对象</td><td class="pri-high">高</td><td class="cx">复用 <code>Boolean.TRUE</code>；避免 <code>String s = new String("a")</code>；注意自动装箱</td></tr>
+    <tr><td class="n">7</td><td class="t">消除过期对象引用</td><td class="pri-mid">中</td><td class="cx">Stack pop 后清空 <code>elements[--size] = null</code>；内存泄漏三源：过期引用 / 缓存 / 监听器</td></tr>
+    <tr><td class="n">8</td><td class="t">避免 finalizer 和 cleaner</td><td class="pri-low">低</td><td class="cx">时机不确定、性能差、安全漏洞；用 <code>AutoCloseable</code> 替代</td></tr>
+    <tr><td class="n">9</td><td class="t">try-with-resources 代替 try-finally</td><td class="pri-low">低</td><td class="cx">实现 <code>AutoCloseable</code>；更短、更安全、异常不被吞</td></tr>
+  </tbody>
+</table>
+
+<h2>第 3 章 · 所有对象通用方法 <span class="tag">条款 10–14</span></h2>
+<table>
+  <thead><tr><th style="width:60px">#</th><th style="width:170px">条款</th><th style="width:60px">优先级</th><th>核心反例 / 一句话</th></tr></thead>
+  <tbody>
+    <tr><td class="n">10</td><td class="t">覆盖 equals 遵守通用约定</td><td class="pri-high">高</td><td class="cx">五性质：自反 / 对称 / 传递 / 一致 / 非 null；CaseInsensitiveString 破对称</td></tr>
+    <tr><td class="n">11</td><td class="t">覆盖 equals 必覆盖 hashCode</td><td class="pri-high">高</td><td class="cx">equal ⇒ hashCode 相等；反之不要求；<code>Objects.hash</code> 性能差（可变参数装箱）</td></tr>
+    <tr><td class="n">12</td><td class="t">始终覆盖 toString</td><td class="pri-mid">中</td><td class="cx">默认 <code>ClassName@hash</code> 难调试；包含所有关注信息</td></tr>
+    <tr><td class="n">13</td><td class="t">谨慎覆盖 clone</td><td class="pri-low">低</td><td class="cx">优先考虑拷贝构造器 / 拷贝工厂；clone 约定脆弱</td></tr>
+    <tr><td class="n">14</td><td class="t">考虑实现 Comparable</td><td class="pri-mid">中</td><td class="cx">实现 <code>compareTo</code> 让对象可排序；用 <code>Comparator</code> 静态方法代替复杂实现</td></tr>
+  </tbody>
+</table>
+
+<h2>第 4 章 · 类和接口 <span class="tag">条款 15–22</span></h2>
+<table>
+  <thead><tr><th style="width:60px">#</th><th style="width:170px">条款</th><th style="width:60px">优先级</th><th>核心反例 / 一句话</th></tr></thead>
+  <tbody>
+    <tr><td class="n">15</td><td class="t">可访问性最小化</td><td class="pri-high">高</td><td class="cx">private → 默认 → protected → public；公有类禁止公有可变域</td></tr>
+    <tr><td class="n">16</td><td class="t">公有类用访问方法</td><td class="pri-high">高</td><td class="cx">不要 <code>public double x</code>；用 <code>getX/setX</code> 维持封装</td></tr>
+    <tr><td class="n">17</td><td class="t">最小化可变性</td><td class="pri-high">高</td><td class="cx">5 步：private final + 类 final + 防御性拷贝 + 无 setter + "with" 返新对象</td></tr>
+    <tr><td class="n">18</td><td class="t">复合优于继承</td><td class="pri-high">高</td><td class="cx">跨包继承破封装；用"包装类"持有父类实例（"装饰者"前身）</td></tr>
+    <tr><td class="n">19</td><td class="t">继承设计 + 文档</td><td class="pri-mid">中</td><td class="cx">继承必须文档化 <code>@implSpec</code>；构造器禁止调用可重写方法</td></tr>
+    <tr><td class="n">20</td><td class="t">接口优于抽象类</td><td class="pri-mid">中</td><td class="cx">接口允许多实现；用 <code>default</code> 给演进留余地</td></tr>
+    <tr><td class="n">21</td><td class="t">为后代设计接口</td><td class="pri-low">低</td><td class="cx">用 <code>default</code> 减少破坏性变更；不强迫实现无关方法</td></tr>
+    <tr><td class="n">22</td><td class="t">接口只用于定义类型</td><td class="pri-mid">中</td><td class="cx">常量接口是反模式；用 <code>final class</code> + 私有构造器放常量</td></tr>
+  </tbody>
+</table>
+
+<h2>第 5 章 · 泛型 <span class="tag">条款 23–33</span></h2>
+<table>
+  <thead><tr><th style="width:60px">#</th><th style="width:170px">条款</th><th style="width:60px">优先级</th><th>核心反例 / 一句话</th></tr></thead>
+  <tbody>
+    <tr><td class="n">23</td><td class="t">不要在新代码中使用原始类型</td><td class="pri-high">高</td><td class="cx">用 <code>List&lt;?&gt;</code> 或 <code>List&lt;Object&gt;</code> 不用 <code>List</code>；混用丢类型安全</td></tr>
+    <tr><td class="n">24</td><td class="t">消除 unchecked 警告</td><td class="pri-mid">中</td><td class="cx">每条警告代表可能的 ClassCastException；用 <code>@SuppressWarnings</code> 必须加注释</td></tr>
+    <tr><td class="n">25</td><td class="t">列表优先于数组</td><td class="pri-mid">中</td><td class="cx">数组协变、具体化；泛型不变、擦除——类型安全差太多</td></tr>
+    <tr><td class="n">26</td><td class="t">优先考虑泛型</td><td class="pri-mid">中</td><td class="cx">自己写类型化的容器；不要在 API 里漏类型</td></tr>
+    <tr><td class="n">27</td><td class="t">优先考虑泛型方法</td><td class="pri-mid">中</td><td class="cx">静态工具方法泛型化：<code>public static &lt;E&gt; Set&lt;E&gt; union(...)</code></td></tr>
+    <tr><td class="n">28</td><td class="t">优先考虑列表而非泛型数组</td><td class="pri-high">高</td><td class="cx"><code>new List&lt;E&gt;[]</code> 非法；数组记住元素类型，超出泛型能力</td></tr>
+    <tr><td class="n">29</td><td class="t">优先考虑类型安全的异构容器</td><td class="pri-low">低</td><td class="cx"><code>Map&lt;Class&lt;?&gt;, Object&gt;</code> 模式；过线可不深究</td></tr>
+    <tr><td class="n">30</td><td class="t">用 var 引导读者</td><td class="pri-low">低</td><td class="cx">类型明显时用 <code>var</code>；读者看右边更省力</td></tr>
+    <tr><td class="n">31</td><td class="t">用限定通配符增加 API 灵活性</td><td class="pri-low">低</td><td class="cx">PECS：Producer-Extends / Consumer-Super；过线可放</td></tr>
+    <tr><td class="n">32</td><td class="t">谨慎组合泛型与可变参数</td><td class="pri-low">低</td><td class="cx"><code>@SafeVarargs</code> 仅在确实安全时用</td></tr>
+    <tr><td class="n">33</td><td class="t">考虑类型安全的异构 map（见 29）</td><td class="pri-low">低</td><td class="cx">合并条目；过线忽略</td></tr>
+  </tbody>
+</table>
+
+<h2>第 6 章 · 枚举和注解 <span class="tag">条款 34–41</span></h2>
+<table>
+  <thead><tr><th style="width:60px">#</th><th style="width:170px">条款</th><th style="width:60px">优先级</th><th>核心反例 / 一句话</th></tr></thead>
+  <tbody>
+    <tr><td class="n">34</td><td class="t">用 enum 代替 int 常量</td><td class="pri-high">高</td><td class="cx">int 常量无类型安全；enum 是完整类：可加字段/方法/<code>toString</code></td></tr>
+    <tr><td class="n">35</td><td class="t">用实例域代替序数</td><td class="pri-mid">中</td><td class="cx">不要 <code>ordinal()</code> 当数组下标；自己存数字</td></tr>
+    <tr><td class="n">36</td><td class="t">用 EnumSet 代替位域</td><td class="pri-mid">中</td><td class="cx"><code>text.applyStyles(Style.BOLD | Style.ITALIC)</code> → <code>EnumSet.of(...)</code></td></tr>
+    <tr><td class="n">37</td><td class="t">用 EnumMap 代替序数索引</td><td class="pri-low">低</td><td class="cx">不用 <code>array[enum.ordinal()]</code>，用 <code>EnumMap</code></td></tr>
+    <tr><td class="n">38</td><td class="t">用接口模拟可扩展枚举</td><td class="pri-low">低</td><td class="cx">enum 不能继承；用接口 + enum 实现</td></tr>
+    <tr><td class="n">39</td><td class="t">注解优先于命名模式</td><td class="pri-mid">中</td><td class="cx">不要 <code>setTestMethod()</code> 这种命名；用 <code>@Test</code> 注解</td></tr>
+    <tr><td class="n">40</td><td class="t">坚持使用 @Override</td><td class="pri-high">高</td><td class="cx">编译器替你查重写错误；不写 <code>@Override</code> 错过 N 多 bug</td></tr>
+    <tr><td class="n">41</td><td class="t">用标记接口定义类型</td><td class="pri-low">低</td><td class="cx">标记接口（无方法的）能进入类型系统；标记注解不能</td></tr>
+  </tbody>
+</table>
+
+<h2>第 7 章 · Lambda 和 Stream <span class="tag">条款 42–48</span></h2>
+<table>
+  <thead><tr><th style="width:60px">#</th><th style="width:170px">条款</th><th style="width:60px">优先级</th><th>核心反例 / 一句话</th></tr></thead>
+  <tbody>
+    <tr><td class="n">42</td><td class="t">Lambda 优先于匿名类</td><td class="pri-mid">中</td><td class="cx">函数式接口实现 → 用 Lambda 更短；除非 ≥3 行</td></tr>
+    <tr><td class="n">43</td><td class="t">方法引用优先于 Lambda</td><td class="pri-mid">中</td><td class="cx"><code>str -&gt; str.length()</code> → <code>String::length</code>，更清晰</td></tr>
+    <tr><td class="n">44</td><td class="t">坚持使用标准函数式接口</td><td class="pri-mid">中</td><td class="cx">优先 <code>Function</code> / <code>Predicate</code> / <code>Supplier</code> / <code>Consumer</code>，不要自己造</td></tr>
+    <tr><td class="n">45</td><td class="t">谨慎使用 Stream</td><td class="pri-high">高</td><td class="cx">无状态 / 短路 / 顺序：滥用会变慢、变难读</td></tr>
+    <tr><td class="n">46</td><td class="t">优先选择 Stream 中无副作用的函数</td><td class="pri-mid">中</td><td class="cx"><code>forEach</code> 写副作用 = 走回头路；终端用 <code>collect</code>/<code>reduce</code></td></tr>
+    <tr><td class="n">47</td><td class="t">Stream 优先返回 Collection</td><td class="pri-low">低</td><td class="cx">返回 <code>List</code> / <code>Set</code> 给调用者更大灵活性</td></tr>
+    <tr><td class="n">48</td><td class="t">谨慎并行 Stream</td><td class="pri-mid">中</td><td class="cx">并行只在 <code>ArrayList</code> + 廉价运算 + 多核才有意义；默认别用</td></tr>
+  </tbody>
+</table>
+
+<h2>第 8 章 · 方法 <span class="tag">条款 49–56</span></h2>
+<table>
+  <thead><tr><th style="width:60px">#</th><th style="width:170px">条款</th><th style="width:60px">优先级</th><th>核心反例 / 一句话</th></tr></thead>
+  <tbody>
+    <tr><td class="n">49</td><td class="t">检查参数有效性</td><td class="pri-mid">中</td><td class="cx">方法开头 <code>Objects.checkIndex(i, len)</code> 等；早失败</td></tr>
+    <tr><td class="n">50</td><td class="t">必要时做保护性拷贝</td><td class="pri-mid">中</td><td class="cx">构造器接收可变参数（<code>Date</code>）→ 防御性拷贝</td></tr>
+    <tr><td class="n">51</td><td class="t">谨慎设计方法签名</td><td class="pri-low">低</td><td class="cx">短名 / 通用 / 不过载太多</td></tr>
+    <tr><td class="n">52</td><td class="t">慎用重载</td><td class="pri-high">高</td><td class="cx">重载按<strong>编译时</strong>类型选；运行期类型无关；<code>null</code> 调重载会歧义</td></tr>
+    <tr><td class="n">53</td><td class="t">慎用可变参数</td><td class="pri-mid">中</td><td class="cx">每次调都分配数组；性能敏感场景先看固定重载</td></tr>
+    <tr><td class="n">54</td><td class="t">返回空数组 / 集合而不是 null</td><td class="pri-mid">中</td><td class="cx">返回 <code>Collections.emptyList()</code> 代替 <code>null</code></td></tr>
+    <tr><td class="n">55</td><td class="t">谨慎返回 Optional</td><td class="pri-low">低</td><td class="cx">结果可能缺失时；不要用作 <code>null</code> 的镜像</td></tr>
+    <tr><td class="n">56</td><td class="t">为所有导出的 API 编写文档注释</td><td class="pri-mid">中</td><td class="cx">Javadoc 描述契约；<code>{@code}</code> / <code>@param</code> / <code>@throws</code> 不可少</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  <p>优先级定义：<strong>高</strong> 12 条、<strong>中</strong> 18 条、<strong>低</strong> 26 条。高+中 = 过线型必背 30 条。</p>
+  <p>配套：<a href="../lessons/0001-diagnostic.html">Lesson 0001</a> · <a href="../lessons/0002-vocabulary.html">Lesson 0002</a> · <a href="../MISSION.md">Mission</a></p>
+</footer>
+
+</div>
+</body>
+</html>

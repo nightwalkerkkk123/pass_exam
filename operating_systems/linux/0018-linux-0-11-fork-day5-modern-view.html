@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 18 课 · Linux 0.11 fork Day 5（观点训练） · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+  .pill { display:inline-block; padding: 1px 7px; border-radius: 10px;
+          font-size: 12px; background: #eee; color: var(--ink); margin-left: 4px;}
+  .pill.high { background: #fde2dd; color: #8a1c11; }
+  .pill.mid  { background: #fff0d6; color: #7a4a00; }
+  .pill.low  { background: #e3efe6; color: #1f6f43; }
+  .script {
+    background: #faf6e8; border: 1px dashed #a85d00; padding: 14px 16px;
+    border-radius: 6px; margin: 14px 0; font-size: 15px; line-height: 1.8;
+  }
+  .script b { color: #a85d00; }
+  .view {
+    background: #f1f9f4; border: 1px solid var(--ok); border-left: 4px solid var(--ok);
+    padding: 12px 14px; border-radius: 4px; margin: 14px 0;
+  }
+  .view b { color: var(--ok); }
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 13px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <p class="eyebrow">第 18 课 · 源码精讲专题 Day 5 / 6</p>
+  <h1>观点训练：用 4 个现代视角看 fork</h1>
+  <p class="sub">本期目标：敢说「如果是我来改,我会……」 · 约 60 分钟</p>
+</header>
+
+<div class="callout warn">
+<b>⚠ 质疑 → 观点,是两个层级</b><br>
+<b>质疑</b> = 挑毛病 (说「这不好」)。<br>
+<b>观点</b> = 给方案 (说「如果是现代会这样,如果是我的话会那样」)。<br>
+能质疑 + 能给方案 = 工业界 P6+ 水平。老师看到你这么说,基本就锁了高分。
+</div>
+
+<h2>0. 观点的 4 个维度（cgroup / namespace / eBPF / rseq）</h2>
+
+<p>现代 Linux 看待「进程」这个概念,有了 4 个新维度。这些维度<b>都不是 0.11 时代存在的</b>——它们是 2007-2020 年间逐步加进内核的。你能从这 4 个维度看 0.11 的 fork,老师听了会觉得你看过现代内核。</p>
+
+<table>
+<tr><th>视角</th><th>加入年份</th><th>解决什么问题</th><th>对 fork 的影响</th></tr>
+<tr><td><b>cgroup</b></td><td>2008 (2.6.24)</td><td>资源隔离（CPU/内存/IO 配额）</td><td>fork 后子进程的 cgroup 归属问题</td></tr>
+<tr><td><b>namespace</b></td><td>2002-2014 (逐步)</td><td>资源虚拟化（容器的基础）</td><td>fork 后的 PID namespace / mount namespace</td></tr>
+<tr><td><b>eBPF</b></td><td>2014 (3.18)</td><td>内核可编程（不用改内核就能 hook 关键路径）</td><td>fork 时的 eBPF 探针 (tracepoint) 观测</td></tr>
+<tr><td><b>rseq</b></td><td>2018 (4.18)</td><td>per-CPU 原子操作,加速用户态</td><td>fork 后子进程的 rseq 注册</td></tr>
+</table>
+
+<h2>1. 视角 1: cgroup 视角 —— 资源配额继承问题</h2>
+
+<h3>1.1 0.11 看不到的问题</h3>
+<p>0.11 的 fork 默认所有进程共享 16MB 物理内存和 CPU 时间——<b>没有「这个进程只能用 1MB 内存」的概念</b>。</p>
+
+<p>为什么 0.11 不需要 cgroup？<b>因为只有 64 个进程,且都是 root 创建的</b>——大家都平等,没有「普通用户进程要限速,系统进程不限速」的需求。</p>
+
+<h3>1.2 现代场景</h3>
+<p>想象一个云服务器：</p>
+<ul>
+  <li>你在跑一个 Python 脚本（<code>cgroup memory.max=100MB</code>）</li>
+  <li>同一台机器还有 9 个租户的进程（<code>memory.max=100MB</code> 各自）</li>
+  <li>如果你的 Python <code>fork()</code> 出 100 个子进程,每个都试图分配 1GB 内存——会发生什么？</li>
+</ul>
+
+<p>现代 Linux 行为：</p>
+<ol>
+  <li>父进程在 cgroup A（限额 100MB）</li>
+  <li><code>fork()</code> 默认让子进程<b>继承</b> cgroup A</li>
+  <li>子进程也受 100MB 限额</li>
+  <li>如果父想「隔离」,用 <code>cgroup.clone_children=0</code> 让子进 root cgroup</li>
+</ol>
+
+<h3>1.3 0.11 时代「等价的概念」</h3>
+<p>0.11 的 <code>nice()</code> 系统调用 + 优先级 (priority 字段) 是一种<b>极简版的 cgroup 思想</b>——给进程分配一个「权重」,调度时优先跑高权重的。但 nice 是「软限制」(高 nice 进程还是会被调度,只是不优先),cgroup 是「硬限制」(到上限直接 OOM kill)。</p>
+
+<div class="view">
+<b>💡 我的观点（直接对老师讲）：</b><br>
+"如果 0.11 时代有 cgroup,Linus 可能会把 task_struct 里的 priority 字段换成 cgroup pointer——而不是只填一个 long。这样 1991 年的 'nice' 思路可以平滑进化到 2008 年的 cgroup 资源隔离。当然,cgroup 的复杂度是 nice 的 100 倍——这是 17 年才补完的。
+</div>
+
+<div class="script">
+<b>🎤 讲稿（背这一段就够）：</b><br><br>
+"老师,从 cgroup 视角看 0.11 有一个有意思的观察：task_struct 里的 priority 字段是 long,只支持 nice 软优先级。<b>如果 1991 年 Linus 用 cgroup pointer 替代它</b>,nice 可以平滑进化到 2008 年的 cgroup 资源隔离——软优先级 → 硬限额。但 cgroup 的复杂度是 nice 的 100 倍,所以 17 年才补完是可以理解的。"
+</div>
+
+<h2>2. 视角 2: namespace 视角 —— 容器与 PID 虚拟化</h2>
+
+<h3>2.1 0.11 看不到的问题</h3>
+<p>0.11 全系统所有进程共享一个 PID 命名空间——<b>PID 1 永远只能是 init</b>。想象一个场景：</p>
+<ul>
+  <li>你在容器里跑一个 Python 脚本,以为自己是 PID 1</li>
+  <li>但宿主机上 PID 1 是 systemd</li>
+  <li>你的 <code>kill -1</code> 杀的是 systemd,不是 Python</li>
+</ul>
+
+<h3>2.2 现代 Linux 的 namespace</h3>
+<p>PID namespace (2002 年加入) 让你看到的世界是「隔离的」：</p>
+<ul>
+  <li>容器内 PID 1 = 你的进程（看着像 init）</li>
+  <li>宿主机 PID 32768 = 容器内 PID 1（真实 ID）</li>
+  <li><code>kill -1</code> 在容器内只杀容器内的 PID 1</li>
+</ul>
+
+<p>对 fork 的影响：</p>
+<ul>
+  <li><code>clone(CLONE_NEWPID)</code> 创建新的 PID namespace</li>
+  <li>子进程在 namespace 内有自己的 PID 1,父进程看不到</li>
+  <li>这是 Docker / Kubernetes 的基础</li>
+</ul>
+
+<h3>2.3 0.11 时代「等价的概念」</h3>
+<p>0.11 的 <code>getpid()</code> 直接返回 task-&gt;pid,没考虑「隔离」概念。Unix 早期也是这种「全局 PID」模型——直到 Solaris 10 引入 zones 才改变。</p>
+
+<div class="view">
+<b>💡 我的观点（直接对老师讲）：</b><br>
+"如果 0.11 有 PID namespace,<code>find_empty_process()</code> 就不应该返回全局 task[] 数组下标,而应该返回 namespace 内的局部 PID。容器场景下,这个改动让 fork 从 '单租户系统调用' 变成 '多租户系统调用'——这是云计算时代的基础能力。但加 namespace 会让 task_struct 多个指针,内存压力下又得改——这跟 64 进程上限的设计冲突,所以 Linus 没加是合理的。
+</div>
+
+<div class="script">
+<b>🎤 讲稿（背这一段就够）：</b><br><br>
+"老师,从 namespace 视角看 0.11 有一个朴素的观察：find_empty_process 返回的是 task[64] 全局数组下标,不是 namespace 内的局部 PID。<b>如果 1991 年 Linus 让 PID 在 namespace 内重映射</b>,今天的 Docker 早 20 年诞生——但 namespace 增加 task_struct 指针,跟 64 进程上限的设计直接冲突,所以他没加是合理的——这个设计冲突,直到 2002 年才用动态 task_struct 解决。"
+</div>
+
+<h2>3. 视角 3: eBPF 视角 —— fork 的可观测性</h2>
+
+<h3>3.1 0.11 看不到的问题</h3>
+<p>0.11 想知道「fork 了几次」或「哪个进程 fork 最多」,只能：</p>
+<ol>
+  <li>改内核源码,加 printk,重新编译内核（30 分钟）</li>
+  <li>用 strace -f 跟踪（但 0.11 没 strace）</li>
+</ol>
+
+<h3>3.2 现代 Linux 的 eBPF</h3>
+<p>eBPF 让你在内核里跑「沙盒小程序」,不需要改内核源码：</p>
+<pre>
+# bpftrace -e 'tracepoint:sched:sched_process_fork { @[comm] = count(); }'
+# 输出:python 12, bash 8, sshd 3
+</pre>
+
+<p>这是个「bpftrace 一行命令」就能完成的 fork 监控——0.11 时代要写 100 行内核代码。</p>
+
+<h3>3.3 0.11 时代「等价的概念」</h3>
+<p>0.11 的 <code>printk()</code> 是 eBPF 的祖先——都是「在关键路径打日志」。但 printk 改不了控制流,eBPF 能改（基于条件跳过往下走）。这是「被动观测 → 主动控制」的进化。</p>
+
+<div class="view">
+<b>💡 我的观点（直接对老师讲）：</b><br>
+"如果 0.11 有 eBPF,Linux 0.11 时代我们就能在 fork 路径上插 hook,做 '限制某进程 1 秒最多 fork 10 次' 这种安全策略——这是今天 Kubernetes 的 'pid limiter' 功能。<b>eBPF 把 '内核可观测性' 从 '改内核源码' 变成 '写一段小程序'</b>,这是 30 年来内核最大的可扩展性进步。
+</div>
+
+<div class="script">
+<b>🎤 讲稿（背这一段就够）：</b><br><br>
+"老师,eBPF 是我看 0.11 时最想要的东西。如果 0.11 有 eBPF,我能在 fork 路径上插一行 hook: '限制某进程 1 秒最多 fork 10 次'——这是今天 K8s 的 'pid limiter'。<b>eBPF 把 '内核观测' 从 '改内核源码 30 分钟' 变成 '写一段小程序 30 秒'</b>——这是 2014 年以来内核最大的进步。"
+</div>
+
+<h2>4. 视角 4: rseq 视角 —— 用户态加速</h2>
+
+<h3>4.1 0.11 看不到的问题</h3>
+<p>0.11 的 fork 后,子进程第一次被调度时,eax 寄存器被设成 0——这是「硬件的恩赐」(x86 提供 tss)。但 ARM、RISC-V 没有 tss,这个技巧用不了。</p>
+
+<h3>4.2 现代 Linux 的 rseq</h3>
+<p>rseq (Restartable Sequences) 2018 年加,解决的是另一个问题：</p>
+<ul>
+  <li>用户态程序想做「per-CPU 计数器」(不用锁,直接读写 per-cpu 变量)</li>
+  <li>问题：如果这个线程被 fork 出去,rseq 注册被破坏,下次调度回来计数器读错</li>
+  <li>rseq 解决方案：<code>clone(CLONE_RSEQ)</code> 让子进程继承 rseq 注册,内核负责同步</li>
+</ul>
+
+<h3>4.3 0.11 时代「等价的概念」</h3>
+<p>0.11 没有 per-CPU 概念(单核),也没有 rseq(没需求)。这个视角在 0.11 上没什么发挥空间——<b>如果老师问到这个视角,直接说「这个不适用于 0.11」,反而显得有判断力</b>。</p>
+
+<div class="callout ok">
+<b>💡 观点训练的诀窍：敢说「这个不适用」</b><br>
+不是每个现代视角都能套到 0.11 上。rseq 就不适用——单核系统没 per-CPU 概念。<b>敢说「这个不适用,理由是 X」,比硬套一个不合适的视角要好 10 倍</b>。老师会觉得你有判断力,不是背诵机器。
+</div>
+
+<h2>5. 整体策略：观点的 4 种强度</h2>
+
+<p>讲观点时,有 4 种强度,从弱到强：</p>
+
+<table>
+<tr><th>强度</th><th>句式</th><th>适用场景</th><th>老师反应</th></tr>
+<tr><td>L1 描述</td><td>"现代 Linux 用 COW 替代了整页复制"</td><td>事实陈述</td><td>听完点头</td></tr>
+<tr><td>L2 对比</td><td>"0.11 拷 1MB,现代拷 0 字节,差 100 倍"</td><td>量化对比</td><td>记笔记</td></tr>
+<tr><td>L3 观点</td><td>"这是 Linus 自己承认的设计缺陷"</td><td>有立场</td><td>看着你</td></tr>
+<tr><td>L4 方案</td><td>"如果是我,我会用 cgroup pointer 替代 priority"</td><td>给替代方案</td><td>眼睛亮</td></tr>
+</table>
+
+<div class="callout">
+<b>🎯 目标：8 分钟讲稿里至少 3 处 L3-L4 强度</b>。光描述 0.11 是什么,没观点——背书机器。光批判,没方案——键盘侠。<b>「有立场 + 有替代」= 工业界 P6+</b>。
+</div>
+
+<h2>6. 自测 3 题</h2>
+
+<div class="q">
+<b>Q1.</b> 0.11 时代为什么不需要 cgroup？现代什么场景必须有？<span class="pill high">必答</span><br>
+<input type="text" id="q1" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a1').style.display='block'">显示参考答案</button>
+<div id="a1" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：0.11 只有 64 进程,都是 root 创建,平等共享资源——没「限额」需求。现代多租户云服务器场景,10 个用户分 1 台机器,每用户限额——必须 cgroup。priority (nice) 是软限制,cgroup 是硬限额。
+</div>
+</div>
+
+<div class="q">
+<b>Q2.</b> 如果 0.11 时代有 namespace,Docker 是不是早 20 年诞生？为什么？<span class="pill high">必答</span><br>
+<input type="text" id="q2" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a2').style.display='block'">显示参考答案</button>
+<div id="a2" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：是的。<b>PID namespace 让进程看到「局部 PID 1」</b>——Docker 容器每个进程都「以为自己是 init」,基于此构建镜像、分层、端口隔离。但 namespace 跟 64 进程上限的设计冲突,直到 2002 年动态 task_struct 才解决。
+</div>
+</div>
+
+<div class="q">
+<b>Q3.</b> 4 个现代视角里,哪个最不适用于 0.11？为什么？<span class="pill mid">扩展</span><br>
+<input type="text" id="q3" style="width:100%; padding:6px;" placeholder="你的答案..."><br>
+<button onclick="document.getElementById('a3').style.display='block'">显示参考答案</button>
+<div id="a3" style="display:none; margin-top:8px; padding:8px; background:#f1f9f4; border-radius:4px;">
+<b>参考答案</b>：<b>rseq 最不适用</b>。0.11 是单核系统,没有 per-CPU 概念,rseq 解决的问题不存在。敢说「不适用」=有判断力,比硬套一个不合适的好。
+</div>
+</div>
+
+<div class="callout ok">
+<b>✅ Day 5 通过标准</b>：Q1 + Q2 答对（2/3）。Q3 是 Day 6 讲稿编排的前置。
+</div>
+
+<h2>7. 今日作业（20 分钟内完成）</h2>
+
+<ol>
+  <li>把 4 个视角的讲稿各读 3 遍,挑 2 个你最有感觉的背下来</li>
+  <li>回答 3 道自测题</li>
+  <li>把 4 个视角写成<b>4 张卡片</b>（每张 1 行）——这是明天 Day 6 讲稿的「素材库」</li>
+</ol>
+
+<div class="callout warn">
+<b>📅 明天 Day 6 预告</b>：<b>8 分钟讲稿编排 + 彩排</b>。前 5 天的所有内容,今天<b>全部组装</b>成一份 8 分钟讲稿 + 6 张 PPT 大纲 + 3 个老师可能问的问题 + 彩排 Checklist。
+</div>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> · <a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+
+<footer class="lesson-foot">
+<p>第 18 课 · Linux 0.11 fork 源码精讲 Day 5 · 6 天专题</p>
+</footer>
+
+</div>
+</body>
+</html>

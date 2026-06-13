@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 4 课 · 成组链接法 · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+    --top-bg:#b03a2e; --top-fg:#fff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+  .pill { display:inline-block; padding: 1px 7px; border-radius: 10px;
+          font-size: 12px; background: #eee; color: var(--ink); margin-left: 4px;}
+  .pill.high { background: #fde2dd; color: #8a1c11; }
+  .pill.mid  { background: #fff0d6; color: #7a4a00; }
+  .pill.low  { background: #e3efe6; color: #1f6f43; }
+
+  /* ===== 抽屉柜可视化 ===== */
+  .state {
+    background: #fff; border: 1px solid var(--line); border-radius: 6px;
+    padding: 12px 16px; margin: 12px 0;
+  }
+  .state-label {
+    font-family: "SF Mono", monospace; font-size: 13px;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .state-label b { color: var(--accent); }
+  .drawer {
+    display: flex; border: 2px solid var(--ink); border-radius: 4px;
+    background: #fff; overflow: hidden; margin: 6px 0;
+  }
+  .drawer-cell {
+    flex: 1; min-width: 40px; text-align: center; padding: 10px 4px;
+    border-right: 1px solid var(--line); background: #f0ede5;
+    font-family: "SF Mono", monospace; font-size: 14px; font-weight: 500;
+    position: relative;
+  }
+  .drawer-cell:last-child { border-right: none; }
+  .drawer-cell.count { background: #fff0d6; }
+  .drawer-cell.empty { background: #fafaf7; color: #ccc; }
+  .drawer-cell.top {
+    background: var(--top-bg); color: var(--top-fg); font-weight: 700;
+  }
+  .drawer-cell.top::after {
+    content: " ↑ 栈顶"; font-size: 10px; display: block; margin-top: 2px;
+  }
+  .state-note {
+    font-size: 13px; color: var(--muted); margin-top: 6px;
+  }
+
+  .block-content {
+    background: #fbfaf6; border: 1px dashed var(--line); border-radius: 6px;
+    padding: 8px 12px; margin: 8px 0; font-size: 13px;
+  }
+  .block-content-label {
+    color: var(--muted); font-size: 12px; margin-bottom: 4px;
+  }
+
+  .arrow-right { color: var(--accent); font-weight: 700; }
+
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 13px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q, .state, .block-content { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 4 课 · 期末冲刺 · 第 6 章必考题</div>
+  <h1>成组链接法 · 空闲盘块管理</h1>
+  <div class="sub">目标：15 分钟内把"每 5 块一组"+"超级块"+"4 条规则"装进脑子，能独立做这道必考大题</div>
+</header>
+
+<h2>1. 一句话 + 抽屉柜类比</h2>
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>把空闲盘块每 5 个分成一组，用"超级块"（在内存里）记当前组</b>。组满或组空时，超级块切换。
+</blockquote>
+
+<table>
+  <tr><th>OS 概念</th><th>抽屉柜类比</th></tr>
+  <tr><td><b>每 5 块一组</b></td><td>每个抽屉最多装 <b>5 本书</b></td></tr>
+  <tr><td><b>超级块 S.free</b>（在内存里）</td><td>管理员<b>手里</b>的"当前抽屉"</td></tr>
+  <tr><td><b>空闲盘块总数</b></td><td>所有抽屉里的书加起来</td></tr>
+  <tr><td><b>分配 1 块</b></td><td>从抽屉里<b>拿 1 本</b>书</td></tr>
+  <tr><td><b>回收 1 块</b></td><td>把 1 本<b>放回</b>抽屉</td></tr>
+</table>
+
+<h2>2. 关键术语：S.free 数据结构</h2>
+<p>S.free 是一个数组，<b>第一个数是"组里有多少空闲块"</b>，<b>后面是该组的盘块号</b>。</p>
+
+<div class="state">
+  <div class="state-label"><b>S.free = [3, 1, 2, 3]</b></div>
+  <div class="drawer">
+    <div class="drawer-cell count">3 (数)</div>
+    <div class="drawer-cell">1</div>
+    <div class="drawer-cell">2</div>
+    <div class="drawer-cell top">3</div>
+  </div>
+  <div class="state-note">含义：当前组里有 3 个空闲块：1, 2, 3；<b>栈顶在右</b>（分配时从右往左取）</div>
+</div>
+
+<div class="callout warn">
+<b>必背的 2 个细节</b>：<br>
+1. S.free 的<b>第一个数 = 块数</b>，<b>不是块号</b>（最常错的点）<br>
+2. <b>栈顶在右</b>（最右是栈顶，分配时从右往左取，回收时往右压）
+</div>
+
+<h2>3. 4 条规则（这是核心，必背）</h2>
+
+<h3>3.1 回收 ①：栈未满（块数 &lt; 5）</h3>
+<p>直接<b>把回收的块号压入栈顶</b>，块数 +1。</p>
+
+<div class="state">
+  <div class="state-label">回收前：S.free = [3, 1, 2, 3]，回收块 4（栈未满）</div>
+  <div class="arrow-right">↓ 压入</div>
+  <div class="drawer">
+    <div class="drawer-cell count">4 (数)</div>
+    <div class="drawer-cell">1</div>
+    <div class="drawer-cell">2</div>
+    <div class="drawer-cell">3</div>
+    <div class="drawer-cell top">4</div>
+  </div>
+  <div class="state-note">回收后：S.free = [4, 1, 2, 3, 4]，空闲总数 <b>3 → 4</b></div>
+</div>
+
+<h3>3.2 回收 ②：栈已满（块数 = 5）</h3>
+<p>把<b>整个 S.free 内容写入新回收的块</b>，新块号成为新栈里的<b>唯一 1 个块</b>。</p>
+
+<div class="state">
+  <div class="state-label">回收前：S.free = [5, 1, 2, 3, 4, 7]（已满），回收块 8</div>
+  <div class="arrow-right">↓ 整组信息写入第 8 块</div>
+  <div class="block-content">
+    <div class="block-content-label">第 8 块的内容（保存"下一组"信息）：</div>
+    <div class="drawer" style="margin:0;">
+      <div class="drawer-cell count">5 (数)</div>
+      <div class="drawer-cell">1</div>
+      <div class="drawer-cell">2</div>
+      <div class="drawer-cell">3</div>
+      <div class="drawer-cell">4</div>
+      <div class="drawer-cell top">7</div>
+    </div>
+  </div>
+  <div class="arrow-right">↓ 新超级块：只剩新块号 8</div>
+  <div class="drawer">
+    <div class="drawer-cell count">1 (数)</div>
+    <div class="drawer-cell top">8</div>
+  </div>
+  <div class="state-note">回收后：S.free = [1, 8]，空闲总数 <b>5 → 6</b>。注意：8 里面藏着下一组 1,2,3,4,7。</div>
+</div>
+
+<h3>3.3 分配 ①：栈中块数 &gt; 1</h3>
+<p>直接<b>弹出栈顶块</b>，块数 −1。</p>
+
+<div class="state">
+  <div class="state-label">分配前：S.free = [5, 1, 2, 3, 4, 7]</div>
+  <div class="arrow-right">↓ 弹出栈顶 7</div>
+  <div class="drawer">
+    <div class="drawer-cell count">4 (数)</div>
+    <div class="drawer-cell">1</div>
+    <div class="drawer-cell">2</div>
+    <div class="drawer-cell">3</div>
+    <div class="drawer-cell top">4</div>
+  </div>
+  <div class="state-note">分配后：S.free = [4, 1, 2, 3, 4]，分出去的块是 <b>7</b>，空闲总数 <b>5 → 4</b></div>
+</div>
+
+<h3>3.4 分配 ②：栈中块数 = 1（关键！）</h3>
+<p>当前这个块里<b>存着"下一组"信息</b>。先把它的内容读入 S.free，再把这个块分配出去。</p>
+
+<div class="state">
+  <div class="state-label">分配前：S.free = [1, 8]（栈里只剩 8）</div>
+  <div class="arrow-right">↓ 先把第 8 块的内容读入 S.free</div>
+  <div class="block-content">
+    <div class="block-content-label">第 8 块的内容（这是上一条"回收 8"时存进去的）：</div>
+    <div class="drawer" style="margin:0;">
+      <div class="drawer-cell count">5 (数)</div>
+      <div class="drawer-cell">1</div>
+      <div class="drawer-cell">2</div>
+      <div class="drawer-cell">3</div>
+      <div class="drawer-cell">4</div>
+      <div class="drawer-cell top">7</div>
+    </div>
+  </div>
+  <div class="arrow-right">↓ S.free 变成这 5 块，然后第 8 块分出去</div>
+  <div class="drawer">
+    <div class="drawer-cell count">5 (数)</div>
+    <div class="drawer-cell">1</div>
+    <div class="drawer-cell">2</div>
+    <div class="drawer-cell">3</div>
+    <div class="drawer-cell">4</div>
+    <div class="drawer-cell top">7</div>
+  </div>
+  <div class="state-note">分配后：S.free = [5, 1, 2, 3, 4, 7]，分出去的块是 <b>8</b>，空闲总数 <b>6 → 5</b></div>
+</div>
+
+<div class="callout ok">
+<b>金句（默写）</b>：<br>
+「<b>分配时 =1</b>：<b>先读块内容</b>，再把块分出去」<br>
+「<b>回收时 =5</b>：<b>先把整组写进新块</b>，新块成为新栈」<br>
+——两个 = 边界条件最容易考，记住"反过来"就行。
+</div>
+
+<h2>4. 完整例题（老师作业原题）</h2>
+<p>每 5 块一组，初始 <b>S.free = [3, 1, 2, 3]</b>（栈里有 3 个空闲块：1, 2, 3）。</p>
+
+<h3>步骤 ①：回收第 4 块（栈未满）</h3>
+<div class="state">
+  <div class="state-label">S.free = [3, 1, 2, 3] → 压入 4</div>
+  <div class="drawer">
+    <div class="drawer-cell count">4</div>
+    <div class="drawer-cell">1</div>
+    <div class="drawer-cell">2</div>
+    <div class="drawer-cell">3</div>
+    <div class="drawer-cell top">4</div>
+  </div>
+  <div class="state-note">空闲总数：<b>3 → 4</b></div>
+</div>
+
+<h3>步骤 ②：再回收第 7、8 块</h3>
+<p>回收 7：栈 <b>[4, 1, 2, 3, 4]</b> → 压入 7 → <b>[5, 1, 2, 3, 4, 7]</b>（栈已满）</p>
+<p>回收 8：栈 <b>已满 = 5</b>，按规则 ② →</p>
+
+<div class="state">
+  <div class="state-label">第 8 块存了下一组信息：</div>
+  <div class="block-content">
+    <div class="drawer" style="margin:0;">
+      <div class="drawer-cell count">5</div>
+      <div class="drawer-cell">1</div>
+      <div class="drawer-cell">2</div>
+      <div class="drawer-cell">3</div>
+      <div class="drawer-cell">4</div>
+      <div class="drawer-cell top">7</div>
+    </div>
+  </div>
+  <div class="state-label">新超级块：</div>
+  <div class="drawer">
+    <div class="drawer-cell count">1</div>
+    <div class="drawer-cell top">8</div>
+  </div>
+  <div class="state-note">S.free = [1, 8]，空闲总数：<b>5 → 6</b></div>
+</div>
+
+<h3>步骤 ③：分配 1 块（栈中块数 = 1！）</h3>
+<p>按规则分配 ② → 先读第 8 块内容进 S.free，再把 8 分配出去</p>
+
+<div class="state">
+  <div class="state-label">分出去的块是 <b>8</b>，S.free 变成下一组</div>
+  <div class="drawer">
+    <div class="drawer-cell count">5</div>
+    <div class="drawer-cell">1</div>
+    <div class="drawer-cell">2</div>
+    <div class="drawer-cell">3</div>
+    <div class="drawer-cell">4</div>
+    <div class="drawer-cell top">7</div>
+  </div>
+  <div class="state-note">S.free = [5, 1, 2, 3, 4, 7]，空闲总数：<b>6 → 5</b></div>
+</div>
+
+<h3>步骤 ④：分配 3 块（栈中块数 &gt; 1，普通弹出）</h3>
+<table>
+  <tr><th>第 N 块</th><th>分出去</th><th>新 S.free</th><th>总数</th></tr>
+  <tr><td>第 1 块</td><td>7</td><td>[4, 1, 2, 3, 4]</td><td>5 → 4</td></tr>
+  <tr><td>第 2 块</td><td>4</td><td>[3, 1, 2, 3]</td><td>4 → 3</td></tr>
+  <tr><td>第 3 块</td><td>3</td><td>[2, 1, 2]</td><td>3 → 2</td></tr>
+</table>
+
+<div class="callout ok">
+<b>最终状态</b>：S.free = [2, 1, 2]，空闲块 = <b>{1, 2}</b>，空闲总数 = <b>2</b>。<br>
+整个过程分配出去的块依次是：<b>8, 7, 4, 3</b>。
+</div>
+
+<h2>5. 关键判断点（必背表）</h2>
+<table>
+  <tr><th>操作</th><th>看 S.free 第一个数</th><th>动作</th></tr>
+  <tr><td><b>分配</b></td><td>数 &gt; 1</td><td>直接弹出栈顶</td></tr>
+  <tr><td><b>分配</b></td><td>数 = <b>1</b></td><td><b>先读该块内容</b>进 S.free，再分出该块</td></tr>
+  <tr><td><b>回收</b></td><td>数 &lt; 5</td><td>直接压入栈顶</td></tr>
+  <tr><td><b>回收</b></td><td>数 = <b>5</b></td><td><b>先把整组写进新块</b>，新块成为新栈</td></tr>
+</table>
+
+<h2>6. 自检（做不看答案）</h2>
+
+<div class="q">
+<b>Q1</b>（默写）S.free = [3, 1, 2, 3] 的含义？栈顶在哪里？
+</div>
+<div class="q">
+<b>Q2</b>（口述）回收时栈已满 = 5，怎么办？
+</div>
+<div class="q">
+<b>Q3</b>（口述）分配时栈只剩 1 块，怎么办？
+</div>
+<div class="q">
+<b>Q4</b>（选择）S.free = [1, 23] 时分配 1 块，最可能发生什么？
+<br>A. 直接弹出 23
+<br>B. <b>先把第 23 块的内容读入 S.free，再把 23 分配出去</b>
+<br>C. 把 23 写到磁盘
+<br>D. 报错
+</div>
+
+<div class="callout ok">
+<b>答案对照</b><br>
+A1：当前组里有 3 个空闲块：1, 2, 3；栈顶在右（最右是 3）<br>
+A2：先把整组信息写入新块，新块号成为新栈里的唯一块<br>
+A3：先读该块内容进 S.free，再分出该块<br>
+A4：B（这是分配规则 ②：=1 时先读后分）
+</div>
+
+<h2>7. 老师作业完整答案对照</h2>
+<table>
+  <tr><th>操作</th><th>S.free</th><th>空闲总数</th></tr>
+  <tr><td>初始</td><td>[3, 1, 2, 3]</td><td>3</td></tr>
+  <tr><td>① 回收 4</td><td>[4, 1, 2, 3, 4]</td><td>4</td></tr>
+  <tr><td>② 回收 7</td><td>[5, 1, 2, 3, 4, 7]</td><td>5</td></tr>
+  <tr><td>② 回收 8（栈满）</td><td>[1, 8]（8 存着 [5,1,2,3,4,7]）</td><td>6</td></tr>
+  <tr><td>③ 分配 1 块（=1）</td><td>[5, 1, 2, 3, 4, 7]</td><td>5</td></tr>
+  <tr><td>④ 分配 1 块（7）</td><td>[4, 1, 2, 3, 4]</td><td>4</td></tr>
+  <tr><td>④ 分配 2 块（4）</td><td>[3, 1, 2, 3]</td><td>3</td></tr>
+  <tr><td>④ 分配 3 块（3）</td><td>[2, 1, 2]</td><td>2</td></tr>
+</table>
+<p><b>最终 S.free = [2, 1, 2]</b>，最终空闲块 = {1, 2}，最终总数 = 2。</p>
+<p><b>分配出去顺序</b>：8, 7, 4, 3（共 4 块）。<b>回收顺序</b>：4, 7, 8（共 3 块）。净减少 1 块。</p>
+
+<h2>8. 下一步</h2>
+<p>本节任何一题你不能立刻答出来，告诉我；我们就从那一题开始下一节。<br>
+如果都能答，<b>下一节 = 页面置换算法（FIFO / LRU / OPT / CLOCK）</b>，第 4-5 章大题，最后一关。</p>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> <a href="../bank/ch06-test.html">📝 第 6 章测试</a><br><a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+<footer class="lesson-foot">
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../RESOURCES.md">RESOURCES.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a> ·
+<a href="0002-scheduling-algorithms.html">第 2 课</a> ·
+<a href="0003-bankers-algorithm.html">第 3 课</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0004-group-linking.html"</code>
+</footer>
+
+</div>
+</body>
+</html>

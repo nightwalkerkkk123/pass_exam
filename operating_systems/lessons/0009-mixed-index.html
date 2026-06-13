@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 9 课 · 混合索引 · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+    --p1:#e8f1fb; --p2:#fdebd0; --p3:#d5f5e3; --p4:#f5d5e3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; font-size: 13px; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+
+  /* inode 结构图 */
+  .inode {
+    display: grid; grid-template-columns: 60px 1fr; gap: 6px;
+    background: #fff; border: 1px solid var(--line); border-radius: 6px;
+    padding: 10px 14px; margin: 10px 0; font-size: 13px;
+  }
+  .inode-row { display: contents; }
+  .inode-tag {
+    background: #f0ede5; padding: 4px 8px; border-radius: 3px;
+    text-align: center; font-family: "SF Mono", monospace; font-size: 12px;
+  }
+  .inode-cells { display: flex; gap: 3px; flex-wrap: wrap; align-items: center; }
+  .inode-cell {
+    border: 1px solid var(--ink); border-radius: 3px; padding: 4px 6px;
+    min-width: 24px; text-align: center; font-family: "SF Mono", monospace; font-size: 12px;
+  }
+  .inode-cell.direct { background: var(--p3); }
+  .inode-cell.ind1   { background: var(--p1); }
+  .inode-cell.ind2   { background: var(--p2); }
+  .inode-cell.ind3   { background: var(--p4); }
+  .inode-arrow { font-size: 16px; color: var(--accent); margin: 0 4px; }
+  .inode-target { font-size: 12px; color: var(--muted); margin-left: 4px; }
+
+  /* 图书馆类比 */
+  .lib {
+    display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 10px;
+    margin: 12px 0;
+  }
+  .lib-side {
+    border: 2px solid var(--ink); border-radius: 6px; padding: 10px;
+    background: #fff;
+  }
+  .lib-side.direct { background: var(--p3); }
+  .lib-side.ind1   { background: var(--p1); }
+  .lib-side.ind2   { background: var(--p2); }
+  .lib-side.ind3   { background: var(--p4); }
+  .lib-icon { font-size: 24px; text-align: center; }
+  .lib-title { font-weight: 700; font-size: 13px; text-align: center; margin: 4px 0; }
+  .lib-desc { font-size: 12px; }
+
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 12px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q, .inode, .lib { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 9 课 · 期末冲刺 · 第 7 章 / 文件大小计算题 5-10 分</div>
+  <h1>混合索引（UNIX inode）· 大文件怎么"装下"</h1>
+  <div class="sub">目标：15-20 分钟装下"直接 + 一级/二级/三级间接"结构，会算最大文件长度</div>
+</header>
+
+<h2>1. 一句话 + 图书馆类比</h2>
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>一个索引块装不下所有物理块号</b> → 用"直接放 + 一层套娃 + 二层套娃 + 三层套娃"组合，
+<b>小文件查得快，大文件放得下</b>。
+</blockquote>
+
+<div class="lib">
+  <div class="lib-side direct">
+    <div class="lib-icon">📚</div>
+    <div class="lib-title">直接地址（10 个）</div>
+    <div class="lib-desc">桌面上<b>摆 10 本</b>常看的书，<b>直接拿走</b>，不用查</div>
+  </div>
+  <div class="lib-side ind1">
+    <div class="lib-icon">📋</div>
+    <div class="lib-title">一级间接（1 个）</div>
+    <div class="lib-desc">桌上一张小条："3 楼 5 号柜"<br>柜里 1024 本书，<b>查 1 次</b></div>
+  </div>
+  <div class="lib-side ind2">
+    <div class="lib-icon">📑</div>
+    <div class="lib-title">二级间接（1 个）</div>
+    <div class="lib-desc">桌上纸条："3 楼 5 号柜里有张条"<br>"条上写 4 楼 6 号柜"<br>→ 4 楼 6 号柜里 1024 本，<b>查 2 次</b></div>
+  </div>
+  <div class="lib-side ind3">
+    <div class="lib-icon">🗂️</div>
+    <div class="lib-title">三级间接（1 个）</div>
+    <div class="lib-desc">再套一层"<b>某校区某楼某柜</b>"<br>，<b>查 3 次</b></div>
+  </div>
+</div>
+
+<div class="callout">
+<b>记住 1 件事</b>：<b>级数 = 套娃层数 = 查几次</b>。直接 = 0 层（直接拿走），一级 = 1 层（查 1 次），二级 = 2 层（查 2 次），三级 = 3 层。
+</div>
+
+<h2>2. inode 的 13 个地址项长什么样</h2>
+
+<div class="inode">
+  <div class="inode-tag">直接</div>
+  <div class="inode-cells">
+    <span class="inode-cell direct">块0</span>
+    <span class="inode-cell direct">块1</span>
+    <span class="inode-cell direct">块2</span>
+    <span class="inode-cell direct">块3</span>
+    <span class="inode-cell direct">块4</span>
+    <span class="inode-cell direct">块5</span>
+    <span class="inode-cell direct">块6</span>
+    <span class="inode-cell direct">块7</span>
+    <span class="inode-cell direct">块8</span>
+    <span class="inode-cell direct">块9</span>
+    <span class="inode-target">← 10 项，每项 1 块</span>
+  </div>
+  <div class="inode-tag">一级</div>
+  <div class="inode-cells">
+    <span class="inode-cell ind1">索引块</span>
+    <span class="inode-arrow">→</span>
+    <span style="font-size:12px; color:var(--muted);">1024 个块的地址</span>
+  </div>
+  <div class="inode-tag">二级</div>
+  <div class="inode-cells">
+    <span class="inode-cell ind2">索引块</span>
+    <span class="inode-arrow">→</span>
+    <span style="font-size:12px; color:var(--muted);">1024 个"再索引块"地址，每个又 1024 个块</span>
+  </div>
+  <div class="inode-tag">三级</div>
+  <div class="inode-cells">
+    <span class="inode-cell ind3">索引块</span>
+    <span class="inode-arrow">→</span>
+    <span style="font-size:12px; color:var(--muted);">1024³ 个块（4TB 量级）</span>
+  </div>
+</div>
+
+<h2>3. 文件大小计算公式（必背）</h2>
+
+<pre>
+N = 盘块大小 B / 地址项大小 A     （每块能放 N 个地址项）
+
+最大文件长度 =
+    D × B                    （直接：D 项 × 每块大小）
+  + I₁ × N × B               （一级间接：I₁ 个索引块 × N 个地址 × 每块大小）
+  + I₂ × N² × B              （二级间接：N² = N × N）
+  + I₃ × N³ × B              （三级间接：N³ = N × N × N）
+</pre>
+
+<div class="callout warn">
+<b>关键 1 秒</b>：<br>
+• 每升一级，<b>N 的指数 +1</b>（N → N² → N³）<br>
+• 算前<b>先算 N</b>（盘块 B ÷ 地址项 A）<br>
+• 4 部分加起来 = 最大文件长度
+</div>
+
+<h2>4. 完整例题（UNIX inode 标准例）</h2>
+
+<p><b>已知</b>：盘块大小 B = <b>4KB</b>，地址项大小 A = <b>4B</b>，直接 D = <b>10</b>，一级间接 I₁ = <b>1</b>，二级间接 I₂ = <b>1</b>，三级间接 I₃ = <b>1</b>。</p>
+
+<h3>第 1 步：算 N（每块放几个地址项）</h3>
+
+<pre>
+N = B / A = 4KB / 4B = 1024
+</pre>
+
+<h3>第 2 步：4 部分分开算</h3>
+
+<table>
+  <tr><th>部分</th><th>公式</th><th>算</th><th>结果</th></tr>
+  <tr>
+    <td><b>直接</b></td>
+    <td>D × B</td>
+    <td>10 × 4KB</td>
+    <td><b>40KB</b></td>
+  </tr>
+  <tr>
+    <td><b>一级间接</b></td>
+    <td>I₁ × N × B</td>
+    <td>1 × 1024 × 4KB</td>
+    <td><b>4MB</b></td>
+  </tr>
+  <tr>
+    <td><b>二级间接</b></td>
+    <td>I₂ × N² × B</td>
+    <td>1 × 1024² × 4KB = 1 × 1,048,576 × 4KB</td>
+    <td><b>4GB</b></td>
+  </tr>
+  <tr>
+    <td><b>三级间接</b></td>
+    <td>I₃ × N³ × B</td>
+    <td>1 × 1024³ × 4KB = 1 × 1,073,741,824 × 4KB</td>
+    <td><b>4TB</b></td>
+  </tr>
+</table>
+
+<h3>第 3 步：加起来</h3>
+
+<pre>
+最大文件长度 = 40KB + 4MB + 4GB + 4TB
+             ≈ 40KB + 4MB + 4GB + 4TB
+             ≈ <b>4TB + 4GB + 4MB + 40KB</b>  （三级占大头）
+</pre>
+
+<div class="callout ok">
+<b>答案</b>：最大文件长度 ≈ <b>4TB</b>（三级间接占绝对大头，前三项可忽略）<br>
+<b>易错点</b>：<b>别忘了算 N</b>！N 算错 = 后面全错。考试第一件事：<b>先算 N</b>。
+</div>
+
+<h2>5. 必背 4 句话（考试原话）</h2>
+
+<div class="callout">
+<b>①</b> N = 盘块大小 B ÷ 地址项大小 A（<b>每块装几个地址项</b>）。<br>
+<b>②</b> 直接 = D × B；一级 = I₁ × N × B；二级 = I₂ × N² × B；三级 = I₃ × N³ × B。<br>
+<b>③</b> 4 部分加起来 = 最大文件长度。<br>
+<b>④</b> 三级间接占大头（4TB 级），前 3 项可近似忽略；<b>写答案时 4 项都列</b>，不能只写 4TB。
+</div>
+
+<h2>6. 自检（先做再翻答案）</h2>
+
+<div class="q">
+<b>Q1（口述）</b> 混合索引 = "直接 + 间接"，为什么要混合？只用多级不行吗？
+</div>
+
+<div class="q">
+<b>Q2（口述）</b> 公式里 N 是什么？怎么算？算错 N 会怎样？
+</div>
+
+<div class="q">
+<b>Q3（计算）</b> 盘块 B = <b>2KB</b>，地址项 A = <b>4B</b>，D = <b>8</b>，I₁ = <b>1</b>，I₂ = <b>1</b>，I₃ = <b>0</b>。<br>
+求最大文件长度。
+</div>
+
+<div class="q">
+<b>Q4（计算）</b> 盘块 B = <b>1KB</b>，地址项 A = <b>4B</b>，D = <b>5</b>，I₁ = <b>2</b>，I₂ = <b>1</b>，I₃ = <b>0</b>。<br>
+求最大文件长度。
+</div>
+
+<div class="q">
+<b>Q5（选择）</b> 关于混合索引，下面哪个说法<b>正确</b>？<br>
+A. 三级间接比二级间接访问快<br>
+B. 90% 的文件用不到一级间接<br>
+C. <b>三级间接项可以"嵌套"指向更多块，但访问要查 3 次索引</b><br>
+D. 直接地址项越多越好，不浪费
+</div>
+
+<div class="callout ok">
+<b>答案对照</b><br>
+A1：纯多级索引时，<b>小文件也要查索引</b>，慢。混合索引让小文件用<b>直接</b>（一次 IO 拿到数据），大文件才走间接。<br>
+A2：N = 盘块 B ÷ 地址项 A = 每块装几个地址项。N 算错 → 后面 N²、N³ 全错，整题崩。<br>
+A3：N = 2KB / 4B = <b>512</b>。<br>
+• 直接: 8 × 2KB = <b>16KB</b><br>
+• 一级: 1 × 512 × 2KB = <b>1MB</b><br>
+• 二级: 1 × 512² × 2KB = 1 × 262144 × 2KB = <b>512MB</b><br>
+• 三级: 0<br>
+总 = <b>512MB + 1MB + 16KB ≈ 513MB</b>。<br>
+A4：N = 1KB / 4B = <b>256</b>。<br>
+• 直接: 5 × 1KB = <b>5KB</b><br>
+• 一级: 2 × 256 × 1KB = <b>512KB</b><br>
+• 二级: 1 × 256² × 1KB = 1 × 65536 × 1KB = <b>64MB</b><br>
+总 = <b>64MB + 512KB + 5KB ≈ 64.5MB</b>。<br>
+A5：C。A 错（嵌套层数越多越慢）；B 错（90% 的文件小于 40KB <b>用直接就够，不进一级间接</b>，这本身是优点的依据，不是错误，但题目表述错）；C 对；D 错（直接项越多，inode 越大，不一定"不浪费"，要看文件大小分布）。
+</div>
+
+<div class="callout warn">
+<b>老师改卷最爱挑的 3 个坑</b>：<br>
+1. <b>忘算 N</b>——直接套 B=4KB、A=4B 写 1024，但题里是别的 B/A 时一定要先算 N<br>
+2. <b>单位混淆</b>——B/A 都是"字节"，算完 N 是"项"；B 算文件大小时单独用（"× 多少 KB"）<br>
+3. <b>I₁/I₂/I₃ 个数错看</b>——题目给 I₃=0 就别算三级，别硬写 4TB
+</div>
+
+<h2>7. 完整流程速记（手算时按这 4 步走）</h2>
+
+<pre>
+已知：盘块 B、地址项 A、直接 D、一级 I₁、二级 I₂、三级 I₃
+
+① 算 N = B / A
+② 算 4 部分：直接 D×B；一级 I₁×N×B；二级 I₂×N²×B；三级 I₃×N³×B
+③ 4 部分加起来 = 最大文件长度
+④ 检查 I₃ 是不是 0，是 0 就别算三级
+</pre>
+
+<h2>8. 下一步</h2>
+
+<p>本节任何一题你不能立刻答出来，告诉我；我们就从那一题开始下一节。<br>
+如果都能答，<b>下一节 = 第 10 课：进程同步 / PV 操作（Ch2 必考综合题，10 分大题）</b>——换脑子，前面学的"算路径/算索引"全用不上了，要学"信号量"。</p>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> <a href="../bank/ch06-test.html">📝 第 6 章测试（混合索引专项）</a><br><a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+<footer class="lesson-foot">
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../RESOURCES.md">RESOURCES.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a> ·
+<a href="0002-scheduling-algorithms.html">第 2 课</a> ·
+<a href="0003-bankers-algorithm.html">第 3 课</a> ·
+<a href="0004-group-linking.html">第 4 课</a> ·
+<a href="0005-paging-fundamentals.html">第 5 课</a> ·
+<a href="0006-page-replacement.html">第 6 课</a> ·
+<a href="0007-disk-scheduling.html">第 7 课</a> ·
+<a href="0008-io-system.html">第 8 课</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0009-mixed-index.html"</code>
+</footer>
+
+</div>
+</body>
+</html>

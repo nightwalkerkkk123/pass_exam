@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>第5章 设备管理 · 知识清单</title>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\(', '\)']],
+    displayMath: [['$$', '$$'], ['\[', '\]']]
+  }
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"></script>
+<style>
+/* === ExamPass Shared Styles === */
+/* Paper-like warm background, clean typography, responsive */
+
+:root {
+  --paper: #fdf6e3;
+  --paper-dark: #f5ecd7;
+  --ink: #2c2c2c;
+  --ink-light: #555;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --divider: #d6c8a8;
+  --card-bg: #fef9ef;
+  --card-border: #e8dcc8;
+  --correct: #22c55e;
+  --correct-bg: #f0fdf4;
+  --wrong: #ef4444;
+  --wrong-bg: #fef2f2;
+  --tag-bg: #fef3c7;
+  --tag-text: #92400e;
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Microsoft YaHei", "Noto Sans SC", "SimSun", sans-serif;
+  font-size: 12pt; line-height: 1.75; color: var(--ink);
+  max-width: 860px; margin: auto; padding: 24px 20px 60px;
+  background: var(--paper);
+}
+
+@media print {
+  body { font-size: 10.5pt; background: #fff; }
+  .no-print { display: none !important; }
+  h1, h2, h3 { page-break-after: avoid; }
+}
+
+/* ── Header ── */
+#exampass-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 6px 0; margin-bottom: 0;
+}
+.header-brand { font-size: 1.2em; font-weight: 700; color: #1a1a2e; letter-spacing: 0.3px; }
+.header-url  { font-size: 0.78em; color: #999; }
+.header-divider { border: none; border-top: 2px solid var(--divider); margin: 4px 0 20px 0; }
+
+/* ── Typography ── */
+h1 { font-size: 1.55em; text-align: center; border-bottom: 2px solid var(--divider); padding-bottom: 8px; margin-top: 0; }
+h2 { font-size: 1.25em; border-bottom: 1px solid var(--divider); padding-bottom: 4px; margin-top: 28px; }
+h3 { font-size: 1.08em; margin-top: 20px; color: var(--ink); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Tables ── */
+table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.95em; }
+td, th { border: 1px solid var(--card-border); padding: 5px 9px; text-align: left; }
+th { background: var(--paper-dark); font-weight: 700; }
+
+/* ── Knowledge point vs explanation ── */
+.kp { font-weight: 700; color: var(--ink); }           /* key point: bold dark */
+.exp { font-weight: 400; color: var(--ink-light); }    /* explanation: lighter */
+.exp em, .exp strong { color: var(--ink); }             /* emphasis inside explanation */
+
+/* ── Block elements ── */
+blockquote {
+  border-left: 3px solid #c0392b; background: #fef9ef;
+  padding: 6px 14px; margin: 10px 0; font-size: 0.95em;
+}
+code { background: #f0ede0; padding: 2px 5px; border-radius: 3px; font-size: 0.92em; }
+pre { background: #f0ede0; padding: 10px; border-radius: var(--radius); overflow-x: auto; }
+
+/* ── TOC ── */
+div.toc {
+  background: var(--card-bg); padding: 14px 18px;
+  border: 1px solid var(--card-border); border-radius: var(--radius); margin-bottom: 22px;
+}
+div.toc ul { padding-left: 18px; }
+div.toc li { margin: 3px 0; font-size: 0.95em; }
+
+/* ── Priority tags ── */
+.tag-must   { background: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+.tag-key    { background: #fef3c7; color: #92400e; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+.tag-freq   { background: #dbeafe; color: #1e40af; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+.tag-info   { background: #f0fdf4; color: #166534; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+
+
+</style>
+</head>
+<body>
+
+<header id="exampass-header">
+  <div class="header-left"><span class="header-brand">ExamPass Assistant</span></div>
+  <div class="header-right"><span class="header-url">github.com/WUBING2023/ExamPass-Assistant</span></div>
+</header>
+<hr class="header-divider">
+
+<h1>第5章 设备管理 · 知识清单</h1>
+<div class="toc">
+<h2>目录</h2>
+<ul>
+<li><a href="#s90257256">章节主线</a></li>
+<li><a href="#s49841631">I/O 控制方式</a></li>
+<li><a href="#s22311319">缓冲与设备分配</a></li>
+<li><a href="#s78892006">磁盘管理</a></li>
+<li><a href="#s83489461">考前自检</a></li>
+</ul>
+</div>
+<p class="exp">来源课件：第5章.ppt。本页由 ExamPass Assistant 模板根据 PPT 提取文本整理，面向期末复习。</p>
+<blockquote><strong>使用方法：</strong>先看黑体知识点，再看灰色解释；最后完成同名“章节测试”。</blockquote>
+<h2 id="s90257256">章节主线</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">核心问题</span></td><td><span class="exp">I/O 设备种类多、速度慢、差异大，OS 要统一接口、提高并行性并合理分配设备。</span></td></tr>
+<tr><td><span class="kp">课件结构</span></td><td><span class="exp">I/O 系统、I/O 控制方式、缓冲管理、设备分配、设备处理、磁盘存储器管理。</span></td></tr>
+</tbody></table>
+<h2 id="s49841631">I/O 控制方式</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">程序直接控制</span></td><td><span class="exp">CPU 轮询设备状态，简单但 CPU 利用率低。</span></td></tr>
+<tr><td><span class="kp">中断驱动</span></td><td><span class="exp">设备完成后发中断，CPU 可与设备并行工作。</span></td></tr>
+<tr><td><span class="kp">DMA</span></td><td><span class="exp">设备与内存成块直接传输，CPU 只在开始和结束时参与。</span></td></tr>
+<tr><td><span class="kp">通道</span></td><td><span class="exp">专门 I/O 处理器执行通道程序，进一步减轻 CPU 负担。</span></td></tr>
+</tbody></table>
+<h2 id="s22311319">缓冲与设备分配</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">缓冲作用</span></td><td><span class="exp">缓和 CPU 与 I/O 速度不匹配，减少中断，提高并行性。</span></td></tr>
+<tr><td><span class="kp">缓冲类型</span></td><td><span class="exp">单缓冲、双缓冲、循环缓冲、缓冲池。</span></td></tr>
+<tr><td><span class="kp">设备独立性</span></td><td><span class="exp">用户使用逻辑设备名，不直接依赖具体物理设备。</span></td></tr>
+<tr><td><span class="kp">SPOOLing</span></td><td><span class="exp">用外存模拟脱机输入输出，把独占设备改造成可共享设备，典型例子是打印机。</span></td></tr>
+</tbody></table>
+<h2 id="s78892006">磁盘管理</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">访问时间</span></td><td><span class="exp">主要包括寻道时间、旋转延迟和传输时间，其中寻道时间常是优化重点。</span></td></tr>
+<tr><td><span class="kp">FCFS</span></td><td><span class="exp">公平简单，但平均寻道距离可能大。</span></td></tr>
+<tr><td><span class="kp">SSTF</span></td><td><span class="exp">选择距离当前磁头最近的请求，性能好但可能饥饿。</span></td></tr>
+<tr><td><span class="kp">SCAN</span></td><td><span class="exp">电梯算法，沿一个方向服务，到端点后反向。</span></td></tr>
+<tr><td><span class="kp">CSCAN</span></td><td><span class="exp">循环扫描，只沿一个方向服务，到端后回到另一端。</span></td></tr>
+</tbody></table>
+<h2 id="s83489461">考前自检</h2>
+<ul><li>能不能用自己的话复述本章主线？</li><li>能不能区分相似概念？</li><li>遇到计算/设计题时，能不能写出步骤而不是只写结论？</li></ul>
+
+
+</body>
+</html>

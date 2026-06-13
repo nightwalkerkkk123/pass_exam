@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>第1章 操作系统引论 · 知识清单</title>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\(', '\)']],
+    displayMath: [['$$', '$$'], ['\[', '\]']]
+  }
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"></script>
+<style>
+/* === ExamPass Shared Styles === */
+/* Paper-like warm background, clean typography, responsive */
+
+:root {
+  --paper: #fdf6e3;
+  --paper-dark: #f5ecd7;
+  --ink: #2c2c2c;
+  --ink-light: #555;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --divider: #d6c8a8;
+  --card-bg: #fef9ef;
+  --card-border: #e8dcc8;
+  --correct: #22c55e;
+  --correct-bg: #f0fdf4;
+  --wrong: #ef4444;
+  --wrong-bg: #fef2f2;
+  --tag-bg: #fef3c7;
+  --tag-text: #92400e;
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Microsoft YaHei", "Noto Sans SC", "SimSun", sans-serif;
+  font-size: 12pt; line-height: 1.75; color: var(--ink);
+  max-width: 860px; margin: auto; padding: 24px 20px 60px;
+  background: var(--paper);
+}
+
+@media print {
+  body { font-size: 10.5pt; background: #fff; }
+  .no-print { display: none !important; }
+  h1, h2, h3 { page-break-after: avoid; }
+}
+
+/* ── Header ── */
+#exampass-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 6px 0; margin-bottom: 0;
+}
+.header-brand { font-size: 1.2em; font-weight: 700; color: #1a1a2e; letter-spacing: 0.3px; }
+.header-url  { font-size: 0.78em; color: #999; }
+.header-divider { border: none; border-top: 2px solid var(--divider); margin: 4px 0 20px 0; }
+
+/* ── Typography ── */
+h1 { font-size: 1.55em; text-align: center; border-bottom: 2px solid var(--divider); padding-bottom: 8px; margin-top: 0; }
+h2 { font-size: 1.25em; border-bottom: 1px solid var(--divider); padding-bottom: 4px; margin-top: 28px; }
+h3 { font-size: 1.08em; margin-top: 20px; color: var(--ink); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Tables ── */
+table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.95em; }
+td, th { border: 1px solid var(--card-border); padding: 5px 9px; text-align: left; }
+th { background: var(--paper-dark); font-weight: 700; }
+
+/* ── Knowledge point vs explanation ── */
+.kp { font-weight: 700; color: var(--ink); }           /* key point: bold dark */
+.exp { font-weight: 400; color: var(--ink-light); }    /* explanation: lighter */
+.exp em, .exp strong { color: var(--ink); }             /* emphasis inside explanation */
+
+/* ── Block elements ── */
+blockquote {
+  border-left: 3px solid #c0392b; background: #fef9ef;
+  padding: 6px 14px; margin: 10px 0; font-size: 0.95em;
+}
+code { background: #f0ede0; padding: 2px 5px; border-radius: 3px; font-size: 0.92em; }
+pre { background: #f0ede0; padding: 10px; border-radius: var(--radius); overflow-x: auto; }
+
+/* ── TOC ── */
+div.toc {
+  background: var(--card-bg); padding: 14px 18px;
+  border: 1px solid var(--card-border); border-radius: var(--radius); margin-bottom: 22px;
+}
+div.toc ul { padding-left: 18px; }
+div.toc li { margin: 3px 0; font-size: 0.95em; }
+
+/* ── Priority tags ── */
+.tag-must   { background: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+.tag-key    { background: #fef3c7; color: #92400e; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+.tag-freq   { background: #dbeafe; color: #1e40af; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+.tag-info   { background: #f0fdf4; color: #166534; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+
+
+</style>
+</head>
+<body>
+
+<header id="exampass-header">
+  <div class="header-left"><span class="header-brand">ExamPass Assistant</span></div>
+  <div class="header-right"><span class="header-url">github.com/WUBING2023/ExamPass-Assistant</span></div>
+</header>
+<hr class="header-divider">
+
+<h1>第1章 操作系统引论 · 知识清单</h1>
+<div class="toc">
+<h2>目录</h2>
+<ul>
+<li><a href="#s96545302">课程定位与考试口径</a></li>
+<li><a href="#s11962764">操作系统是什么</a></li>
+<li><a href="#s45269287">四大特征与功能</a></li>
+<li><a href="#s63133393">系统结构与接口</a></li>
+<li><a href="#s83489461">考前自检</a></li>
+</ul>
+</div>
+<p class="exp">来源课件：第1章.ppt。本页由 ExamPass Assistant 模板根据 PPT 提取文本整理，面向期末复习。</p>
+<blockquote><strong>使用方法：</strong>先看黑体知识点，再看灰色解释；最后完成同名“章节测试”。</blockquote>
+<h2 id="s96545302">课程定位与考试口径</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">课程目的</span></td><td><span class="exp">不是学习如何使用操作系统，而是理解操作系统如何工作：内部机制、数据结构、算法、典型技术和设计折中。</span></td></tr>
+<tr><td><span class="kp">考核重点</span></td><td><span class="exp">课件明确期末考试占 60%，并强调并发程序设计、处理机调度、内存分配与回收、文件管理等实验/作业方向。</span></td></tr>
+<tr><td><span class="kp">学习方式</span></td><td><span class="exp">操作系统学习要抓“抽象”和“资源管理”两条线：OS 把复杂硬件包装成进程、地址空间、文件、设备等抽象。</span></td></tr>
+</tbody></table>
+<h2 id="s11962764">操作系统是什么</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">定义</span></td><td><span class="exp">操作系统是管理和控制计算机硬件与软件资源、组织程序运行、方便用户使用的系统软件。</span></td></tr>
+<tr><td><span class="kp">地位</span></td><td><span class="exp">位于硬件和应用程序之间，向下管理 CPU、内存、设备、文件，向上提供系统调用和用户接口。</span></td></tr>
+<tr><td><span class="kp">目标</span></td><td><span class="exp">方便性、有效性、可扩充性和开放性；考试常问“为什么需要 OS”。</span></td></tr>
+</tbody></table>
+<h2 id="s45269287">四大特征与功能</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">并发</span></td><td><span class="exp">多个事件在同一时间间隔内发生，是现代 OS 的重要特征。注意区分并发与并行。</span></td></tr>
+<tr><td><span class="kp">共享</span></td><td><span class="exp">多个并发执行的进程共同使用系统资源，可分互斥共享和同时访问。</span></td></tr>
+<tr><td><span class="kp">虚拟</span></td><td><span class="exp">用时分复用和空分复用把一个物理实体变成多个逻辑实体，如虚拟处理机、虚拟存储器。</span></td></tr>
+<tr><td><span class="kp">异步</span></td><td><span class="exp">进程按不可预知速度向前推进，但在相同输入下结果应可再现。</span></td></tr>
+<tr><td><span class="kp">五大功能</span></td><td><span class="exp">处理机管理、存储器管理、设备管理、文件管理、用户接口。</span></td></tr>
+</tbody></table>
+<h2 id="s63133393">系统结构与接口</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">用户接口</span></td><td><span class="exp">命令接口、程序接口/系统调用、图形用户接口。</span></td></tr>
+<tr><td><span class="kp">系统调用</span></td><td><span class="exp">用户程序请求 OS 服务的入口，通常会从用户态切换到核心态。</span></td></tr>
+<tr><td><span class="kp">结构设计</span></td><td><span class="exp">常见结构包括无结构、模块化、分层、微内核等；简答题要能说优缺点。</span></td></tr>
+</tbody></table>
+<h2 id="s83489461">考前自检</h2>
+<ul><li>能不能用自己的话复述本章主线？</li><li>能不能区分相似概念？</li><li>遇到计算/设计题时，能不能写出步骤而不是只写结论？</li></ul>
+
+
+</body>
+</html>

@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 6 课 · 页面置换算法 · 操作系统期末冲刺</title>
+<style>
+  :root {
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+    --p1:#e8f1fb; --p2:#fdebd0; --p3:#d5f5e3; --p4:#f5d5e3;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB",
+                 "Microsoft YaHei", "Source Han Sans CN", sans-serif;
+    color: var(--ink); background: var(--bg);
+    line-height: 1.7; font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 40px 28px 80px; }
+  header.lesson-head {
+    border-bottom: 2px solid var(--ink); padding-bottom: 14px; margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--accent); font-weight: 600; letter-spacing: .05em; font-size: 13px; }
+  h1 { font-size: 28px; margin: 6px 0 8px; }
+  .sub { color: var(--muted); font-size: 14px; }
+  h2 {
+    font-size: 20px; margin: 36px 0 12px;
+    border-left: 4px solid var(--accent); padding-left: 10px;
+  }
+  h3 { font-size: 16px; margin: 18px 0 8px; color: var(--accent); }
+  p { margin: 8px 0; }
+  ul, ol { padding-left: 22px; }
+  li { margin: 4px 0; }
+  code, kbd {
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; background: #efece6; padding: 1px 5px; border-radius: 3px;
+  }
+  pre {
+    background: #fff; border: 1px solid var(--line);
+    padding: 12px 14px; border-radius: 6px; overflow-x: auto;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    font-size: 14px; line-height: 1.6;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+  th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #f0ede5; font-weight: 600; font-size: 13px; }
+  tr:nth-child(even) td { background: #fbfaf6; }
+  .callout {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--soft); padding: 12px 14px; border-radius: 4px;
+    margin: 14px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); background: #fff8ee; }
+  .callout.ok   { border-left-color: var(--ok);   background: #f1f9f4; }
+  .q { background: #fff; border: 1px solid var(--line); border-radius: 6px;
+       padding: 12px 14px; margin: 10px 0; }
+  .q b { color: var(--accent); }
+
+  /* 内存可视化 */
+  .frames { display: flex; gap: 6px; margin: 6px 0; }
+  .frame {
+    flex: 1; min-width: 36px; text-align: center; padding: 10px 4px;
+    border: 2px solid var(--ink); border-radius: 4px;
+    background: #fff; font-family: "SF Mono", monospace;
+    font-size: 16px; font-weight: 700;
+  }
+  .frame.empty { background: #f0ede5; color: #aaa; font-weight: 400; }
+  .frame.f-opt { background: var(--p1); }
+  .frame.f-fifo { background: var(--p2); }
+  .frame.f-lru { background: var(--p3); }
+
+  /* 引用流进度 */
+  .ref-row {
+    display: flex; gap: 3px; flex-wrap: wrap; margin: 6px 0;
+    font-family: "SF Mono", monospace; font-size: 13px;
+  }
+  .ref {
+    padding: 4px 8px; border: 1px solid var(--line); border-radius: 3px;
+    background: #fff; min-width: 24px; text-align: center;
+  }
+  .ref.hit  { background: var(--p3); border-color: var(--ok); color: var(--ok); font-weight: 700; }
+  .ref.miss { background: #fde2dd; border-color: var(--accent); color: var(--accent); font-weight: 700; }
+  .ref.cur  { outline: 3px solid var(--ink); }
+  .legend { font-size: 12px; color: var(--muted); margin: 4px 0; }
+  .legend .lg-hit  { display:inline-block; width:10px; height:10px; background: var(--p3); border:1px solid var(--ok); vertical-align:middle; margin-right:2px;}
+  .legend .lg-miss { display:inline-block; width:10px; height:10px; background: #fde2dd; border:1px solid var(--accent); vertical-align:middle; margin-right:2px;}
+
+  /* 模拟步骤表 */
+  .sim { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin: 8px 0; }
+  .sim-title { font-weight: 600; color: var(--accent); font-size: 14px; margin-bottom: 4px; }
+  .sim table { margin: 0; }
+  .sim td.miss { background: #fde2dd; font-weight: 700; color: var(--accent); }
+  .sim td.hit  { background: var(--p3); color: var(--ok); }
+  .sim td.cur  { outline: 2px solid var(--ink); }
+  .sim td.evict { background: #fff0d6; color: var(--warn); font-weight: 600; }
+
+  footer.lesson-foot { margin-top: 60px; padding-top: 14px;
+                       border-top: 1px solid var(--line);
+                       color: var(--muted); font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  @media print {
+    body { background: #fff; font-size: 12px; }
+    .wrap { padding: 12mm; max-width: none; }
+    h2 { break-after: avoid; }
+    table, .q, .frames, .sim { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 6 课 · 期末冲刺 · 第 5 章必考大题 · 在第 5 课分页之上</div>
+  <h1>页面置换算法 · 格子不够用了怎么办</h1>
+  <div class="sub">目标：15-20 分钟装下"缺页 + 置换"机制，会算 OPT/FIFO/LRU 的缺页次数，看懂 Belady 异常</div>
+</header>
+
+<h2>1. 一句话 + 咖啡店类比</h2>
+<blockquote style="border-left:4px solid var(--accent); padding:6px 12px; background:#fff; margin:0;">
+<b>物理块（内存格子）满了又要装新页，就按规则淘汰一个老页</b>——核心是"按什么规则挑那个倒霉蛋"。
+</blockquote>
+
+<div style="display:flex; gap:10px; align-items:flex-end; margin: 12px 0;">
+  <div style="flex:1; background: var(--p2); border:2px solid var(--ink); border-radius:6px; padding:10px; text-align:center;">
+    <div style="font-size:24px;">☕</div>
+    <div style="font-size:12px;">A 桌（1 号位）</div>
+  </div>
+  <div style="flex:1; background: var(--p2); border:2px solid var(--ink); border-radius:6px; padding:10px; text-align:center;">
+    <div style="font-size:24px;">☕</div>
+    <div style="font-size:12px;">B 桌（2 号位）</div>
+  </div>
+  <div style="flex:1; background: var(--p2); border:2px solid var(--ink); border-radius:6px; padding:10px; text-align:center;">
+    <div style="font-size:24px;">☕</div>
+    <div style="font-size:12px;">C 桌（3 号位）</div>
+  </div>
+</div>
+
+<p style="text-align:center;">↓ 新客到了，三桌都满，怎么办？按<b>规则</b>请走一桌 ↓</p>
+
+<table>
+  <tr><th>OS 概念</th><th>咖啡店类比</th></tr>
+  <tr><td>物理块（3 个）</td><td>咖啡店 <b>3 张桌子</b></td></tr>
+  <tr><td>页面（要访问的页号）</td><td><b>顾客</b>（每位顾客要 1 张桌子）</td></tr>
+  <tr><td>缺页（页面不在内存）</td><td>新客到了，<b>没空桌</b></td></tr>
+  <tr><td>页面置换</td><td>请走一桌老客，腾出桌子</td></tr>
+  <tr><td>置换算法</td><td>按什么<b>规则</b>挑那个倒霉蛋</td></tr>
+</table>
+
+<h2>2. 3 个核心算法 4 行对照表（必背）</h2>
+
+<table>
+  <tr><th>算法</th><th>淘汰谁（核心规则）</th><th>优点</th><th>缺点</th></tr>
+  <tr>
+    <td><b>OPT</b><br>（最佳）</td>
+    <td><b>未来最久</b>不用的那个</td>
+    <td>缺页率<b>最低</b>，理论最优</td>
+    <td><b>无法实现</b>（OS 不知道未来）</td>
+  </tr>
+  <tr>
+    <td><b>FIFO</b><br>（先进先出）</td>
+    <td><b>最早进内存</b>的那个</td>
+    <td>实现最简单，1 个队列搞定</td>
+    <td>性能差，<b>可能 Belady 异常</b></td>
+  </tr>
+  <tr>
+    <td><b>LRU</b><br>（最近最久未用）</td>
+    <td><b>过去最久</b>没用过的那个</td>
+    <td>性能接近 OPT，<b>无 Belady 异常</b></td>
+    <td>实现复杂，要硬件记时间戳</td>
+  </tr>
+</table>
+
+<div class="callout warn">
+<b>易记口诀</b>：<br>
+• <b>OPT 看未来</b>（但 OS 看不到，所以只能"打分"用）<br>
+• <b>FIFO 看进入</b>（最早来的最早走，跟"用没用过"无关）<br>
+• <b>LRU 看过去</b>（"过去没用 = 未来大概也不用"，局部性原理）
+</div>
+
+<h2>3. 缺页与命中的判定</h2>
+
+<p>程序按引用串访问页号：<code>1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5</code>（12 次访问）。</p>
+
+<ul>
+  <li>👉 <b>命中（hit）</b>：要访问的页面<b>已经在</b>内存里，直接用</li>
+  <li>👉 <b>缺页（miss / 缺页中断）</b>：要访问的页面<b>不在</b>内存里，需要装进来；如果内存满了，<b>先淘汰一个</b>，再装新的</li>
+</ul>
+
+<div class="legend">
+  <span class="lg-hit"></span>命中
+  <span class="lg-miss" style="margin-left:12px;"></span>缺页
+</div>
+
+<h2>4. 算法 1：OPT（看未来）</h2>
+
+<p><b>规则</b>：缺页时，假装你能偷看后面整队顾客，<b>把"最久不会再被点"的那一桌踢出去</b>。</p>
+<p><b>为什么是"最久"？</b>——因为它<b>最近一段时间最没用</b>，留着也占地方。</p>
+
+<h3>4.1 把"看未来"想成查表</h3>
+<p>假设现在站在第 4 步，厨房里记着 [1号桌, 2号桌, 3号桌]。<b>对每一桌</b>，在<b>剩下的队里</b>找它下一次出现的位置：</p>
+
+<table>
+  <tr>
+    <th>厨房里记的桌号</th>
+    <th>下次在哪个位置被点？</th>
+    <th>读完课本后翻译</th>
+  </tr>
+  <tr>
+    <td><b>1号桌</b></td>
+    <td>第 <b>5</b> 位顾客点（值=1）</td>
+    <td><code>1 → 5</code>（"1号桌未来第 5 位被点"）</td>
+  </tr>
+  <tr>
+    <td><b>2号桌</b></td>
+    <td>第 <b>6</b> 位顾客点（值=2）</td>
+    <td><code>2 → 6</code>（"2号桌未来第 6 位被点"）</td>
+  </tr>
+  <tr>
+    <td><b>3号桌</b></td>
+    <td>翻到队尾，<b>再也没人点</b></td>
+    <td><code>3 → 不再用</code>（"3号桌未来永远不再被点"）</td>
+  </tr>
+</table>
+
+<div class="callout warn">
+<b>关键 1 秒</b>："3 → 不再用" = <b>"永远之后"</b>。永远 > 6 之后 > 5 之后，所以 <b>3 号桌就是"最久不用的"</b>，淘汰它。
+</div>
+
+<h3>4.2 把整队画出来对照</h3>
+<pre>
+位置:   1   2   3   4   5   6   7   8   9  10  11  12
+队尾→:                              ↑
+                               我们站在第 4 位
+未来:                            1   2   5   1   2   3   4   5
+                                     1→5    2→6         3→无
+</pre>
+
+<p>把视线从第 4 位往右扫，标出 1、2、3 三桌<b>各自第一次出现</b>的位置——这就是它们的"下次被用"。</p>
+
+<h3>4.3 完整模拟（12 步）</h3>
+<p>引用串 <code>1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5</code>，物理块 = 3</p>
+
+<div class="sim">
+  <div class="sim-title">OPT 模拟过程（淘汰列标了"被踢出去的是谁"）</div>
+  <table>
+    <tr><th>步骤</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th></tr>
+    <tr>
+      <td>引用</td>
+      <td>1</td><td>2</td><td>3</td><td>4</td><td>1</td><td>2</td><td>5</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td>
+    </tr>
+    <tr>
+      <td>命中？</td>
+      <td class="miss">缺</td><td class="miss">缺</td><td class="miss">缺</td><td class="miss">缺</td>
+      <td class="hit">中</td><td class="hit">中</td>
+      <td class="miss">缺</td>
+      <td class="hit">中</td><td class="hit">中</td>
+      <td class="miss">缺</td>
+      <td class="miss">缺</td>
+      <td class="hit">中</td>
+    </tr>
+    <tr>
+      <td>淘汰</td>
+      <td>—</td><td>—</td><td>—</td><td>3</td>
+      <td>—</td><td>—</td>
+      <td>4</td>
+      <td>—</td><td>—</td>
+      <td>1</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+  </table>
+</div>
+
+<h3>4.4 4 个淘汰点逐个说人话</h3>
+
+<div class="callout">
+<b>步 4（引用 4）</b>：厨房有 [1, 2, 3]。往右看队尾——
+<ul>
+  <li>1 号桌下次出现 = 位置 5</li>
+  <li>2 号桌下次出现 = 位置 6</li>
+  <li>3 号桌 <b>再也没出现</b>（永远之后才用 = 最久）</li>
+</ul>
+→ 淘汰 <b>3 号</b>。
+</div>
+
+<div class="callout">
+<b>步 7（引用 5）</b>：厨房有 [1, 2, 4]。往右看——
+<ul>
+  <li>1 号桌下次 = 位置 8</li>
+  <li>2 号桌下次 = 位置 9</li>
+  <li>4 号桌 <b>永远不再出现</b></li>
+</ul>
+→ 淘汰 <b>4 号</b>。
+</div>
+
+<div class="callout">
+<b>步 10（引用 3）</b>：厨房有 [1, 2, 5]。往右看——
+<ul>
+  <li>1 号桌 <b>不再出现</b></li>
+  <li>2 号桌 <b>不再出现</b></li>
+  <li>5 号桌下次 = 位置 12</li>
+</ul>
+1 和 2 都是"不再用"，选一个（这里选 1）→ 淘汰 <b>1 号</b>。
+</div>
+
+<div class="callout">
+<b>步 11（引用 4）</b>：厨房有 [2, 5, 3]。往右看——
+<ul>
+  <li>2 号桌 <b>不再出现</b></li>
+  <li>5 号桌下次 = 位置 12</li>
+  <li>3 号桌 <b>不再出现</b></li>
+</ul>
+2 和 3 都"不再用"，选 2 → 淘汰 <b>2 号</b>。
+</div>
+
+<div class="callout ok"><b>OPT 缺页次数 = 7</b>（步 1, 2, 3, 4, 7, 10, 11）</div>
+
+<h3>4.5 为什么说 OPT 不可实现？</h3>
+<div class="callout warn">
+OS 站在第 4 位时，<b>真不知道</b>后面那 8 位顾客要点什么。OPT 是"理论最优"——<br>
+• 用它来<b>打分</b>（看 FIFO/LRU 离最优差多远）<br>
+• 但<b>不是真能跑的算法</b>，所以 OS 用"近似"它：FIFO 简单粗暴，LRU 用"过去"猜"未来"
+</div>
+
+<h2>5. 算法 2：FIFO（看进入顺序）</h2>
+
+<p><b>规则</b>：缺页时，淘汰<b>最早进内存</b>的那个（用队列记顺序）。</p>
+
+<div class="sim">
+  <div class="sim-title">FIFO 模拟过程（队列左 = 最早进入 = 最先淘汰）</div>
+  <table>
+    <tr><th>步骤</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th></tr>
+    <tr>
+      <td>引用</td>
+      <td>1</td><td>2</td><td>3</td><td>4</td><td>1</td><td>2</td><td>5</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td>
+    </tr>
+    <tr>
+      <td>命中？</td>
+      <td class="miss">缺</td><td class="miss">缺</td><td class="miss">缺</td>
+      <td class="miss">缺</td>
+      <td class="miss">缺</td><td class="miss">缺</td>
+      <td class="miss">缺</td>
+      <td class="hit">中</td><td class="hit">中</td>
+      <td class="miss">缺</td>
+      <td class="miss">缺</td>
+      <td class="hit">中</td>
+    </tr>
+    <tr>
+      <td>淘汰</td>
+      <td>—</td><td>—</td><td>—</td>
+      <td>1</td><td>2</td><td>3</td>
+      <td>4</td>
+      <td>—</td><td>—</td>
+      <td>1</td>
+      <td>2</td>
+      <td>—</td>
+    </tr>
+  </table>
+</div>
+
+<p><b>FIFO 关键步骤</b>（想象一个左进右出的队列）：</p>
+<ul>
+  <li>步 4：队列 [1,2,3]，新来 4，淘汰<b>最左的 1</b> → [2,3,4]</li>
+  <li>步 5：新来 1（队列没 1），淘汰最左的 2 → [3,4,1]</li>
+  <li>步 6：新来 2，淘汰最左的 3 → [4,1,2]</li>
+  <li>步 7：新来 5，淘汰最左的 4 → [1,2,5]</li>
+  <li>步 10：新来 3，淘汰最左的 1 → [2,5,3]</li>
+  <li>步 11：新来 4，淘汰最左的 2 → [5,3,4]</li>
+</ul>
+
+<div class="callout ok"><b>FIFO 缺页次数 = 9</b>（步 1,2,3,4,5,6,7,10,11）</div>
+
+<h2>6. 算法 3：LRU（看过去多久没用）</h2>
+
+<p><b>规则</b>：缺页时，看<b>过去</b>哪个页面最久没被用过，淘汰它（基于"局部性原理"）。</p>
+
+<div class="sim">
+  <div class="sim-title">LRU 模拟过程</div>
+  <table>
+    <tr><th>步骤</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th><th>12</th></tr>
+    <tr>
+      <td>引用</td>
+      <td>1</td><td>2</td><td>3</td><td>4</td><td>1</td><td>2</td><td>5</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td>
+    </tr>
+    <tr>
+      <td>命中？</td>
+      <td class="miss">缺</td><td class="miss">缺</td><td class="miss">缺</td>
+      <td class="miss">缺</td><td class="miss">缺</td><td class="miss">缺</td>
+      <td class="miss">缺</td>
+      <td class="hit">中</td><td class="hit">中</td>
+      <td class="miss">缺</td>
+      <td class="miss">缺</td>
+      <td class="miss">缺</td>
+    </tr>
+    <tr>
+      <td>淘汰</td>
+      <td>—</td><td>—</td><td>—</td>
+      <td>1</td><td>2</td><td>3</td>
+      <td>4</td>
+      <td>—</td><td>—</td>
+      <td>5</td>
+      <td>1</td>
+      <td>2</td>
+    </tr>
+  </table>
+</div>
+
+<p><b>LRU 关键步骤</b>（每次淘汰"过去最久没碰过"的那个）：</p>
+<ul>
+  <li>步 4：新来 4，过去 1(步1), 2(步2), 3(步3)。<b>1 最久没用</b>，淘汰 → [2,3,4]</li>
+  <li>步 5：新来 1，2(步2) 最久没用，淘汰 → [3,4,1]</li>
+  <li>步 6：新来 2，3(步3) 最久没用，淘汰 → [4,1,2]</li>
+  <li>步 7：新来 5，4(步4) 最久没用，淘汰 → [1,2,5]</li>
+  <li>步 8/9：命中 1、2（最近用过的，不淘汰）</li>
+  <li>步 10：新来 3，5(步7) 最久没用，淘汰 → [1,2,3]</li>
+  <li>步 11：新来 4，1(步8) 最久没用，淘汰 → [2,3,4]</li>
+  <li>步 12：新来 5，2(步9) 最久没用，淘汰 → [3,4,5]</li>
+</ul>
+
+<div class="callout ok"><b>LRU 缺页次数 = 10</b>（步 1,2,3,4,5,6,7,10,11,12）</div>
+
+<div class="callout warn">
+<b>咦？LRU 居然比 FIFO 还差？</b> 是的，<b>这串引用恰好是 FIFO 占便宜</b>。<br>
+LRU 长期表现接近 OPT（看 OPT=7 vs LRU=10 vs FIFO=9），但局部情况下 FIFO 可能反而胜出。<br>
+考试里只要算对就行，<b>别看到 LRU>FIFO 就慌</b>——问的是"会不会算"，不是"谁更好"。
+</div>
+
+<h2>7. Belady 异常（FIFO 专属，重要考点）</h2>
+
+<h3>7.1 用咖啡店打比方说人话</h3>
+<p><b>Belady 异常</b> = "多给桌子反而更糟"。<br>
+直觉上，给咖啡店多摆几张桌子，客人应该更不容易等位——对吧？<br>
+但 <b>FIFO 算法</b>不是按"最近谁来过"请人走，是按"先来后到"。<b>桌子越多，队列越长，请错人的概率反而变大</b>。</p>
+
+<div class="callout warn">
+<b>一句话</b>：FIFO 只看"什么时候进的"，不看"最近用没用过"——多给块会让"刚要用的"被踢出去。
+</div>
+
+<h3>7.2 数字证明（用同一队顾客走两遍）</h3>
+<p>引用串 <code>1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5</code>，FIFO 算法——</p>
+
+<table>
+  <tr>
+    <th style="width:40%;">☕ 3 张桌子的店（物理块=3）</th>
+    <th>☕☕☕☕ 4 张桌子的店（物理块=4）</th>
+  </tr>
+  <tr>
+    <td>队列满 3 个就踢老的</td>
+    <td>队列满 4 个才踢老的</td>
+  </tr>
+  <tr>
+    <td><b>缺页 9 次</b></td>
+    <td><b>缺页 10 次</b> ← 多 1 桌反而多 1 次缺页！</td>
+  </tr>
+</table>
+
+<p>桌子多了，<b>客人更不容易等到位置</b>——这就是 Belady 异常。</p>
+
+<h3>7.3 4 张桌的店到底多"亏"在哪？（关键步对比）</h3>
+
+<table>
+  <tr>
+    <th>步骤</th>
+    <th>顾客</th>
+    <th>☕ 3 桌 FIFO 队列</th>
+    <th>☕☕☕☕ 4 桌 FIFO 队列</th>
+  </tr>
+  <tr><td>1-3</td><td>1, 2, 3</td><td>[1, 2, 3]</td><td>[1, 2, 3]</td></tr>
+  <tr><td>4</td><td>4</td><td>踢 <b>1</b> → [2, 3, 4]</td><td>装入 → [1, 2, 3, 4]</td></tr>
+  <tr><td>5-6</td><td>1, 2</td><td><b>都缺</b>，依次踢 2, 3 → [4, 1, 2]</td><td>都命中</td></tr>
+  <tr><td>7</td><td>5</td><td>踢 <b>4</b> → [1, 2, 5]</td><td>踢 <b>1</b> → [2, 3, 4, 5]</td></tr>
+  <tr><td>8</td><td>1</td><td>命中（1 还在）</td><td>缺，踢 2 → [3, 4, 5, 1]</td></tr>
+  <tr><td>9</td><td>2</td><td>命中（2 还在）</td><td>缺，踢 3 → [4, 5, 1, 2]</td></tr>
+  <tr><td>10</td><td>3</td><td>缺，踢 1 → [2, 5, 3]</td><td>缺，踢 4 → [5, 1, 2, 3]</td></tr>
+  <tr><td>11</td><td>4</td><td>缺，踢 2 → [5, 3, 4]</td><td>缺，踢 5 → [1, 2, 3, 4]</td></tr>
+  <tr><td>12</td><td>5</td><td>命中（5 还在）</td><td>缺，踢 1 → [2, 3, 4, 5]</td></tr>
+  <tr>
+    <td><b>缺页合计</b></td>
+    <td>—</td>
+    <td><b>9 次</b>（步 1,2,3,4,5,6,7,10,11）</td>
+    <td><b>10 次</b>（步 1,2,3,4,7,8,9,10,11,12）</td>
+  </tr>
+</table>
+
+<div class="callout">
+<b>看步 7 的分歧</b>（最关键）：<br>
+• 3 桌：踢 <b>4</b>，留下 [1, 2, 5]——步 8、9 命中 1 和 2<br>
+• 4 桌：踢 <b>1</b>，留下 [2, 3, 4, 5]——步 8、9 <b>1 和 2 都不在</b>，连续缺页！<br>
+4 桌店多留了"3 号桌"（后面才用），却把"1 号桌"踢了（马上就要用）——<b>请错了人</b>。
+</div>
+
+<h3>7.4 结论 + 老师最爱考的反问</h3>
+
+<table>
+  <tr><th>算法</th><th>多给块会怎样？</th></tr>
+  <tr><td><b>FIFO</b></td><td>缺页次数可能变多（Belady 异常）</td></tr>
+  <tr><td><b>LRU</b></td><td>缺页次数一定变少或不变（堆栈类算法）</td></tr>
+  <tr><td><b>OPT</b></td><td>同上（也是堆栈类）</td></tr>
+</table>
+
+<div class="callout warn">
+<b>老师最爱考的"反直觉"题</b>：<br>
+问"为什么 OS 不直接给所有进程很多块？"——<br>
+答 1：FIFO 下，块多了未必好（Belady 异常）<br>
+答 2：物理块总数固定，<b>给 A 多了 B 就少了</b>，多道程序度下降<br>
+答 3：每个进程用不完那么多块，浪费
+</div>
+
+<h2>8. 必背 4 句话（考试原话）</h2>
+
+<div class="callout">
+<b>①</b> <b>OPT 看未来最久不用的</b>（理论最优，无法实现，只用于评分）。<br>
+<b>②</b> <b>FIFO 看最早进内存的</b>（最简单，可能 Belady 异常）。<br>
+<b>③</b> <b>LRU 看过去最久没用过的</b>（接近 OPT，<b>无</b> Belady 异常，要硬件支持）。<br>
+<b>④</b> 缺页率 = 缺页次数 / 总访问次数（不是缺页次数本身）。
+</div>
+
+<h2>9. 自检（先做再翻答案）</h2>
+
+<div class="q">
+<b>Q1（口述）</b> 用一句话告诉我：什么是"页面置换"？什么时候会发生？
+</div>
+
+<div class="q">
+<b>Q2（口述）</b> LRU 是看"过去"还是"未来"？为什么"看过去"在多数情况下管用？
+</div>
+
+<div class="q">
+<b>Q3（计算）</b> 引用串 <code>1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5</code>，物理块 = 3。<br>
+用 FIFO 算缺页次数。（你刚才算过，再算一遍确认）<br>
+A. 7<br>
+B. 8<br>
+C. <b>9</b><br>
+D. 10
+</div>
+
+<div class="q">
+<b>Q4（选择）</b> 关于 Belady 异常，下面哪个说法<b>正确</b>？<br>
+A. 任何页面置换算法都可能产生 Belady 异常<br>
+B. 物理块越多，缺页率一定越低<br>
+C. <b>只有 FIFO 可能产生 Belady 异常</b><br>
+D. Belady 异常是 OS 故意设计的优化
+</div>
+
+<div class="q">
+<b>Q5（小计算）</b> 引用串 <code>2, 3, 2, 1, 5, 2, 4, 5, 3, 2, 5, 2</code>，物理块 = 3，用 FIFO 算缺页次数。<br>
+（提示：按"队列最左淘汰"走 12 步）
+</div>
+
+<div class="callout ok">
+<b>答案对照</b><br>
+A1：要访问的页面不在内存里，而内存又满了 → 按规则淘汰一个老页，腾位置给新页。<br>
+A2：看"过去"。基于局部性原理：过去没用 = 未来大概率也不用。<br>
+A3：C（FIFO=9，参看第 5 节）。<br>
+A4：C（OPT/LRU 是堆栈类算法，不会产生 Belady 异常）。<br>
+A5：FIFO 走 12 步：2 缺(→[2])、3 缺(→[2,3])、2 中、1 缺(→[2,3,1])、5 缺(淘汰2→[3,1,5])、2 缺(淘汰3→[1,5,2])、4 缺(淘汰1→[5,2,4])、5 中、3 缺(淘汰5→[2,4,3])、2 中、5 缺(淘汰2→[4,3,5])、2 缺(淘汰4→[3,5,2])。缺页次数 = <b>9</b>。
+</div>
+
+<h2>10. 完整流程速记（手算时按这 4 步走）</h2>
+
+<pre>
+已知：引用串 R[1..N]，物理块 K，算法 (OPT/FIFO/LRU)
+
+① 初始化：内存为空
+② 遍历 R：
+   如果 R[i] 在内存里 → 命中（FIFO 不动；LRU 把 R[i] 移到"最近用过"位置）
+   如果 R[i] 不在内存里：
+     如果内存未满 → 直接装入
+     如果内存已满 → 按规则淘汰一个，装入 R[i]
+     缺页次数 +1
+③ 缺页率 = 缺页次数 / N
+</pre>
+
+<h2>11. 下一步</h2>
+
+<p>本节任何一题你不能立刻答出来，告诉我；我们就从那一题开始下一节。<br>
+如果都能答，<b>下一节 = 第 7 课：磁盘调度算法（FCFS / SSTF / SCAN / CSCAN）</b>——把"找最近"的思路用到磁头移动上，是 IO 章的计算题。</p>
+
+<p style="margin-top:10px; padding:8px 12px; background:#fff5f3; border:1px solid #e5e5e5; border-radius:4px;"><b>📚 做练习（题库）：</b> <a href="../bank/ch05-test.html">📝 第 5 章测试</a> · <a href="../bank/ch04-test.html">📝 第 4 章测试</a><br><a href="../bank/final-test.html">📝 仿真期末卷（100 分，跨 6 章）</a></p>
+<footer class="lesson-foot">
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../RESOURCES.md">RESOURCES.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a> ·
+<a href="0002-scheduling-algorithms.html">第 2 课</a> ·
+<a href="0003-bankers-algorithm.html">第 3 课</a> ·
+<a href="0004-group-linking.html">第 4 课</a> ·
+<a href="0005-paging-fundamentals.html">第 5 课</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0006-page-replacement.html"</code>
+</footer>
+
+</div>
+</body>
+</html>

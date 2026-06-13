@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lesson 0001 · 诊断测试 — Advanced OOP 复习</title>
+<style>
+  :root {
+    --fg: #1a1a1a;
+    --muted: #6b6b6b;
+    --line: #e6e6e6;
+    --bg: #fafaf7;
+    --card: #ffffff;
+    --accent: #0a6b3a;
+    --wrong: #b3261e;
+    --right: #0a6b3a;
+    --code-bg: #f3f3ee;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 16px; line-height: 1.65;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 28px 96px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 32px; }
+  .eyebrow { color: var(--muted); font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; }
+  h1 { font-size: 28px; margin: 6px 0 8px; line-height: 1.25; }
+  h2 { font-size: 20px; margin-top: 40px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+  h3 { font-size: 16px; margin: 24px 0 8px; }
+  p, li { color: var(--fg); }
+  .muted { color: var(--muted); }
+  code, pre { font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace; }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 3px; font-size: 0.92em; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; line-height: 1.5; font-size: 14px; }
+  pre code { background: transparent; padding: 0; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 20px 22px;
+    margin: 18px 0;
+  }
+  .q-stem { font-weight: 600; margin-bottom: 12px; }
+  .q-meta { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  .options { list-style: none; padding: 0; margin: 0; }
+  .options li { margin: 6px 0; }
+  .options label { display: flex; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
+  .options label:hover { background: #f0f0e8; }
+  .options input { margin-top: 4px; }
+  .explanation { display: none; margin-top: 14px; padding: 12px 14px; background: #f6f6f0; border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; font-size: 14.5px; }
+  .explanation.show { display: block; }
+  .explanation strong { color: var(--accent); }
+  .explanation.wrong { border-left-color: var(--wrong); }
+  .explanation.wrong strong { color: var(--wrong); }
+  .actions { margin: 32px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  button {
+    font: inherit;
+    background: var(--accent); color: white;
+    border: 0; border-radius: 6px;
+    padding: 10px 20px; cursor: pointer;
+  }
+  button.secondary { background: var(--fg); }
+  button:disabled { background: #aaa; cursor: not-allowed; }
+  #result { display: none; margin-top: 32px; }
+  #result h2 { margin-top: 0; }
+  .score-big { font-size: 48px; font-weight: 700; margin: 8px 0; }
+  .breakdown { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; margin: 16px 0; }
+  .breakdown .row { padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .pill.ok { background: #e6f4ec; color: var(--right); }
+  .pill.weak { background: #fce8e6; color: var(--wrong); }
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  footer a { color: var(--muted); }
+  @media print {
+    body { background: white; }
+    .card { border: 1px solid #ccc; break-inside: avoid; }
+    .actions, button { display: none; }
+    .explanation { display: block !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Lesson 0001 · 诊断</div>
+  <h1>诊断测试：8 章 ZPD 锚点</h1>
+  <p class="muted">8 道题覆盖条款 1–48。完成后会显示章节薄弱点，作为后续 lesson 选课依据。预计 5 分钟。</p>
+  <p class="muted">打开方式：<code>open /Users/wangzihao/Code/pass_exam/advanced_oop/teach/lessons/0001-diagnostic.html</code></p>
+</header>
+
+<section>
+  <h2>说明</h2>
+  <ul>
+    <li>本课<strong>只做一件事</strong>：帮你（和 teacher）定位"哪一章最该先复习"。</li>
+    <li>不要查资料，凭第一直觉做。结果比"答对"更重要——错的位置就是起点。</li>
+    <li>点 <strong>提交</strong> 后会显示每题解析与章节得分；点 <strong>重置</strong> 可重做。</li>
+  </ul>
+</section>
+
+<form id="quiz">
+
+<!-- Q1: 条款 1 -->
+<div class="card" data-q="1" data-chapter="ch2">
+  <div class="q-meta">第 2 章 · 对象创建 · 条款 1</div>
+  <div class="q-stem">关于静态工厂方法，相对公有构造器的优点，下列哪一项<strong>不是</strong>其优点？</div>
+  <ul class="options">
+    <li><label><input type="radio" name="q1" value="A"><span>A. 方法名能表达创建意图，可读性更好</span></label></li>
+    <li><label><input type="radio" name="q1" value="B"><span>B. 不必每次调用都创建新对象（可复用缓存实例）</span></label></li>
+    <li><label><input type="radio" name="q1" value="C"><span>C. 可以返回原返回类型的任何子类型对象</span></label></li>
+    <li><label><input type="radio" name="q1" value="D"><span>D. 比构造器调用更快，因为 JIT 能内联</span></label></li>
+  </ul>
+  <div class="explanation" data-correct="D">
+    <strong>答案：D</strong>。静态工厂方法的五大优点是"有名称 / 可复用 / 可返回子类 / 可按参数变化 / 便于服务提供者框架"。运行期性能不在其论点里——它和 <code>new</code> 在 JVM 层是同等开销，区别在 API 设计与可表达性。
+  </div>
+</div>
+
+<!-- Q2: 条款 2 -->
+<div class="card" data-q="2" data-chapter="ch2">
+  <div class="q-meta">第 2 章 · 对象创建 · 条款 2</div>
+  <div class="q-stem">一个类有 6 个成员变量，其中 2 个必填、4 个可选。最<strong>适合</strong>的构造方式是？</div>
+  <ul class="options">
+    <li><label><input type="radio" name="q2" value="A"><span>A. 重叠构造器模式（Telescoping Constructor）</span></label></li>
+    <li><label><input type="radio" name="q2" value="B"><span>B. JavaBeans 模式（无参 + setter）</span></label></li>
+    <li><label><input type="radio" name="q2" value="C"><span>C. Builder 模式</span></label></li>
+    <li><label><input type="radio" name="q2" value="D"><span>D. 静态工厂方法</span></label></li>
+  </ul>
+  <div class="explanation" data-correct="C">
+    <strong>答案：C</strong>。条款 2 明确：参数 ≥ 4 个时 Builder 是首选。重叠构造器可读性崩溃；JavaBeans 模式把对象置于"半构造"不一致状态，破坏不可变性。Builder 既清晰又安全。
+  </div>
+</div>
+
+<!-- Q3: 条款 10 -->
+<div class="card" data-q="3" data-chapter="ch3">
+  <div class="q-meta">第 3 章 · 通用方法 · 条款 10</div>
+  <div class="q-stem">下面两个 <code>equals</code> 实现违反了哪条通用约定？</div>
+<pre><code>// CaseInsensitiveString.java
+public boolean equals(Object o) {
+    if (o instanceof CaseInsensitiveString)
+        return s.equalsIgnoreCase(((CaseInsensitiveString)o).s);
+    if (o instanceof String)                 // 关键
+        return s.equalsIgnoreCase((String)o);
+    return false;
+}</code></pre>
+  <ul class="options">
+    <li><label><input type="radio" name="q3" value="A"><span>A. 自反性（reflexive）</span></label></li>
+    <li><label><input type="radio" name="q3" value="B"><span>B. 对称性（symmetric）</span></label></li>
+    <li><label><input type="radio" name="q3" value="C"><span>C. 传递性（transitive）</span></label></li>
+    <li><label><input type="radio" name="q3" value="D"><span>D. 一致性（consistent）</span></label></li>
+  </ul>
+  <div class="explanation" data-correct="B">
+    <strong>答案：B</strong>。<code>cis.equals(str)</code> 可能为 <code>true</code>，但反向 <code>str.equals(cis)</code>（String.equals 不知道 CaseInsensitiveString 的存在）必定为 <code>false</code>。对称性破。条款 10 经典反例。
+  </div>
+</div>
+
+<!-- Q4: 条款 11 -->
+<div class="card" data-q="4" data-chapter="ch3">
+  <div class="q-meta">第 3 章 · 通用方法 · 条款 11</div>
+  <div class="q-stem">关于 <code>equals</code> 与 <code>hashCode</code> 的关系，下列说法<strong>正确</strong>的是？</div>
+  <ul class="options">
+    <li><label><input type="radio" name="q4" value="A"><span>A. <code>equals</code> 相等的两个对象，<code>hashCode</code> 必须相等</span></label></li>
+    <li><label><input type="radio" name="q4" value="B"><span>B. <code>hashCode</code> 相等的两个对象，<code>equals</code> 必须相等</span></label></li>
+    <li><label><input type="radio" name="q4" value="C"><span>C. 两者必须同时被覆盖才有意义</span></label></li>
+    <li><label><input type="radio" name="q4" value="D"><span>D. 用 <code>Objects.hash(...)</code> 性能优于自己写</span></label></li>
+  </ul>
+  <div class="explanation" data-correct="A">
+    <strong>答案：A</strong>。这是 hashCode 契约的"必要"方向。B 错（hash 碰撞不需要 equals 相等）。D 错（<code>Objects.hash</code> 用可变参数数组，触发数组分配+装箱，性能反而差，条款 11 明确不推荐）。C 错（不重写 equals 时 hashCode 不重写也合法）。
+  </div>
+</div>
+
+<!-- Q5: 条款 15 -->
+<div class="card" data-q="5" data-chapter="ch4">
+  <div class="q-meta">第 4 章 · 类与接口 · 条款 15</div>
+  <div class="q-stem">关于类和成员的可访问性，条款 15 的核心原则是？</div>
+  <ul class="options">
+    <li><label><input type="radio" name="q5" value="A"><span>A. 能用 <code>protected</code> 就别用 <code>private</code>，方便子类扩展</span></label></li>
+    <li><label><input type="radio" name="q5" value="B"><span>B. 能用包级私有就别用 <code>public</code>，缩小暴露面</span></label></li>
+    <li><label><input type="radio" name="q5" value="C"><span>C. 公有类的实例域可以公开，因为 getter/setter 是样板</span></label></li>
+    <li><label><input type="radio" name="q5" value="D"><span>D. 测试代码要访问，所以 <code>protected</code> 即可</span></label></li>
+  </ul>
+  <div class="explanation" data-correct="B">
+    <strong>答案：B</strong>。条款 15 的核心是"尽可能小"——信息隐藏解耦、独立开发测试、提高可重用。A 错（protected 是 API 的一部分，比 private 难撤回）。C 错（公有类禁止公有可变域）。D 错（测试应通过 API 触达，不该开洞）。
+  </div>
+</div>
+
+<!-- Q6: 条款 17 -->
+<div class="card" data-q="6" data-chapter="ch4">
+  <div class="q-meta">第 4 章 · 类与接口 · 条款 17</div>
+  <div class="q-stem">设计不可变类时，下列做法<strong>不</strong>必要？</div>
+  <ul class="options">
+    <li><label><input type="radio" name="q6" value="A"><span>A. 所有字段 <code>private final</code></span></label></li>
+    <li><label><input type="radio" name="q6" value="B"><span>B. 类自身 <code>final</code>（或用静态工厂 + 私有构造器）</span></label></li>
+    <li><label><input type="radio" name="q6" value="C"><span>C. 对可变字段（如 <code>Date</code>）做防御性拷贝</span></label></li>
+    <li><label><input type="radio" name="q6" value="D"><span>D. 提供 <code>setX(...)</code> 用于对象池复用</span></label></li>
+  </ul>
+  <div class="explanation" data-correct="D">
+    <strong>答案：D</strong>。setter 与不可变类根本对立。不可变类应：私有 final 域、类 final、构造器中防御性拷贝可变组件、提供"with"方法返回新对象而非修改自身。setter 是可变类的标志。
+  </div>
+</div>
+
+<!-- Q7: 条款 23 -->
+<div class="card" data-q="7" data-chapter="ch5">
+  <div class="q-meta">第 5 章 · 泛型 · 条款 23</div>
+  <div class="q-stem">关于 Java 泛型，下列说法正确的是？</div>
+  <ul class="options">
+    <li><label><input type="radio" name="q7" value="A"><span>A. <code>List&lt;String&gt;</code> 与 <code>List&lt;Integer&gt;</code> 在运行时是不同的类</span></label></li>
+    <li><label><input type="radio" name="q7" value="B"><span>B. <code>new ArrayList&lt;String&gt;()</code> 不能赋值给 <code>List&lt;Number&gt;</code> 变量（无内建协变）</span></label></li>
+    <li><label><input type="radio" name="q7" value="C"><span>C. 泛型数组 <code>new List&lt;String&gt;[10]</code> 是合法且推荐的</span></label></li>
+    <li><label><input type="radio" name="q7" value="D"><span>D. 基本类型不能作为类型实参，所以 <code>List&lt;int&gt;</code> 合法</span></label></li>
+  </ul>
+  <div class="explanation" data-correct="B">
+    <strong>答案：B</strong>。A 错（类型擦除后是同一个 <code>ArrayList</code>）。C 错（条款 28：泛型数组创建非法，会在编译期产生 unchecked warning，推荐用 <code>List&lt;List&lt;String&gt;&gt;</code> 替代）。D 错（必须用包装类 <code>Integer</code>，且条款 61 提示优先基本类型避免自动装箱）。B 是泛型不变性的关键——协变通过 <code>? extends</code> 通配符显式表达。
+  </div>
+</div>
+
+<!-- Q8: 条款 45 -->
+<div class="card" data-q="8" data-chapter="ch7">
+  <div class="q-meta">第 7 章 · Lambda 与 Stream · 条款 45</div>
+  <div class="q-stem">下列哪个是 Stream 的<strong>终端操作</strong>（terminal operation）？</div>
+  <ul class="options">
+    <li><label><input type="radio" name="q8" value="A"><span>A. <code>filter</code></span></label></li>
+    <li><label><input type="radio" name="q8" value="B"><span>B. <code>map</code></span></label></li>
+    <li><label><input type="radio" name="q8" value="C"><span>C. <code>sorted</code></span></label></li>
+    <li><label><input type="radio" name="q8" value="D"><span>D. <code>collect</code></span></label></li>
+  </ul>
+  <div class="explanation" data-correct="D">
+    <strong>答案：D</strong>。<code>filter</code> / <code>map</code> / <code>sorted</code> 都是中间操作（intermediate）——返回 <code>Stream&lt;T&gt;</code>，可以链式串联。终端操作触发流水线执行并产生非流结果（<code>void</code> / <code>Optional</code> / 集合 / 数值等）。<code>collect</code>、<code>forEach</code>、<code>reduce</code>、<code>count</code> 都是终端。
+  </div>
+</div>
+
+<div class="actions">
+  <button type="button" id="submitBtn">提交并查看解析</button>
+  <button type="button" id="resetBtn" class="secondary">重置</button>
+  <span class="muted" id="progress"></span>
+</div>
+</form>
+
+<div id="result">
+  <h2>你的诊断结果</h2>
+  <div class="score-big" id="scoreBig"></div>
+  <p class="muted" id="scoreText"></p>
+
+  <h3>章节分布</h3>
+  <div class="breakdown" id="breakdown"></div>
+
+  <h3>下一步</h3>
+  <p>把结果告诉 teacher（在 Claude 里说"做完了，结果是 X/Y"），teacher 会基于薄弱章节起 <a href="#0002">Lesson 0002</a>。</p>
+  <p class="muted">本工作区是 stateful 的——你的错题分布会被记入 <code>learning-records/0001-diagnostic.md</code>，并据此更新最近发展区（ZPD）。</p>
+</div>
+
+<footer>
+  <p>Lesson 0001 · Advanced OOP 复习 · 教学法详见 <code>../SKILL.md</code></p>
+  <p>不要把错题当失败——它们就是这周复习的路线图。</p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById('quiz');
+  var submitBtn = document.getElementById('submitBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var result = document.getElementById('result');
+  var progress = document.getElementById('progress');
+  var cards = form.querySelectorAll('.card');
+
+  var chapterNames = {
+    ch2: '第 2 章 · 对象创建',
+    ch3: '第 3 章 · 通用方法',
+    ch4: '第 4 章 · 类与接口',
+    ch5: '第 5 章 · 泛型',
+    ch6: '第 6 章 · 枚举与注解',
+    ch7: '第 7 章 · Lambda 与 Stream',
+    ch8: '第 8 章 · 方法'
+  };
+
+  function updateProgress() {
+    var answered = 0;
+    cards.forEach(function (c) {
+      var name = c.querySelector('input[type=radio]').name;
+      var sel = form.querySelector('input[name="' + name + '"]:checked');
+      if (sel) answered++;
+    });
+    progress.textContent = '已答 ' + answered + ' / ' + cards.length;
+  }
+
+  form.addEventListener('change', updateProgress);
+  updateProgress();
+
+  submitBtn.addEventListener('click', function () {
+    var correct = 0;
+    var perChapter = {};
+    cards.forEach(function (c) {
+      var ch = c.dataset.chapter;
+      var name = c.querySelector('input[type=radio]').name;
+      var sel = form.querySelector('input[name="' + name + '"]:checked');
+      var exp = c.querySelector('.explanation');
+      var correctAns = exp.dataset.correct;
+      if (!perChapter[ch]) perChapter[ch] = { right: 0, total: 0 };
+      perChapter[ch].total++;
+      if (sel && sel.value === correctAns) {
+        correct++;
+        perChapter[ch].right++;
+        exp.classList.remove('wrong');
+        exp.classList.add('show');
+      } else {
+        exp.classList.add('wrong', 'show');
+      }
+    });
+
+    document.getElementById('scoreBig').textContent = correct + ' / ' + cards.length;
+    var pct = Math.round(correct / cards.length * 100);
+    var verdict = pct >= 85 ? '已达 85% 目标线' : (pct >= 60 ? '基础在，但有结构性盲点' : '需要从最弱章节开始逐条建');
+    document.getElementById('scoreText').textContent =
+      '正确率 ' + pct + '% —— ' + verdict + '。请把本结果截图或抄给 teacher。';
+
+    var bd = document.getElementById('breakdown');
+    bd.innerHTML = '';
+    Object.keys(chapterNames).forEach(function (k) {
+      var data = perChapter[k] || { right: 0, total: 0 };
+      var pct = data.total ? Math.round(data.right / data.total * 100) : 0;
+      var label = chapterNames[k] + (data.total ? '  (' + data.right + '/' + data.total + ')' : '  (未出题)');
+      var pill = data.total && pct >= 100
+        ? '<span class="pill ok">OK</span>'
+        : (data.total && pct < 100 ? '<span class="pill weak">需补</span>' : '<span class="pill">—</span>');
+      var row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = '<span>' + label + '</span><span>' + pill + '</span>';
+      bd.appendChild(row);
+    });
+
+    result.style.display = 'block';
+    result.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  resetBtn.addEventListener('click', function () {
+    form.reset();
+    cards.forEach(function (c) {
+      var exp = c.querySelector('.explanation');
+      exp.classList.remove('show', 'wrong');
+    });
+    result.style.display = 'none';
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
+</script>
+</body>
+</html>

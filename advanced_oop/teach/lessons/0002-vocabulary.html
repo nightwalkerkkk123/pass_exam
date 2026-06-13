@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lesson 0002 · 30 条核心术语扫盲 — 过线级</title>
+<style>
+  :root {
+    --fg: #1a1a1a; --muted: #6b6b6b; --line: #e6e6e6; --bg: #fafaf7;
+    --card: #fff; --accent: #0a6b3a;
+    --known: #0a6b3a; --vague: #c47b00; --unk: #b3261e;
+    --code-bg: #f3f3ee;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.6;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 40px 24px 100px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 28px; }
+  .eyebrow { color: var(--muted); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+  h1 { font-size: 26px; margin: 6px 0 8px; line-height: 1.3; }
+  h2 { font-size: 18px; margin: 36px 0 12px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; }
+  pre { background: var(--code-bg); padding: 12px 14px; border-radius: 5px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
+  .open-cmd { background: var(--code-bg); padding: 6px 10px; border-radius: 4px; font-size: 13px; display: inline-block; margin: 6px 0 12px; }
+  .term {
+    background: var(--card); border: 1px solid var(--line); border-radius: 7px;
+    padding: 14px 16px; margin: 10px 0;
+    display: grid; grid-template-columns: 1fr; gap: 6px;
+  }
+  .term-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .term-n { font-family: ui-monospace, monospace; color: var(--muted); font-size: 13px; min-width: 50px; }
+  .term-title { font-weight: 600; font-size: 16px; }
+  .term-chap { color: var(--muted); font-size: 12.5px; margin-left: auto; }
+  .term-def { font-size: 14.5px; }
+  .term-cx { color: #555; font-size: 13.5px; }
+  .term-cx::before { content: "反例："; color: var(--muted); font-weight: 600; }
+  .rate { display: flex; gap: 6px; margin-top: 4px; }
+  .rate button {
+    font: inherit; font-size: 13px;
+    padding: 4px 10px; border: 1px solid var(--line); background: white; border-radius: 4px; cursor: pointer;
+  }
+  .rate button.k { color: var(--known); }
+  .rate button.v { color: var(--vague); }
+  .rate button.u { color: var(--unk); }
+  .rate button.selected.k { background: var(--known); color: white; border-color: var(--known); }
+  .rate button.selected.v { background: var(--vague); color: white; border-color: var(--vague); }
+  .rate button.selected.u { background: var(--unk); color: white; border-color: var(--unk); }
+  .actions { margin: 32px 0 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  button.primary { font: inherit; background: var(--accent); color: white; border: 0; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+  button.secondary { font: inherit; background: var(--fg); color: white; border: 0; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+  #summary { display: none; margin-top: 28px; }
+  .summary-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+  .sum-row { display: grid; grid-template-columns: 70px 1fr auto; gap: 10px; padding: 8px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 5px; align-items: center; }
+  .sum-row.u { border-left: 4px solid var(--unk); }
+  .sum-row.v { border-left: 4px solid var(--vague); }
+  .sum-row.k { border-left: 4px solid var(--known); opacity: 0.7; }
+  .progress-bar { height: 8px; background: #ececec; border-radius: 4px; overflow: hidden; margin: 8px 0; }
+  .progress-bar > div { height: 100%; background: var(--accent); transition: width 0.2s; }
+  footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  @media print {
+    body { background: white; font-size: 12px; }
+    .rate, .actions, button { display: none; }
+    .term { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Lesson 0002 · 词汇地基</div>
+  <h1>30 条核心术语 · 5 分钟扫盲</h1>
+  <p class="muted">覆盖过线必背的 30 个条款（条款 1, 2, 5–7, 10–12, 15–18, 20, 22, 23, 25, 27, 28, 34, 40, 42–46, 49, 50, 52, 54, 56）。每条给"一句话定义 + 一句话反例"，点 <strong>认识 / 模糊 / 不认识</strong> 标注，结束自动汇总你该先背的 10 条。</p>
+  <div class="open-cmd">open /Users/wangzihao/Code/pass_exam/advanced_oop/teach/lessons/0002-vocabulary.html</div>
+</header>
+
+<section>
+  <h2>第 2 章 · 创建和销毁对象</h2>
+
+  <div class="term" data-id="1">
+    <div class="term-head"><span class="term-n">条款 1</span><span class="term-title">静态工厂方法代替构造器</span><span class="term-chap">第 2 章</span></div>
+    <div class="term-def">用 <code>public static T xxx()</code> 代替 <code>new T(...)</code>，给"创建"起一个有意义的名字。</div>
+    <div class="term-cx">5 大优点：有名字 / 可复用同一实例 / 可返子类 / 可按参数切换实现 / 服务提供者框架。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="2">
+    <div class="term-head"><span class="term-n">条款 2</span><span class="term-title">Builder 处理多参数</span><span class="term-chap">第 2 章</span></div>
+    <div class="term-def">参数 ≥ 4 个时，用链式 <code>.setA(...).setB(...).build()</code> 代替一长串构造器或 setter。</div>
+    <div class="term-cx">重叠构造器不可读、JavaBeans 模式半构造不一致；Builder 既清晰又支持不可变。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="5">
+    <div class="term-head"><span class="term-n">条款 5</span><span class="term-title">依赖注入（DI）</span><span class="term-chap">第 2 章</span></div>
+    <div class="term-def">资源（数据库连接、工厂、客户端）通过<strong>构造器 / setter 传入</strong>类，不在内部 <code>new</code> 出来。</div>
+    <div class="term-cx">类内部 <code>static</code> 持有资源 → 测试时无法替换、复用困难。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="6">
+    <div class="term-head"><span class="term-n">条款 6</span><span class="term-title">避免创建不必要对象</span><span class="term-chap">第 2 章</span></div>
+    <div class="term-def">能复用就复用（<code>Boolean.TRUE</code>、常量池、<code>Pattern.compile</code> 缓存）。</div>
+    <div class="term-cx"><code>new String("a")</code> 永远多余；自动装箱在循环里悄悄变慢。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="7">
+    <div class="term-head"><span class="term-n">条款 7</span><span class="term-title">消除过期对象引用</span><span class="term-chap">第 2 章</span></div>
+    <div class="term-def">类自己管理内存（如栈）时，<strong>出栈后</strong>手动把引用置 <code>null</code>，让 GC 释放。</div>
+    <div class="term-cx">内存泄漏三源：过期引用 / 缓存未清 / 监听器未注销。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+</section>
+
+<section>
+  <h2>第 3 章 · 通用方法</h2>
+
+  <div class="term" data-id="10">
+    <div class="term-head"><span class="term-n">条款 10</span><span class="term-title">覆盖 equals 遵守通用约定</span><span class="term-chap">第 3 章</span></div>
+    <div class="term-def">五性质：自反 / 对称 / 传递 / 一致 / 非 null。任一破，整个集合行为就坏。</div>
+    <div class="term-cx">CaseInsensitiveString 与 String 互相 equals 但反向不等 → 破对称。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="11">
+    <div class="term-head"><span class="term-n">条款 11</span><span class="term-title">覆盖 equals 必覆盖 hashCode</span><span class="term-chap">第 3 章</span></div>
+    <div class="term-def">equal ⇒ hashCode 相等；反之不必。<code>HashMap</code> / <code>HashSet</code> 都靠这条。</div>
+    <div class="term-cx">只覆盖 equals 不覆盖 hashCode → 对象从 HashMap 里找不到自己。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="12">
+    <div class="term-head"><span class="term-n">条款 12</span><span class="term-title">始终覆盖 toString</span><span class="term-chap">第 3 章</span></div>
+    <div class="term-def">让对象打印出"信息丰富、易读"的字符串，调试 / 日志都受益。</div>
+    <div class="term-cx">默认 <code>PhoneNumber@163b91</code> 难调试；好的 toString 应包含关键域。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+</section>
+
+<section>
+  <h2>第 4 章 · 类和接口</h2>
+
+  <div class="term" data-id="15">
+    <div class="term-head"><span class="term-n">条款 15</span><span class="term-title">可访问性最小化</span><span class="term-chap">第 4 章</span></div>
+    <div class="term-def">每个类 / 成员<strong>尽可能小</strong>：private → 默认 → protected → public。信息隐藏解耦。</div>
+    <div class="term-cx">公有类的公有可变域是设计错误；protected 是 API 的一部分，撤回代价高。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="16">
+    <div class="term-head"><span class="term-n">条款 16</span><span class="term-title">公有类用访问方法</span><span class="term-chap">第 4 章</span></div>
+    <div class="term-def">公有类的字段<strong>不能公开</strong>，必须 private + 公有 <code>getX/setX</code>。</div>
+    <div class="term-cx">暴露 <code>public double x</code> → 外部可绕过任何不变量约束。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="17">
+    <div class="term-head"><span class="term-n">条款 17</span><span class="term-title">最小化可变性</span><span class="term-chap">第 4 章</span></div>
+    <div class="term-def">不可变类：5 步法——private final 域、类 final、构造器防御性拷贝可变组件、无 setter、提供 "with" 返新对象。</div>
+    <div class="term-cx">setter + 公开可变字段 = 可变类，不是不可变；<code>String</code> / <code>Integer</code> 是范例。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="18">
+    <div class="term-head"><span class="term-n">条款 18</span><span class="term-title">复合优于继承</span><span class="term-chap">第 4 章</span></div>
+    <div class="term-def">跨包继承会破封装（父类修改影响子类）；改用"持有父类实例"的方式扩展功能。</div>
+    <div class="term-cx">继承 <code>Properties</code> 调 <code>setProperty</code> → 静默插入键值（Hashtable.putAll 的副作用）。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="20">
+    <div class="term-head"><span class="term-n">条款 20</span><span class="term-title">接口优于抽象类</span><span class="term-chap">第 4 章</span></div>
+    <div class="term-def">类型定义用 <code>interface</code>；需要共实现时再考虑 <code>default</code> 方法或抽象类。</div>
+    <div class="term-cx">Java 只支持单继承 → 抽象类被占位后无法再扩展；接口允许多实现。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="22">
+    <div class="term-head"><span class="term-n">条款 22</span><span class="term-title">接口只用于定义类型</span><span class="term-chap">第 4 章</span></div>
+    <div class="term-def">接口用来声明"能做什么"，不要拿它当"常量容器"。</div>
+    <div class="term-cx">常量接口（<code>interface PhysicalConstants { ... }</code>）是反模式。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+</section>
+
+<section>
+  <h2>第 5 章 · 泛型</h2>
+
+  <div class="term" data-id="23">
+    <div class="term-head"><span class="term-n">条款 23</span><span class="term-title">不要在新代码中使用原始类型</span><span class="term-chap">第 5 章</span></div>
+    <div class="term-def">原始类型（<code>List</code>）会绕过泛型类型检查；必须用 <code>List&lt;String&gt;</code> 或 <code>List&lt;?&gt;</code>。</div>
+    <div class="term-cx"><code>List raw = new ArrayList(); raw.add(1);</code> 编译通过，运行期 <code>ClassCastException</code>。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="25">
+    <div class="term-head"><span class="term-n">条款 25</span><span class="term-title">列表优先于数组</span><span class="term-chap">第 5 章</span></div>
+    <div class="term-def">数组协变且具体化，泛型不变且擦除——混用出错。多数情况用 <code>List</code> 更安全。</div>
+    <div class="term-cx"><code>Object[]</code> 数组不能装 <code>List&lt;String&gt;[]</code>，泛型有界通配符可补。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="27">
+    <div class="term-head"><span class="term-n">条款 27</span><span class="term-title">优先考虑泛型方法</span><span class="term-chap">第 5 章</span></div>
+    <div class="term-def">静态工具方法应泛型化：<code>public static &lt;E&gt; Set&lt;E&gt; union(Set&lt;? extends E&gt; a, Set&lt;? extends E&gt; b)</code>。</div>
+    <div class="term-cx">返回 <code>Set</code>（原始）= 类型不安全且必须加 <code>@SuppressWarnings</code>。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="28">
+    <div class="term-head"><span class="term-n">条款 28</span><span class="term-title">列表优先于泛型数组</span><span class="term-chap">第 5 章</span></div>
+    <div class="term-def">数组记着元素类型（具体化），泛型擦除后记不住——<code>new List&lt;E&gt;[10]</code> 编译期就非法。</div>
+    <div class="term-cx">需要二维结构时用 <code>List&lt;List&lt;String&gt;&gt;</code> 而非 <code>List&lt;String&gt;[]</code>。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+</section>
+
+<section>
+  <h2>第 6 章 · 枚举和注解</h2>
+
+  <div class="term" data-id="34">
+    <div class="term-head"><span class="term-n">条款 34</span><span class="term-title">用 enum 代替 int 常量</span><span class="term-chap">第 6 章</span></div>
+    <div class="term-def">Java enum 是完整类，可以加字段、方法、构造函数；编译期类型安全。</div>
+    <div class="term-cx"><code>public static final int APPLE_FUJI = 1;</code> 会被传成普通 int，无类型保护。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="40">
+    <div class="term-head"><span class="term-n">条款 40</span><span class="term-title">坚持使用 @Override</span><span class="term-chap">第 6 章</span></div>
+    <div class="term-def">覆盖方法时加 <code>@Override</code>，编译器替你查重写错误（签名拼错 / 重载混淆）。</div>
+    <div class="term-cx">把 <code>equals(Object)</code> 写成 <code>equals(PhoneNumber)</code> → 编译能过但根本没重写。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+</section>
+
+<section>
+  <h2>第 7 章 · Lambda 和 Stream</h2>
+
+  <div class="term" data-id="42">
+    <div class="term-head"><span class="term-n">条款 42</span><span class="term-title">Lambda 优先于匿名类</span><span class="term-chap">第 7 章</span></div>
+    <div class="term-def">函数式接口（单抽象方法）实现时用 Lambda <code>(x) -&gt; ...</code>，比匿名类短得多。</div>
+    <div class="term-cx">3 行以上的逻辑、抽象类、需要 this/super 引用 → 仍用匿名类。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="43">
+    <div class="term-head"><span class="term-n">条款 43</span><span class="term-title">方法引用优先于 Lambda</span><span class="term-chap">第 7 章</span></div>
+    <div class="term-def">已经存在的方法用 <code>Class::method</code> 引用，比 Lambda 更短更清晰。</div>
+    <div class="term-cx"><code>str -&gt; str.length()</code> → <code>String::length</code>。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="44">
+    <div class="term-head"><span class="term-n">条款 44</span><span class="term-title">坚持使用标准函数式接口</span><span class="term-chap">第 7 章</span></div>
+    <div class="term-def">优先 <code>Function</code> / <code>Predicate</code> / <code>Supplier</code> / <code>Consumer</code> / <code>Runnable</code> 等已有接口。</div>
+    <div class="term-cx">自己造 <code>MyPredicate</code> = 重复造轮子，别人读起来也累。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="45">
+    <div class="term-head"><span class="term-n">条款 45</span><span class="term-title">谨慎使用 Stream</span><span class="term-chap">第 7 章</span></div>
+    <div class="term-def">流式 API：<strong>中间操作</strong>（filter/map/sorted）+ <strong>终端操作</strong>（collect/forEach/reduce/count）。</div>
+    <div class="term-cx">滥用 Stream 会更难读、更慢；简单循环有时更直白。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="46">
+    <div class="term-head"><span class="term-n">条款 46</span><span class="term-title">优先选择 Stream 中无副作用的函数</span><span class="term-chap">第 7 章</span></div>
+    <div class="term-def">Stream 操作应只产生结果，<strong>不</strong>改外部状态。终端用 <code>collect</code>/<code>reduce</code> 收口。</div>
+    <div class="term-cx"><code>stream.forEach(list::add)</code> 偷偷改外部 = 反模式（条款 46 经典吐槽）。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+</section>
+
+<section>
+  <h2>第 8 章 · 方法</h2>
+
+  <div class="term" data-id="49">
+    <div class="term-head"><span class="term-n">条款 49</span><span class="term-title">检查参数有效性</span><span class="term-chap">第 8 章</span></div>
+    <div class="term-def">方法开头用 <code>Objects.checkIndex(i, len)</code> / <code>requireNonNull</code> 等校验参数；<strong>早失败</strong>。</div>
+    <div class="term-cx">不在方法内检查 → 错误延迟到很远的调用栈，难定位。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="50">
+    <div class="term-head"><span class="term-n">条款 50</span><span class="term-title">必要时做保护性拷贝</span><span class="term-chap">第 8 章</span></div>
+    <div class="term-def">构造器 / 方法接收<strong>可变参数</strong>（如 <code>Date</code>、数组）时，先 <code>new Date(param.getTime())</code> 拷贝再存。</div>
+    <div class="term-cx">不拷贝 → 外部修改了 <code>Date</code>，你的对象状态就悄悄变了。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="52">
+    <div class="term-head"><span class="term-n">条款 52</span><span class="term-title">慎用重载</span><span class="term-chap">第 8 章</span></div>
+    <div class="term-def">重载按<strong>编译时</strong>类型选方法，跟运行期类型无关。多重载 + 自动装箱 + 可变参数 = 灾难。</div>
+    <div class="term-cx"><code>List&lt;Integer&gt; list; list.remove(0)</code> 删的是索引 0 而不是值 0（remove(int) 与 remove(Object) 重载）。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="54">
+    <div class="term-head"><span class="term-n">条款 54</span><span class="term-title">返回空数组 / 集合而不是 null</span><span class="term-chap">第 8 章</span></div>
+    <div class="term-def">无结果时返回 <code>Collections.emptyList()</code> / <code>new T[0]</code>，<strong>不要</strong>返回 <code>null</code>。</div>
+    <div class="term-cx">返回 <code>null</code> → 调用方必须先判空，否则 NPE；API 易用性差。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+
+  <div class="term" data-id="56">
+    <div class="term-head"><span class="term-n">条款 56</span><span class="term-title">为所有导出的 API 编写文档注释</span><span class="term-chap">第 8 章</span></div>
+    <div class="term-def">public 方法用 Javadoc：<code>/** ... */</code> 描述契约，<code>@param</code> <code>@return</code> <code>@throws</code> 不可省。</div>
+    <div class="term-cx">没有 Javadoc → 调用者看源代码猜行为；维护期易改坏。</div>
+    <div class="rate"><button class="k">认识</button><button class="v">模糊</button><button class="u">不认识</button></div>
+  </div>
+</section>
+
+<div class="actions">
+  <button class="primary" id="submitBtn">查看我的优先复习项</button>
+  <button class="secondary" id="resetBtn">重置</button>
+  <span class="muted" id="progress">已评 0 / 30</span>
+</div>
+
+<div id="summary">
+  <h2>你的优先复习清单</h2>
+  <p class="muted">按"不认识 → 模糊 → 认识"排序。把前 10 条背下来，过线就有底。</p>
+  <div class="progress-bar"><div id="progressBar" style="width: 0%"></div></div>
+  <div class="summary-grid" id="summaryGrid"></div>
+  <p style="margin-top: 18px;">完成后，把"前 10 条"告诉 teacher。下一节课 <strong>Lesson 0003</strong> 会针对这 10 条做"反例识别"练习。</p>
+</div>
+
+<footer>
+  <p>配套：<a href="../reference/cheatsheet.html">条款速查表</a> · <a href="../MISSION.md">Mission</a> · <a href="0001-diagnostic.html">Lesson 0001</a></p>
+  <p>设计原则：先认名，再背反例，最后做识别题——三步走完一个条款算"过线级掌握"。</p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var terms = document.querySelectorAll('.term');
+  var submitBtn = document.getElementById('submitBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var progress = document.getElementById('progress');
+  var summary = document.getElementById('summary');
+  var summaryGrid = document.getElementById('summaryGrid');
+  var progressBar = document.getElementById('progressBar');
+
+  function updateProgress() {
+    var rated = 0;
+    terms.forEach(function (t) {
+      if (t.querySelector('.rate button.selected')) rated++;
+    });
+    progress.textContent = '已评 ' + rated + ' / 30';
+  }
+
+  terms.forEach(function (t) {
+    var btns = t.querySelectorAll('.rate button');
+    btns.forEach(function (b) {
+      b.addEventListener('click', function () {
+        btns.forEach(function (x) { x.classList.remove('selected'); });
+        b.classList.add('selected');
+        updateProgress();
+      });
+    });
+  });
+
+  submitBtn.addEventListener('click', function () {
+    var rows = [];
+    terms.forEach(function (t) {
+      var sel = t.querySelector('.rate button.selected');
+      var status = sel ? sel.classList[0] : 'u'; // default to 'u' if not rated
+      var id = t.dataset.id;
+      var title = t.querySelector('.term-title').textContent;
+      var chap = t.querySelector('.term-chap').textContent;
+      var cx = t.querySelector('.term-cx').textContent;
+      rows.push({ id: id, title: title, chap: chap, cx: cx, status: status });
+    });
+
+    var order = { u: 0, v: 1, k: 2 };
+    rows.sort(function (a, b) { return order[a.status] - order[b.status]; });
+
+    summaryGrid.innerHTML = '';
+    rows.forEach(function (r) {
+      var div = document.createElement('div');
+      div.className = 'sum-row ' + r.status;
+      var label = r.status === 'u' ? '不认识' : (r.status === 'v' ? '模糊' : '认识');
+      div.innerHTML = '<span style="font-weight:600">条款 ' + r.id + '</span>' +
+                      '<span><strong>' + r.title + '</strong><br><span style="color:#666;font-size:13px">' + r.cx + '</span></span>' +
+                      '<span class="pill" style="color:' + (r.status==='u'?'var(--unk)':r.status==='v'?'var(--vague)':'var(--known)') + '">' + label + '</span>';
+      summaryGrid.appendChild(div);
+    });
+
+    var rated = rows.filter(function (r) { return r.status !== 'u' || true; }).length;
+    var knownCount = rows.filter(function (r) { return r.status === 'k'; }).length;
+    progressBar.style.width = (knownCount / 30 * 100) + '%';
+    summary.style.display = 'block';
+    summary.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  resetBtn.addEventListener('click', function () {
+    terms.forEach(function (t) {
+      t.querySelectorAll('.rate button').forEach(function (b) { b.classList.remove('selected'); });
+    });
+    summary.style.display = 'none';
+    updateProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  updateProgress();
+})();
+</script>
+</body>
+</html>

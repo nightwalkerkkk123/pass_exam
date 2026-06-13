@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>第 5 章 虚拟存储器 · 章节测试</title>
+<style>
+:root { --paper:#fdf6e3; --paper-dark:#f5ecd7; --ink:#2c2c2c; --ink-light:#555;
+        --accent:#2563eb; --accent-hover:#1d4ed8; --divider:#d6c8a8;
+        --card-bg:#fef9ef; --card-border:#e8dcc8;
+        --correct:#22c55e; --correct-bg:#f0fdf4;
+        --wrong:#ef4444; --wrong-bg:#fef2f2;
+        --radius:6px; }
+* { box-sizing: border-box; }
+body { font-family:"Microsoft YaHei","Noto Sans SC","SimSun",sans-serif;
+       font-size:13pt; line-height:1.75; color:var(--ink);
+       max-width:860px; margin:auto; padding:24px 20px 60px; background:var(--paper); }
+@media print { body { font-size:10.5pt; background:#fff; } .no-print{display:none!important;} }
+h1 { font-size:1.55em; text-align:center; border-bottom:2px solid var(--divider);
+     padding-bottom:8px; margin-top:0; }
+h2 { font-size:1.2em; border-bottom:1px solid var(--divider);
+     padding-bottom:4px; margin-top:28px; }
+h3 { font-size:1.05em; margin-top:18px; color:var(--ink); }
+p.sub { text-align:center; color:var(--ink-light); font-size:0.95em; }
+.q-card { background:var(--card-bg); border:1px solid var(--card-border);
+          border-radius:var(--radius); padding:12px 14px; margin:10px 0; }
+.q-card.correct { border-left:3px solid var(--correct); background:#f7fdf4; }
+.q-card.wrong   { border-left:3px solid var(--wrong);   background:#fef9f9; }
+.q-num  { font-weight:700; font-size:0.98em; margin-bottom:4px; }
+.q-text { margin-bottom:8px; font-size:0.98em; }
+.option { display:block; padding:4px 10px; margin:3px 0;
+          border:1px solid var(--card-border); border-radius:4px;
+          cursor:pointer; font-size:0.93em; background:#fefcf5; }
+.option:hover { background:#f0ede0; }
+.option input { margin-right:6px; }
+.option.selected { border-color:var(--accent); background:#eff6ff; }
+.option.correct-answer { border-color:var(--correct); background:var(--correct-bg); }
+.option.wrong-answer   { border-color:var(--wrong);   background:var(--wrong-bg); }
+.q-textarea { width:100%; min-height:48px; border:1px solid var(--card-border);
+              border-radius:4px; padding:6px 10px; font-family:inherit;
+              font-size:0.93em; background:#fefcf5; resize:vertical; }
+.q-textarea:focus { outline:none; border-color:var(--accent); }
+.result { display:none; margin-top:8px; padding:8px 12px;
+          background:#fefcf5; border:1px solid var(--card-border);
+          border-radius:4px; font-size:0.9em; line-height:1.6; }
+.result .badge { display:inline-block; padding:1px 9px; border-radius:3px;
+                 font-weight:700; font-size:0.82em; margin-right:6px; }
+.badge-ok { background:var(--correct-bg); color:#166534; }
+.badge-no { background:var(--wrong-bg);   color:#991b1b; }
+.result .explanation { margin-top:4px; color:var(--ink); }
+.result .pitfall { color:#b45309; margin-top:3px; font-size:0.9em; }
+.grading-bar { text-align:center; margin:20px 0; }
+.grading-bar button { font-size:1em; padding:8px 32px; background:var(--accent);
+                      color:#fff; border:none; border-radius:var(--radius);
+                      cursor:pointer; font-weight:600; }
+.grading-bar button:hover { background:var(--accent-hover); }
+.grading-bar button:disabled { background:#bbb; cursor:not-allowed; }
+#score-box { display:none; background:var(--paper-dark); color:var(--ink);
+             padding:16px 20px; border-radius:var(--radius); margin:14px 0;
+             text-align:center; border:1px solid var(--card-border); }
+#score-box .score-num { font-size:2.2em; font-weight:700; }
+#score-box .score-label { font-size:0.85em; color:var(--ink-light); }
+.tag-src { background:#fef3c7; color:#92400e; padding:1px 6px; border-radius:3px;
+           font-size:0.78em; font-weight:600; margin-left:6px; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+</style>
+</head>
+<body>
+
+<h1>第 5 章 虚拟存储器 · 章节测试</h1>
+<p class="sub">满分 100 分 | 选择/判断/填空可自动批改 | 简答/计算/代码为参考题</p>
+<p class="sub"><span class="tag-src">来源</span> 老师课件 + 教材课后题 + 算法速查表</p>
+<div id="score-box"><div class="score-num" id="score-num">0</div><div class="score-label">总分（满分 100）</div></div>
+<div id="questions-container"></div>
+<div class="grading-bar no-print"><button onclick="gradeAll()" id="grade-btn">提交批改</button></div>
+
+<p class="sub" style="margin-top:30px;"><a href="../lessons/0006-page-replacement.html">← 返回题库目录</a></p>
+
+<script>
+var Q = [{"type":"choice","points":3,"question":"虚拟存储器的容量由什么决定？","options":["内存大小","外存大小","内存 + 外存（受地址位数限制）","CPU 速度"],"answer":2,"explanation":"虚存最大 = min(内存+外存, 地址位数能表示的容量)。","pitfall":"32 位系统虚存最大 4GB，不管内存多大。"},{"type":"choice","points":3,"question":"最佳置换（OPT）算法的特点是？","options":["置换最先进来的页面","置换最久没用的页面","置换最长时间不会被访问的页面","随机置换"],"answer":2,"explanation":"OPT 选「最长时间内不会被使用」的页面置换，无法实现，只作基准。","pitfall":"OPT = 理想算法，缺页率最低。"},{"type":"choice","points":3,"question":"先进先出（FIFO）置换算法会产生？","options":["最优性能","Belady 异常（物理块增加缺页率反升）","系统崩溃","优先级反转"],"answer":1,"explanation":"FIFO 是唯一会产生 Belady 异常的常用算法。","pitfall":"LRU/CLOCK 不会产生 Belady 异常。"},{"type":"choice","points":3,"question":"最近最久未使用（LRU）算法的缺点是？","options":["实现简单","需要硬件支持（栈或移位寄存器）","性能最差","会产生 Belady 异常"],"answer":1,"explanation":"LRU 性能好但实现开销大，需要硬件记录每次访问。","pitfall":"LRU 是栈类算法，无 Belady 异常。"},{"type":"choice","points":3,"question":"CLOCK 算法的核心思想是？","options":["FIFO 的改进：循环扫描访问位","LRU 的精确实现","OPT 的近似","随机选择"],"answer":0,"explanation":"CLOCK = 二次机会算法 = 改进的 FIFO，给每页一个访问位。","pitfall":"访问位 = 1 给第二次机会 = 0 才淘汰。"},{"type":"choice","points":3,"question":"Belady 异常发生在哪种算法中？","options":["OPT","FIFO","LRU","CLOCK"],"answer":1,"explanation":"FIFO 是唯一会产生 Belady 异常的算法。","pitfall":"OPT/LRU/CLOCK 都不会。"},{"type":"choice","points":3,"question":"改进型 CLOCK 算法考虑了几个标志位？","options":["1 个（访问位）","2 个（访问位 + 修改位）","3 个","4 个"],"answer":1,"explanation":"改进型 CLOCK 用「访问位 A + 修改位 M」4 状态分类。","pitfall":"4 类：(0,0) > (0,1) > (1,0) > (1,1)。"},{"type":"choice","points":3,"question":"LFU 置换算法淘汰？","options":["最久没用的页面","访问次数最少的页面","最先进入的页面","最大页面"],"answer":1,"explanation":"LFU = Least Frequently Used。","pitfall":"LRU = Least Recently Used，注意区分。"},{"type":"choice","points":3,"question":"【老师课件】OPT/FIFO/LRU 三种算法在同一引用串下的缺页次数比较？","options":["OPT < FIFO < LRU","OPT 缺页最少（理想），FIFO 较多，LRU 接近 OPT","FIFO 最少","都一样"],"answer":1,"explanation":"OPT 缺页最少但无法实现，LRU 性能接近 OPT，FIFO 性能最差。","pitfall":"OPT 是基准，实际用 LRU/CLOCK。"},{"type":"choice","points":3,"question":"抖动发生的原因是？","options":["CPU 太慢","进程太多 + 物理块太少 → 频繁缺页","内存太大","外存太慢"],"answer":1,"explanation":"抖动 = 多道度太高 + 物理块不足 → 频繁换页。","pitfall":"工作集模型防抖动。"},{"type":"choice","points":3,"question":"工作集是进程在？","options":["任意时刻使用的页面集合","某时间段内实际访问的页面集合","所有页面的集合","OS 分配的物理块集合"],"answer":1,"explanation":"工作集 = 一段时间 Δt 内实际访问的页面集合。","pitfall":"不是「进程的所有页面」。"},{"type":"choice","points":3,"question":"缺页中断处理过程中，从外存调入页面后，下一步是？","options":["重新执行触发缺页的指令","重启进程","修改 PCB","调度其他进程"],"answer":0,"explanation":"调入页面后，重新执行触发缺页的那条指令。","pitfall":"缺页处理完后进程「继续跑」。"},{"type":"choice","points":3,"question":"固定分配局部置换策略是指？","options":["分配物理块数固定，只能换自己进程内的页","分配物理块数固定，能换其他进程的页","分配物理块数可变，只能换自己进程内的页","分配物理块数可变，能换其他进程的页"],"answer":0,"explanation":"固定分配 = 块数不变；局部置换 = 只换本进程的页。","pitfall":"3 种组合：固定+局部 / 固定+全局 / 可变+局部（无「可变+全局」组合，OS 一般不允许抢别的进程的页）。"},{"type":"choice","points":3,"question":"页面大小对缺页率的影响是？","options":["越大越好","越小越好","太大 → 内部碎片大；太小 → 页表长、换入换出频繁","无影响"],"answer":2,"explanation":"太大：内部碎片 + 调入浪费；太小：页表长 + 频繁换页。","pitfall":"一般 4KB 是折中。"},{"type":"tf","points":2,"question":"OPT 算法可以实际实现，因此广泛用于生产系统。","answer":false,"explanation":"OPT 需要预知未来，无法实现。","pitfall":"OPT 只作评价基准。"},{"type":"tf","points":2,"question":"FIFO 算法的实现最简单。","answer":true,"explanation":"FIFO 只需一个队列记录进入顺序。","pitfall":"性能差，但实现确实最简。"},{"type":"tf","points":2,"question":"LRU 算法不会出现 Belady 异常。","answer":true,"explanation":"LRU 是栈类算法，物理块增加缺页率一定不增。","pitfall":"FIFO 才会 Belady。"},{"type":"tf","points":2,"question":"改进型 CLOCK 优先淘汰 (访问位=1, 修改位=0) 的页面。","answer":false,"explanation":"优先淘汰 (0,0)，最不优先 (1,1)。","pitfall":"(0,0) > (0,1) > (1,0) > (1,1)。"},{"type":"tf","points":2,"question":"请求分页系统一定需要磁盘支持。","answer":true,"explanation":"虚存要调页，靠磁盘做「后备存储」。","pitfall":"没有外存就没有虚存。"},{"type":"tf","points":2,"question":"工作集大小不变时，增加物理块数可以消除抖动。","answer":true,"explanation":"物理块数 ≥ 工作集大小时，不会缺页。","pitfall":"工作集是「时间窗口」的页面集合。"},{"type":"fill","points":3,"question":"OPT 算法的全称是______（中文）。","answer":["最佳置换","最佳","理想置换"],"explanation":"OPT = Optimal，理想算法。","pitfall":"OPT 选最长时间不会被访问的页。"},{"type":"fill","points":3,"question":"FIFO 算法的全称是______（中文）。","answer":["先进先出","FIFO"],"explanation":"FIFO = First In First Out。","pitfall":"FIFO 是唯一会 Belady 的。"},{"type":"fill","points":3,"question":"LRU 算法的全称是______（中文）。","answer":["最近最久未使用","最近最少使用"],"explanation":"LRU = Least Recently Used。","pitfall":"注意区分 LRU（时间）和 LFU（次数）。"},{"type":"fill","points":3,"question":"CLOCK 算法又叫______机会算法。","answer":["第二","二次","2"],"explanation":"CLOCK = Second Chance Algorithm。","pitfall":"访问位=1 给第二次机会。"},{"type":"fill","points":3,"question":"改进型 CLOCK 用访问位 A 和修改位 M，将页面分为 ______ 类。","answer":["4","四"],"explanation":"(0,0)(0,1)(1,0)(1,1) 共 4 类。","pitfall":"优先级 (0,0) > (0,1) > (1,0) > (1,1)。"},{"type":"calc","points":0,"question":"【老师课件·OPT/FIFO/LRU 完整例题】物理块=3，引用串 7,0,1,2,0,3,0,4,2,3,0,3,2,1,2,0,1,7,0,1。分别求 OPT/FIFO/LRU 的缺页次数。","answer":"OPT 缺页 6 次；FIFO 缺页 12 次；LRU 缺页 12 次（与 FIFO 在此例巧合相同，但算法不同）。Belady 异常用 4 块 vs 3 块的 FIFO 对比：3 块 FIFO=12 次，4 块 FIFO=10 次（不减反增不正常？错，4 块比 3 块应缺页少；实际上 Belady 是「3 块 9 次 vs 4 块 10 次」这种反例）。","explanation":"OPT 选最远未来才用的；FIFO 选最早进入的；LRU 选最久没访问的。","pitfall":"此例中 LRU 缺页次数 = 12（同 FIFO），但 LRU 永远不会 Belady 异常。"},{"type":"calc","points":0,"question":"【Belady 异常例】引用串 1,2,3,4,1,2,5,1,2,3,4,5。物理块=3 时 FIFO 缺页？物理块=4 时 FIFO 缺页？","answer":"3 块 FIFO：依次装入 1,2,3（3 次缺页），置换 1 装 4（4），再装 5 置换 2（5），再装 3 置换 3-等等，简化为 9 次。4 块 FIFO：装 1,2,3,4（4 次），置换 1 装 5（5），此时已无新页继续访问...实际算下来 4 块 FIFO = 10 次 > 3 块 FIFO = 9 次. 这就是 Belady 异常。","explanation":"Belady 异常 = 物理块增加，缺页率反升。FIFO 独有。","pitfall":"FIFO 不是「错的」，只是有这种反常性质。"},{"type":"calc","points":0,"question":"【简答】OPT/FIFO/LRU/CLOCK 四种算法对比表。","answer":"OPT：缺页率最低，无法实现，作基准。FIFO：实现最简，可能 Belady 异常，性能差。LRU：性能接近 OPT，硬件开销大，无 Belady 异常。CLOCK：实现简单，性能接近 LRU，访问位=0 淘汰。","explanation":"对比「缺页率 + 实现难度 + Belady + 硬件需求」。","pitfall":"LRU 和 CLOCK 是生产环境常用。"},{"type":"short","points":0,"question":"什么是 Belady 异常？为什么 FIFO 会有？","answer":"Belady 异常 = 增加物理块数，缺页率反升的现象。FIFO 出现的原因：FIFO 选最早进入的页淘汰，但「最早进入」不等于「最久没使用」——可能刚被访问过。结果：分配更多内存反而换走了有用的页。LRU/OPT/CLOCK 不会出现，因为它们都按「最近使用」决策。","explanation":"FIFO 不考虑访问频率，是 Belady 的根源。","pitfall":"栈类算法（LRU/OPT）一定无 Belady。"},{"type":"short","points":0,"question":"什么是抖动？如何用工作集模型防止抖动？","answer":"抖动 = 缺页率极高，CPU 大部分时间在换页，效率急剧下降。原因：多道度太高，每个进程物理块太少。工作集模型：记录每个进程过去 Δt 时间内的页面集合，分配 ≥ 工作集大小的物理块，让进程「整个工作集都在内存」，避免缺页。","explanation":"工作集 = 时间窗口内实际访问的页面集合。","pitfall":"Δt 取值要合适，太小抖动、太大意义不大。"}];
+var LABELS = {"section":{"choice":"一、选择题","tf":"二、判断题","fill":"三、填空题","short":"四、简答题","calc":"五、计算题","code":"六、代码题"},"section_order":["choice","tf","fill","short","calc","code"],"true_label":"正确","false_label":"错误","placeholder":"在此作答…","pitfall_prefix":"易错提醒：","correct_label":"正确","wrong_label":"错误","points_suffix":"分"};
+
+function tfAnswerIndex(ans) {
+  if (typeof ans === 'boolean') return ans ? 0 : 1;
+  var s = ('' + ans).trim().toLowerCase();
+  var t = ['t','true','正确','对','是','yes','y','√','✓','1'];
+  return t.indexOf(s) !== -1 ? 0 : 1;
+}
+function choiceAnswerIndex(ans) {
+  if (typeof ans === 'number') return ans;
+  var s = ('' + ans).trim();
+  if (/^[A-Za-z]$/.test(s)) return s.toUpperCase().charCodeAt(0) - 65;
+  return parseInt(s, 10);
+}
+function normText(s) {
+  s = ('' + s).trim().toLowerCase().replace(/\s+/g,'');
+  s = s.replace(/[.,;:!?。，、；：！？"'()【】\[\]<>《》·\.\-]/g,'');
+  return s;
+}
+function sel(qid, idx) {
+  var q = Q.find(function(x){return x._id===qid;});
+  q._ans = idx;
+  var opts = document.querySelectorAll('#opt-' + qid + ' .option, #opt-' + qid + '.option');
+  // simpler: by class
+  document.querySelectorAll('.option[data-qid="' + qid + '"]').forEach(function(e){e.classList.remove('selected');});
+  var el = document.querySelector('#opt-' + qid + '-' + idx);
+  if (el) el.classList.add('selected');
+}
+function build() {
+  var c = document.getElementById('questions-container');
+  var h = '';
+  var sec = '';
+  Q.forEach(function(q, i){
+    q._i = i; q._id = 'q' + i;
+    if (q.type !== sec) { sec = q.type; if (LABELS.section[q.type]) h += '<h3>' + LABELS.section[q.type] + '</h3>'; }
+    h += '<div class="q-card" id="card-' + q._id + '">';
+    h += '<div class="q-num">' + (i+1) + '. (' + q.points + ' ' + LABELS.points_suffix + ')</div>';
+    h += '<div class="q-text">' + q.question + '</div>';
+    if (q.type === 'choice') {
+      (q.options||[]).forEach(function(o, j){
+        h += '<label class="option" id="opt-' + q._id + '-' + j + '" data-qid="' + q._id + '" onclick="sel(\'' + q._id + '\',' + j + ')">';
+        h += '<input type="radio" name="' + q._id + '" value="' + j + '">' + String.fromCharCode(65+j) + '. ' + o + '</label>';
+      });
+    } else if (q.type === 'tf') {
+      h += '<label class="option" id="opt-' + q._id + '-0" data-qid="' + q._id + '" onclick="sel(\'' + q._id + '\',0)"><input type="radio" name="' + q._id + '" value="0">' + LABELS.true_label + '</label>';
+      h += '<label class="option" id="opt-' + q._id + '-1" data-qid="' + q._id + '" onclick="sel(\'' + q._id + '\',1)"><input type="radio" name="' + q._id + '" value="1">' + LABELS.false_label + '</label>';
+    } else {
+      h += '<textarea class="q-textarea" id="text-' + q._id + '" rows="' + (q.type==='code'?8:3) + '" placeholder="' + LABELS.placeholder + '"></textarea>';
+    }
+    h += '<div class="result" id="result-' + q._id + '">';
+    h += '<span class="badge" id="badge-' + q._id + '"></span><span id="correct-' + q._id + '"></span>';
+    h += '<div class="explanation">' + (q.explanation || '') + '</div>';
+    if (q.pitfall) h += '<div class="pitfall">' + LABELS.pitfall_prefix + q.pitfall + '</div>';
+    h += '</div></div>';
+  });
+  c.innerHTML = h;
+}
+function gradeAll() {
+  var total = 0, max = 0;
+  Q.forEach(function(q){
+    max += q.points;
+    var ok = false, userAns = null;
+    if (q.type === 'choice' || q.type === 'tf') {
+      userAns = q._ans;
+      var correct = (q.type === 'tf') ? tfAnswerIndex(q.answer) : choiceAnswerIndex(q.answer);
+      if (userAns === correct) { ok = true; total += q.points; }
+      // highlight
+      (q.options||[]).forEach(function(_, j){
+        var el = document.getElementById('opt-' + q._id + '-' + j);
+        if (el) el.classList.remove('selected');
+      });
+      if (q.type === 'tf') {
+        ['0','1'].forEach(function(j){
+          var el = document.getElementById('opt-' + q._id + '-' + j);
+          if (!el) return;
+          if (parseInt(j) === correct) el.classList.add('correct-answer');
+          if (parseInt(j) === userAns && !ok) el.classList.add('wrong-answer');
+        });
+      } else {
+        (q.options||[]).forEach(function(_, j){
+          var el = document.getElementById('opt-' + q._id + '-' + j);
+          if (!el) return;
+          if (j === correct) el.classList.add('correct-answer');
+          if (j === userAns && !ok) el.classList.add('wrong-answer');
+        });
+      }
+    } else if (q.type === 'fill') {
+      var ta = document.getElementById('text-' + q._id);
+      userAns = ta ? ta.value : '';
+      var accepts = Array.isArray(q.answer) ? q.answer : [q.answer];
+      ok = accepts.some(function(a){ return normText(userAns) === normText(a); });
+      if (ok) total += q.points;
+    } else {
+      // short/calc/code：参考题，不计入自动分
+      ok = null;
+    }
+    var card = document.getElementById('card-' + q._id);
+    var res  = document.getElementById('result-' + q._id);
+    var badge= document.getElementById('badge-' + q._id);
+    var corr = document.getElementById('correct-' + q._id);
+    if (ok === true)  { card.classList.add('correct'); badge.className='badge badge-ok'; badge.textContent=LABELS.correct_label; corr.textContent=''; }
+    else if (ok === false) { card.classList.add('wrong'); badge.className='badge badge-no'; badge.textContent=LABELS.wrong_label; corr.textContent=' 正确答案：' + (Array.isArray(q.answer)?q.answer.join(' / '):q.answer); }
+    else { badge.className='badge'; badge.textContent='参考答案'; badge.style.background='#dbeafe'; badge.style.color='#1e40af'; corr.textContent='  ' + (Array.isArray(q.answer)?q.answer.join(' / '):q.answer); }
+    res.style.display = 'block';
+  });
+  document.getElementById('score-num').textContent = total;
+  document.getElementById('score-box').style.display = 'block';
+  document.getElementById('grade-btn').disabled = true;
+  window.scrollTo(0, 0);
+}
+build();
+</script>
+</body>
+</html>

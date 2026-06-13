@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>第2章 进程管理 · 知识清单</title>
+<script>
+MathJax = {
+  tex: {
+    inlineMath: [['$', '$'], ['\(', '\)']],
+    displayMath: [['$$', '$$'], ['\[', '\]']]
+  }
+};
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js"></script>
+<style>
+/* === ExamPass Shared Styles === */
+/* Paper-like warm background, clean typography, responsive */
+
+:root {
+  --paper: #fdf6e3;
+  --paper-dark: #f5ecd7;
+  --ink: #2c2c2c;
+  --ink-light: #555;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --divider: #d6c8a8;
+  --card-bg: #fef9ef;
+  --card-border: #e8dcc8;
+  --correct: #22c55e;
+  --correct-bg: #f0fdf4;
+  --wrong: #ef4444;
+  --wrong-bg: #fef2f2;
+  --tag-bg: #fef3c7;
+  --tag-text: #92400e;
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font-family: "Microsoft YaHei", "Noto Sans SC", "SimSun", sans-serif;
+  font-size: 12pt; line-height: 1.75; color: var(--ink);
+  max-width: 860px; margin: auto; padding: 24px 20px 60px;
+  background: var(--paper);
+}
+
+@media print {
+  body { font-size: 10.5pt; background: #fff; }
+  .no-print { display: none !important; }
+  h1, h2, h3 { page-break-after: avoid; }
+}
+
+/* ── Header ── */
+#exampass-header {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 6px 0; margin-bottom: 0;
+}
+.header-brand { font-size: 1.2em; font-weight: 700; color: #1a1a2e; letter-spacing: 0.3px; }
+.header-url  { font-size: 0.78em; color: #999; }
+.header-divider { border: none; border-top: 2px solid var(--divider); margin: 4px 0 20px 0; }
+
+/* ── Typography ── */
+h1 { font-size: 1.55em; text-align: center; border-bottom: 2px solid var(--divider); padding-bottom: 8px; margin-top: 0; }
+h2 { font-size: 1.25em; border-bottom: 1px solid var(--divider); padding-bottom: 4px; margin-top: 28px; }
+h3 { font-size: 1.08em; margin-top: 20px; color: var(--ink); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ── Tables ── */
+table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 0.95em; }
+td, th { border: 1px solid var(--card-border); padding: 5px 9px; text-align: left; }
+th { background: var(--paper-dark); font-weight: 700; }
+
+/* ── Knowledge point vs explanation ── */
+.kp { font-weight: 700; color: var(--ink); }           /* key point: bold dark */
+.exp { font-weight: 400; color: var(--ink-light); }    /* explanation: lighter */
+.exp em, .exp strong { color: var(--ink); }             /* emphasis inside explanation */
+
+/* ── Block elements ── */
+blockquote {
+  border-left: 3px solid #c0392b; background: #fef9ef;
+  padding: 6px 14px; margin: 10px 0; font-size: 0.95em;
+}
+code { background: #f0ede0; padding: 2px 5px; border-radius: 3px; font-size: 0.92em; }
+pre { background: #f0ede0; padding: 10px; border-radius: var(--radius); overflow-x: auto; }
+
+/* ── TOC ── */
+div.toc {
+  background: var(--card-bg); padding: 14px 18px;
+  border: 1px solid var(--card-border); border-radius: var(--radius); margin-bottom: 22px;
+}
+div.toc ul { padding-left: 18px; }
+div.toc li { margin: 3px 0; font-size: 0.95em; }
+
+/* ── Priority tags ── */
+.tag-must   { background: #fee2e2; color: #991b1b; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+.tag-key    { background: #fef3c7; color: #92400e; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+.tag-freq   { background: #dbeafe; color: #1e40af; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+.tag-info   { background: #f0fdf4; color: #166534; padding: 1px 6px; border-radius: 3px; font-size: 0.82em; font-weight: 600; }
+
+
+</style>
+</head>
+<body>
+
+<header id="exampass-header">
+  <div class="header-left"><span class="header-brand">ExamPass Assistant</span></div>
+  <div class="header-right"><span class="header-url">github.com/WUBING2023/ExamPass-Assistant</span></div>
+</header>
+<hr class="header-divider">
+
+<h1>第2章 进程管理 · 知识清单</h1>
+<div class="toc">
+<h2>目录</h2>
+<ul>
+<li><a href="#s90257256">章节主线</a></li>
+<li><a href="#s20954255">进程与 PCB</a></li>
+<li><a href="#s10511879">进程同步</a></li>
+<li><a href="#s38684723">经典问题与通信</a></li>
+<li><a href="#s83489461">考前自检</a></li>
+</ul>
+</div>
+<p class="exp">来源课件：第2章.ppt。本页由 ExamPass Assistant 模板根据 PPT 提取文本整理，面向期末复习。</p>
+<blockquote><strong>使用方法：</strong>先看黑体知识点，再看灰色解释；最后完成同名“章节测试”。</blockquote>
+<h2 id="s90257256">章节主线</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">核心问题</span></td><td><span class="exp">CPU 在多个进程之间切换，OS 必须知道每个进程是谁、运行到哪、拥有什么资源、何时阻塞/唤醒。</span></td></tr>
+<tr><td><span class="kp">课件结构</span></td><td><span class="exp">进程基本概念、进程控制、进程同步、经典同步问题、管程、进程通信、线程。</span></td></tr>
+</tbody></table>
+<h2 id="s20954255">进程与 PCB</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">进程定义</span></td><td><span class="exp">进程是程序的一次执行过程，是系统进行资源分配和调度的基本单位。</span></td></tr>
+<tr><td><span class="kp">PCB</span></td><td><span class="exp">进程控制块保存进程标识、处理机状态、调度信息、控制信息，是进程存在的唯一标志。</span></td></tr>
+<tr><td><span class="kp">状态转换</span></td><td><span class="exp">常见三态为就绪、运行、阻塞；运行态时间片到会回到就绪态，等待 I/O 会进入阻塞态。</span></td></tr>
+</tbody></table>
+<h2 id="s10511879">进程同步</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">临界资源</span></td><td><span class="exp">一次只允许一个进程使用的资源。</span></td></tr>
+<tr><td><span class="kp">临界区</span></td><td><span class="exp">访问临界资源的那段代码。</span></td></tr>
+<tr><td><span class="kp">同步机制准则</span></td><td><span class="exp">空闲让进、忙则等待、有限等待、让权等待。</span></td></tr>
+<tr><td><span class="kp">信号量</span></td><td><span class="exp">P 操作申请资源/可能阻塞，V 操作释放资源/可能唤醒。</span></td></tr>
+</tbody></table>
+<h2 id="s38684723">经典问题与通信</h2>
+<table><thead><tr><th>知识点</th><th>考试解释</th></tr></thead><tbody>
+<tr><td><span class="kp">生产者-消费者</span></td><td><span class="exp">核心是互斥访问缓冲区，同时用 empty/full 控制缓冲区数量。</span></td></tr>
+<tr><td><span class="kp">读者-写者</span></td><td><span class="exp">读读可并发，写写/读写互斥，常考信号量设计。</span></td></tr>
+<tr><td><span class="kp">进程通信</span></td><td><span class="exp">低级通信可用信号量，高级通信包括共享存储、消息传递、管道等。</span></td></tr>
+<tr><td><span class="kp">线程</span></td><td><span class="exp">线程是处理机调度的基本单位；进程仍是资源分配单位。</span></td></tr>
+</tbody></table>
+<h2 id="s83489461">考前自检</h2>
+<ul><li>能不能用自己的话复述本章主线？</li><li>能不能区分相似概念？</li><li>遇到计算/设计题时，能不能写出步骤而不是只写结论？</li></ul>
+
+
+</body>
+</html>
