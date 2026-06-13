@@ -5,13 +5,8 @@
 *~
 .lesshst
 
-# Personal AI personas — 含个人代词/教学风格，私人不公开
-.claude
-.agent
-
 # Third-party reference code — 各自有许可证，独立仓库维护更稳
 reference/egos-2000/
-reference/xv6-riscv-*/
 
 # 大体积辅助技能（默认不进 public 仓库）
 skills/ExamPass-Assistant/
