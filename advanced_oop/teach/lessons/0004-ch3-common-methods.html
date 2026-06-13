@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lesson 0004 · ch3 通用方法（骨架） — Advanced OOP 复习</title>
+<style>
+  :root {
+    --fg: #1a1a1a; --muted: #6b6b6b; --line: #e6e6e6; --bg: #fafaf7;
+    --card: #fff; --accent: #0a6b3a; --warn: #c47b00; --warn-bg: #fffbe6;
+    --code-bg: #f3f3ee; --placeholder-bg: #f5f5f0;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.65;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 40px 24px 100px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 28px; }
+  .eyebrow { color: var(--muted); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+  h1 { font-size: 26px; margin: 6px 0 8px; }
+  h2 { font-size: 19px; margin: 36px 0 12px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; line-height: 1.55; font-size: 13.5px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; }
+  pre code { background: transparent; padding: 0; }
+  .open-cmd { background: var(--code-bg); padding: 6px 10px; border-radius: 4px; font-size: 13px; display: inline-block; margin: 6px 0 12px; }
+  .status-banner {
+    background: var(--warn-bg);
+    border-left: 4px solid var(--warn);
+    padding: 16px 20px;
+    border-radius: 0 6px 6px 0;
+    margin: 18px 0 24px;
+  }
+  .status-banner h3 { margin-top: 0; color: var(--warn); }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 7px;
+    padding: 18px 20px; margin: 18px 0;
+  }
+  .card.placeholder-card {
+    background: var(--placeholder-bg);
+    border-style: dashed;
+    opacity: 0.7;
+  }
+  .q-meta { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+  .q-stem { font-weight: 600; margin-bottom: 10px; }
+  .options { list-style: none; padding: 0; margin: 0; }
+  .options li { margin: 6px 0; }
+  .options label { display: flex; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; cursor: not-allowed; opacity: 0.6; }
+  .actions { margin: 32px 0 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  button.primary { font: inherit; background: var(--accent); color: white; border: 0; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+  button.primary:disabled { background: #aaa; cursor: not-allowed; }
+  .placeholder-text { color: var(--muted); font-style: italic; }
+  footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+  .related { background: #f6f6f0; padding: 12px 16px; border-radius: 5px; margin: 12px 0; }
+  .related a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Lesson 0004 · 第 3 章批处理</div>
+  <h1>通用方法 · 骨架</h1>
+  <p class="muted">覆盖条款 10 / 11 / 12。预计 8 分钟（待生成）。</p>
+  <div class="open-cmd">open /Users/wangzihao/Code/pass_exam/advanced_oop/teach/lessons/0004-ch3-common-methods.html</div>
+</header>
+
+<div class="status-banner">
+  <h3>📋 本课状态：骨架（待生成题目）</h3>
+  <p>题目将在 teacher 收到你 <strong>Lesson 0003 泛型 4 题</strong>的反馈后填充。</p>
+  <p><strong>本节特殊关注</strong>：条款 10 / 11 是配对契约。你在 Lesson 0002 自评中给 11 标"认识"、10 标"模糊"——这节课会专门设计代码题<strong>验证 hashCode 契约</strong>是不是真懂。</p>
+</div>
+
+<section>
+  <h2>主题简介</h2>
+  <p>第 3 章聚焦"覆盖 <code>Object</code> 通用方法时的常见陷阱"——主要就是 <code>equals</code>、<code>hashCode</code>、<code>toString</code> 这三个。所有 Java 类默认继承自 <code>Object</code>，所以这些方法的覆盖质量直接影响<strong>所有使用 HashMap / HashSet / 日志 / 调试的场景</strong>。</p>
+  <p>本节 3 条都是高频考点：</p>
+  <ul>
+    <li><strong>条款 10</strong>：<code>equals</code> 覆盖必须满足 5 性质（自反 / 对称 / 传递 / 一致 / 非 null），破任一 → 集合行为诡异</li>
+    <li><strong>条款 11</strong>：<code>equals</code> 相等 ⇒ <code>hashCode</code> 必须相等；反之不要求——HashMap/HashSet 靠这条</li>
+    <li><strong>条款 12</strong>：<code>toString</code> 一定要写好——默认 <code>PhoneNumber@163b91</code> 难调试</li>
+  </ul>
+</section>
+
+<section>
+  <h2>（待生成：脚手架 / 核心原理）</h2>
+  <p class="placeholder-text">这节会先讲 60–90 秒的"equals 5 性质 + hashCode 契约 + toString 默认行为"作为脚手架——待根据 Lesson 0003 反馈决定深浅。</p>
+</section>
+
+<form id="quiz">
+
+<div class="card placeholder-card">
+  <div class="q-meta">条款 10 · 覆盖 equals 遵守通用约定</div>
+  <div class="q-stem placeholder-text">（待生成：题目描述）</div>
+  <pre><code>（待生成：代码片段）</code></pre>
+  <ul class="options">
+    <li><label><input type="radio" name="q1" value="A" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q1" value="B" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q1" value="C" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q1" value="D" disabled><span>（待生成）</span></label></li>
+  </ul>
+  <div class="placeholder-text" style="margin-top: 12px;">（待生成：解析）</div>
+</div>
+
+<div class="card placeholder-card">
+  <div class="q-meta">条款 11 · 覆盖 equals 必覆盖 hashCode</div>
+  <div class="q-stem placeholder-text">（待生成：题目描述）</div>
+  <pre><code>（待生成：代码片段）</code></pre>
+  <ul class="options">
+    <li><label><input type="radio" name="q2" value="A" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q2" value="B" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q2" value="C" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q2" value="D" disabled><span>（待生成）</span></label></li>
+  </ul>
+  <div class="placeholder-text" style="margin-top: 12px;">（待生成：解析）</div>
+</div>
+
+<div class="card placeholder-card">
+  <div class="q-meta">条款 12 · 始终覆盖 toString</div>
+  <div class="q-stem placeholder-text">（待生成：题目描述）</div>
+  <pre><code>（待生成：代码片段）</code></pre>
+  <ul class="options">
+    <li><label><input type="radio" name="q3" value="A" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q3" value="B" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q3" value="C" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q3" value="D" disabled><span>（待生成）</span></label></li>
+  </ul>
+  <div class="placeholder-text" style="margin-top: 12px;">（待生成：解析）</div>
+</div>
+
+<div class="actions">
+  <button type="button" class="primary" disabled>题目待生成</button>
+  <span class="muted">完成 Lesson 0003 后告诉 teacher,本节即可激活</span>
+</div>
+</form>
+
+<footer>
+  <p>配套：<a href="../reference/cheatsheet.html">条款速查表</a> · <a href="0003-generics.html">Lesson 0003</a> · <a href="../MISSION.md">Mission</a></p>
+  <p>设计原则：本节是 LR-0002 标记的"重点关注"——条款 10/11 必须用代码题验证真假理解,不能停留自评。</p>
+</footer>
+
+</div>
+</body>
+</html>

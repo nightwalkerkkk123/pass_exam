@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lesson 0008 · ch7 Lambda 与 Stream（骨架） — Advanced OOP 复习</title>
+<style>
+  :root { --fg: #1a1a1a; --muted: #6b6b6b; --line: #e6e6e6; --bg: #fafaf7; --card: #fff; --accent: #0a6b3a; --warn: #c47b00; --warn-bg: #fffbe6; --code-bg: #f3f3ee; --placeholder-bg: #f5f5f0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif; font-size: 15px; line-height: 1.65; }
+  .wrap { max-width: 780px; margin: 0 auto; padding: 40px 24px 100px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 28px; }
+  .eyebrow { color: var(--muted); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
+  h1 { font-size: 26px; margin: 6px 0 8px; }
+  h2 { font-size: 19px; margin: 36px 0 12px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 16px; margin: 22px 0 8px; }
+  pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; line-height: 1.55; font-size: 13.5px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; }
+  pre code { background: transparent; padding: 0; }
+  .open-cmd { background: var(--code-bg); padding: 6px 10px; border-radius: 4px; font-size: 13px; display: inline-block; margin: 6px 0 12px; }
+  .status-banner { background: var(--warn-bg); border-left: 4px solid var(--warn); padding: 16px 20px; border-radius: 0 6px 6px 0; margin: 18px 0 24px; }
+  .status-banner h3 { margin-top: 0; color: var(--warn); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 18px 20px; margin: 18px 0; }
+  .card.placeholder-card { background: var(--placeholder-bg); border-style: dashed; opacity: 0.7; }
+  .q-meta { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+  .q-stem { font-weight: 600; margin-bottom: 10px; }
+  .options { list-style: none; padding: 0; margin: 0; }
+  .options li { margin: 6px 0; }
+  .options label { display: flex; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; cursor: not-allowed; opacity: 0.6; }
+  .actions { margin: 32px 0 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  button.primary { font: inherit; background: var(--accent); color: white; border: 0; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+  button.primary:disabled { background: #aaa; cursor: not-allowed; }
+  .placeholder-text { color: var(--muted); font-style: italic; }
+  footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Lesson 0008 · 第 7 章批处理</div>
+  <h1>Lambda 与 Stream · 骨架</h1>
+  <p class="muted">覆盖条款 42 / 43 / 44 / 45 / 46。预计 10 分钟（待生成）。</p>
+  <div class="open-cmd">open /Users/wangzihao/Code/pass_exam/advanced_oop/teach/lessons/0008-ch7-lambda-stream.html</div>
+</header>
+
+<div class="status-banner">
+  <h3>📋 本课状态：骨架（待生成题目）</h3>
+  <p>题目将在 teacher 收到 Lesson 0007 反馈后填充。</p>
+</div>
+
+<section>
+  <h2>主题简介</h2>
+  <p>第 7 章是 Java 8 之后的"现代写法"——Lambda、方法引用、标准函数式接口、Stream。5 条都高频：</p>
+  <ul>
+    <li><strong>条款 42</strong>：Lambda 优先于匿名类——<code>(x) -&gt; ...</code> 比 <code>new Runnable() {...}</code> 短</li>
+    <li><strong>条款 43</strong>：方法引用优先于 Lambda——<code>String::length</code> 比 <code>str -&gt; str.length()</code> 更清晰</li>
+    <li><strong>条款 44</strong>：坚持使用标准函数式接口——<code>Function</code>/<code>Predicate</code>/<code>Supplier</code>/<code>Consumer</code> 不要自己造</li>
+    <li><strong>条款 45</strong>：谨慎使用 Stream——滥用会变慢、变难读</li>
+    <li><strong>条款 46</strong>：Stream 中无副作用——<code>forEach</code> 改外部状态是反模式</li>
+  </ul>
+  <p>你在 Lesson 0002 中 ch7 全部 4 条标"不认识",条款 42 标"模糊"——本节是 LR-0002 标记的"集中薄弱区"。</p>
+</section>
+
+<section>
+  <h2>（待生成：脚手架 / 核心原理）</h2>
+  <p class="placeholder-text">可能从"Lambda 是什么"开始——函数式接口(单抽象方法)的简写——再切到"Stream 流水线 = 中间操作 + 终端操作"的双层结构。</p>
+</section>
+
+<form id="quiz">
+  <div class="card placeholder-card">
+    <div class="q-meta">条款 42 · Lambda 优先于匿名类</div>
+    <div class="q-stem placeholder-text">（待生成）</div>
+    <pre><code>（待生成）</code></pre>
+    <ul class="options">
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+    </ul>
+  </div>
+  <div class="card placeholder-card">
+    <div class="q-meta">条款 43 · 方法引用优先于 Lambda</div>
+    <div class="q-stem placeholder-text">（待生成）</div>
+    <pre><code>（待生成）</code></pre>
+    <ul class="options">
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+    </ul>
+  </div>
+  <div class="card placeholder-card">
+    <div class="q-meta">条款 44 · 标准函数式接口</div>
+    <div class="q-stem placeholder-text">（待生成）</div>
+    <pre><code>（待生成）</code></pre>
+    <ul class="options">
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+    </ul>
+  </div>
+  <div class="card placeholder-card">
+    <div class="q-meta">条款 45 · 谨慎使用 Stream</div>
+    <div class="q-stem placeholder-text">（待生成）</div>
+    <pre><code>（待生成）</code></pre>
+    <ul class="options">
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+    </ul>
+  </div>
+  <div class="card placeholder-card">
+    <div class="q-meta">条款 46 · 无副作用的 Stream 函数</div>
+    <div class="q-stem placeholder-text">（待生成）</div>
+    <pre><code>（待生成）</code></pre>
+    <ul class="options">
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+      <li><label><input type="radio" disabled><span>（待生成）</span></label></li>
+    </ul>
+  </div>
+  <div class="actions">
+    <button type="button" class="primary" disabled>题目待生成</button>
+  </div>
+</form>
+
+<footer>
+  <p>配套：<a href="../reference/cheatsheet.html">条款速查表</a> · <a href="0007-ch6-enum-annotation.html">Lesson 0007</a> · <a href="../MISSION.md">Mission</a></p>
+</footer>
+
+</div>
+</body>
+</html>
