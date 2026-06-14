@@ -1,0 +1,269 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>第 1 讲 xv6 缓冲层源码:双锁 + LRU + 缓冲区协议 — xv6-riscv 课堂讲解备课</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .92rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .board { background: #fff8e1; border: 1px dashed #b58900; padding: .8rem 1rem; border-radius: 4px;
+           font-family: "JetBrains Mono", Consolas, monospace; white-space: pre; overflow-x: auto; font-size: .85rem; }
+  .pitfall { background: #fff0f0; border-left: 4px solid #c0392b; padding: .5rem 1rem; }
+  .linux { background: #eef5ff; border-left: 4px solid #2c7be5; padding: .5rem 1rem; margin: .5rem 0; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第 1 讲 · xv6 缓冲层源码精读</h1>
+<p><strong>课堂展示</strong>(老师受众) · 主讲 <code>bio.c</code> 缓冲层 · 板书 1 张图 · 8–10 分钟讲完</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#mission">MISSION</a> · <a href="#analogy">类比</a> · <a href="#data">关键定义</a> ·
+  <a href="#board">板书图</a> · <a href="#code">源码精读</a> · <a href="#intents">5 个设计权衡</a> ·
+  <a href="#linux">Linux 对照</a> · <a href="#quiz">3 道自测</a> · <a href="#qa">老师追问预案</a>
+</div>
+
+<h2 id="mission">🎯 这节课要解决什么</h2>
+<p><strong>5 分钟版</strong>:讲清 xv6 缓冲层三个核心设计 — 双锁、LRU 链表、bread/bwrite/brelse 协议。</p>
+<p><strong>15 分钟版</strong>:5 分钟版 + 5 个设计权衡(含 Linux 对照)+ 3 道自测。</p>
+<p>对应 <a href="../MISSION.md">MISSION</a>:讲清一段 xv6 FS 源码,老师能追问 ext4 / RISC-V 实现细节。</p>
+
+<h2 id="analogy">🧠 一句类比:酒店的前台 + 行李寄存柜</h2>
+<blockquote>
+  <strong>缓冲层 = 行李寄存系统</strong>。<br>
+  客人(进程)进酒店要先存行李再上楼(把磁盘块先取到内存再读写)。<br>
+  <strong>前台(bcache.lock, spinlock)</strong>:管"哪些柜子被占用、哪些空着",改这条信息必须<strong>瞬时完成</strong>。<br>
+  <strong>柜子锁(b->lock, sleeplock)</strong>:管"这个柜子里装什么",可能要去仓库调货(磁盘 IO),可以慢慢来。<br>
+  <strong>LRU</strong>:最久没人取的行李会被踢出去腾地方。
+</blockquote>
+<p><strong>为什么要这个类比</strong>:能讲清为什么需要两种锁(spinlock 不让睡、sleeplock 可以睡)、为什么 LRU(空间有限)。</p>
+
+<h2 id="data">📋 关键定义(讲之前先抛出来)</h2>
+<table>
+  <tr><th>术语</th><th>代码位置</th><th>一句话</th></tr>
+  <tr><td><code>struct buf</code></td><td>buf.h:1-8</td><td>一个磁盘块在内存的缓存对象</td></tr>
+  <tr><td><code>bcache</code> 全局</td><td>bio.c:21-26</td><td>所有 buffer 的 LRU 链表 + spinlock</td></tr>
+  <tr><td><code>NBUF</code></td><td>param.h</td><td>buffer 数量上限(默认 30,极小)</td></tr>
+  <tr><td><code>bread</code> / <code>bwrite</code> / <code>brelse</code></td><td>bio.c:91 / 106 / 112</td><td>三件套:读、写、释放</td></tr>
+  <tr><td><code>bpin</code> / <code>bunpin</code></td><td>bio.c:127 / 133</td><td>钉住 buffer 不让 LRU 淘汰</td></tr>
+</table>
+<p>完整术语见 <a href="../GLOSSARY.md">GLOSSARY.md</a>。</p>
+
+<h2 id="board">📝 板书图(讲台上要画出来)</h2>
+<div class="board">
+xv6 缓冲层 — 一张图讲完
+
+  ┌────────────────────────────────────────────────┐
+  │   struct bcache {                               │
+  │     spinlock  lock;      ← 保护链表结构(纳秒级)  │
+  │     buf       buf[NBUF];                          │
+  │     buf       head;       ← LRU 链表的哨兵节点   │
+  │   }                                              │
+  └────────────────────────────────────────────────┘
+
+  LRU 双向链表(头是最近用,尾是最久没用):
+
+  head ◄──► b[0] ◄──► b[1] ◄──► ... ◄──► b[NBUF-1] ◄──► head
+   ▲                                                          ▲
+   │                                                          │
+   next 方向 = "最近用过的" ────────────────▶ prev 方向 = "最久没用的"
+
+  每个 b 还有自己的 sleeplock(保护 b->data,持锁可睡)
+
+  调用协议:
+  ┌──────────┐
+  │ 进程 P   │  acquire(sleeplock on b)  ┐
+  │  bread() ├────────────────────────────► 在这里读/写 b->data(可以睡)
+  │  bwrite()│  release sleeplock         │  (可包含磁盘 IO)
+  │  brelse()└──────────────────────────-─┘
+  └──────────┘  ──► 原子地把 b 移到 head.next(MRU 端)
+                  释放 sleeplock + 释放 spinlock
+
+  关键点(板书时圈出来):
+  ① spinlock 持锁时间 < 100ns,绝对不能调 IO
+  ② sleeplock 持锁可长达毫秒级(等磁盘)
+  ③ brelse 必被调,否则 LRU 永不更新 → OOM
+</div>
+
+<h2 id="code">🔍 源码精读(bio.c 关键段)</h2>
+
+<h3>1. bget 找 buffer(bio.c:48-77)</h3>
+<pre><code>static struct buf*
+bget(uint dev, uint blockno)
+{
+  acquire(&bcache.lock);
+
+  // Is the block already cached?
+  for(b = bcache.head.next; b != &bcache.head; b = b->next){
+    if(b->dev == dev && b->blockno == blockno){
+      b->refcnt++;
+      release(&bcache.lock);
+      acquiresleep(&b->lock);
+      return b;
+    }
+  }
+
+  // Not cached. Recycle the LRU unused buffer.
+  for(b = bcache.head.prev; b != &bcache.head; b = b->prev){
+    if(b->refcnt == 0) {
+      b->dev = dev;
+      b->blockno = blockno;
+      b->valid = 0;
+      b->refcnt = 1;
+      release(&bcache.lock);
+      acquiresleep(&b->lock);
+      return b;
+    }
+  }
+  panic("bget: no buffers");
+}</code></pre>
+
+<p><strong>逐行讲(给老师用,挑重点)</strong>:</p>
+<ol>
+  <li><code>acquire(&bcache.lock)</code> — "先抢链表锁,这一段不能睡"</li>
+  <li>第一个 <code>for</code> 循环 — "<strong>从头往后扫</strong>(MRU→LRU),命中就 refcnt++ 返回"</li>
+  <li>第二个 <code>for</code> 循环 — "<strong>从尾往前扫</strong>(LRU→MRU),找 refcnt==0 的淘汰"</li>
+  <li><code>release(&bcache.lock)</code> — "<strong>放链表锁</strong>之后才 <code>acquiresleep</code>,这个顺序很关键"(详见设计权衡 1)</li>
+  <li><code>acquiresleep(&b->lock)</code> — "再睡锁保护 buffer 内容"</li>
+</ol>
+
+<p><strong>⚠️ 老师最可能问的点</strong>:为什么两个 <code>for</code> 循环方向相反?第一个"找存在的"从 MRU 端开始效率高(刚用的很可能在前面);第二个"找可淘汰的"从 LRU 端开始(保证真淘汰最久没用的)。</p>
+
+<h3>2. brelse 释放 buffer(bio.c:112-125)</h3>
+<pre><code>void
+brelse(struct buf *b)
+{
+  if(!holdingsleep(&b->lock))
+    panic("brelse");
+  releasesleep(&b->lock);
+
+  acquire(&bcache.lock);
+  b->refcnt--;
+  if (b->refcnt == 0) {
+    // no one is waiting for it.
+    b->next->prev = b->prev;
+    b->prev->next = b->next;
+    b->next = bcache.head.next;
+    b->prev = &bcache.head;
+    bcache.head.next->prev = b;
+    bcache.head.next = b;
+  }
+
+  release(&bcache.lock);
+}</code></pre>
+
+<p><strong>讲法提示</strong>:这是全场最被低估的函数,要做 3 件事:
+① 释放 sleeplock(让别人能用)
+② 拿 spinlock、refcnt--、放 spinlock
+③ **只在 refcnt==0 时**把 b 从当前位置"摘下",重新挂到 head.next(MRU 端)</p>
+
+<p><strong>⚠️ 老师追问点</strong>:为什么释放 sleeplock 在拿 spinlock 之<strong>前</strong>?<strong>答</strong>:锁顺序固定 — sleeplock 永远在 spinlock 之外。如果你先拿 spinlock 再调 releasesleep 就会违反自己定的规则。</p>
+
+<h2 id="intents">🧩 5 个设计权衡(老师追问时用)</h2>
+
+<h3>权衡 1:为什么用两种锁(spinlock + sleeplock)?</h3>
+<p>单一锁(假设全用 spinlock)会有问题:进程在锁内等磁盘 IO 时仍占着 CPU 旋转,系统卡死;单一 sleeplock 又有问题:链表操作必须原子。**双锁粒度匹配**:spinlock 保护"短操作(纳秒)"、sleeplock 保护"长操作(可含 IO)"。</p>
+<div class="linux">
+<strong>Linux 对照</strong>:Linux 用 <code>address_space->i_pages</code> 的 radix tree + 每页 spinlock;xv6 用 LRU 双链表 + 两种锁。<strong>复杂度</strong>:xv6 ~120 行能讲完,Linux page cache 几千行。
+</div>
+
+<h3>权衡 2:为什么 LRU 而不是 LFU / ARC?</h3>
+<p><strong>教学内核原则</strong>:O(1) 替换、代码可读。LRU 从链表头扫到链表尾就够了;LFU 要额外维护访问次数;ARC(IBM 发明)用两个 LRU 列表自动调权重。<strong>xv6 选 LRU 不是因为它最好,是因为它够用且能讲清</strong>。</p>
+<div class="linux">
+<strong>Linux 对照</strong>:Linux page cache 默认是 LRU 改良版 — 分 active/inactive 两个链表,避免一次性把热点挤出去(vivification 问题)。
+</div>
+
+<h3>权衡 3:NBUF=30 这么小,实际能撑多大的 FS?</h3>
+<p>NBUF=30 表示同时缓存 30 个磁盘块(15 KB 内存)。xv6 FS 默认 1000 块,意味着<strong>任何时候至少 97% 的磁盘块不在缓存里</strong>。这显然不是性能设计,是为了<strong>把"缓存 vs 不缓存"的语义逼到极端</strong> — 让学生看明白"buffer cache"是个抽象层,不是魔法。</p>
+
+<h3>权衡 4:为什么 bget 里"释放 spinlock"和"acquiresleep"分两步?为什么不在 spinlock 里面 acquiresleep?</h3>
+<p>因为 sleeplock 可能睡眠等磁盘 IO(虽然这里 bget 还没真读盘,但<strong>acquiresleep 内部会短暂让出 CPU 调度</strong>)。<strong>锁顺序原则</strong>:spinlock 永远在 sleeplock 之外;若反过来,sleeplock 内睡眠时还抱着 spinlock,其他 CPU 永远进不来,死锁。</p>
+
+<h3>权衡 5:为什么 bpin / bunpin 单独存在?</h3>
+<p>正常流程 bread→brelse,refcnt 自然增减。<strong>但日志层</strong>(Day 2)需要:log_write 时,buffer 内容已经在内存里改好,但还没 commit 写盘 — 这时 LRU 不能把它淘汰,否则丢了未提交的数据。bpin 就是"告诉我,这块别 LRU 走"。</p>
+<div class="linux">
+<strong>Linux 对照</strong>:Linux 用 <code>page->flags & PG_locked</code> 或 <code>try_to_unmap</code> 反向保护,概念等价但更复杂。
+</div>
+
+<h2 id="linux">🐧 关键 Linux 对照(老师追问预案)</h2>
+<table>
+  <tr><th>xv6 做法</th><th>ext4 / Linux 做法</th><th>为什么不同</th></tr>
+  <tr><td>NBUF=30 固定数组</td><td>动态分配,受 cgroup 限制</td><td>xv6 教学 vs Linux 生产</td></tr>
+  <tr><td>LRU 单链表</td><td>LRU + active/inactive 双链表</td><td>Linux 怕 vivification</td></tr>
+  <tr><td>双锁(spin+sleep)</td><td>每页 spinlock + 树根 rwlock</td><td>规模差异</td></tr>
+  <tr><td>bpin 手动钉</td><td>PG_locked / PG_dirty 位</td><td>API 风格差异</td></tr>
+  <tr><td>bread 返回 sleeplocked buffer</td><td>getblk → submit_bh → wait</td><td>异步 vs 同步接口</td></tr>
+</table>
+
+<h2 id="quiz">📝 3 道自测(讲完后做,10 分钟)</h2>
+
+<ol>
+  <li>
+    <p><strong>(选择)</strong> xv6 缓冲层中,为什么 bget 函数在第二个 for 循环里"释放 spinlock 之后"才 acquiresleep?</p>
+    <p>A. 节省一次原子操作　B. 避免 spinlock 持锁时间过长导致其他 CPU 饥饿　C. sleeplock 内部会睡眠,违反"spinlock 内不能睡"原则　D. 没有特殊原因,只是 xv6 代码风格</p>
+    <p class="pitfall">答案: <strong>C</strong>。这是锁顺序原则 — spinlock 永远在外面,sleeplock 在里面。bget 第 4 步释放 spinlock 才 acquiresleep,正是为了让 sleeplock 拿到时 spinlock 已经被释放。干扰项 A/B 听起来合理但不是真正原因;D 错。</p>
+  </li>
+  <li>
+    <p><strong>(简答)</strong> 如果 brelse 被某个路径忘记调用,会发生什么?</p>
+    <p class="pitfall">答案: <strong>refcnt 永远不归零 → LRU 永不更新 → 30 个 buffer 全被钉住 → bget 找不到可淘汰的 buffer → panic("bget: no buffers")</strong>。所以"调用方必须调 brelse"是协议级约束,不是优化建议。内核用 <code>holdingsleep</code> 在 bwrite/brelse 入口检查就是防这个。</p>
+  </li>
+  <3>
+    <p><strong>(追问)</strong> xv6 的 LRU 和 Linux 的 active/inactive LRU 相比,主要缺点是什么?</p>
+    <p class="pitfall">答案: <strong>vivification(失活)</strong> — 一个热点 buffer(刚被用过)如果一次性读了大量冷数据,会被挤到 inactive 然后可能被淘汰,即使它本来是热点。Linux 用 active/inactive 两层链表缓解,冷数据先入 inactive 停留一会儿再淘汰。xv6 不解决,因为它假设 NBUF=30 极端情况下 vivification 也不是性能瓶颈。</p>
+  </li>
+</ol>
+
+<h2 id="qa">❓ 老师追问预案(5 个最可能的)</h2>
+
+<table>
+  <tr><th>老师可能问</th><th>答法要点</th></tr>
+  <tr><td>"spinlock 和 sleeplock 怎么实现的?为什么 sleeplock 可以睡?"</td>
+  <td>sleeplock 持锁时若被另一个 CPU 占用,本 CPU <code>sleep(chan, lk)</code> 释放自己的 spinlock 并阻塞;持锁方释放时 <code>wakeup(chan)</code>。spinlock 持锁时不让睡是因为自旋方没机会让出 CPU,持锁方释放不了。</td></tr>
+  <tr><td>"bget 第二个 for 循环用 prev 方向遍历,这是 O(N) 最坏情况;有没有 O(1) 的 LRU?"</td>
+  <td>有 — Linux 用 <code>list_lru</code> + per-node 锁,近似 O(1)。但 xv6 不优化,因为 NBUF=30、CPU 数 ≤ 8,O(N) 完全够。</td></tr>
+  <tr><td>"virtio 磁盘驱动怎么和缓冲层交互的?用了哪些 RISC-V 寄存器?"</td>
+  <td><code>virtio_disk_rw(buf, write)</code>:把 buf 数据 DMA 到 virtio 设备的描述符环,写 <code>VIRTIO_REG_QUEUE_NOTIFY</code> MMIO 寄存器触发设备,等中断(PLIC 路由到 usertrap)。xv6 用 <code>volatile uint32 *</code> 直接读写 MMIO,这是 RISC-V 设备驱动典型模式。</td></tr>
+  <tr><td>"bwrite 调用时是同步还是异步?brelse 释放时数据真的落盘了吗?"</td>
+  <td><strong>同步</strong>。<code>virtio_disk_rw(b, 1)</code> 等设备返回(等中断)才返回,brelse 时数据已落盘。Linux 的 <code>submit_bh</code> 是异步的,这是 xv6 简化。</td></tr>
+  <tr><td>"为什么 bwrite 不在写盘后清掉 valid 位?brelse 不清 dirty 位?"</td>
+  <td>xv6 没 dirty 概念 — 因为写是<strong>同步</strong>的,brelse 时数据已落盘,不需要标记 dirty。Linux page cache 必须有 dirty 位因为写是异步的。</td></tr>
+</table>
+
+<h2>🗣️ 讲稿骨架(10 分钟版本)</h2>
+<ol>
+  <li><strong>0:00–0:30</strong> 开场:"今天讲 xv6 缓冲层,主战场 bio.c,120 行,讲清双锁和 LRU 协议" → 画板书图</li>
+  <li><strong>0:30–1:30</strong> 类比"行李寄存系统",点出"前台锁 vs 柜子锁"</li>
+  <li><strong>1:30–4:00</strong> 逐行过 bget 关键段(两个 for 循环方向相反)</li>
+  <li><strong>4:00–5:30</strong> 过 brelse,讲清"释放 sleeplock 在拿 spinlock 之前"的锁顺序</li>
+  <li><strong>5:30–7:30</strong> 设计权衡 1+2+3(双锁、LRU、NBUF=30),边讲边对照 Linux</li>
+  <li><strong>7:30–8:30</strong> 设计权衡 4+5(锁顺序、bpin),自然引出"为什么需要 bpin → Day 2 日志层"</li>
+  <li><strong>8:30–9:30</strong> 自测 1+2 现场互动</li>
+  <li><strong>9:30–10:00</strong> 一句话收尾:"buffer cache 是抽象层,不是魔法 — 30 个 buffer 也能撑起 1000 块的 FS"</li>
+</ol>
+
+<h2>📚 推荐一手资料</h2>
+<ul>
+  <li>xv6 book Chapter 8 §8.1-8.2(<a href="https://pdos.csail.mit.edu/6.828/2022/xv6/book-riscv-rev3.pdf">官方 PDF</a>)讲 buffer cache 和 logging,英文最容易讲清的设计动机。</li>
+  <li>Linux 5.x <code>mm/filemap.c</code> + <code>fs/buffer.c</code>(老师可能引申,口头说位置即可)</li>
+  <li>MIT 6.1810 Lecture 13-14 文件系统视频(墙内可能不稳,可不依赖)</li>
+</ul>
+
+<h2>🎯 下一步</h2>
+<p>Day 1 讲完,你能用 3 句话复述"xv6 缓冲层干什么",并能在 10 分钟内讲完带板书和 Linux 对照的版本。</p>
+<p>Day 2 进 <code>log.c</code>:xv6 怎么保证"系统崩溃后 FS 还一致"。重点是写前日志 + 事务 + 崩溃恢复 — 老师最爱问"如果断电了会怎样"。</p>
+<p>讲完 Day 1 后写 <a href="../learning-records/0001-bio.md">学习记录 0001</a>,记录"被追问时哪点卡了"。</p>
+
+</body>
+</html>

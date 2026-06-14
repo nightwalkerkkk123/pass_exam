@@ -1,0 +1,305 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>第 2 讲 xv6 写前日志源码:事务 + 崩溃恢复 + log absorption — xv6-riscv 课堂讲解备课</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .92rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .board { background: #fff8e1; border: 1px dashed #b58900; padding: .8rem 1rem; border-radius: 4px;
+           font-family: "JetBrains Mono", Consolas, monospace; white-space: pre; overflow-x: auto; font-size: .85rem; }
+  .pitfall { background: #fff0f0; border-left: 4px solid #c0392b; padding: .5rem 1rem; }
+  .linux { background: #eef5ff; border-left: 4px solid #2c7be5; padding: .5rem 1rem; margin: .5rem 0; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第 2 讲 · xv6 写前日志源码精读</h1>
+<p><strong>课堂展示</strong>(老师受众) · 主讲 <code>log.c</code> 日志层 · 板书 1 张图 · 8–10 分钟讲完</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#mission">MISSION</a> · <a href="#analogy">类比</a> · <a href="#data">关键定义</a> ·
+  <a href="#board">板书图</a> · <a href="#code">源码精读</a> · <a href="#intents">5 个设计权衡</a> ·
+  <a href="#linux">Linux 对照</a> · <a href="#quiz">3 道自测</a> · <a href="#qa">老师追问预案</a>
+</div>
+
+<h2 id="mission">🎯 这节课要解决什么</h2>
+<p><strong>5 分钟版</strong>:讲清 xv6 写前日志的"两阶段提交" — 先把数据写日志,再写 home。</p>
+<p><strong>15 分钟版</strong>:+ 事务并发控制 + 崩溃恢复 + log absorption + 3 个 Linux 对照点。</p>
+<p>对应 <a href="../MISSION.md">MISSION</a>:讲清一段 xv6 FS 源码,老师能追问崩溃一致性 / Linux jbd2 差异。</p>
+
+<h2 id="analogy">🧠 一句类比:银行的"先存草稿、再正式入账"</h2>
+<blockquote>
+  <strong>写前日志 = 转账前先在草稿本上改、确认后再正式入账</strong>。<br>
+  你去银行转账,柜员不会直接改主账本(怕改一半停电账本错乱)。<br>
+  <strong>草稿本(log)</strong>:在另一块固定磁盘区,把所有要改的块先抄一遍。<br>
+  <strong>两阶段提交</strong>:① 把草稿写完(commit)→ ② 把草稿内容搬进主账本(install)→ ③ 擦掉草稿。<br>
+  <strong>如果第 1 步后停电</strong>:草稿在,重启后从草稿恢复。<strong>如果第 2 步后停电</strong>:草稿和主账本都有,重启后检测草稿非空就再装一次(幂等)。
+</blockquote>
+
+<p><strong>口诀</strong>:"<strong>先写日志,再写 home,最后擦日志</strong>" — 老师最爱让你背的一句。</p>
+
+<h2 id="data">📋 关键定义(讲之前先抛出来)</h2>
+<table>
+  <tr><th>术语</th><th>代码位置</th><th>一句话</th></tr>
+  <tr><td><code>struct logheader</code></td><td>log.c:30-33</td><td>日志头:<code>n</code> + <code>block[LOGSIZE]</code></td></tr>
+  <tr><td><code>struct log</code></td><td>log.c:35-43</td><td>日志运行时状态:start/size/outstanding/committing/lh</td></tr>
+  <tr><td><code>LOGSIZE</code></td><td>param.h</td><td>日志最大块数(xv6 默认 30)</td></tr>
+  <tr><td><code>MAXOPBLOCKS</code></td><td>log.c 定义</td><td>单次 FS 系统调用最多能写的块数(默认 10)</td></tr>
+  <tr><td><code>begin_op</code> / <code>end_op</code></td><td>log.c:90 / 109</td><td>FS 系统调用前后调用,标记事务边界</td></tr>
+  <tr><td><code>log_write</code></td><td>log.c:170</td><td>代替 bwrite — 不直接写盘,只记 blockno + bpin</td></tr>
+  <tr><td><code>commit</code></td><td>log.c:152</td><td>三步走:write_log → write_head → install_trans → write_head</td></tr>
+</table>
+<p>完整术语见 <a href="../GLOSSARY.md">GLOSSARY.md</a>。</p>
+
+<h2 id="board">📝 板书图(讲台上要画出来)</h2>
+<div class="board">
+xv6 写前日志 — 一张图讲完 commit 流程
+
+  磁盘布局:
+  ┌─────────┬─────────┬─────────┬─────┬─────────┬─────────┬─────┐
+  │ boot    │ super   │ log     │ ino │ bitmap  │ data    │ ... │
+  │         │ block   │ header  │ des │         │ blocks  │     │
+  └─────────┴─────────┴─────────┴─────┴─────────┴─────────┴─────┘
+                          ▲
+                          │ start = sb->logstart
+                          │ size  = sb->nlog
+                          ▼
+             ┌──────────────────────────────────────┐
+             │ log[0]  = logheader  (n + block[LOGSIZE])│
+             │ log[1]  = copy of home block A        │
+             │ log[2]  = copy of home block B        │
+             │ log[3]  = copy of home block C        │
+             │ ...                                   │
+             │ log[LOGSIZE-1]                        │
+             └──────────────────────────────────────┘
+
+  commit() 流程(板书核心!):
+  ┌──────────────────────────────────────────────────────┐
+  │  begin_op() ── outstanding++ ──┐                     │
+  │                                  │  多次 log_write(buf) │
+  │  ... 修改 buf->data(不写盘)     │   只记 blockno[]      │
+  │                                  │   + bpin(buf)         │
+  │  end_op()  ── outstanding-- ──┘                       │
+  │           │  (最后一个 end_op 触发)                     │
+  │           ▼                                            │
+  │  ┌─────────────────────────────────────────────┐      │
+  │  │ 1. write_log()    拷 buf → log[1..n]        │      │
+  │  │ 2. write_head()   写 log[0]  ← 真实 commit 点│      │
+  │  │ 3. install_trans() 拷 log[1..n] → home      │      │
+  │  │ 4. write_head()   写 log[0].n=0  ← 擦日志   │      │
+  │  └─────────────────────────────────────────────┘      │
+  └──────────────────────────────────────────────────────┘
+
+  崩溃恢复(initlog → recover_from_log):
+  - 读 log[0].n
+  - n > 0 → install_trans(1) 把 log 拷到 home(幂等)
+  - 写 log[0].n=0 擦日志
+</div>
+
+<h2 id="code">🔍 源码精读(log.c 关键段)</h2>
+
+<h3>1. log_write 记 blockno(log.c:170-188)</h3>
+<pre><code>void
+log_write(struct buf *b)
+{
+  int i;
+  acquire(&log.lock);
+  if (log.lh.n >= LOGSIZE || log.lh.n >= log.size - 1)
+    panic("too big a transaction");
+  if (log.outstanding < 1)
+    panic("log_write outside of trans");
+
+  for (i = 0; i < log.lh.n; i++) {
+    if (log.lh.block[i] == b->blockno)   // log absorption
+      break;
+  }
+  log.lh.block[i] = b->blockno;
+  if (i == log.lh.n) {  // Add new block to log?
+    bpin(b);
+    log.lh.n++;
+  }
+  release(&log.lock);
+}</code></pre>
+
+<p><strong>讲法提示(给老师用)</strong>:log_write 做 3 件事,顺序很关键:
+① 抢 <code>log.lock</code>(spinlock,保护内存中的 logheader)
+② 扫 <code>log.lh.block[]</code>,如果 blockno 已存在 → <strong>不增加 n,不 bpin</strong>(log absorption 关键!)
+③ 新 block 才 <code>bpin(b)</code> + <code>log.lh.n++</code>
+④ 放锁</p>
+
+<p><strong>⚠️ 老师追问点 1</strong>:为什么不直接调 bwrite?——因为 bwrite 会立即同步写盘,无法实现"事务合并"。log_write 是"记账",commit 才是"真写"。</p>
+<p><strong>⚠️ 老师追问点 2</strong>:bpin 有什么用?——保护这块 buffer 在 commit 真正发生前<strong>不被 LRU 淘汰</strong>(回到 Day 1 的 bpin 设计)。</p>
+
+<h3>2. commit 三步走(log.c:152-160)</h3>
+<pre><code>static void
+commit()
+{
+  if (log.lh.n > 0) {
+    write_log();     // (1) 拷 cache → log[1..n]
+    write_head();    // (2) 写 logheader(真实 commit 点)
+    install_trans(0); // (3) 拷 log[1..n] → home
+    log.lh.n = 0;
+    write_head();    // (4) 写 logheader.n=0(擦日志)
+  }
+}</code></pre>
+
+<p><strong>讲法提示</strong>:第 (2) 步是<strong>真正的 commit 点</strong>。如果系统在第 (2) 步之后、第 (3) 步之前崩溃:<strong>log[1..n] 在,home 还没改,重启时 install_trans(1) 把 log 拷到 home</strong>(幂等,安全)。</p>
+
+<p><strong>口诀</strong>:"write_head 之后,事务就 commit 了;install_trans 是后台搬运工"。</p>
+
+<h3>3. begin_op / end_op 事务边界(log.c:90-130)</h3>
+<pre><code>void
+begin_op(void)
+{
+  acquire(&log.lock);
+  while(1){
+    if(log.committing){
+      sleep(&log, &log.lock);
+    } else if(log.lh.n + (log.outstanding+1)*MAXOPBLOCKS > LOGSIZE){
+      // this op might exhaust log space; wait for commit.
+      sleep(&log, &log.lock);
+    } else {
+      log.outstanding += 1;
+      release(&log.lock);
+      break;
+    }
+  }
+}
+
+void
+end_op(void)
+{
+  int do_commit = 0;
+  acquire(&log.lock);
+  log.outstanding -= 1;
+  if(log.outstanding == 0){
+    do_commit = 1;
+    log.committing = 1;
+  } else {
+    wakeup(&log);
+  }
+  release(&log.lock);
+
+  if(do_commit){
+    commit();         // 注意:放掉 log.lock 才调 commit!
+    acquire(&log.lock);
+    log.committing = 0;
+    wakeup(&log);
+    release(&log.lock);
+  }
+}</code></pre>
+
+<p><strong>讲法提示</strong>:这是 xv6 日志层"最妙"的一段,讲清 3 个细节:
+① <code>outstanding</code> 计数 → 最后一个 end_op 触发 commit
+② 临界资源(<code>log.lh.n + outstanding*MAXOPBLOCKS > LOGSIZE</code>)防止日志空间耗尽
+③ <strong>commit() 必须在释放 log.lock 之后调</strong> — 因为 commit 内调 <code>bread/bwrite</code> 涉及 sleeplock,持 spinlock 调 sleeplock 会死锁(回到 Day 1 锁顺序)</p>
+
+<h2 id="intents">🧩 5 个设计权衡(老师追问时用)</h2>
+
+<h3>权衡 1:为什么是 redo log 而不是 undo log?</h3>
+<p><strong>Undo log</strong>:先把 home 的"原值"写日志,改 home,崩溃时回滚到原值。<strong>Redo log</strong>:先把"新值"写日志,再装到 home,崩溃时重做。</p>
+<p>xv6 选 redo 因为:<strong>并发事务合并</strong>(log absorption)— 多个系统调用改同一块时,undo 需要保留多个版本,redo 只要"最终新值"。</p>
+<div class="linux">
+<strong>Linux 对照</strong>:ext4 默认是 journaling 模式(类似 redo),但 jbd2 还支持 ordered(只 journal 元数据,数据写 home)和 writeback(都不 journal)。xv6 没分模式,因为教学只留一种。
+</div>
+
+<h3>权衡 2:为什么 outstanding 计数就够了,不用事务 ID 区分?</h3>
+<p>xv6 的"事务"实际上是"<strong>若干并发 FS 系统调用</strong>" — 它们的修改会被合并到下一次 commit。<strong>没有事务 ID、没有回滚、没有隔离性</strong>。这是"组提交(group commit)+ 最终一致性"的最简实现。</p>
+<p>代价:如果某次系统调用 panic,它之前对 buffer 的修改可能已经被下一次 commit 写盘 — 理论上"半成品事务"会被持久化。<strong>xv6 接受这个代价</strong>,因为崩溃恢复时 install_trans 是幂等的。</p>
+
+<h3>权衡 3:为什么 commit 必须在放掉 log.lock 之后才调?</h3>
+<p><strong>锁顺序</strong>:commit 内部调 <code>bread</code> / <code>bwrite</code> → 内部会 <code>acquiresleep</code>。spinlock 持锁时调 sleeplock 会死锁。所以 end_op 第 33 行的写法是<strong>显式</strong>先放 spinlock、再 commit、再拿回 spinlock、清 committing 标志位、wakeup。</p>
+<p>这是 xv6 锁顺序的<strong>最严格</strong>示范,也是老师必问点。</p>
+
+<h3>权衡 4:崩溃恢复的"幂等性"怎么保证?</h3>
+<p><code>install_trans</code> 实现是"<strong>无脑覆盖</strong>" — 把 log[1..n] 的内容 memmove 到 home 块,然后 bwrite。如果系统崩溃时 install_trans 做了一半(部分 home 块被覆盖、部分没有),重启后再调 install_trans(1) 会把<strong>未覆盖</strong>的 home 块再覆盖一次。</p>
+<p><strong>幂等性来源</strong>:每次 install_trans 都从 log[1..n] 拷<strong>完整新值</strong>到 home,而不是"原值+差量"。所以重复执行结果是确定的。</p>
+
+<h3>权衡 5:为什么 LOGSIZE=30、MAXOPBLOCKS=10?</h3>
+<p>约束公式:<code>log.lh.n + outstanding*MAXOPBLOCKS ≤ LOGSIZE</code>。意思是"日志里已有的块 + 所有进行中调用可能写的块 ≤ 日志总容量"。LOGSIZE=30、MAXOPBLOCKS=10 → 最多 3 个并发调用(3*10=30)。</p>
+<p>这是<strong>最简单的事务并发控制</strong>:不是真"并发",是"批处理 + 排队"。Linux jbd2 用事务链表 + 显式 handle,精细但复杂。</p>
+
+<h2 id="linux">🐧 关键 Linux 对照(老师追问预案)</h2>
+<table>
+  <tr><th>xv6 做法</th><th>ext4 / jbd2 做法</th><th>为什么不同</th></tr>
+  <tr><td>整块 redo log</td><td>journal / ordered / writeback 三种</td><td>教学简化 vs 性能调优</td></tr>
+  <tr><td>无事务 ID,outstanding 计数</td><td>handle + transaction 链表</td><td>组提交 vs 真事务</td></tr>
+  <tr><td>崩溃恢复 install_trans 幂等</td><td>jbd2 recovery 也幂等(replay)</td><td>同样思路,实现复杂度差 10 倍</td></tr>
+  <tr><td>LOGSIZE=30 静态</td><td>jbd2 动态,默认 128 MB</td><td>教学 vs 生产</td></tr>
+  <tr><td>单一日志区</td><td>可以 external journal(独立设备)</td><td>xv6 无多设备抽象</td></tr>
+</table>
+
+<h2 id="quiz">📝 3 道自测(讲完后做,10 分钟)</h2>
+
+<ol>
+  <li>
+    <p><strong>(选择)</strong> xv6 写前日志中,"真实 commit 点"是哪个步骤?</p>
+    <p>A. <code>write_log()</code> 写完 log[1..n]　B. <code>write_head()</code> 第一次把 logheader 写盘　C. <code>install_trans()</code> 把 log 内容拷到 home　D. <code>write_head()</code> 第二次写 logheader.n=0</p>
+    <p class="pitfall">答案: <strong>B</strong>。<code>write_head()</code> 第一次写完后,logheader 持久化,系统即使崩溃也能在重启时检测到"有事务未完成"。C 是后台搬运,不是 commit;D 是"擦日志",此时事务已完成。</p>
+  </li>
+  <li>
+    <p><strong>(简答)</strong> log_write 中,为什么要 bpin 被记入日志的 buffer?</p>
+    <p class="pitfall">答案: <strong>防止 LRU 淘汰</strong>。buffer 内容在内存里改好了,日志还没 commit(还没真写盘)。如果 LRU 把它淘汰,这块数据就丢了,bget 又得从磁盘重读(读到的是旧值),事务不完整。bpin 让 refcnt++ 永远不会被 LRU 选中。commit 完后 bunpin。</p>
+  </li>
+  <li>
+    <p><strong>(追问)</strong> 假设系统在 <code>install_trans</code> 中途崩溃(已经覆盖了 home[5]、还没覆盖 home[7]),重启后会发生什么?</p>
+    <p class="pitfall">答案: <strong>安全</strong>。<code>recover_from_log</code> 读到 logheader.n > 0,调 <code>install_trans(1)</code> 重新执行一次 — 它会再次覆盖 home[5](幂等,结果还是新值)并继续覆盖 home[7]。最后 write_head 擦日志。整个过程对 home 是"最终新值",不丢不乱。</p>
+  </li>
+</ol>
+
+<h2 id="qa">❓ 老师追问预案(5 个最可能的)</h2>
+
+<table>
+  <tr><th>老师可能问</th><th>答法要点</th></tr>
+  <tr><td>"为什么 redo 而不是 undo?为什么 5 个权衡里把 redo 放第一?"</td>
+  <td>关键差异:redo 一次 install_trans 就能恢复最终状态(幂等);undo 要保留每个事务的原值,且多个并发事务的原值会冲突。xv6 用 outstanding 计数天然适合 redo。</td></tr>
+  <tr><td>"log absorption 怎么工作?同 block 多次 log_write 会发生什么?"</td>
+  <td>第二次 log_write 扫到 log.lh.block[i] == b->blockno 直接 break,不 bpin、不增加 n。结果:同事务内多次改同一块,日志只记一次;commit 时只 install 一次(用最新 buffer 内容)。</td></tr>
+  <tr><td>"begin_op 里 sleep(&log, &log.lock) 是什么?为什么这么写?"</td>
+  <td>这是 xv6 标准 sleep 模式:&quot;sleep 在 chan 上,释放 lk&quot;。spinlock 持锁时调 sleep 会让所有等 log.lock 的进程一起睡死;所以 sleep 接受的第二个参数就是"释放哪个锁"。这是 Unix 早期 sleep/wakeup 协议。</td></tr>
+  <tr><td>"ext4 的 ordered 模式怎么做的?为什么比 journaling 快?"</td>
+  <td>ordered:只 journal 元数据(如 inode 修改、bitmap 修改),数据块直接写 home。崩溃时:元数据是原子的(要么新、要么旧),数据最多是旧 — 不会"元数据已改但数据没改"的中间态。比 journaling 少一次 IO。</td></tr>
+  <tr><td>"log.committing 标志位存在的意义?不用可以吗?"</td>
+  <td>防止并发 commit:有两个 end_op 同时进来,都看到 outstanding==0,都调 commit() — 会双写日志,可能 panic。committing 标志位让 begin_op 在 commit 期间 sleep(&log) 等待。</td></tr>
+</table>
+
+<h2>🗣️ 讲稿骨架(10 分钟版本)</h2>
+<ol>
+  <li><strong>0:00–0:30</strong> 开场:"今天讲 xv6 写前日志,主战场 log.c,200 行,核心是三步 commit" → 画板书图</li>
+  <li><strong>0:30–1:30</strong> 类比"银行转账先存草稿",点出"先写日志、再写 home、最后擦日志"口诀</li>
+  <li><strong>1:30–3:30</strong> 逐行过 log_write,讲清"记账不写盘"+ log absorption + bpin</li>
+  <li><strong>3:30–5:30</strong> 过 commit,讲清"write_head 才是真实 commit 点"+ 崩溃恢复路径</li>
+  <li><strong>5:30–6:30</strong> 设计权衡 1+2(redo vs undo / outstanding 不分事务)</li>
+  <li><strong>6:30–7:30</strong> 设计权衡 3(commit 必须在放 spinlock 后调)+ 4(幂等性)</li>
+  <li><strong>7:30–8:30</strong> 设计权衡 5(LOGSIZE/MAXOPBLOCKS 约束)+ Linux 对照表</li>
+  <li><strong>8:30–9:30</strong> 自测 1+2 现场互动</li>
+  <li><strong>9:30–10:00</strong> 一句话收尾:"日志层解决的是'崩溃一致性'问题,不是'性能'问题 — ext4 走得更远但本质没变"</li>
+</ol>
+
+<h2>📚 推荐一手资料</h2>
+<ul>
+  <li>xv6 book Chapter 8 §8.3-8.5(<a href="https://pdos.csail.mit.edu/6.828/2022/xv6/book-riscv-rev3.pdf">官方 PDF</a>)讲 logging,英文最容易讲清崩溃恢复路径。</li>
+  <li>Linux <code>fs/jbd2/journal.c</code>(老师可能引申,口头说位置即可)</li>
+  <li>SQLite WAL 模式(<a href="https://www.sqlite.org/wal.html">官方文档</a>)— 也是 redo log,概念对照清晰</li>
+</ul>
+
+<h2>🎯 下一步</h2>
+<p>Day 2 讲完,你能用 3 句话复述"xv6 写前日志怎么工作",并能在 10 分钟内讲完带板书和崩溃恢复路径的版本。</p>
+<p>Day 3 进 <code>fs.c</code>:xv6 怎么"装"文件 — superblock 读盘、dinode 12 个直接块 + 1 个间接块、目录项是 dirent 数组。重点是 <code>bmap()</code> — 文件第 N 块到磁盘第几块的映射函数,老师最爱问"为什么 12 直接 + 1 间接"。</p>
+<p>讲完 Day 2 后写 <a href="../learning-records/0002-log.md">学习记录 0002</a>。</p>
+
+</body>
+</html>

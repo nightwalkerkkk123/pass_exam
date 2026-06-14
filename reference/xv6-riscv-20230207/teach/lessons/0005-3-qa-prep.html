@@ -1,0 +1,141 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>课 5 · 准备 3 个老师追问预案</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.8; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .95rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .task { background: #fff8e1; border: 2px solid #b58900; padding: 1rem 1.2rem; border-radius: 6px; margin: 1.5rem 0; }
+  .verify { background: #eef5ff; border: 1px solid #2c7be5; padding: 1rem 1.2rem; border-radius: 6px; margin: 1rem 0; }
+  .good { background: #f0fff0; border-left: 4px solid #5cb85c; padding: .6rem 1rem; }
+  .bad { background: #fff0f0; border-left: 4px solid #c0392b; padding: .6rem 1rem; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>课 5 · 准备 3 个老师追问预案</h1>
+<p><strong>目标</strong>:老师讲完 5 分钟一定会追问,准备 3 个最可能的问题 + 30 秒答法。</p>
+<p><strong>前提</strong>:读完 <a href="0004-one-sentence-intent.html">课 4</a>,金句写好。</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#why">1. 为什么要准备追问</a> · <a href="#types">2. 老师最爱问 3 类</a> ·
+  <a href="#prepare">3. 准备 3 个预案</a> · <a href="#cant">4. 答不出怎么办</a>
+</div>
+
+<h2 id="why">1. 为什么要准备追问</h2>
+
+<div class="task">
+<strong>关键事实</strong>:讲完 5 分钟,老师至少会追问 1 个问题(可能 2–3 个)。<br><br>
+<strong>3 个原因</strong>:<br>
+① 老师要看你<strong>有没有真懂</strong>,光念代码不算懂<br>
+② 老师要看你<strong>被追问时紧不紧张</strong> — 紧张 = 没真懂<br>
+③ 老师要看你<strong>能不能 30 秒内想清楚</strong> — 死背不算懂
+</div>
+
+<p><strong>对零基础的你</strong>:老师不会问太深的实现(知道你是零基础),大概率问"为什么"和"具体怎么用"。准备 3 个问题命中率 70%+。</p>
+
+<h2 id="types">2. 老师最爱问 3 类(给零基础的版本)</h2>
+
+<h3>类型 A:为什么这样写(50% 概率)</h3>
+<p><strong>形式</strong>:"为什么 <code>bread()</code> 要先看 <code>valid</code> 标签?为什么不每次都直接读磁盘?"</p>
+<p><strong>你的答法</strong>:直接用金句。"因为磁盘很慢,内存很快。能用内存里的就别去磁盘,这样快。"</p>
+
+<h3>类型 B:如果 XX 怎么办(30% 概率)</h3>
+<p><strong>形式</strong>:"如果系统崩溃在 <code>bread()</code> 读到一半会怎样?" 或 "如果两个进程同时调 <code>bread()</code> 读同一块呢?"</p>
+<p><strong>你的答法</strong>:用类比 + 1 句金句。</p>
+<ul>
+  <li>崩溃 → "就像打饭打到一半停电,师傅重新打一份 — 反正最后你拿到的是完整一份" / 答不出就承认"这个我还在学,可能要看更多资料"</li>
+  <li>并发 → "两个同学同时打同一道菜,师傅只炒一盘,两个都拿到同一份" / 答不出就承认</li>
+</ul>
+
+<h3>类型 C:对比/扩展(20% 概率)</h3>
+<p><strong>形式</strong>:"Linux 也是这样读磁盘吗?" 或 "如果没有缓冲层,每次都读磁盘会怎样?"</p>
+<p><strong>你的答法</strong>:</p>
+<ul>
+  <li>"Linux 也用类似思路,只是更复杂 — 它有几十万行代码" / "我目前只读了 xv6,Linux 还没看"</li>
+  <li>"每次都读磁盘,慢 1000 倍。xv6 这个'先查后读'是为了省时间" / 用你的金句</li>
+</ul>
+
+<div class="bad">
+<strong>注意</strong>:老师问类型 C 你大概率答不全。**不要硬答**,直接说"这个我还在学" — 比硬编答案好。
+</div>
+
+<h2 id="prepare">3. 准备 3 个预案(必做)</h2>
+
+<div class="task">
+<strong>🎯 任务(15 分钟,必做)</strong>:从下面 6 个候选问题里挑 3 个(或者自己想 3 个),每个写 30 秒答法。
+</div>
+
+<p><strong>6 个候选问题</strong>(挑 3 个):</p>
+
+<table>
+  <tr><th>问题</th><th>30 秒答法(模板)</th></tr>
+  <tr><td>Q1:为什么先查 <code>valid</code> 不每次都读?</td>
+    <td>"磁盘比内存慢 1000 倍。能用内存里的就别去磁盘,这样省时间。"(直接用金句)</td></tr>
+  <tr><td>Q2:如果 <code>bread()</code> 读到一半系统崩溃会怎样?</td>
+    <td>"读到一半崩溃,下次再读还是从头读 — <code>valid</code> 标签是 0,所以会重读整个块。反正最后拿到的是完整数据。"</td></tr>
+  <tr><td>Q3:如果两个进程同时调 <code>bread()</code> 读同一块?</td>
+    <td>"都先查缓冲池,命中就同时拿到同一份。没命中就都去磁盘读 — 但 xv6 有锁,保证同一时刻只有一个进程真去读。"</td></tr>
+  <tr><td>Q4:缓冲池有多大?装不下怎么办?</td>
+    <td>"xv6 默认 30 个缓冲块,装不下就用'最近最少使用'算法淘汰最久没用的。"(类比:餐盘架放不下就倒掉最久的剩菜)</td></tr>
+  <tr><td>Q5:为什么不把整个文件都读到内存?</td>
+    <td>"文件可能很大(几个 GB),内存装不下。只读要用的块,叫'按需读'。"</td></tr>
+  <tr><td>Q6:Linux 也是这样读磁盘吗?</td>
+    <td>"思路一样,只是更复杂。Linux 的 page cache 更大、淘汰算法更聪明、还支持并发预读。xv6 是教学版,简单。"</td></tr>
+</table>
+
+<p><strong>挑 3 个的策略</strong>:</p>
+<ul>
+  <li>至少挑 1 个 Q1 类型(为什么)— 命中率 50%</li>
+  <li>至少挑 1 个 Q2/Q3 类型(如果怎么办)— 命中率 30%</li>
+  <li>挑 1 个 Q4/Q5/Q6 类型(对比/扩展)— 命中率 20%,被问就赚</li>
+</ul>
+
+<div class="verify">
+<strong>🎯 自检(必做)</strong>:你挑的 3 个预案,大声念 1 遍,每段必须在 <strong>30 秒内</strong> 念完。超过 30 秒就删词。
+</div>
+
+<h2 id="cant">4. 答不出怎么办(必看!)</h2>
+
+<div class="good">
+<strong>3 句万能答法</strong>(被追问答不出时用):
+
+<ol>
+  <li>"这个问题我没仔细看过,可能需要再读一遍代码确认。"</li>
+  <li>"我现在能说的是 [你已经会的部分],但 [追问的具体点] 我需要再学习一下。"</li>
+  <li>"谢谢老师指出,我会再去查资料补充。"</li>
+</ol>
+
+<strong>为什么这 3 句有用</strong>:
+• 老师在意的是<strong>态度</strong>,不是答案完美
+• 承认"我没仔细看"比硬编答案诚实 100 倍
+• 老师经常点你不知道的点,这是教学,不是考试
+</div>
+
+<p><strong>反例(千万别做的事)</strong>:</p>
+<ul>
+  <li>❌ 沉默 10 秒以上</li>
+  <li>❌ 重复一遍问题(显得没听懂)</li>
+  <li>❌ "嗯..."、"呃..."超过 3 次</li>
+  <li>❌ 编一个看起来对的答案(被识破更糟)</li>
+</ul>
+
+<h2>🎯 下一步</h2>
+
+<p>3 件套 + 3 个追问预案都准备好了,讲台内容齐了。下一步是<strong>真讲一遍</strong>。进 <a href="0006-timer-and-recording.html">课 6:计时间 + 录音复盘</a>。</p>
+
+</body>
+</html>

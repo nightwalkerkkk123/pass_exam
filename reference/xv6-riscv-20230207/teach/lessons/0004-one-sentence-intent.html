@@ -1,0 +1,154 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>课 4 · 1 句话讲清"为什么这样写"</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.8; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .95rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .task { background: #fff8e1; border: 2px solid #b58900; padding: 1rem 1.2rem; border-radius: 6px; margin: 1.5rem 0; }
+  .verify { background: #eef5ff; border: 1px solid #2c7be5; padding: 1rem 1.2rem; border-radius: 6px; margin: 1rem 0; }
+  .pattern { background: #fff8e1; border-left: 4px solid #b58900; padding: .8rem 1.2rem; border-radius: 4px; font-family: "JetBrains Mono", Consolas, monospace; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>课 4 · 1 句话讲清"为什么这样写"</h1>
+<p><strong>目标</strong>:为 <code>bread()</code> 写 1 句"金句",讲清这段代码为什么这样设计。整段讲解用这 1 句收尾。</p>
+<p><strong>前提</strong>:读完 <a href="0003-draw-board.html">课 3</a>,图能画好。</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#what">1. 什么是金句</a> · <a href="#pattern">2. 3 种金句模板</a> ·
+  <a href="#write">3. 你写 1 句</a> · <a href="#test">4. 自检 3 遍</a>
+</div>
+
+<h2 id="what">1. 什么是"金句"</h2>
+
+<div class="task">
+<strong>金句</strong> = 1 句 15–25 字的话,讲清"这段代码为什么这样写"。<br><br>
+<strong>它解决的是"为什么"</strong>:<br>
+• 同学听到金句,会想"哦原来是这样" — 这就是理解了设计意图<br>
+• 老师追问 80% 是"为什么"问题,有金句就不慌<br>
+• 金句是讲台的<strong>收尾</strong>,讲完代码后用金句结束,很有力量
+</div>
+
+<p><strong>反例(不是金句)</strong>:</p>
+<ul>
+  <li>"它用了 bget 函数" — 这是<strong>描述</strong>,不是"为什么"</li>
+  <li>"这段代码很巧妙" — 这是<strong>评价</strong>,不说明白巧妙在哪</li>
+  <li>"这体现了 xv6 的设计哲学" — <strong>空话</strong>,等于没说</li>
+</ul>
+
+<p><strong>正例(候选金句)</strong>:</p>
+<blockquote>
+"它把'读'分成 2 步,先用内存里现成的,真没有再真去磁盘 — 这样 99% 的读都不用动磁盘。"
+</blockquote>
+
+<blockquote>
+"它优先用已经读过的数据,这样又快又省。"
+</blockquote>
+
+<blockquote>
+"它先在内存里查,查不到才真去磁盘 — 磁盘慢、内存快,这样能省时间。"
+</blockquote>
+
+<p><strong>共同点</strong>:都回答了"为什么" + 都是 15–25 字 + 都用了"先 X,再 Y"或"快 / 慢"对比。</p>
+
+<h2 id="pattern">2. 3 种金句模板(挑 1 种写)</h2>
+
+<h3>模板 1:对比型(推荐新手用)</h3>
+<div class="pattern">
+"它 [动词 A] 在 [快的地方],不 [动词 B] 在 [慢的地方] — 因为 [原因]。"
+</div>
+<p><strong>例</strong>:"它先查内存,不去真查磁盘 — 因为内存比磁盘快 1000 倍。"</p>
+
+<h3>模板 2:分层型</h3>
+<div class="pattern">
+"它把 [大任务] 分成 [N] 步,每步 [小任务 1] / [小任务 2] — 哪步 [关键点] 就 [做什么]。"
+</div>
+<p><strong>例</strong>:"它把'读磁盘'分成 2 步:先查、再读 — 大部分时候第 1 步就完成。"</p>
+
+<h3>模板 3:取舍型(高级,慎用)</h3>
+<div class="pattern">
+"它用 [方案 A] 不用 [方案 B] — 因为 [关键约束]。"
+</div>
+<p><strong>例</strong>:"它用'先查再读'不用'每次都真读' — 因为磁盘太慢。"</p>
+
+<p><strong>不推荐模板 3</strong>:新手讲不清为什么选 A 不选 B,容易被老师追问"那为什么不用 B"。先用模板 1 或 2。</p>
+
+<h2 id="write">3. 你写 1 句(必做)</h2>
+
+<div class="task">
+<strong>🎯 任务(10 分钟,必做)</strong>:
+<ol>
+  <li>挑模板 1 或 2</li>
+  <li>填进你课 2 挑的类比场景</li>
+  <li>写出 1 句 15–25 字的金句</li>
+  <li>写完大声读 3 遍,听通顺不通顺</li>
+</ol>
+</div>
+
+<p><strong>示例(我推荐 · 模板 1 · 食堂版)</strong>:</p>
+<blockquote>
+"它先查餐盘架,没菜再叫师傅真炒 — 因为 99% 的菜都在架上。"
+</blockquote>
+
+<p><strong>示例(模板 2 · 食堂版)</strong>:</p>
+<blockquote>
+"它把打饭分成 2 步:先看架上有没有,没有再炒 — 大部分时候第 1 步就够。"
+</blockquote>
+
+<p><strong>示例(模板 1 · 快递柜版)</strong>:</p>
+<blockquote>
+"它先扫快递柜,没包裹再叫快递员送 — 99% 的包裹已经在柜里。"
+</blockquote>
+
+<p><strong>示例(模板 2 · 酒店版)</strong>:</p>
+<blockquote>
+"它把'取行李'分成 2 步:先看寄存柜有没有,没有再去仓库取。"
+</blockquote>
+
+<h2 id="test">4. 自检 3 遍(必做)</h2>
+
+<div class="verify">
+<strong>🎯 自检清单</strong>:你的金句要满足全部 4 条:
+
+<ol>
+  <li><strong>15–25 字</strong>(少于 15 字太空,多于 25 字太长)</li>
+  <li><strong>回答"为什么"</strong>(不是"是什么")</li>
+  <li><strong>用了你课 2 的类比词</strong>(类比/图/金句 3 件套风格一致)</li>
+  <li><strong>能 1 口气读完不卡顿</strong>(大声读 3 遍,卡顿就改)</li>
+</ol>
+
+<strong>录音验证</strong>:手机录 1 遍金句,听回放。
+</div>
+
+<p><strong>常见失败 + 改法</strong>:</p>
+<table>
+  <tr><th>失败</th><th>改法</th></tr>
+  <tr><td>"它体现了缓存思想"</td><td>换成具体动词:"它先查缓存,没有真去取"</td></tr>
+  <tr><td>超过 25 字,讲起来喘</td><td>删掉形容词,只留主谓宾</td></tr>
+  <tr><td>没回答"为什么"</td><td>加"因为 ..."从句</td></tr>
+  <tr><td>和类比场景不符</td><td>金句和类比要一致(都用食堂/都用快递柜)</td></tr>
+</table>
+
+<h2>🎯 下一步</h2>
+
+<p>现在 3 件套齐了:① 1 句类比 ② 1 张图 ③ 1 句金句。讲 5 分钟的内容准备好了。</p>
+
+<p>但是 — **5 分钟讲完会被老师追问 1–3 个问题**。你准备的 3 件套大概率不能直接答追问。进 <a href="0005-3-qa-prep.html">课 5:准备 3 个老师追问预案</a>。</p>
+
+</body>
+</html>

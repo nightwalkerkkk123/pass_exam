@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lesson 0010 · 0 地基：程序 / 进程 / 类 / 对象 / 引用 — Advanced OOP 复习</title>
+<style>
+  :root {
+    --fg:#1a1a1a; --muted:#6b6b6b; --line:#e6e6e6; --bg:#fafaf7;
+    --card:#fff; --accent:#0a6b3a; --warn:#c47b00; --warn-bg:#fffbe6;
+    --right:#0a6b3a; --wrong:#b3261e;
+    --code-bg:#f3f3ee; --scaffold-bg:#fffbe6; --callout-bg:#f6f6f0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    font-size:15px; line-height:1.7; }
+  .wrap { max-width:800px; margin:0 auto; padding:40px 24px 100px; }
+  header { border-bottom:1px solid var(--line); padding-bottom:18px; margin-bottom:28px; }
+  .eyebrow { color:var(--muted); font-size:12px; letter-spacing:.05em; text-transform:uppercase; }
+  h1 { font-size:26px; margin:6px 0 8px; }
+  h2 { font-size:19px; margin:36px 0 12px; padding-bottom:4px; border-bottom:1px solid var(--line); }
+  h3 { font-size:16px; margin:22px 0 8px; }
+  p, li { color:var(--fg); }
+  pre { background:var(--code-bg); padding:14px 16px; border-radius:6px; overflow-x:auto; line-height:1.55; font-size:13.5px; }
+  code { font-family:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,monospace; background:var(--code-bg); padding:1px 5px; border-radius:3px; font-size:.92em; }
+  pre code { background:transparent; padding:0; }
+  .open-cmd { background:var(--code-bg); padding:6px 10px; border-radius:4px; font-size:13px; display:inline-block; margin:6px 0 12px; }
+  .scaffold { background:var(--scaffold-bg); border-left:4px solid #d4a017;
+    padding:16px 20px; border-radius:0 6px 6px 0; margin:18px 0 24px; }
+  .scaffold h3 { margin-top:0; }
+  .scaffold ul { padding-left:20px; }
+  .scaffold li { margin:6px 0; }
+  .callout { background:var(--callout-bg); border-left:3px solid var(--accent);
+    padding:12px 16px; border-radius:0 4px 4px 0; margin:14px 0; }
+  .callout.warn { border-left-color:var(--warn); background:#fff8ee; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:7px;
+    padding:18px 20px; margin:18px 0; }
+  .q-meta { color:var(--muted); font-size:13px; margin-bottom:8px; }
+  .q-stem { font-weight:600; margin-bottom:10px; }
+  .options { list-style:none; padding:0; margin:0; }
+  .options li { margin:6px 0; }
+  .options label { display:flex; gap:10px; padding:8px 10px; border:1px solid var(--line); border-radius:5px; cursor:pointer; }
+  .options label:hover { background:#f0f0e8; }
+  .explanation { display:none; margin-top:14px; padding:12px 14px; background:var(--callout-bg);
+    border-left:3px solid var(--accent); border-radius:0 4px 4px 0; font-size:14.5px; }
+  .explanation.show { display:block; }
+  .explanation.wrong { border-left-color:var(--wrong); }
+  .explanation strong { color:var(--accent); }
+  .explanation.wrong strong { color:var(--wrong); }
+  .actions { margin:32px 0 16px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  button.primary { font:inherit; background:var(--accent); color:white; border:0; padding:10px 20px; border-radius:6px; cursor:pointer; }
+  button.secondary { font:inherit; background:var(--fg); color:white; border:0; padding:10px 20px; border-radius:6px; cursor:pointer; }
+  .review-list { display:grid; grid-template-columns:1fr; gap:8px; margin-top:12px; }
+  .review-row { padding:10px 14px; background:var(--card); border:1px solid var(--line); border-radius:5px;
+    display:grid; grid-template-columns:60px 1fr auto; gap:10px; align-items:center; }
+  .review-row.right { border-left:4px solid var(--right); }
+  .review-row.wrong { border-left:4px solid var(--wrong); }
+  #summary { display:none; margin-top:28px; }
+  .speak { background:#fffbe6; border:1px dashed #c47b00; border-radius:6px;
+    padding:14px 18px; margin:14px 0; }
+  .speak h3 { margin-top:0; color:var(--warn); }
+  footer { margin-top:60px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+  @media print { body { background:white; font-size:12px; } .actions, button { display:none; } .explanation { display:block !important; } .card { break-inside:avoid; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Lesson 0010 · 0 地基课</div>
+  <h1>从 0 搭地基：程序 / 进程 / 类 / 对象 / 引用</h1>
+  <p class="muted">为后续所有 Effective Java 条款打底。预计 25-30 分钟。</p>
+  <div class="open-cmd">start E:\CODE\pass_exam\advanced_oop\teach\lessons\0010-java-zero-foundation.html</div>
+</header>
+
+<div class="scaffold">
+  <h3>为什么这一节要先讲?</h3>
+  <p>LR-0001/0002 显示你「零词汇」——但零词汇<strong>不等于零概念</strong>。你脑子里大概率已经有这些画面,只是不知道 Java 里叫啥名字、写在哪个符号上。这节课只做一件事:<strong>把 5 个最底层的词钉死</strong>。后面所有条款(条款 1 静态工厂、条款 2 Builder、条款 10 equals ……)都是在这 5 个词上长出来的。</p>
+  <p>本节<strong>不背任何 Java 语法</strong>,只<strong>用生活类比</strong>。你只需要能"用自己的话复述",不用记代码。</p>
+</div>
+
+<h2>1. 程序 = 写在纸上的菜谱</h2>
+<p>想象你去厨房,墙上贴着一张菜谱:</p>
+<pre><code>红烧肉菜谱:
+  1. 五花肉切块
+  2. 加酱油、料酒、糖
+  3. 小火炖 1 小时</code></pre>
+<p>这张菜谱<strong>只是文字</strong>——它本身不能让你吃到肉。它需要有人真的去厨房做一遍。</p>
+<p><strong>程序(program)</strong> 就是这种"写在磁盘上的菜谱":一串给计算机看的文字/符号,<strong>本身什么也不做</strong>。你双击 QQ.exe,那个 .exe 文件就是程序。</p>
+
+<h2>2. 进程 = 真的在做菜</h2>
+<p>你按菜谱开始炖肉——<strong>这一次做菜的过程</strong>就是进程(process)。</p>
+<p>关键点:</p>
+<ul>
+  <li>菜谱 1 份(程序 1 份),但你<strong>同时炖 2 锅</strong>肉 → 这是<strong>2 个进程</strong>在跑<strong>同一个程序</strong>。</li>
+  <li>每个进程有自己的:炖锅(内存)、灶火开关(寄存器状态)、计时器(程序计数器)。</li>
+  <li>进程是<strong>活的、正在发生的</strong>;程序是<strong>死的、躺在磁盘上的</strong>。</li>
+</ul>
+<div class="callout">
+  <strong>口诀:</strong>程序 = 菜谱(静态),进程 = 正在做菜(动态)。<strong>1 个程序可以跑出 N 个进程</strong>(双开 QQ = 1 程序 2 进程)。
+</div>
+
+<h2>3. 类 = 菜谱里的"红烧肉"模板</h2>
+<p>你现在不只想做红烧肉,还想做糖醋里脊、麻婆豆腐。每道菜都要一张菜谱——<strong>每张菜谱就是 1 个"类"(class)</strong>。</p>
+<p>类就是 Java 里的"模板/图纸",告诉计算机"以后照这个规格造东西":</p>
+<pre><code>// "红烧肉"模板(Java 写法,先不要被符号吓到)
+class RedBraisedPork {
+    String meat;        // 用哪块肉
+    int    minutes;     // 炖几分钟
+}</code></pre>
+<p>类<strong>本身不是肉</strong>——它只是一张<strong>规格单</strong>。规格单不顶饱。</p>
+
+<h2>4. 对象 = 按规格做出来的那锅肉</h2>
+<p>你拿着"红烧肉模板"去厨房——真的做出一锅,这一锅就是一个<strong>对象(object)</strong>。</p>
+<p>关键点:</p>
+<ul>
+  <li>类(模板) → 决定"对象长啥样"</li>
+  <li>对象(实例) → 真的在内存里占地方的那锅肉</li>
+  <li><strong>1 个类可以造出 N 个对象</strong>——同样一份红烧肉模板,可以做 5 锅给 5 桌客人</li>
+</ul>
+<div class="callout">
+  <strong>口诀:</strong>类 = 模具,对象 = 模具压出来的成品。
+</div>
+
+<h2>5. 引用 = "我手上拿着 3 号锅的取餐牌"</h2>
+<p>你厨房里有 5 锅红烧肉,你自己记不住哪锅是哪锅——你给每锅肉贴个<strong>取餐牌</strong>。</p>
+<p>取餐牌<strong>不是肉</strong>——它只是写着"3 号锅"的纸条。<strong>你撕掉纸条</strong>,锅还在;<strong>3 号锅倒掉</strong>,纸条指向的"肉"也消失了。</p>
+<p>在 Java 里,这个<strong>取餐牌</strong>叫<strong>引用(reference)</strong>:</p>
+<pre><code>RedBraisedPork a = new RedBraisedPork();   // 做了 1 锅,拿到 1 张取餐牌 a
+RedBraisedPork b = a;                       // 把 a 那张牌复印一张给 b
+// 现在 a 和 b 都指向"同一锅肉"
+a.meat = "五花肉";  // 用 a 改,肉变了
+System.out.println(b.meat);  // 印出 "五花肉"——因为是同一锅</code></pre>
+<p>关键点:</p>
+<ul>
+  <li><strong>引用是"地址条",对象是"那锅肉"</strong>。</li>
+  <li>两个引用可以指向同一个对象(同一个取餐牌,两人都能取)。</li>
+  <li>没有引用指向的对象,Java 会在某个时间点自动回收(锅没人取了,后厨清理掉)。</li>
+</ul>
+<div class="callout">
+  <strong>口诀:</strong>引用 = 地址条;对象 = 地址条指向的"那锅肉"。<strong>地址条不是肉,撕掉地址条,肉可能被后厨清掉</strong>。
+</div>
+
+<h2>6. 把 5 个词串成一张图</h2>
+<pre><code>磁盘上的 RedBraisedPork.class    →  类(模板)
+        ↓ Java 读到内存
+new RedBraisedPork()              →  在堆里造出 1 个对象
+        ↓ 同时给你
+RedBraisedPork a = ...            →  a 是引用(地址条),指向那个对象
+        ↓ 双击图标
+操作系统创建 1 个进程             →  这个进程里跑着这段代码</code></pre>
+
+<h2>7. 复述检验:用你自己的话讲一遍</h2>
+<div class="speak">
+  <h3>请用大白话复述(不查资料,直接写或说出来)</h3>
+  <ol>
+    <li>程序和进程有什么区别?举一个生活例子。</li>
+    <li>类和对象是什么关系?</li>
+    <li>引用是什么?<code>RedBraisedPork a = b;</code> 之后,a 和 b 是同一个对象吗?为什么?</li>
+  </ol>
+  <p>能讲出来 → 这 5 个词钉死了,可以进 OOP 入门。<br>讲不出来 → 把上面 5 节再读 1 遍,然后再讲。</p>
+</div>
+
+<h2>8. 4 道选择题(不打分,只为再过一遍)</h2>
+<form id="quiz">
+
+<div class="card" data-q="1" data-correct="B">
+  <div class="q-meta">概念 1 · 程序 vs 进程</div>
+  <div class="q-stem">桌上有 1 张红烧肉菜谱,你同时炖了 3 锅。请问:几个程序,几个进程?</div>
+  <ul class="options">
+    <li><label><input type="radio" name="q1" value="A"><span>A. 3 个程序,1 个进程</span></label></li>
+    <li><label><input type="radio" name="q1" value="B"><span>B. 1 个程序,3 个进程</span></label></li>
+    <li><label><input type="radio" name="q1" value="C"><span>C. 3 个程序,3 个进程</span></label></li>
+    <li><label><input type="radio" name="q1" value="D"><span>D. 1 个程序,1 个进程</span></label></li>
+  </ul>
+  <div class="explanation"><strong>答案:B。</strong> 1 张菜谱 = 1 个程序(静态);3 锅在炖 = 3 个进程(动态)。OpenOffice 双开文档,1 个程序文件,2 个进程,道理一样。</div>
+</div>
+
+<div class="card" data-q="2" data-correct="C">
+  <div class="q-meta">概念 2 · 类 vs 对象</div>
+  <div class="q-stem">关于类和对象,哪个说法<strong>不对</strong>?</div>
+  <ul class="options">
+    <li><label><input type="radio" name="q2" value="A"><span>A. 类是模板,对象是按模板做出来的"成品"</span></label></li>
+    <li><label><input type="radio" name="q2" value="B"><span>B. 1 个类可以造出多个对象</span></label></li>
+    <li><label><input type="radio" name="q2" value="C"><span>C. 对象比类先存在(先有对象,再有类)</span></label></li>
+    <li><label><input type="radio" name="q2" value="D"><span>D. 类不占内存,对象占内存</span></label></li>
+  </ul>
+  <div class="explanation"><strong>答案:C。</strong> 类(模板)必须先写出来,才能照着做对象。C 反了。A/B/D 都对(对象在堆里占空间,类的元信息在方法区,常驻)。</div>
+</div>
+
+<div class="card" data-q="3" data-correct="A">
+  <div class="q-meta">概念 3 · 引用</div>
+  <div class="q-stem">关于引用,哪个说法<strong>最准</strong>?</div>
+  <ul class="options">
+    <li><label><input type="radio" name="q3" value="A"><span>A. 引用是"地址条",对象是"地址条指向的那锅肉"</span></label></li>
+    <li><label><input type="radio" name="q3" value="B"><span>B. 引用和对象是同一个东西的两种叫法</span></label></li>
+    <li><label><input type="radio" name="q3" value="C"><span>C. 一个对象只能有 1 个引用指向它</span></label></li>
+    <li><label><input type="radio" name="q3" value="D"><span>D. 引用一多,对象就被复制了</span></label></li>
+  </ul>
+  <div class="explanation"><strong>答案:A。</strong> B 错(不是同一个东西);C 错(可以多个引用指向同一对象);D 错(引用一多,只是多了"取餐牌",肉还是那锅肉)。</div>
+</div>
+
+<div class="card" data-q="4" data-correct="D">
+  <div class="q-meta">概念 4 · 综合</div>
+  <div class="q-stem">运行下面代码后,印出什么?</div>
+<pre><code>RedBraisedPork a = new RedBraisedPork();
+a.meat = "五花肉";
+RedBraisedPork b = a;
+a = null;                      // 把 a 这张牌扔了
+System.out.println(b.meat);    // 用 b 这张牌看</code></pre>
+  <ul class="options">
+    <li><label><input type="radio" name="q4" value="A"><span>A. null(因为 a 没了)</span></label></li>
+    <li><label><input type="radio" name="q4" value="B"><span>B. 编译报错</span></label></li>
+    <li><label><input type="radio" name="q4" value="C"><span>C. 抛 NullPointerException</span></label></li>
+    <li><label><input type="radio" name="q4" value="D"><span>D. 五花肉(对象还活着)</span></label></li>
+  </ul>
+  <div class="explanation"><strong>答案:D。</strong> a 和 b 之前都指向同一锅肉;a 被撕掉(b = a 之后 b 自己也是一张牌),b 那张牌还在,肉没被清掉。这是"引用 vs 对象"分得清不清的经典题——A/C 是把"扔掉 a"当成"扔掉对象"的常见错。</div>
+</div>
+
+<div class="actions">
+  <button type="button" id="submitBtn" class="primary">提交并查看解析</button>
+  <button type="button" id="resetBtn" class="secondary">重置</button>
+</div>
+</form>
+
+<div id="summary">
+  <h2>本课结果</h2>
+  <div class="review-list" id="reviewList"></div>
+  <h3>下一步</h3>
+  <ul>
+    <li>4 道全对 + 复述能讲 → 写 LR-0003「地基完成」,下一节进 Lesson 0011(OOP 三件套:封装 / 继承 / 多态,还是用类比)。</li>
+    <li>1-2 道错 → LR 标"概念有缝隙",我们 5 分钟复述一下错的地方,再进 0011。</li>
+    <li>3 道以上错 → 退回再读一遍,做口头复述 3 次,再来一遍。</li>
+  </ul>
+  <p>完成后告诉我「4 题错 X」+ 3 个复述题你能答出几个,我直接写学习记录。</p>
+</div>
+
+<footer>
+  <p>配套:<a href="0001-diagnostic.html">Lesson 0001 诊断</a> · <a href="0002-vocabulary.html">Lesson 0002 词汇</a> · <a href="../MISSION.md">Mission</a></p>
+  <p>本节是 LR-0001/0002 标注的"零词汇"修正入口——把底层类比钉死,后面所有条款才有挂钩。</p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById('quiz');
+  var submitBtn = document.getElementById('submitBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var summary = document.getElementById('summary');
+  var reviewList = document.getElementById('reviewList');
+  var cards = form.querySelectorAll('.card');
+
+  submitBtn.addEventListener('click', function () {
+    var right = 0;
+    var rows = [];
+    cards.forEach(function (c) {
+      var name = c.querySelector('input[type=radio]').name;
+      var sel = form.querySelector('input[name="' + name + '"]:checked');
+      var exp = c.querySelector('.explanation');
+      var correct = c.dataset.correct;
+      var meta = c.querySelector('.q-meta').textContent;
+      var ok = sel && sel.value === correct;
+      if (ok) right++;
+      exp.classList.add('show');
+      exp.classList.toggle('wrong', !ok);
+      rows.push({ meta: meta, ok: ok, ans: correct });
+    });
+    reviewList.innerHTML = '';
+    rows.forEach(function (r) {
+      var div = document.createElement('div');
+      div.className = 'review-row ' + (r.ok ? 'right' : 'wrong');
+      div.innerHTML = '<span style="font-weight:600">' + (r.ok ? '✓' : '✗') + '</span>' +
+                      '<span>' + r.meta + '</span>' +
+                      '<span style="color:' + (r.ok ? 'var(--right)' : 'var(--wrong)') + ';font-weight:600">' + (r.ok ? '对' : '错(答 ' + r.ans + ')') + '</span>';
+      reviewList.appendChild(div);
+    });
+    summary.style.display = 'block';
+    summary.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  resetBtn.addEventListener('click', function () {
+    form.reset();
+    cards.forEach(function (c) {
+      var exp = c.querySelector('.explanation');
+      exp.classList.remove('show', 'wrong');
+    });
+    summary.style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+})();
+</script>
+</body>
+</html>

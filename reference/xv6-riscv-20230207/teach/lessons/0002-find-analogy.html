@@ -1,0 +1,166 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>课 2 · 找一句生活类比 — 5 秒钟让同学懂</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.8; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .95rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .task { background: #fff8e1; border: 2px solid #b58900; padding: 1rem 1.2rem; border-radius: 6px; margin: 1.5rem 0; }
+  .verify { background: #eef5ff; border: 1px solid #2c7be5; padding: 1rem 1.2rem; border-radius: 6px; margin: 1rem 0; }
+  .good { background: #f0fff0; border-left: 4px solid #5cb85c; padding: .6rem 1rem; }
+  .bad { background: #fff0f0; border-left: 4px solid #c0392b; padding: .6rem 1rem; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>课 2 · 找一句生活类比</h1>
+<p><strong>目标</strong>:为 <code>bread()</code> 找一句生活场景,同学 5 秒钟能秒懂 "xv6 怎么读一个磁盘块"。</p>
+<p><strong>前提</strong>:读完 <a href="0001-read-bio-bread.html">课 1</a>,能口头说清 <code>bread()</code> 在干什么。</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#what">1. 什么是"好类比"</a> · <a href="#candidate">2. 6 个候选类比</a> ·
+  <a href="#judge">3. 怎么挑 1 个</a> · <a href="#write">4. 写一句开场白</a> · <a href="#test">5. 找同学测一下</a>
+</div>
+
+<h2 id="what">1. 什么是"好类比"</h2>
+
+<div class="good">
+<strong>好类比 = 同学 0 基础也能秒懂,而且能记住。</strong><br><br>
+3 个判定标准:<br>
+① 场景是同学<strong>真实生活里见过</strong>的(食堂、图书馆、酒店、快递柜,不是"分布式系统"、"微服务")<br>
+② <strong>代码里的每个 C 字段</strong>都能在场景里找到对应物(磁盘块 → 快递包裹;档案袋 → 取件码;有效位 → "已取过"标签)<br>
+③ 你能用 <strong>1 句话讲完</strong>,不用停顿
+</div>
+
+<div class="bad">
+<strong>坏类比</strong> = 用"我知道但同学不知道"的场景,或需要解释 30 秒以上才懂。<br>
+例:"xv6 缓冲层就像分布式缓存系统" — 同学没听过分布式缓存,等于没说。
+</div>
+
+<h2 id="candidate">2. 6 个候选类比(挑 1 个)</h2>
+
+<p>我列了 6 个候选,都是真实生活场景,你挑 1 个最顺嘴的。</p>
+
+<table>
+  <tr><th>#</th><th>类比</th><th>对应代码</th><th>开场白</th></tr>
+
+  <tr><td>1</td>
+    <td><strong>快递柜</strong></td>
+    <td>磁盘 = 快递公司仓库<br>磁盘块 = 1 个包裹<br>档案袋 = 取件码 + 包裹<br>缓冲池 = 快递柜格子</td>
+    <td>"xv6 读磁盘块,就像你去快递柜取包裹 — 先扫码看柜里有没有,有就拿走;没有就让快递员真送来。"</td></tr>
+
+  <tr><td>2</td>
+    <td><strong>食堂打饭</strong></td>
+    <td>磁盘 = 食堂后厨<br>磁盘块 = 1 盘菜<br>档案袋 = 餐盘<br>缓冲池 = 餐盘架</td>
+    <td>"xv6 读磁盘块,就像去食堂打饭 — 先看餐盘架上有没有你要的菜,有就端走;没有就让师傅真炒一盘。"</td></tr>
+
+  <tr><td>3</td>
+    <td><strong>酒店行李寄存</strong></td>
+    <td>磁盘 = 酒店仓库<br>磁盘块 = 1 件行李<br>档案袋 = 寄存牌<br>缓冲池 = 寄存柜</td>
+    <td>"xv6 读磁盘块,就像酒店行李寄存 — 先看寄存柜里有没有你的行李,有就拿走;没有让服务员去仓库真取。"</td></tr>
+
+  <tr><td>4</td>
+    <td><strong>图书馆借书</td>
+    <td>磁盘 = 图书馆书库<br>磁盘块 = 1 本书<br>档案袋 = 借书卡<br>缓冲池 = 阅览桌</td>
+    <td>"xv6 读磁盘块,就像去图书馆借书 — 先看阅览桌上有那本书没,有就拿走;没有让管理员去书库真取。"</td></tr>
+
+  <tr><td>5</td>
+    <td><strong>自动售货机</td>
+    <td>磁盘 = 工厂仓库<br>磁盘块 = 1 瓶饮料<br>档案袋 = 选中的位置<br>缓冲池 = 售货机货架</td>
+    <td>"xv6 读磁盘块,就像自动售货机出货 — 先看货架上有没有,有就掉下来;没有让物流去工厂真发。"</td></tr>
+
+  <tr><td>6</td>
+    <td><strong>外卖柜</td>
+    <td>磁盘 = 餐厅厨房<br>磁盘块 = 1 份外卖<br>档案袋 = 取餐码<br>缓冲池 = 外卖柜格子</td>
+    <td>"xv6 读磁盘块,就像去外卖柜取餐 — 先扫码看柜子里有没有,有就拿走;没有让骑手真送一份。"</td></tr>
+</table>
+
+<p><strong>这 6 个有什么区别?</strong></p>
+<ul>
+  <li><strong>1 和 6</strong>(快递柜/外卖柜)最现代,同学最熟,但有个"取件码要先扫"细节可能让类比复杂</li>
+  <li><strong>2 和 3</strong>(食堂/酒店)最直观,场景简单,推荐新手用</li>
+  <li><strong>4</strong>(图书馆)有"管理员去书库"细节,很贴切</li>
+  <li><strong>5</strong>(售货机)最短最利索,但同学可能不熟"出货"流程</li>
+</ul>
+
+<h2 id="judge">3. 怎么挑 1 个</h2>
+
+<div class="task">
+<strong>🎯 任务(5 分钟,必做)</strong>:从上表挑 1 个类比,然后做 1 件事 — <strong>对你能立刻找到的 1 个同学 / 家人说一遍开场白,看对方能不能 5 秒内点头说"懂了"</strong>。
+</div>
+
+<p>判断标准:</p>
+<ol>
+  <li>对方没听完就打断问你 → 类比有问题,换 1 个</li>
+  <li>对方点头说"懂了"但眼神迷茫 → 类比没真懂,换 1 个</li>
+  <li>对方能用自己的话复述"哦就是先看有没有嘛" → **挑对了**</li>
+</ol>
+
+<p><strong>如果都不满意</strong>:不要硬上,翻 <a href="https://www.google.com/search?q=%E5%AD%A6%E7%94%9F%E5%B8%B8%E8%A7%81%E7%B1%BB%E6%AF%94+%E6%96%87%E4%BB%B6">学生常见类比(自己搜)</a>或自己想 1 个,只要符合"3 个标准"就行。</p>
+
+<h2 id="write">4. 写一句开场白(30 秒必做)</h2>
+
+<div class="verify">
+<strong>🎯 任务</strong>:把挑好的类比,改写成<strong>一句 20–30 字的口语开场白</strong>。格式:<br>
+<br>
+"<code>bread()</code> 这个函数在做的事,就像 [场景]。[一句话讲清对应关系]。"
+</div>
+
+<p><strong>示例(我推荐 2 号 · 食堂打饭)</strong>:</p>
+<blockquote>
+"<code>bread()</code> 这个函数在做的事,就像你去食堂打饭 — 先看餐盘架上有没有你要的菜,有就端走;没有就让师傅真炒一盘。"
+</blockquote>
+
+<p><strong>示例(1 号 · 快递柜)</strong>:</p>
+<blockquote>
+"<code>bread()</code> 这个函数在做的事,就像你去快递柜取包裹 — 先扫码看柜里有没有,有就拿走;没有就让快递员真送来。"
+</blockquote>
+
+<p><strong>口诀</strong>:</p>
+<ul>
+  <li><strong>20–30 字</strong> — 太短不像类比,太长像说明文</li>
+  <li><strong>必须有 2 步</strong> — "先 X,没有 Y" — 缺一不可</li>
+  <li><strong>用"就像"</strong> 开头,不用"类似于"或"可以看作"(后者更书面)</li>
+</ul>
+
+<h2 id="test">5. 找 1 个人测一下(关键!)</h2>
+
+<div class="verify">
+<strong>🎯 任务(10 分钟,必做)</strong>:找 1 个不懂 FS 的同学 / 家人,只对你说一句开场白(不画图、不念代码、不解释),然后问 3 个问题:
+
+<ol>
+  <li>"我刚才在讲什么?"(看对方能否抓住"读"这个动词)</li>
+  <li>"这个类比里,谁是 xv6?"(看对方能否映射"打饭的人=读磁盘块的程序")</li>
+  <li>"如果 5 分钟后再问你,你能记住吗?"(看类比有没有锚点)</li>
+</ol>
+
+<strong>如果 3 个问题对方都答得上来</strong>:这节课过了。<br>
+<strong>如果答不上来</strong>:换 1 个类比重做。
+</div>
+
+<p><strong>最常见的失败</strong>:</p>
+<ul>
+  <li>类比太"专业"("就像 inode cache 替换")→ 同学更糊涂</li>
+  <li>类比缺 2 步(只说"像打饭"不讲先看有没有)→ 同学没懂关键</li>
+  <li>类比太"诗意"("像时光机")→ 同学觉得有意思但抓不到点</li>
+</ul>
+
+<h2>🎯 下一步</h2>
+
+<p>类比找好了,5 分钟讲台有 1 句开场白了。进 <a href="0003-draw-board.html">课 3:白板画一张图</a> — 我教你怎么把"打饭"画成 1 张白板能画的流程图。</p>
+
+</body>
+</html>

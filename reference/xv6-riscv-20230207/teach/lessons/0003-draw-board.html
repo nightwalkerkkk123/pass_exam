@@ -1,0 +1,176 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>课 3 · 白板画一张图 — 把类比画下来</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.8; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .95rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .task { background: #fff8e1; border: 2px solid #b58900; padding: 1rem 1.2rem; border-radius: 6px; margin: 1.5rem 0; }
+  .verify { background: #eef5ff; border: 1px solid #2c7be5; padding: 1rem 1.2rem; border-radius: 6px; margin: 1rem 0; }
+  .board { background: #fff8e1; border: 1px dashed #b58900; padding: 1rem 1.2rem; border-radius: 4px;
+           font-family: "JetBrains Mono", Consolas, monospace; white-space: pre; overflow-x: auto; font-size: .9rem; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>课 3 · 白板画一张图</h1>
+<p><strong>目标</strong>:把 <code>bread()</code> 7 行 + 你的类比,画成 1 张白板能徒手画出的图。</p>
+<p><strong>前提</strong>:读完 <a href="0002-find-analogy.html">课 2</a>,挑好类比。</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#rule">1. 板书图 3 个原则</a> · <a href="#template">2. 通用模板</a> ·
+  <a href="#demo">3. 范例(食堂版)</a> · <a href="#mine">4. 你画一遍</a> · <a href="#time">5. 计时 60 秒</a>
+</div>
+
+<h2 id="rule">1. 板书图 3 个原则</h2>
+
+<div class="task">
+<strong>原则 1:60 秒画完</strong><br>
+讲台时间宝贵,板书超过 90 秒就拖了节奏。<strong>你的图必须 60 秒内能徒手画完</strong>。
+</div>
+
+<div class="task">
+<strong>原则 2:只画 3–5 个元素</strong><br>
+多 1 个元素 = 多 10 秒 + 同学多 1 个要记的。<br>
+**推荐上限 5 个** (例:1 个起点 + 1 个判断 + 2 个终点 + 1 个返回箭头)
+</div>
+
+<div class="task">
+<strong>原则 3:画 1 个判断,不是 1 个过程</strong><br>
+不要画"详细 IO 时序图",画"1 个菱形判断 + 2 个出口"。<br>
+同学看到图能秒懂"哦有个判断",然后听你讲。
+</div>
+
+<h2 id="template">2. 通用模板(适用于所有"先查后取"型代码)</h2>
+
+<div class="board">
+  ┌──────────┐
+  │  调用方  │ (你)
+  └────┬─────┘
+       │ "请给我 dev 磁盘上第 blockno 块"
+       ▼
+  ┌──────────────────┐
+  │  缓冲池里有这块? │ ◄──── 1 个菱形判断
+  └────┬─────────┬───┘
+       │ 是       │ 否
+       ▼          ▼
+  ┌────────┐  ┌──────────────┐
+  │ 拿走   │  │ 真去磁盘读    │
+  │ 返回   │  │ 读完返回      │
+  └────┬───┘  └────┬─────────┘
+       │            │
+       └─────┬──────┘
+             ▼
+        ┌──────────┐
+        │  返回结果 │ (档案袋)
+        └──────────┘
+</div>
+
+<p><strong>这张图能用 60 秒画完吗?</strong> — 不能,因为太多方框。<strong>我们精简成 4 元素</strong>:</p>
+
+<div class="board">
+  简化版(4 元素):
+
+  调用方 ─► 缓冲池(里面有?) ── 是 ─► 直接返回
+                │
+                │ 否
+                ▼
+            磁盘(真去读) ──► 返回
+
+  重点: 1 个判断 + 2 条路径
+</div>
+
+<h2 id="demo">3. 范例(食堂打饭版)</h2>
+
+<p>假设你在课 2 选了 <strong>食堂打饭</strong> 类比,板书图长这样:</p>
+
+<div class="board">
+  食堂打饭版板书图(60 秒可画):
+
+  同学打饭:
+  ┌────────────┐
+  │  餐盘架   │ (buffer cache)
+  │  有这道菜? │
+  └─────┬──────┘
+     有  │  没有
+    ┌────┴────┐
+    ▼         ▼
+  端走     叫师傅真炒
+    │         │
+    └────┬────┘
+         ▼
+      端着菜走
+</div>
+
+<p><strong>画法步骤(60 秒拆解)</strong>:</p>
+<ol>
+  <li><strong>0:00–0:20</strong> 画 1 个大方框,里面写"餐盘架"和"有这道菜?"(20 秒)</li>
+  <li><strong>0:20–0:35</strong> 从方框画 2 条分叉,一条写"有"、一条写"没有"(15 秒)</li>
+  <li><strong>0:35–0:50</strong> 在 2 条线终点各写 1 个词("端走"和"叫师傅真炒")(15 秒)</li>
+  <li><strong>0:50–1:00</strong> 画 1 条汇聚线 + "端着菜走"收尾(10 秒)</li>
+</ol>
+
+<h2 id="mine">4. 你画一遍(必做)</h2>
+
+<div class="task">
+<strong>🎯 任务(15 分钟,必做)</strong>:
+<ol>
+  <li>找一张白纸(或者 iPad / 任何能画画的工具)</li>
+  <li>拿出你课 2 挑的类比</li>
+  <li>用 4 元素模板,画 1 张图(目标 60 秒)</li>
+  <li>画完拍张照保存,讲台可以用</li>
+</ol>
+</div>
+
+<p><strong>画的 3 个检查点</strong>:</p>
+<ul>
+  <li>看图的同学能不能 5 秒内说"哦就是先看有没有"?(懂不懂)</li>
+  <li>图里有没有出现任何 C 字段(没有就对了,只用生活词)(简不简)</li>
+  <li>你能不能一边指着图一边讲完整个 2 步流程(顺不顺)</li>
+</ul>
+
+<div class="verify">
+<strong>🎯 自检(必做)</strong>:把图拿给 1 个不懂 FS 的同学看,只说"看 3 秒,然后告诉我这张图在讲什么"。如果对方能说"先看有没有、没有就真去取",就过了。
+</div>
+
+<h2 id="time">5. 计时练习(关键!)</h2>
+
+<div class="task">
+<strong>🎯 任务(10 分钟,必做)</strong>:拿手机计时,从你拿起笔开始到画完 1 张图,看用了多少秒。
+</div>
+
+<p><strong>目标</strong>:</p>
+<ul>
+  <li><strong>60 秒以内</strong> — 合格,讲台够用</li>
+  <li><strong>40 秒以内</strong> — 优秀,留时间讲</li>
+  <li><strong>超过 90 秒</strong> — 元素太多或没练熟,继续画到 60 秒内</li>
+</ul>
+
+<p><strong>画 5 遍的进步曲线(预期)</strong>:</p>
+<ul>
+  <li>第 1 遍:90+ 秒(还在想位置)</li>
+  <li>第 2 遍:70 秒(开始顺手)</li>
+  <li>第 3 遍:60 秒(找到节奏)</li>
+  <li>第 4 遍:50 秒(可以了)</li>
+  <li>第 5 遍:40 秒(讲台稳了)</li>
+</ul>
+
+<h2>🎯 下一步</h2>
+
+<p>现在你有 3 件套里的 2 件:① 1 句类比 ② 1 张图。还差最后 1 件 — <strong>1 句金句</strong>。进 <a href="0004-one-sentence-intent.html">课 4:1 句话讲清"为什么这样写"</a>。</p>
+
+</body>
+</html>

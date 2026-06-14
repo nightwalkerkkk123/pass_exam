@@ -1,0 +1,216 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>课 7 · 整合 5 分钟试讲脚本 + 真讲一遍给同学</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.8; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .95rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .task { background: #fff8e1; border: 2px solid #b58900; padding: 1rem 1.2rem; border-radius: 6px; margin: 1.5rem 0; }
+  .verify { background: #eef5ff; border: 1px solid #2c7be5; padding: 1rem 1.2rem; border-radius: 6px; margin: 1rem 0; }
+  .timing { background: #f0fff0; border: 1px solid #5cb85c; padding: 1rem 1.2rem; border-radius: 4px; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>课 7 · 整合 5 分钟试讲脚本</h1>
+<p><strong>目标</strong>:把 3 件套 + 追问预案 + 录音反馈整合成 1 份 5 分钟脚本,真讲 1 遍给同学听。</p>
+<p><strong>前提</strong>:读完 <a href="0006-timer-and-recording.html">课 6</a>,v2 录音合格。</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#template">1. 5 分钟脚本模板</a> · <a href="#demo">2. 范例(食堂版)</a> ·
+  <a href="#fill">3. 填空(你写 1 份)</a> · <a href="#realspeak">4. 真讲 1 遍给同学</a> · <a href="#check">5. 讲完验收</a>
+</div>
+
+<h2 id="template">1. 5 分钟脚本模板(填空式)</h2>
+
+<div class="timing">
+
+<p><strong>[0:00–0:30] 开场 1 句</strong>(不画图,只说话)</p>
+<blockquote>
+"今天讲 xv6 怎么读一个磁盘块,主战场 <code>bio.c</code> 的 <code>bread()</code> 函数,7 行 C 代码。"
+</blockquote>
+
+<p><strong>[0:30–1:30] 类比 + 画图</strong>(60 秒全在这)</p>
+<blockquote>
+"它做的事,就像 [你课 2 挑的类比]。"
+<br><br>
+<em>← 开始画图(60 秒)</em>
+<br><br>
+"图里 [关键元素 1] 就是 [代码对应物],[关键元素 2] 就是 [代码对应物]。"
+</blockquote>
+
+<p><strong>[1:30–4:00] 看代码边讲</strong>(150 秒,讲 7 行 C)</p>
+<blockquote>
+"我们看这 7 行代码。"
+<br><br>
+"第 1 行 <code>b = bget(dev, blockno)</code> — 这一步是 [用类比讲清 'bget 是拿档案袋']。"
+<br><br>
+"第 2 行 <code>if(!b->valid)</code> — 这一步是 [用类比讲清 '判断架上有没有']。"
+<br><br>
+"如果有,就跳过下面,直接返回 — [类比]。"
+<br><br>
+"如果没有,就走 <code>virtio_disk_rw(b, 0)</code> — [类比讲清 '真去磁盘读']。"
+<br><br>
+"读完标 <code>b->valid = 1</code> — [类比讲清 '标记已读过']。"
+</blockquote>
+
+<p><strong>[4:00–4:30] 金句收尾</strong>(30 秒,只说 1 句)</p>
+<blockquote>
+"总结一下 — [你课 4 写的金句]。"
+</blockquote>
+
+<p><strong>[4:30–5:00] 收尾</strong>(30 秒)</p>
+<blockquote>
+"这就是 xv6 怎么读一个磁盘块。讲完了,谢谢。"
+</blockquote>
+
+</div>
+
+<p><strong>配比</strong>:开场 30s + 类比图 60s + 代码 150s + 金句 30s + 收尾 30s = <strong>5 分钟整</strong>。</p>
+
+<h2 id="demo">2. 范例(食堂打饭版)</h2>
+
+<p>把模板填好,长这样(供你参考):</p>
+
+<div class="timing">
+
+<p><strong>[0:00–0:30] 开场</strong></p>
+<blockquote>
+"今天讲 xv6 怎么读一个磁盘块,主战场 <code>bio.c</code> 的 <code>bread()</code> 函数,7 行 C 代码。"
+</blockquote>
+
+<p><strong>[0:30–1:30] 类比 + 画图</strong></p>
+<blockquote>
+"它做的事,就像你去食堂打饭。"
+<br><br>
+<em>← 画图(60 秒)</em>
+<br><br>
+"图里'餐盘架'就是缓冲池(装已经读过的数据),'叫师傅真炒'就是真去磁盘读。"
+</blockquote>
+
+<p><strong>[1:30–4:00] 看代码边讲</strong></p>
+<blockquote>
+"看这 7 行代码。"
+<br><br>
+"第 1 行 <code>b = bget(dev, blockno)</code> — 这一步是让系统给我们一个档案袋,先问'餐盘架上有没有'。"
+<br><br>
+"第 2 行 <code>if(!b->valid)</code> — 这一步就是判断'档案袋里是空的吗'。"
+<br><br>
+"如果档案袋里有菜(<code>valid</code> 是 1),就直接返回 — 像餐盘架上已经有这道菜,直接端走。"
+<br><br>
+"如果没有(<code>valid</code> 是 0),就走 <code>virtio_disk_rw(b, 0)</code> — 让师傅真炒一盘。"
+<br><br>
+"炒完标 <code>b->valid = 1</code> — 标记'这道菜已经做好了,下次不用再炒'。"
+</blockquote>
+
+<p><strong>[4:00–4:30] 金句</strong></p>
+<blockquote>
+"总结一下 — 它先查餐盘架,没菜再叫师傅真炒 — 因为 99% 的菜都在架上,这样又快又省。"
+</blockquote>
+
+<p><strong>[4:30–5:00] 收尾</strong></p>
+<blockquote>
+"这就是 xv6 怎么读一个磁盘块。讲完了,谢谢。"
+</blockquote>
+
+</div>
+
+<h2 id="fill">3. 你写 1 份(必做)</h2>
+
+<div class="task">
+<strong>🎯 任务(20 分钟,必做)</strong>:
+<ol>
+  <li>把模板复制到纸上(或者打字到电脑)</li>
+  <li>把"[]"里的内容替换成你课 2–5 准备的内容</li>
+  <li>大声念 1 遍,听通顺不通顺</li>
+  <li>念不顺的地方改词,改到顺为止</li>
+</ol>
+</div>
+
+<div class="verify">
+<strong>🎯 合格的脚本标志</strong>:
+<ul>
+  <li>5 段(开场 / 类比图 / 代码 / 金句 / 收尾)齐全</li>
+  <li>每一段都有"用类比讲清"的具体词</li>
+  <li>念 1 遍不需要中途查稿</li>
+  <li>5 段总和念完 4:30–5:30</li>
+</ul>
+</div>
+
+<h2 id="realspeak">4. 真讲 1 遍给同学(关键!)</h2>
+
+<div class="task">
+<strong>🎯 任务(30 分钟,必做)</strong>:
+<ol>
+  <li>找一个不懂 FS 的同学 / 家人</li>
+  <li>拿白纸 + 笔 + 你的脚本</li>
+  <li>看着同学讲 5 分钟(可以看着脚本,但尽量少看)</li>
+  <li>讲完问同学 3 个问题:
+    <ul>
+      <li>"我刚才在讲什么?"</li>
+      <li>"为什么 xv6 要先查再读?"</li>
+      <li>"你觉得我哪里讲得不清楚?"</li>
+    </ul>
+  </li>
+  <li>把同学的回答记下来,这就是讲台反馈</li>
+</ol>
+</div>
+
+<p><strong>对同学的要求</strong>:</p>
+<ul>
+  <li>不打断你,认真听</li>
+  <li>听完给 1 句"我觉得哪里不太懂"</li>
+  <li>如果你卡住,不要提醒,让你自己救场(这是真讲台会发生的)</li>
+</ul>
+
+<h2 id="check">5. 讲完验收(必做)</h2>
+
+<div class="verify">
+<strong>🎯 任务(10 分钟,必做)</strong>:用 5 个问题自检,全部答"是"才算过。
+
+<ol>
+  <li>☐ 我能不看稿讲完 5 分钟吗?(看稿 ≤ 2 次算过)</li>
+  <li>☐ 我能边画图边讲吗?(画图时间 ≤ 90 秒)</li>
+  <li>☐ 同学能说"听懂了"吗?(不需要完全懂,能说出"先查后取"就算懂)</li>
+  <li>☐ 老师追问 3 个问题,我能答出 ≥ 1 个吗?(诚实答"不知道"也算过 1 个)</li>
+  <li>☐ 我对讲台不焦虑吗?(身体不发抖 / 声音不发颤 / 不想着"赶紧讲完")</li>
+</ol>
+
+<strong>全部是</strong>:恭喜,你已经会讲 5 分钟了。<br>
+<strong>1–2 个否</strong>:回对应课复习,再讲 1 遍。<br>
+<strong>3+ 个否</strong>:找家人朋友再听 1 遍,把"哪里不行"列出来,针对性补。
+</div>
+
+<h2>🎯 写学习记录(超重要!)</h2>
+
+<p>讲完 1 遍后,写 <a href="../learning-records/0001-zero-based-teaching-how-to-speak.md">学习记录 0001</a>,这是你最重要的输出。</p>
+
+<p>记录这 4 件事:</p>
+<ol>
+  <li>实际讲了多少分钟</li>
+  <li>哪个环节最卡(开场/类比/画图/代码/金句/收尾)</li>
+  <li>同学答对几个追问</li>
+  <li>下次要补什么</li>
+</ol>
+
+<h2>🎯 下一步</h2>
+
+<p>5 分钟试讲过了,这套课程的目标达成了。如果老师给你讲台反馈,根据反馈调整:可能要把 <code>bread()</code> 换成 <code>bget()</code> 或 <code>log_write()</code>,但<strong>3 件套 + 追问预案 + 录音</strong>这套方法不变,只是换内容。</p>
+
+<p>祝讲台顺利!</p>
+
+</body>
+</html>

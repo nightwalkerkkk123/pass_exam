@@ -1,0 +1,280 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>第 3 讲 xv6 文件系统层源码:superblock + dinode + bmap(间接块) — xv6-riscv 课堂讲解备课</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .92rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: 555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .board { background: #fff8e1; border: 1px dashed #b58900; padding: .8rem 1rem; border-radius: 4px;
+           font-family: "JetBrains Mono", Consolas, monospace; white-space: pre; overflow-x: auto; font-size: .85rem; }
+  .pitfall { background: #fff0f0; border-left: 4px solid #c0392b; padding: .5rem 1rem; }
+  .linux { background: #eef5ff; border-left: 4px solid #2c7be5; padding: .5rem 1rem; margin: .5rem 0; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第 3 讲 · xv6 文件系统层源码精读</h1>
+<p><strong>课堂展示</strong>(老师受众) · 主讲 <code>fs.c</code> 文件系统层 · 板书 1 张图 · 8–10 分钟讲完</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#mission">MISSION</a> · <a href="#analogy">类比</a> · <a href="#data">关键定义</a> ·
+  <a href="#board">板书图</a> · <a href="#code">源码精读</a> · <a href="#intents">5 个设计权衡</a> ·
+  <a href="#linux">Linux 对照</a> · <a href="#quiz">3 道自测</a> · <a href="#qa">老师追问预案</a>
+</div>
+
+<h2 id="mission">🎯 这节课要解决什么</h2>
+<p><strong>5 分钟版</strong>:讲清 xv6 文件系统三件事 — 磁盘布局、dinode 12+1 块、bmap 怎么把"文件第 N 块"翻译成"磁盘第几块"。</p>
+<p><strong>15 分钟版</strong>:+ superblock 详解 + 目录项 + 5 个设计权衡(含 Linux ext4 对照)。</p>
+<p>对应 <a href="../MISSION.md">MISSION</a>:讲清一段 xv6 FS 源码,老师能追问 ext4 extents / B+ tree 等实现细节。</p>
+
+<h2 id="analogy">🧠 一句类比:酒店档案柜</h2>
+<blockquote>
+  <strong>文件系统层 = 酒店的档案柜系统</strong>。<br>
+  客人(进程)说"我要看 305 房的钱包" — 这个 305 不是物理房间号,而是<strong>房号</strong>。<br>
+  <strong>superblock</strong>:档案柜总账本,记着"几号柜子放什么类别"。<br>
+  <strong>dinode(房卡)</strong>:每位客人的房卡,记着"我的物品放在 12 个贴身柜 + 1 个仓库柜"。<br>
+  <strong>bmap</strong>:前台"翻译官",把"305 房第 3 件物品"翻译成"3 号柜子的 3 抽屉"。
+</blockquote>
+
+<p><strong>口诀</strong>:"<strong>inode 是号码牌,bmap 是翻译官</strong>" — 老师最爱的金句。</p>
+
+<h2 id="data">📋 关键定义(讲之前先抛出来)</h2>
+<table>
+  <tr><th>术语</th><th>代码位置</th><th>一句话</th></tr>
+  <tr><td><code>struct superblock</code></td><td>fs.h:11-19</td><td>磁盘布局的总账本:size/nblocks/ninodes/logstart/inodestart/bmapstart</td></tr>
+  <tr><td><code>struct dinode</code></td><td>fs.h:32-39</td><td>磁盘 inode:type/major/minor/nlink/size/addrs[13]</td></tr>
+  <tr><td><code>NDIRECT = 12</code></td><td>fs.h:24</td><td>直接块数</td></tr>
+  <tr><td><code>NINDIRECT = BSIZE/sizeof(uint) = 256</code></td><td>fs.h:25</td><td>一个间接块能装的指针数</td></tr>
+  <tr><td><code>MAXFILE = 12 + 256 = 268 块 = 268 KB</code></td><td>fs.h:26</td><td>单个文件最大 268 KB(BSIZE=1024)</td></tr>
+  <tr><td><code>struct dirent</code></td><td>fs.h:42-46</td><td>目录项:inum + name[14]</td></tr>
+  <tr><td><code>bmap(ip, bn)</code></td><td>fs.c:383</td><td>把"文件第 bn 块"翻译成"磁盘 blockno",必要时分配</td></tr>
+  <tr><td><code>balloc(dev)</code></td><td>fs.c</td><td>从 bitmap 找一个空闲块,返回 blockno</td></tr>
+  <tr><td><code>readsb / ialloc / iget</code></td><td>fs.c:31 / 199 / 247</td><td>读 superblock / 分配 inode / 读 inode</td></tr>
+</table>
+<p>完整术语见 <a href="../GLOSSARY.md">GLOSSARY.md</a>。</p>
+
+<h2 id="board">📝 板书图(讲台上要画出来)</h2>
+<div class="board">
+xv6 文件系统层 — 一张图讲完
+
+  磁盘布局(从 0 块开始):
+  ┌──────┬────────┬─────┬─────────┬───────┬──────┐
+  │ boot │ super  │ log │ inodes  │bitmap │ data │
+  │ 0    │ 1      │ 2.. │ ...     │ ...   │ ...  │
+  └──────┴────────┴─────┴─────────┴───────┴──────┘
+   (由 superblock 各项指明各段起点)
+
+  dinode 结构(磁盘 inode,64 字节):
+  ┌────────┬─────┬─────┬─────┬─────┬─────────────────────┐
+  │ type   │ maj │ min │ nln │ sz  │ addrs[13] = 52 字节  │
+  │ (2B)   │ (2) │ (2) │ (2) │ (4) │ [12 直 + 1 间指]    │
+  └────────┴─────┴─────┴─────┴─────┴─────────────────────┘
+
+  bmap 怎么工作(12 + 1 结构):
+  假设文件第 bn 块 (0 ≤ bn < 268):
+
+   bn < 12:
+     直接返回 addrs[bn]                  ← "12 块以内不用翻译"
+     若为 0,balloc 分配新块填入
+
+   bn ≥ 12:
+     bn' = bn - 12  (0 ≤ bn' < 256)
+     1) 加载 addrs[12] 指向的"间接块"(1 次 IO)
+     2) 间接块是 uint[256] 数组
+     3) 返回 间接块[bn']                ← "12 块以外要查一张表"
+     若间接块中该位置为 0,balloc 分配
+
+  关键点(板书时圈出来):
+  ① MAXFILE = 12 + 256 = 268 块 ≈ 268 KB(BSIZE=1024)
+  ② addrs[] 第 13 个 = 一级间接块指针(不是数据)
+  ③ 没有 ext4 的 extents(连续块)概念
+  ④ bmap 自动分配 = 写时即分配(eager allocation)
+</div>
+
+<h2 id="code">🔍 源码精读(fs.c 关键段)</h2>
+
+<h3>1. bmap — inode 块映射核心(fs.c:383-417)</h3>
+<pre><code>static uint
+bmap(struct inode *ip, uint bn)
+{
+  uint addr, *a;
+  struct buf *bp;
+
+  if(bn < NDIRECT){
+    if((addr = ip->addrs[bn]) == 0){
+      addr = balloc(ip->dev);
+      if(addr == 0)
+        return 0;
+      ip->addrs[bn] = addr;
+    }
+    return addr;
+  }
+  bn -= NDIRECT;
+
+  if(bn < NINDIRECT){
+    // Load indirect block, allocating if necessary.
+    if((addr = ip->addrs[NDIRECT]) == 0){
+      addr = balloc(ip->dev);
+      if(addr == 0)
+        return 0;
+      ip->addrs[NDIRECT] = addr;
+    }
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if((addr = a[bn]) == 0){
+      addr = balloc(ip->dev);
+      if(addr){
+        a[bn] = addr;
+        log_write(bp);
+      }
+    }
+    brelse(bp);
+    return addr;
+  }
+
+  panic("bmap: out of range");
+}</code></pre>
+
+<p><strong>讲法提示(给老师用)</strong>:</p>
+<ol>
+  <li><strong>第 8-16 行(直接块分支)</strong>:如果 <code>addrs[bn]</code> 已经有 blockno,直接返回;<strong>没有就 balloc 分配,再写回 addrs[]</strong>。</li>
+  <li><strong>第 17 行</strong>:<code>bn -= NDIRECT</code> — 把 bn 改写成"间接块数组里的下标"。</li>
+  <li><strong>第 19-26 行(间接块分支)</strong>:先确保 <code>addrs[NDIRECT]</code> 指向一个已分配的间接块(没有就 balloc);再 bread 这个间接块,拿到它的内容指针 <code>a</code>。</li>
+  <li><strong>第 27-33 行(分配新数据块)</strong>:如果 <code>a[bn]</code> 是 0(还没分配数据块),balloc 拿到新 blockno,写回 <code>a[bn]</code>。<strong>关键</strong>:<code>log_write(bp)</code> — 修改间接块本身要走日志(Day 2 的设计),保证崩溃一致。</li>
+  <li><strong>第 35 行</strong>:<code>brelse(bp)</code> — 释放间接块的 sleeplock。</li>
+</ol>
+
+<p><strong>⚠️ 老师追问点 1</strong>:为什么修改间接块要 log_write 而直接块不需要?——因为直接块的修改写回 dinode 本身就 log_write 了(在 writei() 里),而间接块的修改不直接写在 inode 的 addrs[] 里,必须自己 log_write。</p>
+<p><strong>⚠️ 老师追问点 2</strong>:bmap 为什么不 lazy 分配(类似 ext4 的 delayed allocation)?——教学简化,加上 xv6 假设"分配即写入",不需要缓冲。</p>
+
+<h3>2. dinode 在磁盘上长啥样(fs.h:32-39)</h3>
+<pre><code>struct dinode {
+  short type;           // File type
+  short major;          // Major device number (T_DEVICE only)
+  short minor;          // Minor device number (T_DEVICE only)
+  short nlink;          // Number of links to inode in file system
+  uint size;            // Size of file (bytes)
+  uint addrs[NDIRECT+1];   // Data block addresses
+};</code></pre>
+
+<p><strong>讲法提示</strong>:64 字节的定长结构,IPB = 1024/64 = 16 个 dinode 装在一个 1 KB 块里。inode number 就是 dinode 在所有 inode 块中的<strong>全局索引</strong>(不是块号!)。</p>
+<p>关键宏:<code>IBLOCK(i, sb) = i / IPB + sb.inodestart</code> — 给定 inode 号,算出它在哪个磁盘块。</p>
+
+<h3>3. 目录是 dirent 数组(fs.h:42-46)</h3>
+<pre><code>struct dirent {
+  ushort inum;
+  char name[DIRSIZ];
+};</code></pre>
+
+<p><strong>讲法提示</strong>:16 字节/项,<code>inum == 0</code> 表示"此槽位空"。目录本身就是一个 inode(type == T_DIR),它的 data 块里装 dirent 数组。<strong>"文件名"在 xv6 里硬限 14 字符</strong>(DIRSIZ=14,含结尾 NUL)。</p>
+
+<h2 id="intents">🧩 5 个设计权衡(老师追问时用)</h2>
+
+<h3>权衡 1:为什么 12 个直接块 + 1 个间接块,没有 extents?</h3>
+<p><strong>12 直接 + 1 间接</strong>能表达任意稀疏(每个数据块独立分配),最大 268 KB(BSIZE=1024)。</p>
+<p><strong>ext4 extents</strong>用"起始块 + 长度"表达连续区间,极大文件(GB 级)只需要几个 extent 项。xv6 不需要,因为<strong>教学内核</strong> + 假设"小文件" + 想让学生看清单层块映射而不是"extent 树"。</p>
+<div class="linux">
+<strong>Linux 对照</strong>:ext4 默认是 extents(4 KB 数据块时一个 extent 可表达 128 MB 连续)。早期 ext2/ext3 用 12 直 + 1/2/3 间接,xv6 抄的是 ext2 那套。
+</div>
+
+<h3>权衡 2:为什么 1 级间接,没有 2 级或 3 级?</h3>
+<p>1 级间接支持 256 块(BSIZE=1024)。最大 268 块对教学够用。<strong>2 级间接会让"逻辑块号到物理块号"的代码复杂度翻倍</strong>,不划算。</p>
+<p>真实场景:ext2/3 用 12 直 + 1 一级 + 1 二级 + 1 三级,最大 16 GB 左右的单文件。xv6 砍掉是为了讲得清。</p>
+
+<h3>权衡 3:bmap 自动 balloc 是不是"贪婪"?</h3>
+<p>是的 — xv6 一旦访问文件的某块,该块就必须分配。<strong>缺点</strong>:稀疏文件空洞 = 实际占盘 = 浪费。<strong>优点</strong>:写时简单,不需要 delayed allocation 逻辑。</p>
+<div class="linux">
+<strong>Linux 对照</strong>:ext4 引入 delayed allocation(写到 page cache 不立即分配 block,等写回时再分配并尽量连续),性能高 30%+,但实现复杂。
+</div>
+
+<h3>权衡 4:为什么 addrs[NDIRECT+1] 不用结构体?</h3>
+<p>用 <code>addrs[13]</code> 数组,第 13 个专门存"间接块指针",靠代码约定区分。<strong>替代方案</strong>是 <code>struct { uint direct[12]; uint indirect; }</code>,但 C 数组访问更快、序列化布局更明确、fs.h 同步被 mkfs 引用 — 兼容性更稳。</p>
+
+<h3>权衡 5:为什么 NDIRECT=12 而不是 10 或 15?</h3>
+<p>sizeof(struct dinode) 决定 IPB,IPB 决定每块放多少 inode,xv6 选 12 让 dinode 恰好 64 字节(IPB=16),1 KB 块对齐。<strong>这是个魔法数字,没什么玄学</strong>。</p>
+
+<h2 id="linux">🐧 关键 Linux 对照(老师追问预案)</h2>
+<table>
+  <tr><th>xv6 做法</th><th>ext4 / Linux 做法</th><th>为什么不同</th></tr>
+  <tr><td>12 直 + 1 间指,最大 268 KB</td><td>extents,最大 16 TB</td><td>教学 vs 生产</td></tr>
+  <tr><td>bmap eager 分配</td><td>delayed allocation</td><td>简化 vs 性能</td></tr>
+  <tr><td>单层 indirect</td><td>extents 树(类似 B+ tree)</td><td>规模</td></tr>
+  <tr><td>无 extent preallocation</td><td>fallocate / FALLOC_FL_KEEP_SIZE</td><td>用户态 API</td></tr>
+  <tr><td>单 inode block 组</td><td>flex_bg / meta_bg 分组</td><td>大 FS 优化</td></tr>
+</table>
+
+<h2 id="quiz">📝 3 道自测(讲完后做,10 分钟)</h2>
+
+<ol>
+  <li>
+    <p><strong>(选择)</strong> xv6 中,bmap(ip, 100) 实际经过几次磁盘 IO(假设 inode 已在内存,所有数据块都未分配)?</p>
+    <p>A. 0 次　B. 1 次(只读间接块)　C. 2 次(读间接块 + 写新数据块)　D. 3 次(读间接块 + 写新数据块 + 写间接块)</p>
+    <p class="pitfall">答案: <strong>D</strong>(粗略说 3 次,准确说 4 次含 inode 回写)。流程:① balloc 找空闲块要读 bitmap → ② bread 间接块 → ③ bwrite 间接块(log_write 走日志,要写 3 次:home+log+header)→ ④ balloc 完成后调用 writei 把 inode 写回(也要走日志)。老师可能更正"3 次"为"更复杂",关键看追问深度。</p>
+  </li>
+  <li>
+    <p><strong>(简答)</strong> xv6 的目录是 inode,还是普通文件?创建新文件需要更新哪几个数据结构?</p>
+    <p class="pitfall">答案: <strong>目录 = inode(type==T_DIR),data 块装 dirent 数组</strong>。创建新文件要更新:<br>① 分配新的 inode(ialloc 改 bitmap + 写 dinode 块)<br>② 在父目录的 dirent 数组里加一项(dirlink 改父目录的 data 块)<br>③ 更新父目录 inode 的 size<br>全部要走 log_write,Day 2 学的日志层保证这三个修改一起 commit 或一起回滚。</p>
+  </li>
+  <3>
+    <p><strong>(追问)</strong> xv6 没有 extents,bmap 是 O(1) 找块映射。为什么 ext4 还要用 extents?</p>
+    <p class="pitfall">答案: <strong>元数据大小</strong>。xv6 268 块文件用 52 字节 addrs[] 足够(每个指针 4 字节)。ext4 单个文件 16 TB = 4 G 块,需要 4 G 个 4 字节指针 = 16 GB 元数据,完全不可接受。ext4 一个 extent 项 = "起始块 + 长度" = 12 字节,4 G 块只需要 ~340 M 项(还要 B+ 树压缩)。xv6 不需要因为它假设文件小。</p>
+  </li>
+</ol>
+
+<h2 id="qa">❓ 老师追问预案(5 个最可能的)</h2>
+
+<table>
+  <tr><th>老师可能问</th><th>答法要点</th></tr>
+  <tr><td>"为什么 bmap 直接写 ip->addrs[bn] = addr,没走 log_write?"</td>
+  <td>因为 addrs[] 在<strong>内存 inode</strong>里(由 iget 读入并 lock)。整个 inode 的回写由 writei() 在文件 close/写盘时统一调 log_write。直接块的修改跟着 inode 一起 commit。</td></tr>
+  <tr><td>"bmap 中 balloc 失败返回 0,bmap 也返回 0,调用方怎么处理?"</td>
+  <td>调用方(通常是 writei)会检查返回值,返回 -ENOSPC 给用户态。xv6 的 -ENOSPC 走标准 errno 路径(在 syscall.c 里查 syscalls[] 表)。</td></tr>
+  <tr><td>"目录是文件,那 / 的 inode 是几号?"</td>
+  <td>ROOTINO = 1(fs.h:5)。ialloc 顺序分配 inode 号,1 永远是 root。文件系统格式化时 mkfs 写好。</td></tr>
+  <tr><td>"硬链接怎么实现?为什么 dinode.nlink 字段存在?"</td>
+  <td>硬链接 = 在某目录加一个 dirent,inum 指向同一个 inode,nlink++。删除文件 = nlink--,归零时调 itrunc 释放所有 block。软链接 = 新建一个 type==T_SYMLINK 的文件,data 块装目标路径字符串。</td></tr>
+  <tr><td>"xv6 inode 缓存怎么做的?iget 和 bget 什么关系?"</td>
+  <td>inode 缓存 = `struct inode icache[NINODE]`(proc.h 或 fs.c 定义)。iget 查 icache,命中就 refcnt++ 返回;未命中就 readsb + balloc 一个空闲 icache 项 + bread 读 dinode。**和 bget 一样的"双重 LRU + refcnt"模式**,只是粒度从块变 inode。</td></tr>
+</table>
+
+<h2>🗣️ 讲稿骨架(10 分钟版本)</h2>
+<ol>
+  <li><strong>0:00–0:30</strong> 开场:"今天讲 xv6 文件系统层,主战场 fs.c,重点是 bmap" → 画板书图</li>
+  <li><strong>0:30–1:30</strong> 类比"酒店档案柜",点出"inode 是号码牌、bmap 是翻译官"</li>
+  <li><strong>1:30–2:30</strong> 讲磁盘布局(boot/super/log/inodes/bitmap/data)+ superblock 8 字段</li>
+  <li><strong>2:30–5:00</strong> 逐行过 bmap 关键段,讲清"12 直 + 1 间"两条分支</li>
+  <li><strong>5:00–5:30</strong> 讲 dinode 64 字节结构 + IBLOCK 宏(号→块的翻译)</li>
+  <li><strong>5:30–6:00</strong> 讲目录 = dirent 数组 + ROOTINO=1</li>
+  <li><strong>6:00–7:30</strong> 设计权衡 1+2(为什么 12+1 没有 extents)+ 3(eager vs delayed)</li>
+  <li><strong>7:30–8:30</strong> 设计权衡 4+5 + Linux 对照表(ext4 extents 解释)</li>
+  <li><strong>8:30–9:30</strong> 自测 1+2 现场互动</li>
+  <li><strong>9:30–10:00</strong> 一句话收尾:"12+1 看似简单,但 1 个文件 = 1 个 inode + 若干 block,加上日志,就是 ext2 减配版"</li>
+</ol>
+
+<h2>📚 推荐一手资料</h2>
+<ul>
+  <li>xv6 book Chapter 8 §8.6-8.8(<a href="https://pdos.csail.mit.edu/6.828/2022/xv6/book-riscv-rev3.pdf">官方 PDF</a>)讲 inode 和目录。</li>
+  <li>Linux ext4 文档(<a href="https://ext4.wiki.kernel.org/index.php/Ext4_Disk_Layout">官方 wiki</a>)— 老师最爱问 extents 时引申。</li>
+  <li>本仓库 <a href="../../operating_systems/6_文件管理/成组链接法规则.md">成组链接法规则</a> — Unix 早期空闲块管理(汤小丹 Ch6),可作对照。</li>
+</ul>
+
+<h2>🎯 下一步</h2>
+<p>Day 3 讲完,你能用 3 句话复述"xv6 文件系统层怎么把文件名变成数据",并能在 10 分钟内讲完带板书和 ext4 对照的版本。</p>
+<p>Day 4 是<strong>彩排</strong>:整合 Day 1–3 画 3 张板书图、8 分钟讲稿骨架、5 个老师追问预案,实际演练一遍。</p>
+<p>讲完 Day 3 后写 <a href="../learning-records/0003-fs.md">学习记录 0003</a>。</p>
+
+</body>
+</html>

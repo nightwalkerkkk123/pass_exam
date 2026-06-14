@@ -1,0 +1,151 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>课 6 · 计时间 + 录音复盘 — 找出口头禅</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.8; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .95rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  .task { background: #fff8e1; border: 2px solid #b58900; padding: 1rem 1.2rem; border-radius: 6px; margin: 1.5rem 0; }
+  .verify { background: #eef5ff; border: 1px solid #2c7be5; padding: 1rem 1.2rem; border-radius: 6px; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>课 6 · 计时间 + 录音复盘</h1>
+<p><strong>目标</strong>:真讲 1 遍,录音,听回放找口头禅和卡点。讲台不紧张的秘密是<strong>提前听过自己讲一遍</strong>。</p>
+<p><strong>前提</strong>:读完 <a href="0005-3-qa-prep.html">课 5</a>,3 件套 + 3 个追问预案齐了。</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#setup">1. 准备(2 分钟)</a> · <a href="#speak">2. 真讲 1 遍(5 分钟)</a> ·
+  <a href="#listen">3. 听回放(10 分钟)</a> · <a href="#fix">4. 修 1 版(15 分钟)</a>
+</div>
+
+<h2 id="setup">1. 准备(2 分钟)</h2>
+
+<div class="task">
+<strong>你要准备的东西</strong>:
+<ol>
+  <li>手机(录音用)</li>
+  <li>白纸 + 笔(画图用)</li>
+  <li>你的"3 件套"草稿(类比 + 图 + 金句,手写在纸上)</li>
+  <li>一个能坐着对着的物体(假装是同学/老师)</li>
+  <li>看得到的代码片段:打开 <code>bio.c</code> 跳到 <code>bread()</code></li>
+</ol>
+
+<strong>环境</strong>:找个安静房间,关上门,告诉家人"5 分钟别打扰"。
+</div>
+
+<h2 id="speak">2. 真讲 1 遍(5 分钟)</h2>
+
+<div class="task">
+<strong>🎯 任务(5 分钟,必做)</strong>:
+<ol>
+  <li>打开手机录音,放桌上</li>
+  <li>按下录音,**不要想,直接开讲**</li>
+  <li>看着纸上 3 件套,边看边讲</li>
+  <li>中间卡了就停,但<strong>不要重录</strong> — 卡的部分就是你要修的</li>
+  <li>5 分钟到了就停(用手机秒表计时)</li>
+  <li>保存录音,标注 "v1"</li>
+</ol>
+</div>
+
+<p><strong>讲的时候不要做这些事</strong>:</p>
+<ul>
+  <li>❌ 看稿念(念稿不算真讲)</li>
+  <li>❌ 反复说"再录一遍"(录 1 遍就够,听回放才有意义)</li>
+  <li>❌ 觉得讲得烂就停(讲烂是正常的,讲台训练第 1 遍都烂)</li>
+</ul>
+
+<p><strong>讲的时候要做这些事</strong>:</p>
+<ul>
+  <li>✅ 把"3 件套"全用上(开场白 + 画图 + 金句收尾)</li>
+  <li>✅ 假装对面有人,看着"同学"讲</li>
+  <li>✅ 录音时碰到卡的地方,深呼吸 1 秒再继续</li>
+  <li>✅ 5 分钟到了,说"讲完了,谢谢"</li>
+</ul>
+
+<h2 id="listen">3. 听回放(关键!10 分钟)</h2>
+
+<div class="task">
+<strong>🎯 任务(10 分钟,必做)</strong>:
+<ol>
+  <li>戴上耳机,从头听录音</li>
+  <li>准备 1 张纸,边听边记</li>
+  <li>听到<strong>口头禅</strong>(那个/就是/然后/嗯/呃/对吧)就画 1 个 ○</li>
+  <li>听到<strong>卡顿</strong>(超过 3 秒没说话)就画 1 个 ✗</li>
+  <li>听到<strong>逻辑跑偏</strong>(开始讲和 bread 无关的事)就画 1 个 →</li>
+  <li>听完数 ○ ✗ → 各几个</li>
+</ol>
+</div>
+
+<p><strong>听完后的判定</strong>:</p>
+
+<table>
+  <tr><th>指标</th><th>合格</th><th>不合格(要修)</th></tr>
+  <tr><td>口头禅总数</td><td>&lt; 5 次</td><td>≥ 5 次</td></tr>
+  <tr><td>卡顿次数</td><td>&lt; 2 次</td><td>≥ 2 次</td></tr>
+  <tr><td>逻辑跑偏</td><td>0 次</td><td>≥ 1 次</td></tr>
+  <tr><td>总时长</td><td>4:30–5:30</td><td>&lt; 4:00 或 &gt; 6:00</td></tr>
+  <tr><td>3 件套都用</td><td>类比 + 图 + 金句齐</td><td>缺 1–2 件</td></tr>
+</table>
+
+<p><strong>3 个最常见的口头禅(看你中了几个)</strong>:</p>
+<ul>
+  <li><strong>"那个"</strong> — 不熟时下意识填词 — <strong>修法</strong>:卡了就深呼吸 1 秒再说</li>
+  <li><strong>"就是"</strong> — 想解释又解释不清 — <strong>修法</strong>:用金句替代</li>
+  <li><strong>"然后"</strong> — 连接用滥了 — <strong>修法</strong>:用"接着"或"下一步"替代</li>
+</ul>
+
+<h2 id="fix">4. 修 1 版(15 分钟)</h2>
+
+<div class="task">
+<strong>🎯 任务(15 分钟,必做)</strong>:
+<ol>
+  <li>看完听回放的笔记,挑 <strong>1–2 个最大的问题</strong>(不要全修,改不完)</li>
+  <li>针对性改"3 件套"草稿(例:把"那个"换成具体词;把超时部分砍掉)</li>
+  <li>重讲 1 遍(同流程,再录音 v2)</li>
+  <li>听 v2,对比 v1,看改没改掉</li>
+</ol>
+</div>
+
+<p><strong>改进曲线(预期)</strong>:</p>
+
+<table>
+  <tr><th>版本</th><th>口头禅</th><th>卡顿</th><th>时长</th></tr>
+  <tr><td>v1(第 1 遍)</td><td>5–10 次</td><td>2–4 次</td><td>4:00–5:30</td></tr>
+  <tr><td>v2(第 2 遍)</td><td>2–5 次</td><td>0–2 次</td><td>4:30–5:30</td></tr>
+  <tr><td>v3(第 3 遍,可选)</td><td>0–2 次</td><td>0 次</td><td>5:00 整</td></tr>
+</table>
+
+<div class="verify">
+<strong>🎯 合格的 v2 标志</strong>:
+<ol>
+  <li>口头禅 &lt; 5 次</li>
+  <li>时长 4:30–5:30</li>
+  <li>3 件套全用上</li>
+  <li>卡顿 0–1 次</li>
+  <li>你听 v2 录音时<strong>不皱眉</strong>(皱眉 = 自己都觉得讲得烂)</li>
+</ol>
+
+<strong>如果 v2 还不合格</strong>:别急,讲 5 遍,讲台就不紧张了。
+</div>
+
+<h2>🎯 下一步</h2>
+
+<p>录音复盘完了,讲台的"硬功夫"到位了。最后一节课把 3 件套 + 追问预案 + 录音反馈整合成 1 份 5 分钟试讲脚本。进 <a href="0007-final-5min-script.html">课 7:整合 5 分钟试讲脚本</a>。</p>
+
+</body>
+</html>

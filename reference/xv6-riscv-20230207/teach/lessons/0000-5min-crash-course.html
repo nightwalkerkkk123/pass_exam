@@ -1,0 +1,186 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>课 0 · 讲前 5 分钟极简扫盲 — 怎么讲 xv6 文件系统</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.8; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .95rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .analog { background: #fff8e1; border: 1px dashed #b58900; padding: 1rem 1.2rem; border-radius: 6px; margin: 1rem 0; }
+  .mustknow { background: #f0fff0; border: 1px solid #5cb85c; padding: 1rem 1.2rem; border-radius: 6px; }
+  .skippable { background: #fff0f0; border: 1px dashed #c0392b; padding: 1rem 1.2rem; border-radius: 6px; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>课 0 · 讲前 5 分钟极简扫盲</h1>
+<p><strong>目标</strong>:不讲 xv6 FS,先讲清 3 个背景 — OS 是什么 / FS 是什么 / xv6 是什么。这样后面看代码你才知道"在干啥"。</p>
+<p><strong>承诺</strong>:不堆术语,每个概念 1 句话讲完。读完这节你就能看懂后续 7 节。</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#a">OS 是什么</a> · <a href="#b">FS 是什么</a> · <a href="#c">xv6 是什么</a> ·
+  <a href="#d">代码长啥样</a> · <a href="#e">5 分钟讲台要做什么</a> · <a href="#f">复述验证</a>
+</div>
+
+<h2 id="a">🧠 概念 1 · 操作系统是什么</h2>
+
+<div class="analog">
+<strong>一句话</strong>:操作系统 = 电脑的<strong>大管家</strong>。<br>
+你(用户)想让电脑干活,但电脑硬件不会听人话 — 需要大管家翻译。
+</div>
+
+<p>电脑的硬件其实很笨:CPU 只懂"加减乘除",磁盘只懂"读写磁道",网卡只懂"收发信号"。你要让电脑"打开一个 Word 文档",背后是:大管家让 CPU 跑程序、让磁盘把 Word 文件读出来、让屏幕显示字。<strong>这个大管家就是操作系统</strong>(英文: Operating System,简称 OS)。</p>
+
+<p>大管家管 4 件事:</p>
+<ol>
+  <li><strong>CPU</strong> — 让多个程序轮流用 CPU(你一边听歌一边写 Word,其实 CPU 是在两个程序之间飞速切换的)</li>
+  <li><strong>内存</strong> — 让每个程序有自己独立的"工作台",互不打扰</li>
+  <li><strong>磁盘</strong> — 让你的文件存下来,关机也不丢(这就是<strong>文件系统</strong>)</li>
+  <li><strong>设备</strong> — 键盘、屏幕、网卡、打印机等等</li>
+</ol>
+
+<div class="skippable">
+<strong>不重要的</strong>:Windows / macOS / Linux / Android 都是大管家,只是不同的"管家风格"。我们这次讲 xv6,是教学用的极简版大管家。
+</div>
+
+<h2 id="b">🧠 概念 2 · 文件系统是什么</h2>
+
+<div class="analog">
+<strong>一句话</strong>:文件系统 = 磁盘的<strong>档案柜</strong>。<br>
+磁盘就是一块能存数据的硬盘(像个大仓库),文件系统告诉你"哪个文件放在仓库的哪个位置"。
+</div>
+
+<p>你有一个 Word 文件"期末报告.docx",它<strong>不是一整块</strong>存在磁盘上的 — 它被切成很多小块(每块 1 KB),撒在磁盘各个角落。文件系统就是记着这些小块都撒在哪、文件名叫什么、是谁的、什么时候建的。</p>
+
+<p>当你说"打开期末报告.docx",系统做的事:</p>
+<ol>
+  <li>查"档案柜总账本"(叫 <strong>superblock</strong>)— 看仓库有几格,档案柜怎么分</li>
+  <li>查"档案卡"(叫 <strong>inode</strong> = index node)— 看"期末报告.docx"分成几块、每块在仓库第几格里</li>
+  <li>按档案卡的指示,把那些块读出来拼成完整文件</li>
+</ol>
+
+<div class="mustknow">
+<strong>必须记住的 3 个词</strong>:<br>
+• <strong>磁盘块</strong>(block) = 1 KB 的小块,文件系统操作的最小单位<br>
+• <strong>inode</strong> = 档案卡,记着文件的所有信息(大小、位置、权限)<br>
+• <strong>目录</strong> = 一张表,把"文件名"映射到"inode 号"
+</div>
+
+<h2 id="c">🧠 概念 3 · xv6 是什么</h2>
+
+<div class="analog">
+<strong>一句话</strong>:xv6 = 麻省理工(MIT)写的<strong>教学版大管家</strong>。<br>
+真大管家(Linux)有几千万行代码,看 1 年也看不完;xv6 只有 1 万行,几周就能看完。
+</div>
+
+<p>xv6 长这样:</p>
+<ul>
+  <li><strong>真能用</strong> — 你能在 qemu 模拟器里启动它,跑 shell 命令</li>
+  <li><strong>代码极简</strong> — 进程管理、内存管理、文件系统、设备驱动都齐全,但每个模块只有几百行</li>
+  <li><strong>和真 Linux 很像</strong> — 接口和 Linux 几乎一样,学了能迁移到 Linux</li>
+  <li><strong>教学配套好</strong> — MIT 有配套书、配套视频、配套实验</li>
+</ul>
+
+<p>我们这次要讲 xv6 的<strong>文件系统部分</strong>,对应 3 个文件:</p>
+<table>
+  <tr><th>文件</th><th>干嘛的</th><th>类比</th></tr>
+  <tr><td><code>bio.c</code></td><td>把磁盘块读到内存里(缓冲层)</td><td>档案柜的"取件窗口"</td></tr>
+  <tr><td><code>log.c</code></td><td>保证改文件时不会"改一半就崩溃"</td><td>改文件前先在草稿本上改,改完再正式入账</td></tr>
+  <tr><td><code>fs.c</code></td><td>管 inode、目录、文件操作</td><td>档案柜本体 + 档案卡</td></tr>
+</table>
+
+<div class="skippable">
+<strong>不重要的</strong>:RISC-V 是 xv6 跑在的 CPU 架构(类似 x86、ARM,但更简单)。你不需要懂 RISC-V,只要知道"这是另一种 CPU 就行"。
+</div>
+
+<h2 id="d">🔍 C 代码长啥样(给你 30 秒打个底)</h2>
+
+<p>打开 <code>bio.c</code> 你会看到这种代码:</p>
+
+<pre><code>// 这个函数叫 bread,从磁盘读一个块
+struct buf*
+bread(uint dev, uint blockno)
+{
+  struct buf *b;
+
+  b = bget(dev, blockno);          // 1. 先找个"取件窗口"放这块
+  if(!b->valid) {                  // 2. 如果窗口里没这块
+    virtio_disk_rw(b, 0);          //    真去磁盘读
+    b->valid = 1;                  //    标记"现在窗口里有这块了"
+  }
+  return b;                        // 3. 把窗口交给调用方
+}</code></pre>
+
+<p>看不懂没关系。**课 1 会一句一句带你读**。这里只告诉你:这就是 C 代码的样子,不用怕。</p>
+
+<div class="mustknow">
+<strong>3 个你会看到的 C 符号(记住意思就行)</strong>:<br>
+• <code>struct buf*</code> — "一个指向 buf 结构体的指针"(你可以理解为"档案袋的编号")<br>
+• <code>b->field</code> — "b 这个档案袋里的 field 这一栏"(相当于 <code>b.field</code>)<br>
+• <code>//</code> 开头的灰字 — 注释,人话解释,不是代码
+</div>
+
+<h2 id="e">🎯 5 分钟讲台你到底要做什么</h2>
+
+<div class="analog">
+<strong>一句话</strong>:讲 5 分钟 = 用 1 个类比 + 1 张图 + 1 句话讲完一段代码,让同学听懂。<br>
+<strong>不是</strong>:把 100 行代码逐行念给同学听。
+</div>
+
+<p>很多新手以为"讲源码 = 把每行念一遍"。**这是错的**。念 100 行 5 分钟根本念不完,同学也听不懂。</p>
+
+<p>正确做法是 <strong>3 件套</strong>:</p>
+<table>
+  <tr><th>3 件套</th><th>是什么</th><th>为什么</th></tr>
+  <tr><td>1 句类比</td><td>用生活场景讲代码在干什么</td><td>同学能秒懂,能记住</td></tr>
+  <tr><td>1 张图</td><td>白板徒手画,关键流程图</td><td>看着图讲话不紧张</td></tr>
+  <tr><td>1 句金句</td><td>"它把短操作和长操作分成两种锁"</td><td>这就是"为什么这样写"</td></tr>
+</table>
+
+<p>3 件套齐了,5 分钟就讲完了。**剩下 2 分钟**留给老师追问。</p>
+
+<div class="mustknow">
+<strong>5 分钟的"配比"</strong>:<br>
+• 0:00–0:30 开场 1 句("今天讲 xv6 怎么读磁盘块")<br>
+• 0:30–1:30 类比 + 画图<br>
+• 1:30–4:00 边看代码边讲(只讲 5–10 行)<br>
+• 4:00–4:30 1 句金句收尾<br>
+• 4:30–5:00 "讲完了,谢谢"
+</div>
+
+<h2 id="f">🎯 复述验证(读完后)</h2>
+
+<p>如果下面的问题你都能口头回答,这节就过了:</p>
+
+<ol>
+  <li>操作系统是干嘛的?(一句话)</li>
+  <li>文件系统的 inode 是什么?(一句话)</li>
+  <li>xv6 和 Linux 有什么主要区别?(一句话)</li>
+  <li>5 分钟讲台要做的 3 件套是什么?(3 个词)</li>
+  <li>打开 <code>bio.c</code> 的 <code>bread()</code> 函数,它在做一件什么事?(一句话,不用精确)</li>
+</ol>
+
+<div class="skippable">
+<strong>答不上来正常</strong>。再读一遍。或者直接进 <a href="0001-read-bio-bread.md">课 1</a>,带着代码再回来看。
+</div>
+
+<h2>🎯 下一步</h2>
+
+<p>读完这节(15 分钟),你已经有了 3 个背景概念。进 <a href="0001-read-bio-bread.md">课 1:看懂 bio.c 的 bread() 7 行</a> — 我带你一句一句过代码,直到你能说"这段代码在干什么"。</p>
+
+<p>后面的 7 节课,你每节都做一个小练习,直到最后 <a href="0007-final-5min-script.md">课 7</a> 整合成 5 分钟脚本,真讲一遍。</p>
+
+</body>
+</html>

@@ -1,0 +1,283 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>第 4 讲 xv6 文件系统源码讲解 8 分钟彩排 — 3 张板书图 + 5 个追问预案</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .92rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .board { background: #fff8e1; border: 1px dashed #b58900; padding: .8rem 1rem; border-radius: 4px;
+           font-family: "JetBrains Mono", Consolas, monospace; white-space: pre; overflow-x: auto; font-size: .85rem; }
+  .timing { background: #f0fff0; border: 1px solid #5cb85c; padding: .8rem 1rem; border-radius: 4px; }
+  .rehearsal { background: #fff0f5; border: 1px solid #d63384; padding: .8rem 1rem; border-radius: 4px; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第 4 讲 · xv6 文件系统源码讲解 — 8 分钟彩排</h1>
+<p><strong>课堂展示彩排</strong>(老师受众) · 整合 Day 1–3 · 3 张板书图 · 5 个追问预案 · 8 分钟讲完</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#goal">彩排目标</a> · <a href="#storyline">8 分钟故事线</a> ·
+  <a href="#boards">3 张板书图</a> · <a href="#qa5">5 个追问预案</a> ·
+  <a href="#script">8 分钟讲稿</a> · <a href="#checklist">彩排 Checklist</a>
+</div>
+
+<h2 id="goal">🎯 彩排目标</h2>
+<p>不是讲新内容。是把 Day 1–3 串成 8 分钟连贯讲解,验证:</p>
+<ol>
+  <li><strong>3 张板书图能否在 90 秒内徒手画完</strong> — 板书速度比说话慢,90 秒是上限</li>
+  <li><strong>8 分钟讲稿能否讲清"3 层栈"</strong> — bio / log / fs 三层职责不混</li>
+  <li><strong>5 个老师追问能否 30 秒内答出</strong> — 答不出说明这块没真懂,回去补</li>
+</ol>
+
+<p>对应 <a href="../MISSION.md">MISSION</a>:讲清一段 xv6 FS 源码,老师能追问 ext4 / RISC-V 实现细节。</p>
+
+<h2 id="storyline">🗺️ 8 分钟故事线(总览)</h2>
+<table>
+  <tr><th>时间</th><th>阶段</th><th>板书图</th><th>对应 Day</th></tr>
+  <tr><td>0:00–1:00</td><td>开场 + 画图 1(bio)</td><td>图 1:LRU 链表 + 双锁</td><td>Day 1</td></tr>
+  <tr><td>1:00–3:30</td><td>讲 bio 缓冲层</td><td>(板书图 1 圈点)</td><td>Day 1</td></tr>
+  <tr><td>3:30–4:00</td><td>过渡 + 画图 2(log)</td><td>图 2:commit 三步</td><td>Day 2</td></tr>
+  <tr><td>4:00–6:00</td><td>讲 log 日志层</td><td>(板书图 2 圈点)</td><td>Day 2</td></tr>
+  <tr><td>6:00–6:30</td><td>过渡 + 画图 3(fs)</td><td>图 3:bmap 12+1</td><td>Day 3</td></tr>
+  <tr><td>6:30–7:30</td><td>讲 fs 文件系统层</td><td>(板书图 3 圈点)</td><td>Day 3</td></tr>
+  <tr><td>7:30–8:00</td><td>收尾</td><td>—</td><td>—</td></tr>
+</table>
+
+<p><strong>节奏原则</strong>:</p>
+<ul>
+  <li>每张板书图 30–60 秒画完,讲 2.5–3 分钟</li>
+  <li>3 段时间均衡(2.5 / 2 / 1.5 分钟)— 不要某层讲太多</li>
+  <li>每个层用 1 句"金句"收尾(bio: "抽象层不是魔法" / log: "崩溃一致性" / fs: "inode 是号码牌")</li>
+</ul>
+
+<h2 id="boards">📝 3 张板书图(白板可徒手画)</h2>
+
+<h3>板书图 1 · 缓冲层(Day 1 核心)</h3>
+<div class="board">
+  ┌────────────────────────────────────────────────┐
+  │   struct bcache {                              │
+  │     spinlock  lock;      ← 链表锁(纳秒级)        │
+  │     buf       buf[NBUF];  ← 30 个 buffer        │
+  │     buf       head;       ← LRU 哨兵            │
+  │   }                                             │
+  └────────────────────────────────────────────────┘
+
+  LRU 双向链表(头是最近用):
+  head ◄──► b[0] ◄──► b[1] ◄──► ... ◄──► b[29] ◄──► head
+   ▲ next = MRU                              prev = LRU ▲
+
+  每个 b 还有 sleeplock(保护 b->data,可睡)
+
+  调用协议:
+  bread → 修改 b->data → bwrite → brelse
+                                      └─ 移 b 到 head.next
+                                         释放 sleeplock + spinlock
+
+  关键:spinlock 永不睡,sleeplock 可睡,锁顺序固定
+</div>
+
+<p><strong>画法</strong>:左半部画 bcache 结构(3 行),右半部画 LRU 链(箭头方向清楚即可),底部画协议 1 行。**总耗时 60 秒**。</p>
+
+<h3>板书图 2 · 日志层(Day 2 核心)</h3>
+<div class="board">
+  磁盘布局:
+  ┌──────┬────────┬─────┬─────────┬───────┬──────┐
+  │ boot │ super  │ log │ inodes  │bitmap │ data │
+  └──────┴────────┴─────┴─────────┴───────┴──────┘
+                          ▲ log 区
+
+  commit() 三步走(全场最重点):
+  ┌────────────────────────────────────────────────┐
+  │  1. write_log()      拷 buf → log[1..n]        │
+  │  2. write_head()     写 logheader  ★ 真实 commit│
+  │  3. install_trans()  拷 log[1..n] → home       │
+  │  4. write_head()     写 logheader.n=0  擦日志  │
+  └────────────────────────────────────────────────┘
+
+  口诀:先写日志,再写 home,最后擦日志
+  崩溃恢复:recover_from_log → 幂等 install_trans
+</div>
+
+<p><strong>画法</strong>:顶部画磁盘布局 1 行(简化为 6 段),底部画 commit 四步(用方框),重点圈第 2 步写 ★。**总耗时 45 秒**。</p>
+
+<h3>板书图 3 · 文件系统层(Day 3 核心)</h3>
+<div class="board">
+  dinode 结构(64 字节,定长):
+  ┌──────┬─────┬─────┬─────┬─────┬──────────────┐
+  │ type │ maj │ min │ nln │ sz  │ addrs[13]    │
+  │  2B  │ 2B  │ 2B  │ 2B  │ 4B  │ 52B = 12+1   │
+  └──────┴─────┴─────┴─────┴─────┴──────────────┘
+
+  bmap 怎么工作(12 直 + 1 间):
+  假设文件第 bn 块 (0 ≤ bn < 268):
+
+   bn < 12:  return addrs[bn]            "12 块内不用翻译"
+   bn ≥ 12:  return 间接块[bn - 12]     "12 块外要查表"
+
+  关键点:
+  ① MAXFILE = 12 + 256 = 268 块 ≈ 268 KB
+  ② addrs[12] = 间接块指针(不是数据)
+  ③ 没有 ext4 的 extents
+</div>
+
+<p><strong>画法</strong>:左半部画 dinode 6 列(标出 addrs[13] 占 52 字节),右半部画 bmap 两分支。**总耗时 60 秒**。</p>
+
+<h2 id="qa5">❓ 5 个老师追问预案(整合 Day 1–3)</h2>
+
+<table>
+  <tr><th>序号</th><th>老师可能问</th><th>答法要点(30 秒内)</th><th>对应 Day</th></tr>
+  <tr><td>1</td>
+    <td>"xv6 缓冲层和 Linux page cache 比,主要缺点是什么?"</td>
+    <td>vivification 风险:NBUF=30 极小,LRU 单链表,热点 buffer 可能被冷数据挤掉。Linux 用 active/inactive 双链表缓解。</td>
+    <td>Day 1</td></tr>
+  <tr><td>2</td>
+    <td>"write_head 才是真实 commit 点 — 如果第 2 步写完、第 3 步 install_trans 中途崩溃,会怎样?"</td>
+    <td>安全。重启时 recover_from_log 读到 logheader.n > 0,调 install_trans(1) 重新执行,幂等(覆盖同样的新值),不丢不乱。</td>
+    <td>Day 2</td></tr>
+  <tr><td>3</td>
+    <td>"ext4 的 ordered 模式怎么做的?为什么比 journaling 快?"</td>
+    <td>ordered:只 journal 元数据(inode/bitmap 修改),数据块直接写 home。少一次 IO,但不能完全防止"元数据新、数据旧"的极端不一致(实际上由 ordered 标志位 + write barrier 解决)。</td>
+    <td>Day 2</td></tr>
+  <tr><td>4</td>
+    <td>"为什么 bmap 要走 log_write?bget 之后直接 bwrite 不行吗?"</td>
+    <td>log_write 是事务提交方式 — 把 blockno 记入 log.lh,等所有 FS 系统调用都结束,一次性 commit 写盘。这是 Day 2 学的崩溃一致性机制。</td>
+    <td>Day 3</td></tr>
+  <tr><td>5</td>
+    <td>"xv6 的 12+1 和 ext4 extents 相比,数据规模差多少?"</td>
+    <td>xv6 单文件 268 KB,ext4 16 TB(用 extents 树表达连续区间)。xv6 适合教学,ext4 适合生产 — 规模差 6 个数量级。</td>
+    <td>Day 3</td></tr>
+</table>
+
+<p><strong>追问预案 6(备用)</strong>:"xv6 用什么 RISC-V 特性影响 FS 实现?"</p>
+<blockquote>答:xv6 用 virtio MMIO 设备(磁盘)+ PLIC 中断控制器。<code>virtio_disk_rw()</code> 直接读写 MMIO 寄存器,等 PLIC 转发的中断。这是 RISC-V 设备驱动的典型模式。Day 1 缓冲层可以引出"等 IO 用什么机制"。</blockquote>
+
+<h2 id="script">🗣️ 8 分钟讲稿(逐字稿)</h2>
+
+<div class="timing">
+
+<p><strong>[0:00–0:30] 开场</strong></p>
+<blockquote>
+"今天讲 xv6 文件系统源码,主战场三个文件:bio.c、log.c、fs.c,加起来 450 行。我会按"缓冲 → 日志 → 文件系统"三层讲,每层 2–3 分钟,3 张板书图。3 层各回答一个问题:缓冲层回答"数据怎么读到内存",日志层回答"崩溃了怎么办",文件系统层回答"文件怎么找到数据"。"
+</blockquote>
+
+<p><strong>[0:30–1:30] 画板书图 1 + 讲 bio</strong></p>
+<blockquote>
+"先画图。bcache 是个全局结构,装 30 个 buf,加一个 LRU 链表的哨兵。LRU 链表 head.next 是最近用的,head.prev 是最久没用的。每个 buf 有两个锁:bcache.lock 是 spinlock,保护链表,纳秒级;buf 自己的 lock 是 sleeplock,保护 buf 内容,持锁可长达毫秒,允许等磁盘 IO。"
+<br><br>
+"调用方遵守三件套:bread 拿到 buf,bwrite 写盘,brelse 释放。brelse 做两件事:释放 sleeplock,加 refcnt 减 1,只在 refcnt 归零时把 buf 移到 LRU 头部(MRU 端)。"
+<br><br>
+<em>← 板书图 1 圈点:圈出 bcache.lock / 圈出 b->lock / 圈出 brelse 协议</em>
+<br><br>
+"金句:缓冲层解决的是"如何在内存里高效地管理磁盘块的缓存",核心是双锁粒度匹配 — 链表必须原子,buf 内容可睡。"
+</blockquote>
+
+<p><strong>[3:30–4:00] 过渡 + 画板书图 2</strong></p>
+<blockquote>
+"接下来第二层 — 日志层。它回答的问题是:如果系统崩溃在"写到一半"会怎样?"
+</blockquote>
+
+<p><strong>[4:00–6:00] 讲 log</strong></p>
+<blockquote>
+"xv6 用整块 redo log。磁盘布局上有一段固定区域叫 log,里面有 1 块 header 加若干数据块。FS 系统调用开始调 begin_op,结束调 end_op。end_op 时如果 outstanding 归零,触发 commit。"
+<br><br>
+"commit 走 4 步:① 拷 buf 到 log → ② 写 logheader ★ 这是真实 commit 点 → ③ 拷 log 到 home → ④ 写 logheader.n=0 擦日志。崩溃恢复时,如果重启读到 logheader.n > 0,就 install_trans 重做 — 幂等。"
+<br><br>
+<em>← 板书图 2 圈点:圈出第 2 步 write_head(标 ★)/ 圈出口诀"先写日志再写 home"</em>
+<br><br>
+"金句:日志层解决的是"崩溃一致性",不是"性能"。xv6 用 outstanding 计数实现最简单的组提交,ext4 走得更远但本质没变。"
+</blockquote>
+
+<p><strong>[6:00–6:30] 过渡 + 画板书图 3</strong></p>
+<blockquote>
+"最后第三层 — 文件系统层。它回答"文件怎么找到数据"。"
+</blockquote>
+
+<p><strong>[6:30–7:30] 讲 fs</strong></p>
+<blockquote>
+"xv6 磁盘布局分 5 段:boot、super、log、inodes、bitmap、data。superblock 是个总账本,记着每段起点。"
+<br><br>
+"dinode 是 64 字节的定长结构,关键字段是 addrs[13] — 12 个直接块 + 1 个间接块指针。bmap(ip, bn) 把"文件第 bn 块"翻译成"磁盘第几块":bn<12 直接返回 addrs[bn],bn>=12 要先读间接块(里面是 uint[256] 数组),再返回数组第 bn-12 项。最大文件 268 KB。"
+<br><br>
+<em>← 板书图 3 圈点:圈出 addrs[13]/ 圈出 bmap 两个分支</em>
+<br><br>
+"金句:inode 是号码牌,bmap 是翻译官。xv6 的 12+1 是 ext2 减配版,ext4 用 extents 表达连续区间,规模差 6 个数量级。"
+</blockquote>
+
+<p><strong>[7:30–8:00] 收尾</strong></p>
+<blockquote>
+"总结一下。3 层各解决一个独立问题:bio 管"内存缓存",log 管"崩溃一致",fs 管"名字到数据"。xv6 总共 450 行,讲得清 8 分钟;ext4 是它的 1000 倍,但分层思想没变。"
+</blockquote>
+
+</div>
+
+<h2 id="checklist">✅ 彩排 Checklist(讲前 1 小时过一遍)</h2>
+
+<div class="rehearsal">
+  <h3>板书</h3>
+  <ul>
+    <li>☐ 图 1(LRU 链表 + 双锁)能在 60 秒内徒手画完</li>
+    <li>☐ 图 2(commit 三步)能在 45 秒内徒手画完</li>
+    <li>☐ 图 3(dinode 12+1)能在 60 秒内徒手画完</li>
+    <li>☐ 板书图用同色粉笔/同色 marker,层级清晰</li>
+  </ul>
+
+  <h3>讲稿</h3>
+  <ul>
+    <li>☐ 3 个金句各 1 句,能背(bio 抽象层 / log 崩溃一致性 / fs 号码牌翻译官)</li>
+    <li>☐ 3 段时间均衡(2.5 / 2 / 1.5 分钟)</li>
+    <li>☐ 每个层用"它回答 X 问题"开头(开场)</li>
+    <li>☐ 每张板书图配 1 句"金句"收尾</li>
+  </ul>
+
+  <h3>追问</h3>
+  <ul>
+    <li>☐ 5 个追问预案 30 秒内能答出(打一遍)</li>
+    <li>☐ 第 6 个追问(RISC-V 特性)也能答</li>
+    <li>☐ 每个追问能回到对应 Day 的具体函数/行号</li>
+  </ul>
+
+  <h3>演练</h3>
+  <ul>
+    <li>☐ 对着镜子讲 1 遍(看嘴型、不卡顿)</li>
+    <li>☐ 对着朋友讲 1 遍(看反应,卡了哪里)</li>
+    <li>☐ 用手机录音 8 分钟,听回放找口头禅(比如"那个"、"就是")</li>
+  </ul>
+</div>
+
+<h2>📚 整合索引</h2>
+<ul>
+  <li>Day 1(bio 缓冲层):<a href="0001-bio-buffered-io.html">0001-bio-buffered-io.html</a></li>
+  <li>Day 2(log 写前日志):<a href="0002-log-write-ahead.html">0002-log-write-ahead.html</a></li>
+  <li>Day 3(fs 文件系统层):<a href="0003-fs-inode-bmap.html">0003-fs-inode-bmap.html</a></li>
+  <li>术语表:<a href="../GLOSSARY.md">GLOSSARY.md</a></li>
+  <li>工作区笔记:<a href="../NOTES.md">NOTES.md</a></li>
+</ul>
+
+<h2>🎯 讲完后</h2>
+<p>实际讲完 8 分钟后,写 <a href="../learning-records/0004-rehearsal.md">学习记录 0004</a>。重点记录:</p>
+<ol>
+  <li>实际用了多少分钟(8?9?7?)</li>
+  <li>哪张板书图画超时 / 哪里卡顿</li>
+  <li>5 个追问预案被问中几个 / 答出几个</li>
+  <li>老师 / 同学的新追问(没准备过的)是什么</li>
+  <li>下次要补什么</li>
+</ol>
+
+<p>这就是 SKILL.md 强调的"反馈循环" — 真实讲一遍,把数据写进 LR-0004,这是你这套工作区里<strong>最重要的一个文件</strong>。</p>
+
+</body>
+</html>

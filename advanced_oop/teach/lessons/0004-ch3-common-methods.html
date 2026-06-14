@@ -2,59 +2,59 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Lesson 0004 · ch3 通用方法（骨架） — Advanced OOP 复习</title>
+<meta name="viewport" content="width-width, initial-scale=1" />
+<title>Lesson 0004 · 通用方法 · equals + hashCode 契约 — Advanced OOP 复习</title>
 <style>
   :root {
     --fg: #1a1a1a; --muted: #6b6b6b; --line: #e6e6e6; --bg: #fafaf7;
     --card: #fff; --accent: #0a6b3a; --warn: #c47b00; --warn-bg: #fffbe6;
-    --code-bg: #f3f3ee; --placeholder-bg: #f5f5f0;
+    --right: #0a6b3a; --wrong: #b3261e;
+    --code-bg: #f3f3ee; --scaffold-bg: #fffbe6;
   }
   * { box-sizing: border-box; }
-  html, body {
-    margin: 0; padding: 0; background: var(--bg); color: var(--fg);
-    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", system-ui, sans-serif;
-    font-size: 15px; line-height: 1.65;
-  }
-  .wrap { max-width: 780px; margin: 0 auto; padding: 40px 24px 100px; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 15px; line-height: 1.65; }
+  .wrap { max-width: 800px; margin: 0 auto; padding: 40px 24px 100px; }
   header { border-bottom: 1px solid var(--line); padding-bottom: 18px; margin-bottom: 28px; }
   .eyebrow { color: var(--muted); font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; }
   h1 { font-size: 26px; margin: 6px 0 8px; }
   h2 { font-size: 19px; margin: 36px 0 12px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
   h3 { font-size: 16px; margin: 22px 0 8px; }
   pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; line-height: 1.55; font-size: 13.5px; }
-  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; }
+  code { font-family: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: 0.92em; }
   pre code { background: transparent; padding: 0; }
   .open-cmd { background: var(--code-bg); padding: 6px 10px; border-radius: 4px; font-size: 13px; display: inline-block; margin: 6px 0 12px; }
-  .status-banner {
-    background: var(--warn-bg);
-    border-left: 4px solid var(--warn);
-    padding: 16px 20px;
-    border-radius: 0 6px 6px 0;
-    margin: 18px 0 24px;
-  }
-  .status-banner h3 { margin-top: 0; color: var(--warn); }
-  .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 7px;
-    padding: 18px 20px; margin: 18px 0;
-  }
-  .card.placeholder-card {
-    background: var(--placeholder-bg);
-    border-style: dashed;
-    opacity: 0.7;
-  }
+  .scaffold { background: var(--scaffold-bg); border-left: 4px solid #d4a017;
+    padding: 16px 20px; border-radius: 0 6px 6px 0; margin: 18px 0 24px; }
+  .scaffold h3 { margin-top: 0; }
+  .scaffold ul { padding-left: 20px; }
+  .scaffold li { margin: 6px 0; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 7px;
+    padding: 18px 20px; margin: 18px 0; }
   .q-meta { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
   .q-stem { font-weight: 600; margin-bottom: 10px; }
   .options { list-style: none; padding: 0; margin: 0; }
   .options li { margin: 6px 0; }
-  .options label { display: flex; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; cursor: not-allowed; opacity: 0.6; }
+  .options label { display: flex; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; cursor: pointer; }
+  .options label:hover { background: #f0f0e8; }
+  .explanation { display: none; margin-top: 14px; padding: 12px 14px; background: #f6f6f0;
+    border-left: 3px solid var(--accent); border-radius: 0 4px 4px 0; font-size: 14.5px; }
+  .explanation.show { display: block; }
+  .explanation.wrong { border-left-color: var(--wrong); }
+  .explanation strong { color: var(--accent); }
+  .explanation.wrong strong { color: var(--wrong); }
   .actions { margin: 32px 0 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   button.primary { font: inherit; background: var(--accent); color: white; border: 0; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
-  button.primary:disabled { background: #aaa; cursor: not-allowed; }
-  .placeholder-text { color: var(--muted); font-style: italic; }
+  button.secondary { font: inherit; background: var(--fg); color: white; border: 0; padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+  .review-list { display: grid; grid-template-columns: 1fr; gap: 8px; margin-top: 12px; }
+  .review-row { padding: 10px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 5px;
+    display: grid; grid-template-columns: 60px 1fr auto; gap: 10px; align-items: center; }
+  .review-row.right { border-left: 4px solid var(--right); }
+  .review-row.wrong { border-left: 4px solid var(--wrong); }
+  #summary { display: none; margin-top: 28px; }
   footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
-  .related { background: #f6f6f0; padding: 12px 16px; border-radius: 5px; margin: 12px 0; }
-  .related a { color: var(--accent); }
+  @media print { body { background: white; font-size: 12px; } .actions, button { display: none; } .explanation { display: block !important; } .card { break-inside: avoid; } }
 </style>
 </head>
 <body>
@@ -62,85 +62,206 @@
 
 <header>
   <div class="eyebrow">Lesson 0004 · 第 3 章批处理</div>
-  <h1>通用方法 · 骨架</h1>
-  <p class="muted">覆盖条款 10 / 11 / 12。预计 8 分钟（待生成）。</p>
-  <div class="open-cmd">open /Users/wangzihao/Code/pass_exam/advanced_oop/teach/lessons/0004-ch3-common-methods.html</div>
+  <h1>通用方法 · equals + hashCode 契约</h1>
+  <p class="muted">覆盖条款 10 / 11 / 12。先读 2 分钟脚手架,再做 4 题。预计 20-25 分钟。</p>
+  <div class="open-cmd">open E:\CODE\pass_exam\advanced_oop\teach\lessons\0004-ch3-common-methods.html</div>
 </header>
 
-<div class="status-banner">
-  <h3>📋 本课状态：骨架（待生成题目）</h3>
-  <p>题目将在 teacher 收到你 <strong>Lesson 0003 泛型 4 题</strong>的反馈后填充。</p>
-  <p><strong>本节特殊关注</strong>：条款 10 / 11 是配对契约。你在 Lesson 0002 自评中给 11 标"认识"、10 标"模糊"——这节课会专门设计代码题<strong>验证 hashCode 契约</strong>是不是真懂。</p>
+<div class="scaffold">
+  <h3>2 分钟脚手架:为什么 equals 和 hashCode 必须配对</h3>
+  <ul>
+    <li><strong>所有 Java 类继承自 <code>Object</code></strong> —— 默认的 <code>equals</code> 是 <code>==</code>(同一对象),默认的 <code>hashCode</code> 是内存地址导出的整数。</li>
+    <li><strong>条款 10 · equals 5 性质</strong>(破任一 → 集合行为诡异):
+      <ol>
+        <li><strong>自反</strong>:<code>x.equals(x) == true</code></li>
+        <li><strong>对称</strong>:<code>x.equals(y) ⇔ y.equals(x)</code>(大小写忽略比较最常犯)</li>
+        <li><strong>传递</strong>:<code>x.equals(y)</code> 且 <code>y.equals(z)</code> ⇒ <code>x.equals(z)</code>(子类加字段最常犯)</li>
+        <li><strong>一致</strong>:信息不变,多次调用结果不变</li>
+        <li><strong>非空</strong>:<code>x.equals(null) == false</code>(用 <code>instanceof</code> 自带这性质)</li>
+      </ol>
+    </li>
+    <li><strong>条款 11 · hashCode 契约</strong>(核心,常被忽略):
+      <ul>
+        <li><strong>必备</strong>:<code>equals</code> 相等 ⇒ <code>hashCode</code> 必须相等</li>
+        <li><strong>反过来不要求</strong>:<code>hashCode</code> 相等 <code>equals</code> 可以不等(允许碰撞)</li>
+        <li><strong>反模式</strong>:只覆盖 <code>equals</code> 不覆盖 <code>hashCode</code> → 对象放进 <code>HashMap</code> / <code>HashSet</code> <strong>就丢了</strong>(put 进的桶和 get 找的桶不同)</li>
+        <li><strong>标准实现</strong>:<code>result = 31 * result + c</code>,31 是奇素数,减少碰撞;Java 7+ 可用 <code>Objects.hash(...)</code> 一行搞定(性能稍差,可读性高)</li>
+      </ul>
+    </li>
+    <li><strong>条款 12 · toString</strong>:默认 <code>PhoneNumber@163b91</code> 几乎不可调试;约定「简洁、信息丰富」,让日志和断言能直接读懂。</li>
+  </ul>
 </div>
 
 <section>
-  <h2>主题简介</h2>
-  <p>第 3 章聚焦"覆盖 <code>Object</code> 通用方法时的常见陷阱"——主要就是 <code>equals</code>、<code>hashCode</code>、<code>toString</code> 这三个。所有 Java 类默认继承自 <code>Object</code>，所以这些方法的覆盖质量直接影响<strong>所有使用 HashMap / HashSet / 日志 / 调试的场景</strong>。</p>
-  <p>本节 3 条都是高频考点：</p>
-  <ul>
-    <li><strong>条款 10</strong>：<code>equals</code> 覆盖必须满足 5 性质（自反 / 对称 / 传递 / 一致 / 非 null），破任一 → 集合行为诡异</li>
-    <li><strong>条款 11</strong>：<code>equals</code> 相等 ⇒ <code>hashCode</code> 必须相等；反之不要求——HashMap/HashSet 靠这条</li>
-    <li><strong>条款 12</strong>：<code>toString</code> 一定要写好——默认 <code>PhoneNumber@163b91</code> 难调试</li>
-  </ul>
-</section>
-
-<section>
-  <h2>（待生成：脚手架 / 核心原理）</h2>
-  <p class="placeholder-text">这节会先讲 60–90 秒的"equals 5 性质 + hashCode 契约 + toString 默认行为"作为脚手架——待根据 Lesson 0003 反馈决定深浅。</p>
+  <h2>本课特殊关注(LR-0002 模式匹配风险)</h2>
+  <p>你自评 <strong>条款 11 标「认识」,条款 10 标「模糊」</strong>。但条款 11 的全部意义建立在「你已经懂 equals 5 性质」上 —— 最可能是 <strong>「hashCode 必须跟 equals 一致」这句话字面熟了,契约级理解没建立</strong>。</p>
+  <p>所以本节 4 题专挑 <strong>代码反例 + 运行时行为</strong>,不止考你「会不会说」。<strong>如果 4 题对 3 题以上</strong> → 你的条款 11 升级为真认识;如果错 2 题以上 → 条款 10 + 11 应作为一组重教,我们下节课再来一遍。</p>
 </section>
 
 <form id="quiz">
 
-<div class="card placeholder-card">
-  <div class="q-meta">条款 10 · 覆盖 equals 遵守通用约定</div>
-  <div class="q-stem placeholder-text">（待生成：题目描述）</div>
-  <pre><code>（待生成：代码片段）</code></pre>
+<div class="card" data-q="1" data-correct="B">
+  <div class="q-meta">条款 10 · 对称性反例</div>
+  <div class="q-stem">下面这个 <code>equals</code> 违反 5 性质中的<strong>哪一个</strong>?</div>
+<pre><code>public final class CaseInsensitiveString {
+    private final String s;
+    public CaseInsensitiveString(String s) { this.s = s; }
+    @Override public boolean equals(Object o) {
+        if (o instanceof CaseInsensitiveString)
+            return s.equalsIgnoreCase(((CaseInsensitiveString) o).s);
+        if (o instanceof String)
+            return s.equalsIgnoreCase((String) o);   // ① 跟 String 比
+        return false;
+    }
+}</code></pre>
   <ul class="options">
-    <li><label><input type="radio" name="q1" value="A" disabled><span>（待生成）</span></label></li>
-    <li><label><input type="radio" name="q1" value="B" disabled><span>（待生成）</span></label></li>
-    <li><label><input type="radio" name="q1" value="C" disabled><span>（待生成）</span></label></li>
-    <li><label><input type="radio" name="q1" value="D" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q1" value="A"><span>A. 自反性</span></label></li>
+    <li><label><input type="radio" name="q1" value="B"><span>B. 对称性(跟普通 String 比时)</span></label></li>
+    <li><label><input type="radio" name="q1" value="C"><span>C. 传递性</span></label></li>
+    <li><label><input type="radio" name="q1" value="D"><span>D. 一致性</span></label></li>
   </ul>
-  <div class="placeholder-text" style="margin-top: 12px;">（待生成：解析）</div>
+  <div class="explanation">
+    <strong>答案:B(对称性)。</strong> ① 处让 <code>CaseInsensitiveString</code> 跟 <code>String</code> 比可以,但 <code>String.equals</code> 不知道 <code>CaseInsensitiveString</code> 存在 → <code>"hello".equals(cis)</code> 是 false,反过来 <code>cis.equals("hello")</code> 是 true。<strong>对称性被破</strong>。<code>HashSet</code> 里行为会非常诡异:加 cis 进去,再用 "hello" 找可能找不到。条款 10 经典反例。修法:只跟同类型比。
+  </div>
 </div>
 
-<div class="card placeholder-card">
-  <div class="q-meta">条款 11 · 覆盖 equals 必覆盖 hashCode</div>
-  <div class="q-stem placeholder-text">（待生成：题目描述）</div>
-  <pre><code>（待生成：代码片段）</code></pre>
+<div class="card" data-q="2" data-correct="C">
+  <div class="q-meta">条款 11 · hashCode 契约真伪</div>
+  <div class="q-stem">下面哪个说法<strong>正确</strong>?</div>
   <ul class="options">
-    <li><label><input type="radio" name="q2" value="A" disabled><span>（待生成）</span></label></li>
-    <li><label><input type="radio" name="q2" value="B" disabled><span>（待生成）</span></label></li>
-    <li><label><input type="radio" name="q2" value="C" disabled><span>（待生成）</span></label></li>
-    <li><label><input type="radio" name="q2" value="D" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q2" value="A"><span>A. 两个对象 <code>equals</code> 不等,它们的 <code>hashCode</code> 必须不等</span></label></li>
+    <li><label><input type="radio" name="q2" value="B"><span>B. <code>hashCode</code> 相等的两个对象 <code>equals</code> 必须返回 true</span></label></li>
+    <li><label><input type="radio" name="q2" value="C"><span>C. <code>equals</code> 相等的两个对象 <code>hashCode</code> 必须相等(反过来不要求)</span></label></li>
+    <li><label><input type="radio" name="q2" value="D"><span>D. 只覆盖 <code>equals</code> 不覆盖 <code>hashCode</code> 在 <code>ArrayList.contains</code> 里会爆</span></label></li>
   </ul>
-  <div class="placeholder-text" style="margin-top: 12px;">（待生成：解析）</div>
+  <div class="explanation">
+    <strong>答案:C。</strong> 这是条款 11 的<strong>核心契约</strong>。A 错(碰撞是允许的);B 错(同样允许碰撞,只是同一桶里再用 equals 区分);D 错(<code>ArrayList</code> 用 <code>equals</code> 不用 <code>hashCode</code>,不爆;但 <code>HashMap</code> / <code>HashSet</code> <strong>必爆</strong>:put 进的桶用 hashCode 算,get 时再算一次,不等就找不到 → 对象「丢了」。
+  </div>
 </div>
 
-<div class="card placeholder-card">
-  <div class="q-meta">条款 12 · 始终覆盖 toString</div>
-  <div class="q-stem placeholder-text">（待生成：题目描述）</div>
-  <pre><code>（待生成：代码片段）</code></pre>
+<div class="card" data-q="3" data-correct="A">
+  <div class="q-meta">条款 11 · 真假 hashCode 实现</div>
+  <div class="q-stem">哪个 <code>hashCode</code> 实现是<strong>正确</strong>的?</div>
+<pre><code>class PhoneNumber {
+    private final short area, prefix, line;
+    PhoneNumber(short a, short p, short l) { area=a; prefix=p; line=l; }
+    @Override public boolean equals(Object o) {
+        if (!(o instanceof PhoneNumber)) return false;
+        PhoneNumber pn = (PhoneNumber) o;
+        return area==pn.area && prefix==pn.prefix && line==pn.line;
+    }
+    // 哪个 hashCode 正确?
+}</code></pre>
   <ul class="options">
-    <li><label><input type="radio" name="q3" value="A" disabled><span>（待生成）</span></label></li>
-    <li><label><input type="radio" name="q3" value="B" disabled><span>（待生成）</span></label></li>
-    <li><label><input type="radio" name="q3" value="C" disabled><span>（待生成）</span></label></li>
-    <li><label><input type="radio" name="q3" value="D" disabled><span>（待生成）</span></label></li>
+    <li><label><input type="radio" name="q3" value="A"><span>A. <code>return Objects.hash(area, prefix, line);</code></span></label></li>
+    <li><label><input type="radio" name="q3" value="B"><span>B. <code>return 1;</code>(所有对象都进同一桶,equals 兜底)</span></label></li>
+    <li><label><input type="radio" name="q3" value="C"><span>C. <code>return (int)(area + prefix + line);</code></span></label></li>
+    <li><label><input type="radio" name="q3" value="D"><span>D. <code>return super.hashCode();</code>(用 Object 默认)</span></label></li>
   </ul>
-  <div class="placeholder-text" style="margin-top: 12px;">（待生成：解析）</div>
+  <div class="explanation">
+    <strong>答案:A。</strong> A 标准(<code>Objects.hash</code> 用 31 * result 模式,可读性高,性能可接受)。B 合法但性能糟(HashMap 退化成链表)。C 错:<strong>碰撞率极高</strong>(碰撞率极高(area+prefix+line 易撞)),HashMap 性能崩。D 错:<code>super.hashCode()</code> 用<strong>内存地址</strong>作 hash → 两个相等的 PhoneNumber 散到不同桶,违反契约 ① → put/get 找不到对象。A 是「先满足契约,再考虑性能」的标准做法。
+  </div>
+</div>
+
+<div class="card" data-q="4" data-correct="D">
+  <div class="q-meta">条款 11 · 运行时行为</div>
+  <div class="q-stem">运行下面代码,<code>contains</code> 打印什么?</div>
+<pre><code>class Point {
+    final int x, y;
+    Point(int x, int y) { this.x = x; this.y = y; }
+    @Override public boolean equals(Object o) {
+        if (!(o instanceof Point)) return false;
+        Point p = (Point) o;
+        return p.x == x &amp;&amp; p.y == y;
+    }
+    // 注意:没覆盖 hashCode
+}
+
+Set&lt;Point&gt; set = new HashSet&lt;&gt;();
+set.add(new Point(1, 2));
+System.out.println(set.contains(new Point(1, 2)));</code></pre>
+  <ul class="options">
+    <li><label><input type="radio" name="q4" value="A"><span>A. true</span></label></li>
+    <li><label><input type="radio" name="q4" value="B"><span>B. false</span></label></li>
+    <li><label><input type="radio" name="q4" value="C"><span>C. 编译报错</span></label></li>
+    <li><label><input type="radio" name="q4" value="D"><span>D. 抛 NullPointerException</span></label></li>
+  </ul>
+  <div class="explanation">
+    <strong>答案:B(false)。</strong> 两个 <code>Point(1,2)</code> <code>equals</code> 相等(都是 true),但 <code>hashCode</code> 用的是 Object 默认(内存地址)→ <strong>两个对象散到不同桶</strong>。<code>contains</code> 算第二个 Point 的 hashCode,去<strong>另一个桶</strong>找,找不到 → 返回 false。<strong>这就是没覆盖 hashCode 的经典翻车现场</strong>:equals 说"是同一个",HashSet 说"我找不到"。条款 11 的实战意义就在这一题。
+  </div>
 </div>
 
 <div class="actions">
-  <button type="button" class="primary" disabled>题目待生成</button>
-  <span class="muted">完成 Lesson 0003 后告诉 teacher,本节即可激活</span>
+  <button type="button" id="submitBtn" class="primary">提交并查看解析</button>
+  <button type="button" id="resetBtn" class="secondary">重置</button>
 </div>
 </form>
 
+<div id="summary">
+  <h2>本课结果</h2>
+  <div class="review-list" id="reviewList"></div>
+  <h3>下一步判定</h3>
+  <ul>
+    <li><strong>4/4 对</strong> → 条款 10/11 升级为「真认识」,入 GLOSSARY 候选;下节课进入 ch2 主题(条款 1/2/5/6/7 批量)。</li>
+    <li><strong>3/4 对</strong> → 状态变成「部分认识」,下节课补错的那一题,再进 ch2。</li>
+    <li><strong>2/4 及以下</strong> → 条款 10 + 11 锁定为「假认识」,下节课重教这一对(用 PhoneNumber 案例再讲一遍 equals → hashCode 链条),ch2 推后。</li>
+  </ul>
+  <p style="margin-top: 14px;">完成后告诉我「4 题错 X」,我直接生成 <code>learning-records/0004-equals-hashcode.md</code> 并定下一节。</p>
+</div>
+
 <footer>
-  <p>配套：<a href="../reference/cheatsheet.html">条款速查表</a> · <a href="0003-generics.html">Lesson 0003</a> · <a href="../MISSION.md">Mission</a></p>
-  <p>设计原则：本节是 LR-0002 标记的"重点关注"——条款 10/11 必须用代码题验证真假理解,不能停留自评。</p>
+  <p>配套:<a href="../reference/cheatsheet.html">条款速查表</a> · <a href="0003-generics.html">Lesson 0003</a> · <a href="0002-vocabulary.html">Lesson 0002</a> · <a href="../MISSION.md">Mission</a></p>
+  <p>设计原则:本节是 LR-0002 标记的「重点关注」—— 条款 10/11 必须用代码题验证真假理解,不能停留自评。题目全部基于「2_3_章节内容.md」中的反例结构,不用杜撰。</p>
 </footer>
 
 </div>
+
+<script>
+(function () {
+  var form = document.getElementById('quiz');
+  var submitBtn = document.getElementById('submitBtn');
+  var resetBtn = document.getElementById('resetBtn');
+  var summary = document.getElementById('summary');
+  var reviewList = document.getElementById('reviewList');
+  var cards = form.querySelectorAll('.card');
+
+  submitBtn.addEventListener('click', function () {
+    var right = 0;
+    var rows = [];
+    cards.forEach(function (c) {
+      var name = c.querySelector('input[type=radio]').name;
+      var sel = form.querySelector('input[name="' + name + '"]:checked');
+      var exp = c.querySelector('.explanation');
+      var correct = c.dataset.correct;
+      var meta = c.querySelector('.q-meta').textContent;
+      var ok = sel && sel.value === correct;
+      if (ok) right++;
+      exp.classList.add('show');
+      exp.classList.toggle('wrong', !ok);
+      rows.push({ meta: meta, ok: ok, ans: correct });
+    });
+    reviewList.innerHTML = '';
+    rows.forEach(function (r) {
+      var div = document.createElement('div');
+      div.className = 'review-row ' + (r.ok ? 'right' : 'wrong');
+      div.innerHTML = '<span style="font-weight:600">' + (r.ok ? '✓' : '✗') + '</span>' +
+                      '<span>' + r.meta + '</span>' +
+                      '<span style="color:' + (r.ok ? 'var(--right)' : 'var(--wrong)') + ';font-weight:600">' + (r.ok ? '对' : '错(答 ' + r.ans + ')') + '</span>';
+      reviewList.appendChild(div);
+    });
+    summary.style.display = 'block';
+    summary.scrollIntoView({ behavior: 'smooth' });
+  });
+
+  resetBtn.addEventListener({}, function () {
+    form.reset();
+    cards.forEach(function (c) {
+      var exp = c.querySelector('.explanation');
+      exp.classList.remove('show', 'wrong');
+    });
+    summary.style.display = 'none';
+  });
+})();
+</script>
 </body>
 </html>

@@ -1,0 +1,207 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>第 1 讲 xv6 调度器源码:xv6 怎么决定"下一个跑谁" — xv6-riscv 课堂讲解备课</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 760px; margin: 2rem auto; padding: 0 1rem; line-height: 1.7; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .92rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  table { border-collapse: collapse; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 6px 12px; }
+  th { background: #f5f5f5; }
+  .board { background: #fff8e1; border: 1px dashed #b58900; padding: .8rem 1rem; border-radius: 4px;
+           font-family: "JetBrains Mono", Consolas, monospace; white-space: pre; overflow-x: auto; }
+  .pitfall { background: #fff0f0; border-left: 4px solid #c0392b; padding: .5rem 1rem; }
+  .checklist li { margin: .3rem 0; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>第 1 讲 · xv6 调度器源码精读</h1>
+<p><strong>课堂展示场景</strong> · 主讲 <code>proc.c::scheduler()</code> · 板书 1 张图 · 5–8 分钟讲完</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#mission">MISSION</a> · <a href="#analogy">类比</a> · <a href="#data">关键定义</a> ·
+  <a href="#board">板书图</a> · <a href="#code">源码精读</a> · <a href="#intents">3 个设计意图</a> ·
+  <a href="#quiz">3 道自测</a> · <a href="#qa">老师追问预案</a>
+</div>
+
+<h2 id="mission">🎯 这节课要解决什么</h2>
+<p><strong>5 分钟版</strong>:讲清 xv6 调度器长什么样、它怎么遍历所有进程、它怎么"切"到下一个进程。</p>
+<p><strong>15 分钟版</strong>:在 5 分钟版基础上,加 3 个设计意图(为什么这么写)、加 3 道自测。</p>
+<p><strong>对应 mission</strong>:课堂展示 5–15 分钟,讲完一段 xv6 源码,能答追问。<a href="../MISSION.md">→ MISSION</a></p>
+
+<h2 id="analogy">🧠 一句类比:酒店前台</h2>
+<blockquote>
+  <strong>xv6 调度器 = 只有一个前台的小酒店</strong>。<br>
+  客人(进程)从大门进来到大堂等;<strong>前台(CPU)</strong> 一次只服务一个客人,办完一个叫下一个;<br>
+  <strong>叫号单(proc[] 数组)</strong> 上写了"现在可办理"(RUNNABLE) 的房间号;<br>
+  前台办完会把客人"交接"给对应的服务员(<code>swtch</code> 切到进程),办完了服务员再把客人送回大堂。
+</blockquote>
+<p><strong>为什么要这个类比</strong>:你能用手指着"前台"、"叫号单"、"服务员"讲完整个 <code>scheduler()</code> 循环,不需要背源码。</p>
+
+<h2 id="data">📋 关键定义(讲之前先抛出来)</h2>
+<table>
+  <tr><th>术语</th><th>代码位置</th><th>一句话</th></tr>
+  <tr><td><code>struct proc</code> (PCB)</td><td>proc.h:84–103</td><td>内核里代表一个进程的数据结构</td></tr>
+  <tr><td><code>proc[]</code></td><td>proc.c 静态数组</td><td>系统所有进程的"花名册"</td></tr>
+  <tr><td>状态枚举</td><td>proc.h:82</td><td><code>UNUSED/USED/SLEEPING/RUNNABLE/RUNNING/ZOMBIE</code></td></tr>
+  <tr><td><code>struct context</code></td><td>proc.h:1–21</td><td>14 个寄存器快照,切进程要保存和恢复</td></tr>
+  <tr><td><code>swtch()</code></td><td>swtch.S</td><td>汇编实现,切 ra/sp/s0–s11 共 14 个寄存器</td></tr>
+  <tr><td><code>mycpu()</code></td><td>proc.c</td><td>当前 CPU 核心(含 <code>c->proc</code> 和 <code>c->context</code>)</td></tr>
+</table>
+<p>完整术语见 <a href="../GLOSSARY.md">GLOSSARY.md</a>。</p>
+
+<h2 id="board">📝 板书图(讲台上要画出来)</h2>
+<div class="board">
+  xv6 调度器 — 一张图讲完
+
+     ┌──────────────────────────────────────────┐
+     │          scheduler()  — 一个死循环         │
+     │                                            │
+     │   for(;;) {                                │
+     │     intr_on();           ← 开中断(防死锁)   │
+     │                                            │
+     │     for(p = proc; p < &proc[NPROC]; p++) { │ ← 扫花名册
+     │       acquire(&p->lock);                   │
+     │       if (p->state == RUNNABLE) {          │ ← 找可办理
+     │         p->state = RUNNING;                │ ← 改状态
+     │         c->proc = p;                       │ ← 记录"现在谁在跑"
+     │         swtch(&c->context, &p->context);   │ ← 切过去!
+     │         c->proc = 0;                       │ ← 它回来后清空
+     │       }                                    │
+     │       release(&p->lock);                   │
+     │     }                                      │
+     │   }                                        │
+     └──────────────────────────────────────────┘
+
+  关键点(板书时圈出来):
+  ① 改 RUNNABLE→RUNNING *在 swtch 之前*
+  ② swtch 是汇编,只切 14 个寄存器
+  ③ 进程回来时自己改状态,scheduler 不动
+</div>
+
+<h2 id="code">🔍 源码精读(proc.c:445–472)</h2>
+<pre><code>void
+scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+
+  c->proc = 0;
+  for(;;){
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    for(p = proc; p < &proc[NPROC]; p++) {
+      acquire(&p->lock);
+      if(p->state == RUNNABLE) {
+        // Switch to chosen process.  It is the process's job
+        // to release its lock and then reacquire it
+        // before jumping back to us.
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      }
+      release(&p->lock);
+    }
+  }
+}</code></pre>
+
+<h3>逐行讲(每行配一句口语)</h3>
+<ol>
+  <li><code>c->proc = 0</code> — "先把前台清空,等下要登记新客人"</li>
+  <li><code>for(;;)</code> — "调度器永远不死,死循环"</li>
+  <li><code>intr_on()</code> — "开中断,不然设备永远叫不醒我们,会死锁"</li>
+  <li><code>for(p = proc; p < &proc[NPROC]; p++)</code> — "扫整个花名册,挨个问"</li>
+  <li><code>acquire(&p->lock)</code> — "先把这位的房门锁了,别让别人动它的状态"</li>
+  <li><code>if(p->state == RUNNABLE)</code> — "只挑'可办理'的;睡眠的、僵尸的不理"</li>
+  <li><code>p->state = RUNNING</code> — "决定就要它,先把它的状态改成'正在被办'"</li>
+  <li><code>c->proc = p</code> — "在前台登记'现在办的是这位'"</li>
+  <li><code>swtch(&c->context, &p->context)</code> — <strong>⭐ 全场重点</strong> — "切过去!"保存前台的 14 个寄存器,加载它的 14 个寄存器</li>
+  <li><code>c->proc = 0</code> — "它办完回来了,前台清空"</li>
+  <li><code>release(&p->lock)</code> — "开锁,继续问下一个人"</li>
+</ol>
+
+<p><strong>讲法提示</strong>:第 9 行 <code>swtch</code> 一定要停下来,用手指着它说"全场最神奇的一行,汇编代码,切 14 个寄存器,几行就完事"。</p>
+
+<h2 id="intents">🧩 3 个设计意图(被追问时用)</h2>
+
+<h3>意图 1:为什么用最简单的轮询?为什么不上 priority / 时间片?</h3>
+<p>xv6 是<strong>教学内核</strong>,调度器要"一眼能讲完"。Linux 的 CFS 有 200+ 行,vscore 数组、红黑树,5 分钟讲不完。
+xv6 选择 O(N) 扫一遍,NPROC=64,64 次循环 < 1 微秒,够用且<strong>代码可读</strong>。</p>
+
+<h3>意图 2:为什么"改 RUNNABLE→RUNNING"要在 <code>swtch</code> 之前?</h3>
+<p><strong>怕自己骗自己</strong>。如果 <code>swtch</code> 之后才改状态,刚切过去那一瞬间,调度器那边还可能"以为这个进程 RUNNABLE",下一次扫到它又切一次,就乱了。
+所以<strong>改状态 = 表态</strong>,要在切之前就让全世界知道。</p>
+
+<h3>意图 3:为什么 <code>swtch</code> 后没有"恢复现场"的代码?</h3>
+<p><strong>对称性</strong>。<code>swtch</code> 是双向切换:从 A 切到 B,以后 B 切回 A 时,程序计数器会自动回到 <code>swtch</code> 的下一行继续执行。所以调度器"恢复现场"的代码就是 <code>c->proc = 0</code> 那几行,不需要单独写"还原"逻辑。</p>
+
+<h2 id="quiz">📝 3 道自测(讲完后回头看,10 分钟)</h2>
+
+<ol>
+  <li>
+    <p><strong>(选择)</strong> xv6 调度器在 <code>swtch</code> 之前,先做了哪件事?</p>
+    <p>A. 保存当前进程的页表　B. 把进程状态改成 RUNNING　C. 关中断　D. 调用 <code>forkret</code></p>
+    <p class="pitfall">答案: <strong>B</strong>。<code>p->state = RUNNING</code> 必须在 swtch 前,见设计意图 2。干扰项 A 错在 xv6 用 trampoline 切页表,不在 scheduler;C 错在 <code>intr_on</code> 反而是开中断;D 是 fork 子进程第一次跑时的入口,不是 swtch 前调用。</p>
+  </li>
+  <li>
+    <p><strong>(简答)</strong> 为什么 <code>scheduler()</code> 里 <code>intr_on()</code> 在每轮循环开头?</p>
+    <p class="pitfall">答案: <strong>防止死锁</strong>。如果调度器一直关中断,磁盘/网络设备发中断时没人响应,进程会一直 sleep 等 IO,调度器也等不到任何进程变 RUNNABLE,死锁。每轮开一下,设备有机会唤醒睡眠进程,系统才能前进。</p>
+  </li>
+  <li>
+    <p><strong>(追问)</strong> xv6 调度器和 Linux 0.11 的调度器,本质区别是什么?</p>
+    <p class="pitfall">答案: <strong>时间片 vs 协作</strong>。Linux 0.11 是"非抢占"(协作式),进程必须主动调用 <code>schedule()</code> 才让出 CPU;xv6 是"抢占式",<strong>定时器中断</strong>会强制把运行进程切回调度器(走 <code>yield()</code> 路径)。xv6 更现代,但代价是调度器要更小心地处理"中断发生时正在干什么"。</p>
+  </li>
+</ol>
+
+<h2 id="qa">❓ 老师追问预案(3 个最可能的)</h2>
+
+<table>
+  <tr><th>老师可能问</th><th>答法要点</th></tr>
+  <tr><td>"swtch 切的是哪些寄存器?为什么是这 14 个?"</td>
+  <td>看 <code>proc.h:1–21</code>:ra/sp/s0–s11 共 14 个。<strong>不切</strong> tp/gp(线程局部)、不切 t0–t6(调用者保存,被调用方会自己保存)。<strong>口诀</strong>:被调用方保存的我们不切,调用方保存的我们切。</td></tr>
+  <tr><td>"如果 NPROC=64 全是 RUNNABLE,这循环公平吗?"</td>
+  <td>对<strong>当前这一遍</strong>公平(都跑一次);对<strong>多轮</strong>之间,谁先被扫到谁先跑,可能略不公平(扫到头部有偏倚)。xv6 不解决这个,Linux CFS 用红黑树 + 虚拟时间解决。</td></tr>
+  <tr><td>"yield() 和 sleep() 怎么回到 scheduler?"</td>
+  <td>都走 <code>sched()</code>(proc.c:482):把自己的状态改好(改 RUNNABLE 或 SLEEPING),然后 <code>swtch(&p->context, &c->context)</code>。scheduler 是从 <code>swtch</code> 下一行继续。</td></tr>
+</table>
+
+<h2>🗣️ 讲稿骨架(8 分钟版本)</h2>
+<ol>
+  <li><strong>0:00–0:30</strong> 一句开场:"今天讲 xv6 调度器,主战场 <code>proc.c:445</code> 的 25 行" → 画板书图</li>
+  <li><strong>0:30–1:30</strong> 类比酒店前台,讲"花名册 + 前台 + 切过去"</li>
+  <li><strong>1:30–4:30</strong> 逐行过 <code>scheduler()</code>,每行一句口语</li>
+  <li><strong>4:30–5:30</strong> 设计意图 1+2(为什么轮询 / 为什么改状态在 swtch 前)</li>
+  <li><strong>5:30–6:30</strong> 现场画 swtch 双箭头,讲"切过去 / 切回来"对称性</li>
+  <li><strong>6:30–7:30</strong> 自测 1+2 现场互动</li>
+  <li><strong>7:30–8:00</strong> "对照 Linux 0.11 是协作式,xv6 是抢占式" 一句话收尾</li>
+</ol>
+
+<h2>📚 推荐一手资料</h2>
+<ul>
+  <li>xv6 book Chapter 4(<a href="https://pdos.csail.mit.edu/6.828/2022/xv6/book-riscv-rev3.pdf">官方 PDF</a>)§4.1–4.3 讲调度器,英文最容易讲清楚的设计动机。</li>
+  <li>本仓库 <a href="../../operating_systems/linux/0014-linux-0-11-fork-day1-pcb.html">Linux 0.11 PCB 精讲</a> — 类比复用。</li>
+</ul>
+
+<h2>🎯 下一步</h2>
+<p>Day 1 学完后,你能用 3 句话复述"xv6 调度器干什么",并能在 8 分钟内讲完带板书的版本。
+Day 2 会基于这节进入 <code>fork()</code>:xv6 怎么"复制"一个进程,重点是 PCB 复制 + 页表复制。
+讲完 Day 1 后,记得写 <a href="../learning-records/0001-scheduler.md">学习记录 0001</a>,记录"被追问时哪点卡了"。</p>
+
+</body>
+</html>

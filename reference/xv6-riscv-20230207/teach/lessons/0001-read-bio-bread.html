@@ -1,0 +1,192 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>课 1 · 看懂 bio.c 的 bread() 7 行 — 知道"它在干什么"</title>
+<style>
+  body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+         max-width: 780px; margin: 2rem auto; padding: 0 1rem; line-height: 1.8; color: #1a1a1a; }
+  h1 { font-size: 1.8rem; border-bottom: 2px solid #333; padding-bottom: .3rem; }
+  h2 { font-size: 1.3rem; margin-top: 2rem; border-left: 4px solid #2c7be5; padding-left: .5rem; }
+  h3 { font-size: 1.1rem; margin-top: 1.2rem; }
+  code, pre { font-family: "JetBrains Mono", Consolas, "Courier New", monospace; font-size: .95rem; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 6px; overflow-x: auto; line-height: 1.4; }
+  code { background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+  blockquote { border-left: 4px solid #ccc; padding-left: 1rem; color: #555; margin: 1rem 0; }
+  .line { display: block; padding: 4px 8px; margin: 2px 0; border-left: 3px solid transparent; }
+  .line:hover { background: #fffbe6; border-left-color: #b58900; }
+  .explain { background: #f0fff0; border-left: 4px solid #5cb85c; padding: .6rem 1rem; margin: .3rem 0; border-radius: 4px; }
+  .task { background: #fff8e1; border: 2px solid #b58900; padding: 1rem 1.2rem; border-radius: 6px; margin: 1.5rem 0; }
+  .verify { background: #eef5ff; border: 1px solid #2c7be5; padding: 1rem 1.2rem; border-radius: 6px; margin: 1rem 0; }
+  .nav { background: #eef5ff; padding: .8rem 1rem; border-radius: 4px; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<h1>课 1 · 看懂 bio.c 的 <code>bread()</code> 7 行</h1>
+<p><strong>目标</strong>:打开 <code>bio.c</code>,找到 <code>bread()</code> 函数,**用一句话说清它在干什么**。</p>
+<p><strong>前提</strong>:读完 <a href="0000-5min-crash-course.html">课 0</a>。</p>
+
+<div class="nav">
+  <strong>导航</strong> · <a href="#open">1. 打开文件找函数</a> · <a href="#read">2. 7 行逐行翻译</a> ·
+  <a href="#gist">3. 整段总结 1 句</a> · <a href="#task">4. 作业:复述 3 遍</a>
+</div>
+
+<h2 id="open">1. 打开文件,找到 <code>bread()</code></h2>
+
+<p>用记事本 / VSCode / 任何文本编辑器,打开这个文件:</p>
+<pre><code>E:\CODE\pass_exam\reference\xv6-riscv-20230207\kernel\bio.c</code></pre>
+
+<p>这是个 ~130 行的 C 文件。**不要从头读**。按 Ctrl+F 搜 <code>bread</code>,你会跳到下面这段(大概在文件 60% 位置):</p>
+
+<pre><code>// Return a locked buf with the contents of the indicated block.
+struct buf*
+bread(uint dev, uint blockno)
+{
+  struct buf *b;
+
+  b = bget(dev, blockno);
+  if(!b->valid) {
+    virtio_disk_rw(b, 0);
+    b->valid = 1;
+  }
+  return b;
+}</code></pre>
+
+<p>就这 7 行(去掉注释和空行)。今天只讲这 7 行,别的都不看。</p>
+
+<div class="task">
+<strong>🎯 任务 1</strong>:打开文件,搜 <code>bread</code>,确认你看到了这 7 行。读 1 遍,不用懂,只看结构。
+</div>
+
+<h2 id="read">2. 7 行逐行翻译(零基础版)</h2>
+
+<p>我把每行拆成 3 部分:**代码** / **人话翻译** / **类比(可选)**。</p>
+
+<h3>第 1 行:函数定义</h3>
+<pre><code>struct buf* bread(uint dev, uint blockno)</code></pre>
+<div class="explain">
+<strong>人话</strong>:"我要写一个函数,叫 <code>bread</code>。它接受两样东西(一块磁盘 + 一个块号),会返回一份数据(一块磁盘块在内存里的样子)。"<br><br>
+<strong>拆词</strong>:<br>
+• <code>struct buf*</code> = "返回一个档案袋"(<code>struct buf</code> 是一种数据,叫"档案袋";<code>*</code> 表示"它的位置"而不是它本身)<br>
+• <code>bread</code> = 函数名,缩写自 "block read"(读块)<br>
+• <code>uint dev</code> = 第一样东西:磁盘编号(哪一块硬盘)<br>
+• <code>uint blockno</code> = 第二样东西:块号(这块硬盘的第几块)
+</div>
+
+<h3>第 2 行:左花括号</h3>
+<pre><code>{</code></pre>
+<div class="explain">
+<strong>人话</strong>:"函数内容开始"。<br>
+<strong>为什么要有</strong>:C 语言用花括号 <code>{ }</code> 把多行代码包成一个整体,像信封的两端。<br>
+<strong>对应</strong>:看下面函数最后有 <code>}</code>,它们是配对的。
+</div>
+
+<h3>第 3 行:声明一个变量</h3>
+<pre><code>  struct buf *b;</code></pre>
+<div class="explain">
+<strong>人话</strong>:"我准备一个空档案袋,叫 <code>b</code>,等会儿用它装数据。"<br><br>
+<strong>拆词</strong>:<br>
+• <code>struct buf *b</code> = "声明一个叫 b 的变量,类型是 'struct buf 指针'"<br>
+• 指针 = "档案袋的编号牌" — 你拿到了这个编号牌,就等于拿到了这个档案袋<br>
+• <code>;</code> = 一句话结束,中文里的句号
+</div>
+
+<h3>第 4 行:调用 bget 拿一个档案袋</h3>
+<pre><code>  b = bget(dev, blockno);</code></pre>
+<div class="explain">
+<strong>人话</strong>:"我去问另一个函数 <code>bget</code> — '请给我准备一份(dev 磁盘上第 blockno 块的数据的档案袋)',拿到后放进 <code>b</code>。"<br><br>
+<strong>拆词</strong>:<br>
+• <code>bget</code> = "buffer get",从缓冲池里"取一个缓冲"(<code>get</code> = 拿到)<br>
+• 你不用管 <code>bget</code> 怎么实现,你只要知道它会"返回一个装好磁盘块数据的档案袋"
+</div>
+
+<h3>第 5 行:检查档案袋是否"新"</h3>
+<pre><code>  if(!b->valid) {</code></pre>
+<div class="explain">
+<strong>人话</strong>:"如果档案袋 <code>b</code> 上的 <code>valid</code> 标签是 0(表示'数据是新的,还没读过')..."<br><br>
+<strong>拆词</strong>:<br>
+• <code>if(...)</code> = "如果 ... 就执行下面"<br>
+• <code>!</code> = "非" / "取反"(数学上的 ¬)<br>
+• <code>b->valid</code> = "档案袋 b 上的 valid 标签"(<code>-></code> 就是"的"字,等同于 <code>b.valid</code>)<br>
+• <code>valid</code> = 标签,1 表示"这块数据已经是磁盘上的最新数据"、0 表示"还没读过"
+</div>
+
+<h3>第 6 行:真去磁盘读</h3>
+<pre><code>    virtio_disk_rw(b, 0);</code></pre>
+<div class="explain">
+<strong>人话</strong>:"那就真去磁盘读 — 让 <code>virtio_disk_rw</code> 把 <code>b</code> 这个档案袋代表的磁盘块读出来。第二个参数 0 表示'读'(1 表示'写')。"<br><br>
+<strong>拆词</strong>:<br>
+• <code>virtio_disk_rw</code> = "virtio 磁盘读/写"(virtio 是一种磁盘设备接口,这是底层硬件调用)<br>
+• 你不用懂它怎么工作,只要知道"这行是真的去磁盘读数据的"
+</div>
+
+<h3>第 7 行:标记"已读过"</h3>
+<pre><code>    b->valid = 1;</code></pre>
+<div class="explain">
+<strong>人话</strong>:"读完了,把档案袋 <code>b</code> 上的 <code>valid</code> 标签改成 1 — 以后别人再问这块,直接说'已经读过了',不用再去磁盘。"<br><br>
+<strong>拆词</strong>:<br>
+• <code>=</code> 在 C 里不是数学等于号,是"赋值"(把右边的值放到左边)<br>
+• <code>1</code> 是 truthy(真值)
+</div>
+
+<h3>第 8–9 行:右花括号 + 返回</h3>
+<pre><code>  }
+  return b;
+}</code></pre>
+<div class="explain">
+<strong>人话</strong>:"if 块结束。把档案袋 <code>b</code> 还给调用方,函数结束。"<br><br>
+<strong>拆词</strong>:<br>
+• <code>}</code> 关 if<br>
+• <code>return b</code> = "把 b 交回去"<br>
+• <code>}</code> 关函数
+</div>
+
+<h2 id="gist">3. 整段总结 1 句话</h2>
+
+<div class="task">
+<strong>🎯 任务 2</strong>:看完上面 7 行翻译,用 1 句话总结 <code>bread()</code> 在干什么。提示:这 7 行只做了"2 件事"。
+</div>
+
+<details>
+<summary>📌 答案(看完再点)</summary>
+
+<strong>一句话</strong>:<br>
+"<code>bread()</code> 是 '读磁盘块' 函数 — 它从缓冲池拿一个档案袋,如果档案袋里是空的就真去磁盘读,最后把装好数据的档案袋交回去。"
+
+<strong>拆开看就是 2 步</strong>:<br>
+① <code>b = bget(dev, blockno)</code> → 拿档案袋(可能已装好,可能没装)<br>
+② <code>if(!b->valid) ...</code> → 如果没装好,真去磁盘读;如果已装好,直接用
+
+<strong>口诀</strong>:"先问有没有,没有真去读"
+
+</details>
+
+<h2 id="task">4. 作业(20 分钟,关键!)</h2>
+
+<div class="verify">
+<strong>🎯 任务 3(必做)</strong>:用你自己的话,**口头复述 3 遍**:
+
+<ul>
+  <li>第 1 遍:打开 <code>bio.c</code>,看着代码说一遍 <code>bread()</code> 在干什么</li>
+  <li>第 2 遍:关掉文件,凭记忆说一遍</li>
+  <li>第 3 遍:对着手机录音,说一遍,听回放</li>
+</ul>
+
+<strong>录音时检查自己</strong>:<br>
+• 有没有卡顿(超过 3 秒没说话)?<br>
+• 有没有用"那个"、"就是"、"然后"超过 5 次?<br>
+• 有没有说清 2 步?
+</div>
+
+<p><strong>如果第 3 遍录音你能 60 秒内说清 2 步</strong>,这节就过了,可以进 <a href="0002-find-analogy.html">课 2:找一句类比</a>。</p>
+
+<p><strong>如果说不清</strong>:再读一遍上面 7 行翻译,重点看"任务 2 答案"。**别急,慢就是快**。</p>
+
+<h2>🎯 下一步</h2>
+
+<p>读懂代码是讲好 5 分钟的<strong>第 1 步</strong>。但**读懂不等于会讲** — 同学听不懂 <code>bget</code> / <code>virtio_disk_rw</code> / <code>valid</code> 是什么。进 <a href="0002-find-analogy.html">课 2:找一句类比</a>,我教你用生活场景让同学秒懂。</p>
+
+</body>
+</html>
