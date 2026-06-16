@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 0001 · 系统调用边界:从 echo.c 看懂用户态与内核态</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fdfcf8; --muted:#6b6b5f; --rule:#d8d4c5;
+    --accent:#7a3b2e; --accent2:#2e5a6b; --good:#2f6b3a; --bad:#a23a2e;
+    --code-bg:#272b33; --code-fg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Songti SC",serif;
+    line-height:1.62; margin:0; padding:3rem 1.5rem 5rem; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:46rem; margin:0 auto}
+  .crumbs{font-size:.78rem; letter-spacing:.06em; color:var(--muted); margin-bottom:1.4rem}
+  .crumbs a{color:var(--accent2); text-decoration:none}
+  .kicker{font-size:.78rem; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 .4rem}
+  h1{font-size:1.9rem; line-height:1.2; margin:.1rem 0 .5rem; font-weight:600; letter-spacing:-.01em}
+  .mission{font-size:.9rem; color:var(--muted); border-left:3px solid var(--accent); padding:.5rem .9rem; background:#f4f1e6; border-radius:0 6px 6px 0; margin:1.2rem 0 2rem}
+  h2{font-size:1.18rem; margin:2.6rem 0 .7rem; padding-bottom:.25rem; border-bottom:1px solid var(--rule)}
+  p{margin:.8rem 0}
+  .win{background:#eef3ee; border:1px solid #c3dcc3; border-radius:8px; padding:1rem 1.2rem; margin:1.4rem 0}
+  .win strong{color:var(--good)}
+  pre{background:var(--code-bg); color:var(--code-fg); border-radius:8px; padding:1.1rem 1.2rem; overflow-x:auto; font-size:.84rem; line-height:1.6; margin:1.2rem 0;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+  pre .ln{color:#6f7681; user-select:none; display:inline-block; width:1.6em; text-align:right; margin-right:1em}
+  pre .sys{color:#e0a45e; font-weight:600}
+  pre .ord{color:#7fb3c9}
+  pre .cm{color:#7d8590; font-style:italic}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.85em; background:#eeeadb; padding:.08em .35em; border-radius:3px}
+  .sys-pill{color:var(--accent); font-weight:600}
+  .ord-pill{color:var(--accent2); font-weight:600}
+  table.bd{width:100%; border-collapse:collapse; font-size:.9rem; margin:1rem 0}
+  table.bd th,table.bd td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top}
+  table.bd th{font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+  cite{font-size:.82rem; color:var(--muted); font-style:normal}
+  cite a{color:var(--accent2)}
+  /* quiz */
+  .quiz{background:#f7f4ea; border:1px solid var(--rule); border-radius:10px; padding:1.2rem 1.3rem; margin:1.3rem 0}
+  .q{margin:0 0 1.5rem}
+  .q:last-child{margin-bottom:0}
+  .q p.stem{font-weight:600; margin:.2rem 0 .7rem}
+  .opt{display:block; width:100%; text-align:left; font:inherit; font-size:.92rem; background:#fff; border:1px solid var(--rule);
+    border-radius:6px; padding:.55rem .8rem; margin:.4rem 0; cursor:pointer; transition:all .12s}
+  .opt:hover{border-color:var(--accent2)}
+  .opt.correct{background:#e7f1e7; border-color:var(--good); color:var(--good)}
+  .opt.wrong{background:#f6e7e4; border-color:var(--bad); color:var(--bad)}
+  .fb{font-size:.86rem; margin:.5rem 0 0; min-height:1.2em}
+  .fb.ok{color:var(--good)} .fb.no{color:var(--bad)}
+  .ask{background:#272b33; color:#e6e3d8; border-radius:10px; padding:1.1rem 1.3rem; margin:2.4rem 0 0; font-size:.92rem}
+  .ask b{color:#e0a45e}
+  .next{font-size:.92rem}
+  footer{margin-top:2.6rem; padding-top:1rem; border-top:1px solid var(--rule); font-size:.82rem; color:var(--muted)}
+  @media print{ body{padding:0;background:#fff} pre{background:#f0eee4;color:#222} .opt{border:1px solid #999} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="crumbs">
+  <a href="../reference/chapter-map.html">章节地图</a> ›
+  第 1 章 · 操作系统接口 ›
+  <strong>Lesson 0001</strong>
+</div>
+
+<p class="kicker">Lesson 0001 · 第 1 章 操作系统接口</p>
+<h1>系统调用边界<br>—— 从 19 行的 <code>echo.c</code> 看懂用户态与内核态</h1>
+
+<div class="mission">
+  🎯 <strong>对应使命</strong>:这是"按章节讲解 xv6 代码"的第一站。第 1 章讲的是
+  <em>操作系统对外提供什么接口</em>——而最小的入口,就是一个用户程序如何"请内核帮忙"。
+</div>
+
+<div class="win">
+  <strong>这节课你将能做到一件事:</strong> 拿到任意一个 xv6 用户程序,一眼指出哪几行是
+  <span class="ord-pill">普通计算</span>(程序自己就能做),哪几行是
+  <span class="sys-pill">系统调用</span>(必须求内核做)——并说清楚这条"边界"为什么存在。
+</div>
+
+<h2>1 · 一个事实:程序自己什么都"碰不到"</h2>
+<p>
+  你写的程序运行时是一个<strong>进程(process)</strong>。进程被关在一个盒子里:它只能算数、读写
+  <em>自己的</em>内存。它<strong>不能</strong>直接往屏幕写字、不能直接读磁盘、不能直接碰任何硬件。
+  这些能力被操作系统<strong>内核(kernel)</strong>独占。
+</p>
+<p>
+  为什么这么设计?因为硬件只有一份,而进程有很多个。如果谁都能直接写磁盘,一个有 bug 的程序就能
+  毁掉所有人的数据。于是内核运行在一个特权级别(<span class="ord-pill">内核态</span>),普通程序运行在
+  受限级别(<span class="sys-pill">用户态</span>),中间隔着一道硬件强制的墙。
+</p>
+<p>
+  进程想做"碰硬件"的事,唯一的办法是礼貌地敲门——发起一次<strong>系统调用(system call)</strong>。
+  系统调用是内核对外开的、数量有限的几扇门。
+</p>
+<cite>📖 依据:xv6 book (rev3) 第 1 章 <em>Operating system interfaces</em> —
+  <a href="https://pdos.csail.mit.edu/6.1810/2023/xv6/book-riscv-rev3.pdf">book-riscv-rev3.pdf</a>。</cite>
+
+<h2>2 · 看真东西:<code>user/echo.c</code></h2>
+<p>
+  这是 xv6 里 <code>echo</code> 命令的<strong>全部</strong>源码(本地路径
+  <code>../xv6-riscv-20230207/user/echo.c</code>)。它做的事极简单:把命令行参数原样打印出来。
+  我用颜色标出了两类东西——<span class="sys-pill">橙色 = 系统调用(穿墙)</span>,
+  <span class="ord-pill">蓝色 = 普通计算(在盒子里)</span>:
+</p>
+
+<pre><span class="ln">5</span><span class="ord">int</span>
+<span class="ln">6</span><span class="ord">main</span>(int argc, char *argv[])
+<span class="ln">7</span>{
+<span class="ln">8</span>  int i;
+<span class="ln">10</span>  <span class="ord">for</span>(i = 1; i &lt; argc; i++){
+<span class="ln">11</span>    <span class="sys">write</span>(1, argv[i], <span class="ord">strlen</span>(argv[i]));
+<span class="ln">12</span>    if(i + 1 &lt; argc){
+<span class="ln">13</span>      <span class="sys">write</span>(1, " ", 1);
+<span class="ln">14</span>    } else {
+<span class="ln">15</span>      <span class="sys">write</span>(1, "\n", 1);
+<span class="ln">16</span>    }
+<span class="ln">17</span>  }
+<span class="ln">18</span>  <span class="sys">exit</span>(0);
+<span class="ln">19</span>}
+</pre>
+
+<table class="bd">
+  <thead><tr><th>行</th><th>代码</th><th>哪一类?</th><th>为什么</th></tr></thead>
+  <tbody>
+    <tr><td>10</td><td><code>for(...)</code></td><td><span class="ord-pill">普通计算</span></td><td>循环、比较、加法——CPU 在盒子里就能算</td></tr>
+    <tr><td>11</td><td><code>strlen(argv[i])</code></td><td><span class="ord-pill">普通计算</span></td><td>只是数自己内存里的字符,不碰硬件</td></tr>
+    <tr><td>11,13,15</td><td><code>write(1, ...)</code></td><td><span class="sys-pill">系统调用</span></td><td>要把字节送到屏幕——硬件,必须求内核</td></tr>
+    <tr><td>18</td><td><code>exit(0)</code></td><td><span class="sys-pill">系统调用</span></td><td>"销毁这个进程"只有内核能做</td></tr>
+  </tbody>
+</table>
+<p>
+  关键观察:<code>strlen</code> 和 <code>write</code> 写法长得一样(都是 <code>名字(参数)</code>),但
+  <code>strlen</code> 只是个普通函数,<code>write</code> 却会<strong>陷入内核</strong>。
+  从源码<em>表面</em>看不出区别——区别在于 <code>write</code> 背后会触发一条特殊的 CPU 指令,把控制权交给内核。
+  那扇"门"具体怎么开,是<strong>第 4 章「陷阱与系统调用」</strong>的内容,我们到那一章再拆。
+</p>
+<cite>🔎 想确认 <code>write</code> 是系统调用?它和其它系统调用一起声明在
+  <code>../xv6-riscv-20230207/user/user.h</code> 里,而 <code>strlen</code> 是普通库函数,实现在 <code>user/ulib.c</code>。</cite>
+
+<h2>3 · 立刻自测(答完即有反馈)</h2>
+<p>不要往回翻——凭记忆作答。<em>费力地回想</em>正是让知识留下来的关键。</p>
+
+<div class="quiz" id="quiz">
+  <div class="q" data-correct="0">
+    <p class="stem">① 下面四个调用,哪个是<strong>系统调用</strong>(会陷入内核)?</p>
+    <button class="opt">write</button>
+    <button class="opt">strlen</button>
+    <button class="opt">strcpy</button>
+    <button class="opt">atoi&nbsp;&nbsp;</button>
+    <p class="fb"></p>
+  </div>
+
+  <div class="q" data-correct="0">
+    <p class="stem">② <code>exit(0)</code> 这一行的作用是?</p>
+    <button class="opt">结束当前进程</button>
+    <button class="opt">清空屏幕输出</button>
+    <button class="opt">跳回主函数处</button>
+    <button class="opt">释放一段内存</button>
+    <p class="fb"></p>
+  </div>
+
+  <div class="q" data-correct="0">
+    <p class="stem">③ <code>write(1, ...)</code> 里的第一个参数 <code>1</code> 代表?</p>
+    <button class="opt">标准输出</button>
+    <button class="opt">标准输入</button>
+    <button class="opt">错误输出</button>
+    <button class="opt">内核缓冲</button>
+    <p class="fb"></p>
+  </div>
+</div>
+
+<div class="ask">
+  💬 <b>我是你的老师,随时可以追问。</b> 卡在哪了?试试问我:
+  「<em>为什么 strlen 不算系统调用,它不也在动内存吗?</em>」「<em>write 那条"特殊 CPU 指令"到底是什么?</em>」
+  「<em>fd 0/1/2 是谁规定的?</em>」——把不清楚的地方丢给我,别自己硬扛。
+</div>
+
+<h2>4 · 主资源 & 下一步</h2>
+<p class="next">
+  <strong>读一段(强烈推荐):</strong>
+  <a href="https://pdos.csail.mit.edu/6.1810/2023/xv6/book-riscv-rev3.pdf">xv6 book (rev3)</a> 第 1 章
+  <em>Operating system interfaces</em> 的开头(到 1.1 Processes and memory 即可)。这是本主题最高可信度的来源,
+  和你刚读的 <code>echo.c</code> 完全对应。
+</p>
+<p class="next">
+  <strong>下一课预告(Lesson 0002):</strong> 还在第 1 章——我们看 <code>echo</code> 是<em>谁</em>启动的:
+  shell(<code>user/sh.c</code>)如何用 <code>fork</code> + <code>exec</code> 这两个系统调用造出一个新进程并让它跑起来。
+  这会把"进程"从抽象概念变成你能指着代码说出来的东西。
+</p>
+
+<footer>
+  Lesson 0001 · 第 1 章 操作系统接口 ·
+  关联:<a href="../reference/chapter-map.html">章节地图</a> ·
+  真实代码:<code>xv6-riscv-20230207/user/echo.c</code><br>
+  本课遵循 <code>MISSION.md</code>:按章节讲解 xv6 代码,起点为零基础。
+</footer>
+
+</div>
+
+<script>
+  document.querySelectorAll('#quiz .q').forEach(function(q){
+    var correct = parseInt(q.dataset.correct, 10);
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    var msgOk = ['✓ 对。write 要把字节送上屏幕,只能请内核做——这就是穿过边界。',
+                 '✓ 对。exit 销毁当前进程,只有内核能回收它的资源。',
+                 '✓ 对。1 是标准输出(stdout)的文件描述符;0 是输入,2 是错误。'];
+    var msgNo = ['再想想:谁需要"碰硬件"?strlen/strcpy/atoi 都只在自己内存里算数。',
+                 '再想想:这一行出现在程序最后,且只有内核能做这件事。',
+                 '再想想:echo 是在往屏幕"输出",0/1/2 里哪个是输出?'];
+    opts.forEach(function(opt, idx){
+      opt.addEventListener('click', function(){
+        opts.forEach(function(o){ o.disabled = true; });
+        if(idx === correct){
+          opt.classList.add('correct');
+          fb.textContent = msgOk[[...document.querySelectorAll('#quiz .q')].indexOf(q)];
+          fb.className = 'fb ok';
+        } else {
+          opt.classList.add('wrong');
+          opts[correct].classList.add('correct');
+          fb.textContent = msgNo[[...document.querySelectorAll('#quiz .q')].indexOf(q)];
+          fb.className = 'fb no';
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 20 课 · 文件物理结构(讲解+答辩稿) · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:840px; margin:0 auto; padding:40px 28px 80px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:24px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:27px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:34px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:8px 0}
+  ul,ol{padding-left:22px} li{margin:4px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 14px; border-radius:4px; margin:14px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:#f1f9f4}
+  .q{background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px 14px; margin:10px 0}
+  .q b{color:var(--accent)}
+  .pill{display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; background:#eee; margin-left:4px}
+  .pill.high{background:#fde2dd; color:#8a1c11}
+  .pill.mid{background:#fff0d6; color:#7a4a00}
+  .script{background:#f3f7ec; border:1px dashed #5d7a00; padding:14px 16px; border-radius:6px; margin:14px 0; font-size:15px; line-height:1.85}
+  .timeline{display:grid; grid-template-columns:78px 1fr; gap:6px 12px; font-size:14px; margin:14px 0}
+  .timeline .t{color:var(--accent); font-weight:bold}
+  .timeline .c{background:#fff; padding:8px 12px; border:1px solid var(--line); border-radius:4px}
+  .timeline .c b{color:#143f5e}
+  .checklist{background:#fff; border:1px solid var(--ok); border-left:4px solid var(--ok); padding:14px 16px; border-radius:4px; margin:14px 0}
+  .diagram{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.55; background:#fff; border:1px solid var(--line); border-radius:6px; padding:14px 16px; white-space:pre; overflow-x:auto}
+  .big{font-size:15px}
+  footer{margin-top:60px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--accent); text-decoration:none} a:hover{text-decoration:underline}
+  @media print{ body{background:#fff;font-size:13px} .wrap{padding:12mm;max-width:none} h2{break-after:avoid} table,.q,.timeline .c{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 20 课 · 第 6 章 文件管理 · 讲解 + 答辩稿</p>
+  <h1>一个文件在磁盘上到底怎么存?<br>—— 从连续分配到 UNIX 混合索引</h1>
+  <p class="sub">明天目标:讲 8–10 分钟,答得住老师追问 · 主题对应汤小丹 Ch6「外存分配方式 + 目录(inode)」</p>
+</header>
+
+<div class="callout">
+<b>🎯 你今晚只做三件事:</b>
+① 把下面的 <b>8 分钟讲稿</b>出声读 3 遍;
+② 把 <b>那道计算</b>(40KB+4MB+4GB+4TB)能在纸上自己推一遍;
+③ 把 <b>10 道答辩题</b>的答法过一遍。做完就睡。
+</div>
+
+<h2>0. 一句话主线(先记住这句,讲偏了就拉回来)</h2>
+<div class="callout ok big">
+<b>“同一个文件,磁盘上有三种存法:连续、链接、索引。前两种各有死穴,UNIX 用‘混合索引’把它们的优点合在一起——小文件查得快,大文件也装得下。”</b>
+</div>
+
+<h2>1. 8 分钟讲稿(逐字稿,可直接背)</h2>
+<div class="script"><b>🎤 8 段,每段约 1 分钟。橙色时间轴是你心里的节拍器。</b></div>
+
+<div class="timeline">
+<div class="t">0:00–0:45</div>
+<div class="c"><b>【开场 · 选题理由】</b><br>
+“老师好。我讲第 6 章文件管理里的一个核心问题——<b>一个文件在磁盘上到底是怎么存放的</b>,也就是文件的物理结构、外存分配方式。我选它有三个理由:① 它是这一章的骨架,目录、空闲块管理都建在它上面;② 它有一道能算给您看的计算题;③ 它的终点 UNIX 混合索引,<b>就是我们现在 Linux、macOS 真正在用的东西</b>。我想讲的不是背定义,而是这三种存法各自的取舍。”</div>
+
+<div class="t">0:45–2:00</div>
+<div class="c"><b>【方式一 · 连续分配】</b><br>
+“第一种最朴素:<b>连续分配</b>——给文件分一段连续的盘块,像在电影院订一排连号座位。目录里只要记三样:<b>文件名、起始块号、长度</b>。<br>
+好处是<b>快</b>:顺序读一气呵成,随机访问也只要一个加法——第 I 块就在 <code>起始块 + I</code>。<br>
+死穴也明显:它要一整段连续空间,用久了磁盘到处是小空洞,<b>外部碎片</b>;而且文件想变大,旁边没空位就得整体搬家。所以它只适合<b>定长、只读、不增长</b>的文件,比如刻好的光盘。”</div>
+
+<div class="t">2:00–3:15</div>
+<div class="c"><b>【方式二 · 链接分配】</b><br>
+“为了摆脱‘必须连续’,有了<b>链接分配</b>:盘块可以散落各处,<b>每一块里存一个指针,指向下一块</b>,像寻宝——这张纸条告诉你下一张在哪。这样没有外部碎片,文件随便扩展。<br>
+但它有个致命伤:<b>随机访问极慢</b>。想读第 1000 块,必须从第一块顺着指针走 999 步。而且<b>一个指针坏了,后面整串就断了</b>。<br>
+改进版叫 <b>FAT</b>——把所有指针从数据块里抠出来,集中成一张<b>文件分配表</b>,开机就调进内存。查链子在内存里走,快多了,DOS、U 盘的 FAT32 就是它。但 FAT 本身要占空间,盘越大表越大。”</div>
+
+<div class="t">3:15–4:30</div>
+<div class="c"><b>【方式三 · 索引分配】</b><br>
+“第三种是<b>索引分配</b>,也是最关键的一步。给每个文件配一个<b>索引块</b>,把它<b>所有数据块的块号</b>按顺序列在里面——就像一本书的目录页,第几章在第几页一目了然。<br>
+要读第 I 块?查索引块第 I 项,直接拿到块号。<b>随机访问一步到位</b>,又没有外部碎片。<br>
+但单个索引块有上限:它能装多少块号,文件就最多多少块。块号装不满又浪费。所以问题变成:<b>大文件怎么办?</b>这就逼出了今天的高潮。”</div>
+
+<div class="t">4:30–6:15</div>
+<div class="c"><b>【高潮 · 混合索引 / UNIX inode】</b><br>
+“UNIX 的答案非常聪明,叫<b>混合索引</b>。它在文件的 inode(索引结点)里放一组地址项,分四种:<br>
+• <b>直接地址</b>(比如 10 个):直接指向数据块,<b>小文件一步到位</b>;<br>
+• <b>一次间接</b>:指向一个索引块,索引块再指数据块;<br>
+• <b>二次间接</b>:索引块指向索引块,再指数据块;<br>
+• <b>三次间接</b>:再多套一层。<br>
+设计精髓在这句:<b>绝大多数文件都很小</b>。小文件只用直接地址,读一次就到,不付任何额外代价;只有极少数大文件,才一层层展开间接索引。<b>用一个结构,同时照顾了‘多数小文件要快’和‘少数大文件要大’</b>——这就是它比前面所有方案都高明的地方。”</div>
+
+<div class="t">6:15–7:30</div>
+<div class="c"><b>【计算 · 最大文件能多大】</b><br>
+“我算给您看。设盘块 4KB、每个盘块号 4 字节,那一个索引块能放 <code>4KB ÷ 4B = 1024</code>,也就是 1K 个块号。于是:<br>
+• 10 个直接地址 = 10 × 4KB = <b>40KB</b>;<br>
+• 一次间接 = 1K × 4KB = <b>4MB</b>;<br>
+• 二次间接 = 1K × 1K × 4KB = <b>4GB</b>;<br>
+• 三次间接 = 1K × 1K × 1K × 4KB = <b>4TB</b>。<br>
+加起来,最大文件约 <b>40KB + 4MB + 4GB + 4TB</b>。关键不是记这个数,而是理解<b>每多一级间接,容量就乘以 1K</b>——这是指数级放大。”</div>
+
+<div class="t">7:30–8:00</div>
+<div class="c"><b>【收尾 · 接回现实】</b><br>
+“总结:连续分配快但碎、链接分配灵活但慢、索引分配随机访问强,而混合索引把它们捏成一个——<b>小文件走直接地址、大文件走多级间接</b>。这不是历史古董:<b>你现在用的 Linux ext2/ext3、早期 macOS,inode 就是这么设计的</b>。所以这一节真正讲的是:好的系统设计,是为‘最常见的情况’做优化。讲完了,谢谢老师。”</div>
+</div>
+
+<h2>2. 三种分配方式 · 一张对比表(背下来,答辩万能)</h2>
+<table>
+<tr><th>方式</th><th>怎么存</th><th>优点</th><th>死穴</th><th>适合</th></tr>
+<tr><td><b>连续分配</b></td><td>一段连续盘块;目录记 起始块+长度</td><td>顺序/随机都快;实现简单</td><td>外部碎片;扩展难;需预知长度</td><td>定长、只读文件(光盘)</td></tr>
+<tr><td><b>链接分配(隐式)</b></td><td>块内存指针,指向下一块</td><td>无外部碎片;易扩展</td><td>随机访问慢;指针断则全断</td><td>顺序访问文件</td></tr>
+<tr><td><b>链接分配(FAT)</b></td><td>指针集中成表,调入内存</td><td>查找比隐式快;表可入内存</td><td>FAT 占空间,盘大表大</td><td>中小型文件系统(U盘)</td></tr>
+<tr><td><b>索引分配</b></td><td>索引块集中列出所有块号</td><td>随机访问一步到位</td><td>索引块占空间;单块有上限</td><td>大文件、随机访问</td></tr>
+<tr><td><b>混合索引</b></td><td>直接 + 一/二/三次间接</td><td>小文件省又快,大文件也装得下</td><td>实现复杂</td><td>UNIX / Linux</td></tr>
+</table>
+
+<h2>3. 混合索引结构图(PPT 第 5 页就画这个)</h2>
+<div class="diagram">          inode(索引结点)
+        ┌─────────────────────┐
+        │ 直接地址  ×10 ───────┼──► [数据块] [数据块] ...   小文件:一步到位
+        │ 一次间接  ×1  ───────┼──► [索引块]──► [数据块]...   +4MB
+        │ 二次间接  ×1  ───────┼──► [索引块]──►[索引块]──► [数据块]   +4GB
+        │ 三次间接  ×1  ───────┼──► [索引块]──►[索引块]──►[索引块]──► [数据块]   +4TB
+        └─────────────────────┘
+   设定:盘块 4KB,块号 4B ⇒ 一个索引块装 4KB/4B = 1024(1K)个块号
+   每多一级间接,可寻址容量 × 1K(指数放大)</div>
+
+<h2>4. 6 张 PPT 大纲(A4 纸手绘即可)</h2>
+<table>
+<tr><th>页</th><th>标题</th><th>主要内容</th><th>对应讲稿</th></tr>
+<tr><td>1</td><td>一个文件怎么存?</td><td>问题引入 + 三种存法名字 + 选题三理由</td><td>0:00–0:45</td></tr>
+<tr><td>2</td><td>连续分配</td><td>连号座位图 + 目录三字段 + 物理块=起始+I + 外部碎片</td><td>0:45–2:00</td></tr>
+<tr><td>3</td><td>链接分配 / FAT</td><td>寻宝指针链 + 随机访问慢 + FAT 集中成表</td><td>2:00–3:15</td></tr>
+<tr><td>4</td><td>索引分配</td><td>书的目录页类比 + 随机一步到位 + 单块上限问题</td><td>3:15–4:30</td></tr>
+<tr><td>5</td><td>混合索引(核心页)</td><td>上面那张 inode 结构图 + “为多数小文件优化”</td><td>4:30–6:15</td></tr>
+<tr><td>6</td><td>最大文件计算 + 收尾</td><td>40KB/4MB/4GB/4TB 推导 + “这就是 Linux ext2 inode”</td><td>6:15–8:00</td></tr>
+</table>
+
+<h2>5. 老师可能问的 10 个问题(答辩主战场)</h2>
+<p class="big"><b>这部分是“讲解+答辩”的胜负手。讲稿背熟只值 60 分,这 10 题答好才是 90 分。</b></p>
+
+<div class="q"><b>Q1.</b> 为什么混合索引要把直接地址和间接地址混着用?<span class="pill high">最可能问</span><br>
+<b>答:</b>因为<b>真实系统里绝大多数文件都很小</b>。小文件只用直接地址,读一次就拿到数据,不用先读索引块,<b>又快又省</b>;只有少数大文件才付出多级间接的代价。一个结构同时优化了“多数小文件的速度”和“少数大文件的容量”——这是<b>为常见情况优化</b>的经典思路。</div>
+
+<div class="q"><b>Q2.</b> 访问一个用三次间接寻址的数据块,最多要读几次磁盘?<span class="pill high">最可能问</span><br>
+<b>答:</b>先读 inode(通常已在内存),然后<b>一级索引块 → 二级索引块 → 三级索引块 → 数据块</b>,索引层最多读 3 次,再加 1 次数据块 = <b>最多 4 次盘块访问</b>。这也是混合索引的代价:文件越大,定位一块要走的间接层越多。</div>
+
+<div class="q"><b>Q3.</b> 一个索引块为什么能放 1024 个块号?<span class="pill mid">基础</span><br>
+<b>答:</b>题目设定盘块 4KB、每个块号占 4B,所以一个索引块能装 <code>4KB ÷ 4B = 1024</code> 个块号,即 1K。块大小或块号位数一变,这个数就跟着变。</div>
+
+<div class="q"><b>Q4.</b> 既然最大才 4TB,比 4TB 还大的文件怎么办?<span class="pill mid">进阶</span><br>
+<b>答:</b>三条路:① <b>增大盘块</b>(块大了,索引块装的块号更多,容量指数上升);② <b>再加一级间接</b>(四次间接);③ 现代文件系统(如 <b>ext4</b>)干脆改用 <b>extent(区段)</b>——不再逐块记块号,而是记“从第几块起、连续多少块”,大文件用极少的项就能描述。</div>
+
+<div class="q"><b>Q5.</b> 连续分配最大的问题是什么?<span class="pill mid">基础</span><br>
+<b>答:</b><b>外部碎片</b> + <b>难以扩展</b>。磁盘用久了到处是放不下的小空洞;文件想变大,相邻没有空闲块就得整体搬迁。而且创建时往往要<b>预先知道文件多大</b>,这常常做不到。</div>
+
+<div class="q"><b>Q6.</b> 链接分配为什么随机访问慢?FAT 又怎么改善的?<span class="pill mid">基础</span><br>
+<b>答:</b>隐式链接的指针藏在每个数据块里,想读第 1000 块就得从头把前面 999 块都读出来、顺着指针走。FAT 把<b>所有指针集中成一张表并调入内存</b>,走链子在内存里完成,不用反复读盘,所以快得多。</div>
+
+<div class="q"><b>Q7.</b> inode 和 FCB 有什么区别?<span class="pill high">易被问</span><br>
+<b>答:</b>FCB(文件控制块)把<b>文件名和文件全部描述信息放在一起</b>,目录就是一堆 FCB。但 FCB 大,目录项就大,按名查找要读很多盘块。<b>inode 的思路是把文件名分离出来</b>:目录项只留“文件名 + inode 号”,变得很小;文件的详细描述放进 inode。这样目录项多、盘块少、<b>查找快得多</b>。课件例子:同样 640 个文件,放完整 FCB 要平均查 20 个盘块,用 inode 只要查 5 个。</div>
+
+<div class="q"><b>Q8.</b> 索引分配和链接分配,核心区别在哪?<span class="pill mid">对比</span><br>
+<b>答:</b>都把数据块打散存,但<b>指针放哪不同</b>。链接分配的指针<b>分散</b>在每个数据块里(或集中在 FAT),靠“一个接一个”定位;索引分配把<b>某个文件的所有块号集中</b>在它自己的索引块里,可以<b>直接按下标</b>取第 I 块。所以索引分配随机访问强,链接分配只擅长顺序。</div>
+
+<div class="q"><b>Q9.</b> 混合索引会不会浪费空间?<span class="pill mid">进阶</span><br>
+<b>答:</b>恰恰相反,它很省。间接索引块是<b>按需分配</b>的——一个只占几 KB 的小文件,只用到几个直接地址,系统根本不会给它分配任何间接索引块。只有文件真的长大,才逐级分配索引块。所以小文件几乎零额外开销。</div>
+
+<div class="q"><b>Q10.</b> 如果让你给这三种方式排个“现代最常用”,你选哪个?为什么?<span class="pill high">观点题</span><br>
+<b>答:</b>(观点题,讲自己的判断)我选<b>索引类(尤其混合索引/extent)</b>。因为现代负载既有海量小文件又有超大文件,还要求随机访问快——连续分配的碎片和链接分配的慢都受不了,只有索引体系能同时扛住。事实上 Linux ext 系列、UNIX 走的就是这条路。<br>
+<span style="color:#a85d00">⚠ 提醒:这是观点题没有标准答案,讲你的理由就行,别背成唯一答案。</span></div>
+
+<h2>6. 彩排 Checklist(今晚做完)</h2>
+<div class="checklist">
+<label><input type="checkbox"> 1. 8 分钟讲稿<b>出声读 3 遍</b>(不是默读)</label><br>
+<label><input type="checkbox"> 2. 手机<b>录一遍</b>,回放听语速/停顿/语气词(嗯、然后)</label><br>
+<label><input type="checkbox"> 3. <b>卡时间</b>:8 分钟 ±30 秒</label><br>
+<label><input type="checkbox"> 4. <b>在纸上独立推一遍</b> 4KB/4B→1K,以及 40KB+4MB+4GB+4TB</label><br>
+<label><input type="checkbox"> 5. <b>手绘 6 张 PPT</b>,第 5 页(inode 结构图)画 2 遍</label><br>
+<label><input type="checkbox"> 6. <b>10 道答辩题</b>每题答案出声说 1 遍,Q1/Q2/Q7 各说 2 遍</label><br>
+<label><input type="checkbox"> 7. <b>找人听你讲</b>一遍(室友/同学),让他随便挑一题问你</label><br>
+<label><input type="checkbox"> 8. <b>睡好觉</b>——明天状态比多背一题重要</label>
+</div>
+
+<h2>7. 临场应急 3 预案</h2>
+<div class="callout"><b>🆘 忘词:</b>看你的 PPT 当前页——它就是提词器。大方说“我看一眼图”,比硬卡强。</div>
+<div class="callout"><b>🆘 老师突然打断问某处:</b>停下主线,专注答这一问。用三步:<b>先说它是哪种分配 → 再说优/缺 → 再举一个场景</b>。答完说“我接着刚才的讲”,自然回到主线。</div>
+<div class="callout warn"><b>🆘 真的不会:</b>诚实说“这点我没深入看,我目前的理解是……(给出部分理解)”。<b>绝不瞎编数字</b>——答辩里编错一个数,比说“不确定”扣分更狠。</div>
+
+<h2>8. 时间不够的「5 分钟砍版」</h2>
+<div class="callout ok">
+若现场只给 5 分钟,<b>砍掉连续/链接的细节</b>,保留这条最短主线:<br>
+① 一句话:文件有三种存法,UNIX 用混合索引集大成 →
+② 直接讲混合索引结构图(PPT 第 5 页) →
+③ 算最大文件 40KB+4MB+4GB+4TB →
+④ 收尾:这就是 Linux ext2 的 inode。<br>
+<b>讲透 1 个核心 + 1 道计算,远胜泛泛讲完三种却处处发虚。</b>
+</div>
+
+<h2>9. 自测 2 题(答完再睡)</h2>
+<div class="q"><b>Q1.</b> 不看稿,30 秒内说出 8 段讲稿的标题。<br>
+<button onclick="document.getElementById('a1').style.display='block'">显示参考答案</button>
+<div id="a1" style="display:none;margin-top:8px;padding:8px;background:#f1f9f4;border-radius:4px">
+① 开场选题 ② 连续分配 ③ 链接分配/FAT ④ 索引分配 ⑤ 混合索引 ⑥ 最大文件计算 ⑦ 收尾接现实 (注:讲稿是 8 段时间块、6 个主题,能说出 6 个主题即合格)</div></div>
+
+<div class="q"><b>Q2.</b> 老师问“为什么不全用直接地址,要搞间接?”你怎么答?<br>
+<button onclick="document.getElementById('a2').style.display='block'">显示参考答案</button>
+<div id="a2" style="display:none;margin-top:8px;padding:8px;background:#f1f9f4;border-radius:4px">
+全用直接地址,inode 里地址项数量有限,<b>装不下大文件</b>;若为大文件预留几千个直接地址项,<b>小文件又浪费</b>(绝大多数文件用不到)。间接索引<b>按需展开</b>:小文件零开销,大文件才逐级分配索引块——这才两头兼顾。</div></div>
+
+<div class="callout ok"><b>✅ 通过标准:</b>讲稿能不看稿讲完 + 计算能独立推 + Q1/Q2/Q7 答得顺。达到就睡,明天稳。</div>
+
+<footer>
+第 20 课 · Ch6 文件管理 · 讲解+答辩稿 ·
+深练计算 → <a href="./0009-mixed-index.html">0009 混合索引</a> ·
+空闲块管理 → <a href="./0004-group-linking.html">0004 成组链接法</a> ·
+刷题 → <a href="../exams/ch06-test.html">Ch6 章节测试</a><br>
+材料来源:本课内容对齐 <code>6_文件管理/总览.md</code>(你老师课件口径),计算设定 4KB 盘块 / 4B 块号。
+</footer>
+
+</div>
+</body>
+</html>

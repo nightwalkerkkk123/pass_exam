@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 0002 · fork + exec + wait:shell 如何造出并启动一个进程</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fdfcf8; --muted:#6b6b5f; --rule:#d8d4c5;
+    --accent:#7a3b2e; --accent2:#2e5a6b; --good:#2f6b3a; --bad:#a23a2e;
+    --code-bg:#272b33; --code-fg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Songti SC",serif;
+    line-height:1.62; margin:0; padding:3rem 1.5rem 5rem; -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:46rem; margin:0 auto}
+  .crumbs{font-size:.78rem; letter-spacing:.06em; color:var(--muted); margin-bottom:1.4rem}
+  .crumbs a{color:var(--accent2); text-decoration:none}
+  .kicker{font-size:.78rem; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 .4rem}
+  h1{font-size:1.9rem; line-height:1.2; margin:.1rem 0 .5rem; font-weight:600; letter-spacing:-.01em}
+  .mission{font-size:.9rem; color:var(--muted); border-left:3px solid var(--accent); padding:.5rem .9rem; background:#f4f1e6; border-radius:0 6px 6px 0; margin:1.2rem 0 2rem}
+  h2{font-size:1.18rem; margin:2.6rem 0 .7rem; padding-bottom:.25rem; border-bottom:1px solid var(--rule)}
+  p{margin:.8rem 0}
+  .win{background:#eef3ee; border:1px solid #c3dcc3; border-radius:8px; padding:1rem 1.2rem; margin:1.4rem 0}
+  .win strong{color:var(--good)}
+  .recall{background:#f4f1e6; border:1px dashed var(--accent); border-radius:8px; padding:.8rem 1.1rem; margin:1.4rem 0; font-size:.92rem}
+  pre{background:var(--code-bg); color:var(--code-fg); border-radius:8px; padding:1.1rem 1.2rem; overflow-x:auto; font-size:.84rem; line-height:1.6; margin:1.2rem 0;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace}
+  pre .ln{color:#6f7681; user-select:none; display:inline-block; width:1.8em; text-align:right; margin-right:1em}
+  pre .sys{color:#e0a45e; font-weight:600}
+  pre .key{color:#7fb3c9}
+  pre .cm{color:#7d8590; font-style:italic}
+  pre .hl{background:#3a3f4a; display:inline-block; width:calc(100% - 0px); border-radius:3px}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.85em; background:#eeeadb; padding:.08em .35em; border-radius:3px}
+  .sys-pill{color:var(--accent); font-weight:600}
+  table.bd{width:100%; border-collapse:collapse; font-size:.9rem; margin:1rem 0}
+  table.bd th,table.bd td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top}
+  table.bd th{font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted)}
+  table.bd td:first-child{font-weight:600; color:var(--accent2); white-space:nowrap}
+  cite{font-size:.82rem; color:var(--muted); font-style:normal}
+  cite a{color:var(--accent2)}
+  .diagram{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.8rem; line-height:1.5; background:#f7f4ea; border:1px solid var(--rule); border-radius:8px; padding:1.1rem 1.2rem; white-space:pre; overflow-x:auto; color:#333}
+  .quiz{background:#f7f4ea; border:1px solid var(--rule); border-radius:10px; padding:1.2rem 1.3rem; margin:1.3rem 0}
+  .q{margin:0 0 1.5rem} .q:last-child{margin-bottom:0}
+  .q p.stem{font-weight:600; margin:.2rem 0 .7rem}
+  .opt{display:block; width:100%; text-align:left; font:inherit; font-size:.92rem; background:#fff; border:1px solid var(--rule);
+    border-radius:6px; padding:.55rem .8rem; margin:.4rem 0; cursor:pointer; transition:all .12s}
+  .opt:hover{border-color:var(--accent2)}
+  .opt.correct{background:#e7f1e7; border-color:var(--good); color:var(--good)}
+  .opt.wrong{background:#f6e7e4; border-color:var(--bad); color:var(--bad)}
+  .fb{font-size:.86rem; margin:.5rem 0 0; min-height:1.2em}
+  .fb.ok{color:var(--good)} .fb.no{color:var(--bad)}
+  .ask{background:#272b33; color:#e6e3d8; border-radius:10px; padding:1.1rem 1.3rem; margin:2.4rem 0 0; font-size:.92rem}
+  .ask b{color:#e0a45e}
+  .next{font-size:.92rem}
+  footer{margin-top:2.6rem; padding-top:1rem; border-top:1px solid var(--rule); font-size:.82rem; color:var(--muted)}
+  @media print{ body{padding:0;background:#fff} pre{background:#f0eee4;color:#222} .opt{border:1px solid #999} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="crumbs">
+  <a href="../reference/chapter-map.html">章节地图</a> ›
+  第 1 章 · 操作系统接口 ›
+  <a href="./0001-syscall-boundary.html">Lesson 0001</a> ›
+  <strong>Lesson 0002</strong>
+</div>
+
+<p class="kicker">Lesson 0002 · 第 1 章 操作系统接口</p>
+<h1>fork + exec + wait<br>—— shell 如何造出并启动一个进程</h1>
+
+<div class="mission">
+  🎯 <strong>对应使命</strong>:仍在第 1 章。上一课你看到 <code>echo</code> 用 <code>write</code> 求内核办事;
+  这一课回答上一课的预告——<em>echo 这个进程是谁、怎么造出来的</em>。答案藏在 <code>user/sh.c</code> 里。
+</div>
+
+<div class="recall">
+  🔁 <strong>先回忆(别往回翻 0001)</strong>:进程想"碰硬件"唯一的办法是什么?……
+  对,发起<strong>系统调用</strong>。今天的 <code>fork</code> / <code>exec</code> / <code>wait</code> 同样是系统调用——
+  只不过它们操作的不是屏幕,而是<strong>进程本身</strong>。
+</div>
+
+<div class="win">
+  <strong>这节课你将能做到一件事:</strong> 对着 shell 的主循环,讲清楚你敲下 <code>echo hi</code> 回车后,
+  <span class="sys-pill">fork</span> 把谁劈成了两个、哪条分支是孩子、<span class="sys-pill">exec</span> 把孩子变成了什么、
+  <span class="sys-pill">wait</span> 又让父亲做了什么。
+</div>
+
+<h2>1 · 三个系统调用,各管一件事</h2>
+<table class="bd">
+  <thead><tr><th>系统调用</th><th>一句话</th><th>关键怪点</th></tr></thead>
+  <tbody>
+    <tr><td>fork()</td><td>把当前进程<strong>整个复制</strong>一份,得到一个子进程</td><td>调用<strong>一次,返回两次</strong>:父进程里返回子进程的 pid,子进程里返回 <code>0</code></td></tr>
+    <tr><td>exec()</td><td>把当前进程的程序<strong>整个替换</strong>成磁盘上的另一个程序</td><td>成功就<strong>永不返回</strong>(原来的代码没了);只有失败才会返回</td></tr>
+    <tr><td>wait()</td><td>父进程<strong>阻塞</strong>,直到它的某个子进程结束</td><td>回收孩子,拿到它的退出状态</td></tr>
+  </tbody>
+</table>
+<p>
+  为什么造新进程要<strong>两步</strong>(先 <code>fork</code> 复制、再 <code>exec</code> 替换),而不是一步搞定?
+  因为这两步<em>中间</em>留出了一个宝贵的窗口:子进程可以先重新安排好自己的文件描述符(比如把输出重定向到文件),
+  <em>然后</em>再 <code>exec</code> 变身。这个"先复制、布置现场、再变身"的设计,是 Unix 最优雅的主意之一。
+</p>
+<cite>📖 依据:xv6 book (rev3) 第 1 章 1.1–1.2 节 —
+  <a href="https://pdos.csail.mit.edu/6.1810/2023/xv6/book-riscv-rev3.pdf">book-riscv-rev3.pdf</a>。</cite>
+
+<h2>2 · 看真东西:shell 的主循环</h2>
+<p>这是 <code>../xv6-riscv-20230207/user/sh.c</code> 的 <code>main</code>,我去掉了 <code>cd</code> 特判,留下骨架:</p>
+
+<pre><span class="ln">160</span><span class="key">while</span>(getcmd(buf, sizeof(buf)) >= 0){
+<span class="ln">161</span>  <span class="cm">// ...(cd 特判略)...</span>
+<span class="ln">168</span>  <span class="key">if</span>(<span class="sys">fork1</span>() == 0)      <span class="cm">// ← 这里劈成两条命运</span>
+<span class="ln">169</span>    runcmd(parsecmd(buf)); <span class="cm">// 只有【子进程】走进来(fork 返回 0)</span>
+<span class="ln">170</span>  <span class="sys">wait</span>(0);               <span class="cm">// 只有【父进程】走到这(继续往下)</span>
+<span class="ln">171</span>}
+</pre>
+
+<p>
+  同一份代码,<code>fork1()</code> 之后却分裂成两个进程在跑。区别全在那个返回值:
+</p>
+<div class="diagram">           敲下 "echo hi"，到达第 168 行
+                      │
+                fork1() 复制
+            ┌─────────┴─────────┐
+   子进程：返回 0          父进程：返回子进程 pid（≠0）
+   if(...==0) 为真          if(...==0) 为假
+   进入第 169 行            跳过 169，直接到第 170 行
+        │                          │
+   runcmd → exec               wait(0) 阻塞等孩子
+   变身为 echo，打印 hi             │
+        │                    ←──── 孩子退出，wait 返回
+   exit                       回到 160 行，等下一条命令</div>
+
+<p>
+  注意 <code>fork1</code> 只是对 <code>fork</code> 的一层薄封装(<code>sh.c</code> 第 182 行):调一次 <code>fork()</code>,
+  失败就 panic,否则原样返回 pid。所以理解 <code>fork1</code> 就等于理解 <code>fork</code>。
+</p>
+
+<h2>3 · 孩子如何"变身":runcmd 里的 exec</h2>
+<p>第 169 行的 <code>runcmd</code> 最终会走到 <code>EXEC</code> 分支(<code>sh.c</code> 第 75 行):</p>
+
+<pre><span class="ln">75</span><span class="key">case</span> EXEC:
+<span class="ln">76</span>  ecmd = (struct execcmd*)cmd;
+<span class="ln">77</span>  <span class="key">if</span>(ecmd->argv[0] == 0)
+<span class="ln">78</span>    <span class="sys">exit</span>(1);
+<span class="ln">79</span>  <span class="sys">exec</span>(ecmd->argv[0], ecmd->argv); <span class="cm">// 成功 → 本进程变成 echo，下面两行永远到不了</span>
+<span class="ln">80</span>  fprintf(2, <span style="color:#9ece6a">"exec %s failed\n"</span>, ecmd->argv[0]);
+<span class="ln">81</span>  <span class="key">break</span>;
+</pre>
+<p>
+  这是理解 <code>exec</code> 语义的<strong>铁证</strong>:第 80 行那句 "exec failed" 平时<em>永远打印不出来</em>——
+  因为 <code>exec</code> 成功后,这个进程的代码已经被 <code>echo</code> 整个替换掉了,根本不会再执行到第 80 行。
+  只有当 <code>exec</code> <strong>失败</strong>(比如找不到这个程序)时,它才返回,第 80 行才有机会运行。
+  <strong>"成功不返回,返回即失败"</strong>——这就是 <code>exec</code>。
+</p>
+<cite>🔎 本地对照:<code>../xv6-riscv-20230207/user/sh.c</code> 第 59–81 行(runcmd)、第 146–173 行(main)、第 182–191 行(fork1)。</cite>
+
+<h2>4 · 立刻自测(答完即有反馈)</h2>
+<p>凭记忆作答——这种费力的回想,正是把今天的内容焊进长期记忆的方式。</p>
+
+<div class="quiz" id="quiz">
+  <div class="q" data-correct="0">
+    <p class="stem">① <code>fork()</code> 调用一次,会<strong>返回几次</strong>?</p>
+    <button class="opt">返回两次</button>
+    <button class="opt">返回一次</button>
+    <button class="opt">从不返回</button>
+    <button class="opt">返回四次</button>
+    <p class="fb"></p>
+  </div>
+
+  <div class="q" data-correct="0">
+    <p class="stem">② <code>if(fork1() == 0)</code> 为真的那条分支(第 169 行),跑的是?</p>
+    <button class="opt">子进程</button>
+    <button class="opt">父进程</button>
+    <button class="opt">主线程</button>
+    <button class="opt">内核态</button>
+    <p class="fb"></p>
+  </div>
+
+  <div class="q" data-correct="0">
+    <p class="stem">③ <code>exec(...)</code> <strong>成功</strong>之后,这个进程会?</p>
+    <button class="opt">变成新程序</button>
+    <button class="opt">复制份内存</button>
+    <button class="opt">返回原程序</button>
+    <button class="opt">暂停等输入</button>
+    <p class="fb"></p>
+  </div>
+</div>
+
+<div class="ask">
+  💬 <b>卡住就问我。</b> 几个值得追问的好问题:
+  「<em>fork 把整份内存都复制了,那不是很慢吗?</em>」「<em>wait(0) 里的 0 是什么意思?</em>」
+  「<em>如果父进程不调用 wait 会怎样?(僵尸进程?)</em>」「<em>第一个进程没有父亲,它是怎么来的?</em>」
+  最后这个问题,正好把我们带向<strong>第 2 章</strong>。
+</div>
+
+<h2>5 · 主资源 & 下一步</h2>
+<p class="next">
+  <strong>读一段(强烈推荐):</strong>
+  <a href="https://pdos.csail.mit.edu/6.1810/2023/xv6/book-riscv-rev3.pdf">xv6 book (rev3)</a> 第 1.1 节
+  <em>Processes and memory</em>——书里有一个和 <code>sh.c</code> 几乎一样的 fork/exec 小例子,读完你会发现"原来书和代码是一回事"。
+</p>
+<p class="next">
+  <strong>下一课预告(Lesson 0003):</strong> 进入<strong>第 2 章「操作系统组织」</strong>。
+  我们追问刚才那个问题:既然进程都是别的进程 <code>fork</code> 出来的,那<em>第一个</em>进程从哪来?
+  答案在 <code>kernel/main.c</code> 和 <code>user/initcode.S</code>——内核如何亲手"手搓"出 1 号进程。
+</p>
+
+<footer>
+  Lesson 0002 · 第 1 章 操作系统接口 ·
+  上一课:<a href="./0001-syscall-boundary.html">0001 系统调用边界</a> ·
+  关联:<a href="../reference/chapter-map.html">章节地图</a> ·
+  真实代码:<code>user/sh.c</code><br>
+  本课遵循 <code>MISSION.md</code>:按章节讲解 xv6 代码,起点为零基础。
+</footer>
+
+</div>
+
+<script>
+  var qs = [...document.querySelectorAll('#quiz .q')];
+  var msgOk = ['✓ 对。fork 一次返回两次——父进程拿到子进程 pid,子进程拿到 0。这是它最反直觉也最核心的性质。',
+               '✓ 对。fork 在子进程里返回 0,所以 ==0 的分支正是子进程;父进程拿到非 0 的 pid,跳过它去 wait。',
+               '✓ 对。exec 成功就把本进程整个替换成新程序,旧代码消失,因此“永不返回”;返回就意味着它失败了。'];
+  var msgNo = ['再想想第 1 节的表:fork“调用一次,返回___次”。',
+               'fork 在子进程里返回的值是 0——所以哪条分支是孩子?',
+               '看第 79–80 行:为什么 “exec failed” 平时打印不出来?'];
+  qs.forEach(function(q, qi){
+    var correct = parseInt(q.dataset.correct, 10);
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, idx){
+      opt.addEventListener('click', function(){
+        opts.forEach(function(o){ o.disabled = true; });
+        if(idx === correct){
+          opt.classList.add('correct'); fb.textContent = msgOk[qi]; fb.className = 'fb ok';
+        } else {
+          opt.classList.add('wrong'); opts[correct].classList.add('correct');
+          fb.textContent = msgNo[qi]; fb.className = 'fb no';
+        }
+      });
+    });
+  });
+</script>
+</body>
+</html>
