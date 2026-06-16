@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 23 课 · 可视化:addrs[12] 为什么要“跳两次”</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --green:#2f855a; --amber:#b7791f; --red:#c53030; --purple:#6b46c1;
+    --data:#e6f4ea; --datab:#9ad0ad; --idx:#fdeccd; --idxb:#e8b86a; --node:#e7eefc; --nodeb:#9bb6ec;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:34px 22px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:13px; margin-bottom:20px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:24px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:19px; margin:32px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue); padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px}
+  .btn:hover{background:#eef4fb} .btn.reset{border-color:#aaa;color:#666}
+  /* flow */
+  .flow{display:flex; gap:10px; align-items:stretch; flex-wrap:wrap}
+  .stagecol{flex:1; min-width:150px}
+  .stagecol .cap{font-size:12px; color:var(--muted); font-weight:700; margin-bottom:6px; text-align:center}
+  .box{border:2px solid var(--nodeb); background:var(--node); border-radius:8px; overflow:hidden}
+  .cell{display:flex; justify-content:space-between; align-items:center; gap:6px; padding:6px 10px; border-bottom:1px solid #cdd9f3; font-size:13.5px; cursor:pointer; transition:.12s}
+  .cell:last-child{border-bottom:none}
+  .cell:hover{background:#d6e2fb}
+  .cell .k{color:#566; font-weight:600} .cell .v{font-family:"SF Mono",Menlo,monospace}
+  .cell.direct .v{color:var(--green)}
+  .cell.indirect{background:#fbe6c8} .cell.indirect .k{color:var(--amber)} .cell.indirect .v{color:var(--amber); font-weight:700}
+  .cell.sel{background:var(--blue)!important; color:#fff} .cell.sel .k,.cell.sel .v{color:#fff}
+  .box.idx{border-color:var(--idxb); background:var(--idx)}
+  .box.idx .cell{border-color:#e8c98a} .box.idx .cell:hover{background:#fbe3b8}
+  .box.idx .cell .v{color:var(--amber); font-weight:700}
+  .arrow{display:flex; align-items:center; justify-content:center; min-width:36px; font-size:24px; color:#bbb; font-weight:700}
+  .arrow.live{color:var(--blue); animation:pulse .8s ease infinite}
+  @keyframes pulse{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
+  .databox{border:2px dashed #ccc; border-radius:8px; min-height:72px; display:flex; align-items:center; justify-content:center; flex-direction:column; color:#aaa; font-size:13.5px; padding:10px; text-align:center}
+  .databox.hit{border:2px solid var(--datab); background:var(--data); color:var(--green); font-weight:700}
+  .hidden{opacity:.25}
+  .steps{margin-top:14px}
+  .step{display:flex; gap:10px; align-items:flex-start; padding:8px 10px; border-radius:6px; margin:6px 0; font-size:14px; background:#f4f6fa; color:#889}
+  .step.on{background:#eaf1fb; color:var(--ink)}
+  .step .num{flex:none; width:24px; height:24px; border-radius:50%; background:#cdd9f3; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px}
+  .step.on .num{background:var(--blue)}
+  .hops{font-size:15px; font-weight:700; color:var(--blue); margin-top:8px; min-height:1.4em}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left} th{background:#eef2f8}
+  footer{margin-top:50px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  @media print{ .btn{display:none} body{background:#fff} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 23 课 · Ch6 · 一次间接的“两跳”</p>
+  <h1>为什么 <code>addrs[12]</code> 不是数据,而要“再跳一次”?</h1>
+  <p class="sub">专治这一个卡点。点按钮,看清楚“直接=跳 1 次”和“间接=跳 2 次”的区别。</p>
+</header>
+
+<div class="eli5">
+<b>🧸 一句话:</b> 一个“块号”就是磁盘上某个块的门牌号。<br>
+• <code>addrs[0..11]</code> 里写的门牌号,推门进去<b>就是你的数据</b>。<br>
+• <code>addrs[12]</code> 里写的门牌号,推门进去<b>不是数据,是一张“门牌号清单”</b> <code>[200,201,202,...]</code>——你得在清单里再挑一个门牌号,<b>再推一次门</b>,才到数据。<br>
+所以 <code>addrs[12]</code> 让你<b>跳两次</b>:先到“清单”,再到“数据”。
+</div>
+
+<h2>动手:点一个地址,看它带你跳几次</h2>
+<div class="panel">
+<div style="margin-bottom:12px">
+  <button class="btn" id="demoDirect">▶ 演示:读直接块 <code>addrs[5]</code></button>
+  <button class="btn" id="demoIndirect">▶ 演示:读间接块 <code>addrs[12]</code> 的第 3 项</button>
+  <button class="btn reset" id="reset">重置</button>
+</div>
+
+<div class="flow">
+  <!-- inode -->
+  <div class="stagecol" style="max-width:210px">
+    <div class="cap">① inode 的 addrs[13]</div>
+    <div class="box" id="inode"></div>
+  </div>
+
+  <div class="arrow" id="arrow1">→</div>
+
+  <!-- index block -->
+  <div class="stagecol" id="idxCol" style="max-width:200px">
+    <div class="cap">② 索引块(门牌号清单)</div>
+    <div class="box idx hidden" id="idxblock"></div>
+  </div>
+
+  <div class="arrow" id="arrow2">→</div>
+
+  <!-- data -->
+  <div class="stagecol" style="max-width:160px">
+    <div class="cap">③ 数据块(真正的数据)</div>
+    <div class="databox" id="data">你的数据<br>还没到</div>
+  </div>
+</div>
+
+<div class="steps">
+  <div class="step" id="s1"><div class="num">1</div><div id="s1t">第 1 跳:在 inode 里读出某个 addrs[...] 的值</div></div>
+  <div class="step" id="s2"><div class="num">2</div><div id="s2t">第 2 跳:若它指向索引块,就进清单里再挑一个块号</div></div>
+</div>
+<div class="hops" id="hops">← 点上面任一个按钮,或直接点左边 inode 里的格子</div>
+</div>
+
+<div class="key">
+<b>看出来了吗:</b> 直接块 <code>addrs[0..11]</code> 只点亮 ①→③(<b>1 跳</b>);
+间接块 <code>addrs[12]</code> 要点亮 ①→②→③(<b>2 跳</b>)。
+这“多出来的一跳”,就是大文件用间接索引付出的代价;也正因如此,小文件只用直接块才更快。
+</div>
+
+<h2>把它写成大白话</h2>
+<table>
+<tr><th></th><th>addrs[0..11]（直接）</th><th>addrs[12]（一次间接）</th></tr>
+<tr><td>格子里存的是</td><td>数据块的门牌号</td><td><b>索引块</b>的门牌号</td></tr>
+<tr><td>推门进去看到</td><td>数据 ✅</td><td>一串门牌号 <code>[200,201,...]</code></td></tr>
+<tr><td>到数据要跳几次</td><td>1 次</td><td>2 次</td></tr>
+<tr><td>能管多少数据块</td><td>12 个</td><td>清单能装多少就多少(本例 4KB/4B=1024 个)</td></tr>
+</table>
+
+<div class="eli5">
+<b>🧸 再用快递柜收个尾:</b> <code>addrs[5]=#9</code> 像“你的包裹在 9 号柜”——直接去 9 号柜拿。
+<code>addrs[12]=#300</code> 像“你的<b>包裹清单</b>贴在 300 号柜门上”——先去 300 号柜看清单 <code>[200,201,202,...]</code>,
+再按清单去 202 号柜拿那一件。<b>清单本身也占一个柜子(一个盘块)</b>,这就是为什么间接要多花一次。
+</div>
+
+<h2>复述检查(口述)</h2>
+<div class="panel">
+<ol>
+<li><code>addrs[12]</code> 里存的到底是什么?(不是数据,是______的门牌号)</li>
+<li>那个索引块里装的又是什么?(一串______)</li>
+<li>读直接块跳几次?读间接块跳几次?</li>
+</ol>
+</div>
+
+<footer>
+第 23 课 · Ch6 · 一次间接两跳 ·
+回到 → <a href="./0022-index-allocation-visual.html">第 22 课 总可视化</a> ·
+源码对照 → <a href="./0021-xv6-bmap-source-walkthrough.html">第 21 课 bmap 的间接分支</a><br>
+本例设定:addrs[0..11]=直接块号,addrs[12]=索引块 #300,该索引块内容 = [200,201,202,...]。
+</footer>
+
+</div>
+
+<script>
+// 直接块号(addrs[0..11])
+var direct = [52, 9, 33, 5, 41, 18, 60, 27, 14, 38, 7, 49];
+var IDXBLOCKNO = 300;            // addrs[12] 指向的索引块号
+var idxList = [200,201,202,203,204,205,206,207]; // 索引块里存的数据块号清单
+
+var inode = document.getElementById('inode');
+var idxblock = document.getElementById('idxblock');
+var dataEl = document.getElementById('data');
+var arrow1 = document.getElementById('arrow1'), arrow2 = document.getElementById('arrow2');
+var hops = document.getElementById('hops');
+var s1 = document.getElementById('s1'), s2 = document.getElementById('s2');
+var s1t = document.getElementById('s1t'), s2t = document.getElementById('s2t');
+
+// 建 inode 13 格
+for(var i=0;i<13;i++){
+  var c=document.createElement('div');
+  if(i<12){ c.className='cell direct'; c.innerHTML='<span class="k">addrs['+i+']</span><span class="v">#'+direct[i]+'</span>'; c.dataset.kind='direct'; c.dataset.blk=direct[i]; }
+  else { c.className='cell indirect'; c.innerHTML='<span class="k">addrs[12] ⚑</span><span class="v">#'+IDXBLOCKNO+'</span>'; c.dataset.kind='indirect'; }
+  c.dataset.idx=i;
+  inode.appendChild(c);
+}
+// 建索引块清单
+idxList.forEach(function(blk,j){
+  var c=document.createElement('div'); c.className='cell'; c.dataset.j=j; c.dataset.blk=blk;
+  c.innerHTML='<span class="k">第 '+j+' 项</span><span class="v">#'+blk+'</span>';
+  idxblock.appendChild(c);
+});
+
+function reset(){
+  document.querySelectorAll('.cell').forEach(function(c){c.classList.remove('sel');});
+  idxblock.classList.add('hidden');
+  arrow1.classList.remove('live'); arrow2.classList.remove('live');
+  s1.classList.remove('on'); s2.classList.remove('on');
+  dataEl.className='databox'; dataEl.innerHTML='你的数据<br>还没到';
+  hops.textContent='← 点按钮,或直接点左边 inode 的格子';
+}
+function clearSel(){ document.querySelectorAll('.cell').forEach(function(c){c.classList.remove('sel');}); }
+
+function readDirect(i){
+  reset();
+  var cell=inode.children[i]; cell.classList.add('sel');
+  arrow1.classList.add('live');
+  s1.classList.add('on'); s1t.textContent='第 1 跳:读 addrs['+i+'] = #'+direct[i]+'(这就是数据块门牌号)';
+  s2t.textContent='直接块不需要第 2 跳 —— 已经到数据了';
+  dataEl.className='databox hit'; dataEl.innerHTML='数据块 #'+direct[i]+'<br>✅ 到了!';
+  hops.innerHTML='直接块:inode → 数据,<b>只跳 1 次</b>。';
+}
+function readIndirect(j){
+  reset();
+  inode.children[12].classList.add('sel');
+  idxblock.classList.remove('hidden');
+  arrow1.classList.add('live');
+  s1.classList.add('on'); s1t.textContent='第 1 跳:读 addrs[12] = #'+IDXBLOCKNO+' → 推门进去不是数据,是索引块!';
+  // 高亮清单第 j 项
+  setTimeout(function(){
+    arrow2.classList.add('live');
+    idxblock.children[j].classList.add('sel');
+    s2.classList.add('on'); s2t.textContent='第 2 跳:在索引块清单里取第 '+j+' 项 = #'+idxList[j]+' → 这才是数据块';
+    dataEl.className='databox hit'; dataEl.innerHTML='数据块 #'+idxList[j]+'<br>✅ 到了!';
+    hops.innerHTML='间接块:inode → 索引块 → 数据,<b>要跳 2 次</b>。';
+  }, 450);
+}
+
+inode.addEventListener('click', function(e){
+  var c=e.target.closest('.cell'); if(!c) return;
+  if(c.dataset.kind==='direct') readDirect(+c.dataset.idx);
+  else { idxblock.classList.remove('hidden'); inode.children[12].classList.add('sel'); arrow1.classList.add('live');
+    s1.classList.add('on'); s1t.textContent='第 1 跳:addrs[12]=#'+IDXBLOCKNO+' → 进了索引块。现在点中间清单里任意一项 ▶';
+    hops.innerHTML='已到索引块。<b>再点清单里一项,完成第 2 跳。</b>'; }
+});
+idxblock.addEventListener('click', function(e){
+  var c=e.target.closest('.cell'); if(!c) return;
+  readIndirect(+c.dataset.j);
+});
+document.getElementById('demoDirect').addEventListener('click', function(){ readDirect(5); });
+document.getElementById('demoIndirect').addEventListener('click', function(){ readIndirect(3); });
+document.getElementById('reset').addEventListener('click', reset);
+reset();
+</script>
+</body>
+</html>
