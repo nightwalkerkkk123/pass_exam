@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 22 课 · 可视化:索引分配 & 混合索引 & 容量计算(零基础)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --data:#e6f4ea; --datab:#9ad0ad; --idx:#fdeccd; --idxb:#e8b86a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  /* index-block visual */
+  .stage{display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start}
+  .col{flex:1; min-width:220px}
+  .coltitle{font-size:13px; color:var(--muted); margin-bottom:6px; font-weight:600}
+  .idxblock{border:2px solid var(--idxb); border-radius:8px; overflow:hidden; background:var(--idx)}
+  .slot{display:flex; justify-content:space-between; align-items:center; padding:7px 12px; border-bottom:1px solid #e8c98a; cursor:pointer; font-size:14px; transition:.12s}
+  .slot:last-child{border-bottom:none}
+  .slot:hover{background:#fbe3b8}
+  .slot.sel{background:var(--blue); color:#fff}
+  .slot .i{font-weight:700} .slot .arrow{opacity:.5}
+  .diskgrid{display:grid; grid-template-columns:repeat(8,1fr); gap:5px}
+  .blk{aspect-ratio:1; border-radius:5px; background:#eef1f6; border:1px solid #d7dce6; display:flex; align-items:center; justify-content:center; font-size:11px; color:#889}
+  .blk.data{background:var(--data); border-color:var(--datab); color:var(--green); font-weight:600}
+  .blk.hit{background:var(--blue); border-color:var(--blue); color:#fff; transform:scale(1.12); box-shadow:0 3px 8px rgba(43,108,176,.4)}
+  .readout{margin-top:10px; font-size:14px; min-height:1.5em; color:var(--blue); font-weight:600}
+  /* inode tree */
+  .inode{display:flex; flex-direction:column; gap:6px}
+  .irow{display:grid; grid-template-columns:130px 1fr 110px; gap:10px; align-items:center; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fcfdff}
+  .irow .lbl{font-weight:600; font-size:14px}
+  .irow .lbl small{display:block; color:var(--muted); font-weight:400; font-size:12px}
+  .irow.direct .lbl{color:var(--green)}
+  .irow.l1 .lbl{color:var(--blue)} .irow.l2 .lbl{color:var(--purple)} .irow.l3 .lbl{color:var(--red)}
+  .chain{font-family:"SF Mono",Menlo,monospace; font-size:12.5px; color:#556; overflow-x:auto; white-space:nowrap}
+  .chip{display:inline-block; padding:2px 7px; border-radius:5px; margin:0 2px; font-size:12px}
+  .chip.d{background:var(--data); color:var(--green); border:1px solid var(--datab)}
+  .chip.x{background:var(--idx); color:var(--amber); border:1px solid var(--idxb)}
+  .cap{text-align:right; font-variant-numeric:tabular-nums; font-weight:700; font-size:14px}
+  .total{font-size:22px; font-weight:800; color:var(--blue); font-variant-numeric:tabular-nums}
+  /* block-of-1024 */
+  .megablk{display:grid; grid-template-columns:repeat(32,1fr); gap:1px; background:#dde3ee; border:2px solid var(--idxb); border-radius:6px; padding:3px; max-width:520px}
+  .cell{aspect-ratio:1; background:var(--idx); border-radius:1px}
+  .cell.lit{background:var(--idxb)}
+  /* calculator */
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8} td.num{text-align:right; font-variant-numeric:tabular-nums; font-weight:600}
+  .bar{height:14px; border-radius:7px; background:linear-gradient(90deg,#bee3f8,#3182ce)}
+  select,input{font:inherit; font-size:14px; padding:5px 8px; border:1px solid #cbd2dd; border-radius:6px}
+  .ctrls{display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin-bottom:8px}
+  .ctrls label{font-size:13px; color:var(--muted)}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  @media print{ body{background:#fff} .btn{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 22 课 · Ch6 文件管理 · 零基础可视化</p>
+  <h1>看得见的「索引分配 → 混合索引 → 容量计算」</h1>
+  <p class="sub">这一课全部可以动手点。目标:不靠背,而是<b>看明白</b>。配合 <a href="./0020-ch6-file-allocation-presentation.html">第 20 课讲稿</a> 一起用。</p>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> 文件被切成很多<b>数据块</b>散落在磁盘上。「怎么记住这些块都在哪」,就是分配方式要解决的事。<b>索引分配</b>的办法是:用一张“目录清单”集中记下所有块号。
+</div>
+
+<!-- ===================== 1. 索引分配 ===================== -->
+<h2>1. 索引分配 = 一张“快递柜目录单”</h2>
+<div class="eli5">
+<b>🧸 5 岁也懂的比喻:</b> 你有很多包裹散放在快递柜各处。你不用记每个柜子,只要有一张<b>目录单</b>:
+“第 0 个包裹在 #52 柜,第 1 个在 #9 柜……”。要拿第 I 个包裹?看单子第 I 行,<b>直接走到那个柜子</b>。
+这张目录单,就是<b>索引块</b>;每个柜子,就是一个<b>数据块</b>。
+</div>
+
+<div class="panel">
+<div class="coltitle">👇 点目录单的任意一行,看它“一步”跳到哪个数据块:</div>
+<div class="stage">
+  <div class="col" style="max-width:240px">
+    <div class="coltitle">索引块(目录单)</div>
+    <div class="idxblock" id="idxblock"></div>
+  </div>
+  <div class="col">
+    <div class="coltitle">磁盘上的数据块(绿色=这个文件的)</div>
+    <div class="diskgrid" id="diskgrid"></div>
+  </div>
+</div>
+<div class="readout" id="idxReadout">← 点左边目录单的某一行试试</div>
+</div>
+
+<div class="key">
+<b>为什么索引分配厉害:</b> 想读第 1000 块,<b>不用</b>从头一个个找(那是链接分配的慢),
+查目录单第 1000 行就<b>一步</b>拿到块号 → 这叫<b>随机访问一步到位</b>;块散放各处也行 → <b>没有外部碎片</b>。
+</div>
+
+<!-- ===================== 2. 单块的上限 ===================== -->
+<h2>2. 难题:一张目录单写不下怎么办?</h2>
+<div class="eli5">
+<b>🧸 比喻:</b> 目录单本身也是<b>一张纸(一个盘块)</b>,纸上能写的行数有限。文件太大、块太多,<b>一张单子写不下</b>。
+硬撑着给每个文件都配一张超大单子?小文件根本用不满,<b>浪费</b>。
+</div>
+<p>于是聪明的办法出现了:<b>大部分文件很小,给它几行就够;只有少数大文件,才让它“单子套单子”。</b>这就是下一节的<b>混合索引</b>。</p>
+
+<!-- ===================== 3. 混合索引 ===================== -->
+<h2>3. 混合索引(UNIX inode)= 单子里分四种行</h2>
+<div class="eli5">
+<b>🧸 比喻:</b> 文件的“身份证”叫 <b>inode</b>,上面有几行地址,分四种:<br>
+• <b>直接</b>:这行直接写柜号 → <b>一步拿到</b>(小文件够用)。<br>
+• <b>一次间接</b>:这行写“详细清单在另一张纸上” → 多翻 1 张纸。<br>
+• <b>二次间接</b>:写“清单的清单” → 多翻 2 张纸。<br>
+• <b>三次间接</b>:多翻 3 张纸(留给超大文件)。
+</div>
+
+<div class="panel">
+<div class="coltitle">👇 逐个“点亮”各级地址,看结构怎么展开、容量怎么累加(设定:盘块 4KB、块号 4B → 每张清单可写 <b>1024</b> 个块号):</div>
+<div style="margin:10px 0">
+  <button class="btn on" data-lvl="0" id="b0">直接 ×10(默认有)</button>
+  <button class="btn" data-lvl="1" id="b1">+ 一次间接</button>
+  <button class="btn" data-lvl="2" id="b2">+ 二次间接</button>
+  <button class="btn" data-lvl="3" id="b3">+ 三次间接</button>
+  <button class="btn reset" id="bReset">重置</button>
+</div>
+
+<div class="inode" id="inode">
+  <div class="irow direct" data-row="0">
+    <div class="lbl">直接地址 ×10<small>inode 里直接写块号</small></div>
+    <div class="chain"><span class="chip x">inode</span> → <span class="chip d">数据块</span> ×10 <span style="color:#999">(走 1 步)</span></div>
+    <div class="cap" id="cap0">40KB</div>
+  </div>
+  <div class="irow l1" data-row="1" style="opacity:.3">
+    <div class="lbl">一次间接<small>套 1 层清单</small></div>
+    <div class="chain"><span class="chip x">inode</span> → <span class="chip x">清单(1024)</span> → <span class="chip d">数据块</span> <span style="color:#999">(走 2 步)</span></div>
+    <div class="cap" id="cap1">+4MB</div>
+  </div>
+  <div class="irow l2" data-row="2" style="opacity:.3">
+    <div class="lbl">二次间接<small>套 2 层清单</small></div>
+    <div class="chain"><span class="chip x">inode</span> → <span class="chip x">清单</span> → <span class="chip x">清单</span> → <span class="chip d">数据块</span> <span style="color:#999">(走 3 步)</span></div>
+    <div class="cap" id="cap2">+4GB</div>
+  </div>
+  <div class="irow l3" data-row="3" style="opacity:.3">
+    <div class="lbl">三次间接<small>套 3 层清单</small></div>
+    <div class="chain"><span class="chip x">inode</span> → <span class="chip x">清单</span> → <span class="chip x">清单</span> → <span class="chip x">清单</span> → <span class="chip d">数据块</span> <span style="color:#999">(走 4 步)</span></div>
+    <div class="cap" id="cap3">+4TB</div>
+  </div>
+</div>
+<div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px">
+  <div style="font-size:14px; color:var(--muted)">当前可表示的最大文件:</div>
+  <div class="total" id="grandTotal">40KB</div>
+</div>
+</div>
+
+<div class="key">
+<b>设计精髓(讲给老师的金句):</b> 绝大多数文件都很小,只用<b>直接地址</b>,读一次就到、零额外开销;
+只有极少数大文件,才一层层展开间接清单。<b>同一个结构,既让多数小文件快,又让少数大文件大。</b>
+</div>
+
+<!-- ===================== 4. 计算原理:1024 从哪来 ===================== -->
+<h2>4. 计算的根:为什么是 <code>4KB ÷ 4B = 1024</code>?</h2>
+<div class="eli5">
+<b>🧸 比喻:</b> 一张清单纸 = 一个盘块 = <b>4KB = 4096 字节</b>。纸上写一个块号要占 <b>4 字节</b>。
+那这张纸能写几个块号?<b>4096 ÷ 4 = 1024 个</b>。就像“一个能装 4096 颗豆子的罐子,每个块号占 4 颗,能放 1024 个块号”。
+</div>
+<div class="panel">
+<div class="coltitle">一个 4KB 盘块,被切成 1024 个“格子”,每格放一个 4B 块号(下面真的画了 1024 格):</div>
+<div class="megablk" id="megablk"></div>
+<p style="font-size:14px;margin-top:10px"><b>所以一张清单能指向 1024 个块。</b> 记这个数为 <b>P = 1024</b>。下面所有容量,都是 P 在做乘法。</p>
+</div>
+
+<h3>容量怎么一级级乘上去</h3>
+<table>
+<tr><th>地址类型</th><th>怎么算</th><th>能多管多少块</th><th class="num">容量</th></tr>
+<tr><td>直接 ×10</td><td>10 块</td><td>10</td><td class="num">10×4KB = 40KB</td></tr>
+<tr><td>一次间接</td><td>1 张清单 = P 块</td><td>1024</td><td class="num">P×4KB = 4MB</td></tr>
+<tr><td>二次间接</td><td>清单套清单 = P×P 块</td><td>1,048,576</td><td class="num">P²×4KB = 4GB</td></tr>
+<tr><td>三次间接</td><td>套三层 = P×P×P 块</td><td>1,073,741,824</td><td class="num">P³×4KB = 4TB</td></tr>
+</table>
+<div class="key">
+<b>抓住这一个规律就够了:每多套一层清单,能管的块数就 <b>× P(×1024)</b>。</b><br>
+4KB → 4MB → 4GB → 4TB,每一步都是 ×1024。这就是“指数级放大”——不用背那串数,理解“每级 ×1024”即可。
+</div>
+
+<!-- ===================== 5. 交互计算器 ===================== -->
+<h2>5. 自己玩:容量计算器(改数字,看结果变)</h2>
+<div class="panel">
+<div class="ctrls">
+  <label>盘块大小
+    <select id="inBlk">
+      <option value="1024">1 KB</option>
+      <option value="4096" selected>4 KB</option>
+      <option value="8192">8 KB</option>
+    </select>
+  </label>
+  <label>每个块号占
+    <select id="inAddr">
+      <option value="4" selected>4 B</option>
+      <option value="8">8 B</option>
+    </select>
+  </label>
+  <label>直接地址个数
+    <input id="inDirect" type="number" value="10" min="0" max="64" style="width:70px">
+  </label>
+</div>
+<table>
+  <tr><th>量</th><th class="num">值</th><th>规模</th></tr>
+  <tr><td>每张清单可写块号数 P = 盘块 ÷ 块号</td><td class="num" id="oP">1024</td><td><div class="bar" id="barP" style="width:6%"></div></td></tr>
+  <tr><td>直接地址容量</td><td class="num" id="oD">40KB</td><td><div class="bar" id="barD" style="width:1%"></div></td></tr>
+  <tr><td>一次间接容量</td><td class="num" id="o1">4MB</td><td><div class="bar" id="bar1" style="width:2%"></div></td></tr>
+  <tr><td>二次间接容量</td><td class="num" id="o2">4GB</td><td><div class="bar" id="bar2" style="width:25%"></div></td></tr>
+  <tr><td>三次间接容量</td><td class="num" id="o3">4TB</td><td><div class="bar" id="bar3" style="width:100%"></div></td></tr>
+  <tr style="background:#eef4fb"><td><b>最大文件 ≈ 总和</b></td><td class="num" id="oT"><b>4TB+</b></td><td></td></tr>
+</table>
+<p style="font-size:13.5px;color:var(--muted)">试试:把盘块从 4KB 改成 <b>1KB</b>,看 P 变成 256、三次间接从 4TB 缩到 16GB——<b>块越小,能管的文件越小</b>。这就是 xv6(1KB 块)单文件才 268KB 的原因(它还只做到一级间接)。</p>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2>6. 自测:用自己的话复述(口述,别打字)</h2>
+<div class="panel">
+<ol>
+<li>“索引分配”和“链接分配”,读第 1000 块时差别在哪?<small style="color:#999">(提示:一步 vs 一个个找)</small></li>
+<li>为什么混合索引要分“直接 / 间接”,不全用直接?<small style="color:#999">(提示:小文件多、大文件少)</small></li>
+<li>P=1024 这个数怎么来的?<small style="color:#999">(提示:一张纸能写几个块号)</small></li>
+<li>每多一级间接,容量乘以几?<small style="color:#999">(提示:看第 4 节那条规律)</small></li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">四题都能不看屏幕说出来 → 你真懂了,不只是“听过”。说不顺的那题,回到对应小节再点一遍可视化。</p>
+</div>
+
+<footer>
+第 22 课 · Ch6 可视化 · 索引分配 / 混合索引 / 容量计算 ·
+讲稿 → <a href="./0020-ch6-file-allocation-presentation.html">第 20 课</a> ·
+源码 → <a href="./0021-xv6-bmap-source-walkthrough.html">第 21 课 bmap</a><br>
+设定对齐你课件:盘块 4KB、块号 4B、10 直接 + 一/二/三次间接 → 40KB+4MB+4GB+4TB。
+</footer>
+
+</div>
+
+<script>
+// ---------- 1. 索引分配可视化 ----------
+var idxMap = [52, 9, 33, 5, 41, 18, 60, 27]; // slot i -> data block #
+var idxblock = document.getElementById('idxblock');
+var diskgrid = document.getElementById('diskgrid');
+var idxReadout = document.getElementById('idxReadout');
+idxMap.forEach(function(blk, i){
+  var s = document.createElement('div');
+  s.className = 'slot'; s.dataset.i = i; s.dataset.blk = blk;
+  s.innerHTML = '<span class="i">第 '+i+' 项</span><span>→ #'+blk+' 块 <span class="arrow">▶</span></span>';
+  idxblock.appendChild(s);
+});
+var dataSet = {}; idxMap.forEach(function(b){ dataSet[b]=true; });
+for(var n=0;n<64;n++){
+  var b=document.createElement('div');
+  b.className='blk'+(dataSet[n]?' data':''); b.dataset.n=n; b.textContent='#'+n;
+  diskgrid.appendChild(b);
+}
+idxblock.addEventListener('click', function(e){
+  var slot=e.target.closest('.slot'); if(!slot) return;
+  document.querySelectorAll('.slot').forEach(function(s){s.classList.remove('sel');});
+  document.querySelectorAll('.blk').forEach(function(b){b.classList.remove('hit');});
+  slot.classList.add('sel');
+  var blk=slot.dataset.blk, i=slot.dataset.i;
+  var target=diskgrid.querySelector('.blk[data-n="'+blk+'"]');
+  if(target) target.classList.add('hit');
+  idxReadout.textContent='查目录单第 '+i+' 项 → 直接拿到块号 #'+blk+' → 一步跳到!(无需从头找)';
+});
+
+// ---------- 3. 混合索引展开 + 累加 ----------
+var KB=1024, MB=KB*1024, GB=MB*1024, TB=GB*1024;
+var levelBytes=[10*4*KB, 1024*4*KB, 1024*1024*4*KB, 1024*1024*1024*4*KB];
+var on=[true,false,false,false];
+function fmt(bytes){
+  var u=['B','KB','MB','GB','TB','PB'], i=0, v=bytes;
+  while(v>=1024 && i<u.length-1){v/=1024;i++;}
+  var s=(Math.abs(v-Math.round(v))<1e-9)? String(Math.round(v)) : v.toFixed(2).replace(/\.?0+$/,'');
+  return s+u[i];
+}
+function refreshInode(){
+  var total=0;
+  for(var k=0;k<4;k++){
+    var row=document.querySelector('.irow[data-row="'+k+'"]');
+    row.style.opacity = on[k]? '1':'.3';
+    if(on[k]) total+=levelBytes[k];
+  }
+  document.getElementById('grandTotal').textContent = fmt(total) + (on[3]?'+':'');
+  [0,1,2,3].forEach(function(k){
+    document.getElementById('b'+k).classList.toggle('on', on[k]);
+  });
+}
+[1,2,3].forEach(function(k){
+  document.getElementById('b'+k).addEventListener('click', function(){
+    // 必须逐级开启:开第 k 级前先开前面的
+    if(!on[k]){ for(var j=1;j<=k;j++) on[j]=true; }
+    else { for(var j=k;j<=3;j++) on[j]=false; } // 关掉它和后面的
+    refreshInode();
+  });
+});
+document.getElementById('bReset').addEventListener('click', function(){
+  on=[true,false,false,false]; refreshInode();
+});
+refreshInode();
+
+// ---------- 4. 1024 格子 ----------
+var mega=document.getElementById('megablk');
+for(var c=0;c<1024;c++){ var d=document.createElement('div'); d.className='cell'; mega.appendChild(d); }
+// 点亮前 4 格做示意
+[0,1,2,3].forEach(function(i){ mega.children[i].classList.add('lit'); });
+
+// ---------- 5. 计算器 ----------
+var inBlk=document.getElementById('inBlk'), inAddr=document.getElementById('inAddr'), inDirect=document.getElementById('inDirect');
+function calc(){
+  var blk=+inBlk.value, addr=+inAddr.value, nd=Math.max(0,Math.min(64,+inDirect.value||0));
+  var P=Math.floor(blk/addr);
+  var d=nd*blk, c1=P*blk, c2=P*P*blk, c3=P*P*P*blk;
+  var total=d+c1+c2+c3;
+  document.getElementById('oP').textContent=P;
+  document.getElementById('oD').textContent=fmt(d);
+  document.getElementById('o1').textContent=fmt(c1);
+  document.getElementById('o2').textContent=fmt(c2);
+  document.getElementById('o3').textContent=fmt(c3);
+  document.getElementById('oT').innerHTML='<b>'+fmt(total)+'</b>';
+  // bars: 用对数让差异看得见
+  function w(x){ return Math.max(1, Math.min(100, (Math.log(x)/Math.log(c3))*100 )); }
+  document.getElementById('barP').style.width = Math.min(100,P/50)+'%';
+  document.getElementById('barD').style.width = w(d)+'%';
+  document.getElementById('bar1').style.width = w(c1)+'%';
+  document.getElementById('bar2').style.width = w(c2)+'%';
+  document.getElementById('bar3').style.width = '100%';
+}
+[inBlk,inAddr,inDirect].forEach(function(el){ el.addEventListener('input', calc); el.addEventListener('change', calc); });
+calc();
+</script>
+</body>
+</html>

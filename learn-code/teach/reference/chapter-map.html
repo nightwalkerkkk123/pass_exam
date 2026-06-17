@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>xv6 章节 → 代码 映射表</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fdfcf8; --muted:#6b6b5f;
+    --rule:#d8d4c5; --accent:#7a3b2e; --accent2:#2e5a6b; --done:#3a6b3a;
+  }
+  *{box-sizing:border-box}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Songti SC",serif;
+    line-height:1.55; margin:0; padding:3rem 1.5rem 5rem;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:54rem; margin:0 auto}
+  header{border-bottom:2px solid var(--ink); padding-bottom:1rem; margin-bottom:2rem}
+  .kicker{font-size:.78rem; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); margin:0 0 .4rem}
+  h1{font-size:2rem; margin:.1rem 0 .3rem; font-weight:600; letter-spacing:-.01em}
+  .sub{color:var(--muted); font-size:.95rem; margin:0}
+  h2{font-size:1.05rem; margin:2.4rem 0 .6rem; border-bottom:1px solid var(--rule); padding-bottom:.3rem}
+  table{width:100%; border-collapse:collapse; font-size:.9rem; margin:.5rem 0 1rem}
+  th,td{text-align:left; padding:.55rem .6rem; vertical-align:top; border-bottom:1px solid var(--rule)}
+  th{font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); font-weight:600}
+  td:first-child{font-variant-numeric:tabular-nums; font-weight:600; color:var(--accent2); white-space:nowrap; width:3.2rem}
+  code{font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:.82em;
+    background:#eeeadb; padding:.08em .35em; border-radius:3px}
+  td code{display:inline-block; margin:.08rem .15rem .08rem 0}
+  .status{font-size:.72rem; padding:.12em .5em; border-radius:999px; white-space:nowrap}
+  .s-now{background:#e7f0e7; color:var(--done); border:1px solid #b8d4b8}
+  .s-todo{background:#efece0; color:var(--muted); border:1px solid var(--rule)}
+  .lead{font-size:1.02rem; background:#f4f1e6; border-left:3px solid var(--accent); padding:.9rem 1.1rem; border-radius:0 6px 6px 0}
+  .note{font-size:.85rem; color:var(--muted); margin-top:.3rem}
+  footer{margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted)}
+  a{color:var(--accent2)}
+  @media print{ body{padding:0; background:#fff} .lead{background:#f4f1e6 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p class="kicker">参考文档 · 脊椎</p>
+  <h1>xv6 章节 → 代码 映射表</h1>
+  <p class="sub">官方教材 (rev3) 的每一章,对应到本地 <code>xv6-riscv-20230207/</code> 的哪些文件。这是本课程的骨架——每节课都挂在某一章下。</p>
+</header>
+
+<p class="lead">怎么用:拿到任意一个源文件,先在这张表里查它属于哪一章;复习时,按章节号顺序走一遍,就是老师要求的"按章节讲解代码"。✅ 标记的章节已有配套课程。</p>
+
+<h2>内核子系统全景</h2>
+<table>
+  <thead><tr><th>章</th><th>标题(教材)</th><th>核心代码文件</th><th>课程</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>操作系统接口<br><span class="note">进程 · 系统调用 · 文件描述符 · 管道</span></td>
+      <td><code>user/echo.c</code> <code>user/sh.c</code> <code>user/user.h</code> <code>kernel/sysproc.c</code></td>
+      <td><span class="status s-now">✅ 0001 · 0002</span></td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>操作系统组织<br><span class="note">内核/用户态 · 启动 · 第一个进程</span></td>
+      <td><code>kernel/main.c</code> <code>kernel/start.c</code> <code>kernel/entry.S</code> <code>user/initcode.S</code></td>
+      <td><span class="status s-todo">待建</span></td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>页表 / 虚拟内存<br><span class="note">地址翻译 · 内核映射 · 内存分配</span></td>
+      <td><code>kernel/vm.c</code> <code>kernel/kalloc.c</code> <code>kernel/riscv.h</code> <code>kernel/memlayout.h</code></td>
+      <td><span class="status s-todo">待建</span></td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>陷阱与系统调用<br><span class="note">trap · 系统调用分发 · 缺页</span></td>
+      <td><code>kernel/trap.c</code> <code>kernel/trampoline.S</code> <code>kernel/syscall.c</code> <code>kernel/syscall.h</code></td>
+      <td><span class="status s-todo">待建</span></td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>中断与设备驱动<br><span class="note">UART · 控制台 · 磁盘</span></td>
+      <td><code>kernel/uart.c</code> <code>kernel/console.c</code> <code>kernel/plic.c</code> <code>kernel/virtio_disk.c</code></td>
+      <td><span class="status s-todo">待建</span></td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>锁<br><span class="note">自旋锁 · 睡眠锁 · 竞态</span></td>
+      <td><code>kernel/spinlock.c</code> <code>kernel/sleeplock.c</code></td>
+      <td><span class="status s-todo">待建</span></td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>调度<br><span class="note">上下文切换 · 调度循环 · sleep/wakeup</span></td>
+      <td><code>kernel/proc.c</code> <code>kernel/swtch.S</code></td>
+      <td><span class="status s-todo">待建</span></td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>文件系统<br><span class="note">磁盘布局 · 日志 · inode · 路径</span></td>
+      <td><code>kernel/fs.c</code> <code>kernel/bio.c</code> <code>kernel/log.c</code> <code>kernel/file.c</code> <code>kernel/sysfile.c</code></td>
+      <td><span class="status s-todo">待建</span></td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>并发再探<br><span class="note">锁 + 中断 + 调度的交互</span></td>
+      <td><span class="note">回看 ch.6/7 的代码,从并发视角再读一遍</span></td>
+      <td><span class="status s-todo">待建</span></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>几个贯穿全书的关键头文件</h2>
+<table>
+  <thead><tr><th></th><th>文件</th><th>装的是什么</th></tr></thead>
+  <tbody>
+    <tr><td></td><td><code>kernel/proc.h</code></td><td>进程控制块 <code>struct proc</code>、CPU 状态——读任何子系统前都会回头看它</td></tr>
+    <tr><td></td><td><code>kernel/defs.h</code></td><td>内核内部所有函数的声明总表(相当于内核的"目录")</td></tr>
+    <tr><td></td><td><code>kernel/param.h</code></td><td>各种上限常量(进程数、打开文件数、CPU 数……)</td></tr>
+    <tr><td></td><td><code>user/user.h</code></td><td>用户程序能调用的系统调用 + 库函数声明</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  主资源:<a href="https://pdos.csail.mit.edu/6.1810/2023/xv6/book-riscv-rev3.pdf">xv6 book (rev3)</a> ·
+  课程站:<a href="https://pdos.csail.mit.edu/6.1810/2023/">MIT 6.1810</a><br>
+  这是参考文档,会随课程推进不断更新章节状态。课程文件见 <code>../lessons/</code>。
+</footer>
+</div>
+</body>
+</html>

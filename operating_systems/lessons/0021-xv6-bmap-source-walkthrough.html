@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 21 课 · xv6 bmap() 逐行源码精讲(讲稿+答辩) · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --codebg:#272b33; --codefg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:40px 28px 80px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:24px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:34px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:8px 0}
+  ul,ol{padding-left:22px} li{margin:4px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{background:var(--codebg); color:var(--codefg); border-radius:8px; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; line-height:1.7; margin:12px 0}
+  pre .ln{color:#6f7681; user-select:none; display:inline-block; width:2.2em; text-align:right; margin-right:1em}
+  pre .kw{color:#c678dd} pre .fn{color:#61afef} pre .cm{color:#7d8590; font-style:italic}
+  pre .n{color:#e0a45e} pre .s{color:#98c379} pre .b1{background:#33402f}  pre .b2{background:#2f3a40}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  td code{font-size:12.5px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 14px; border-radius:4px; margin:14px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:#f1f9f4}
+  .q{background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px 14px; margin:10px 0}
+  .q b{color:var(--accent)}
+  .pill{display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; background:#eee; margin-left:4px}
+  .pill.high{background:#fde2dd; color:#8a1c11}
+  .pill.mid{background:#fff0d6; color:#7a4a00}
+  .script{background:#f3f7ec; border:1px dashed #5d7a00; padding:14px 16px; border-radius:6px; margin:14px 0; font-size:15px; line-height:1.85}
+  .timeline{display:grid; grid-template-columns:78px 1fr; gap:6px 12px; font-size:14px; margin:14px 0}
+  .timeline .t{color:var(--accent); font-weight:bold}
+  .timeline .c{background:#fff; padding:8px 12px; border:1px solid var(--line); border-radius:4px}
+  .checklist{background:#fff; border:1px solid var(--ok); border-left:4px solid var(--ok); padding:14px 16px; border-radius:4px; margin:14px 0}
+  .diagram{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.55; background:#fff; border:1px solid var(--line); border-radius:6px; padding:14px 16px; white-space:pre; overflow-x:auto}
+  .big{font-size:15px}
+  footer{margin-top:60px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--accent); text-decoration:none} a:hover{text-decoration:underline}
+  @media print{ body{background:#fff;font-size:13px} .wrap{padding:12mm;max-width:none} pre{background:#f0eee4;color:#222} h2{break-after:avoid} table,.q,.timeline .c{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 21 课 · Ch6 文件管理 · 逐行源码精讲 + 答辩</p>
+  <h1>xv6 文件系统三函数逐行精讲<br><code>bmap</code> · <code>balloc</code> · <code>itrunc</code> ——分配 → 寻址 → 回收</h1>
+  <p class="sub">明天目标:对着真实 C 代码逐行讲 9–10 分钟,答得住追问 · 源码:<code>xv6-riscv/kernel/fs.c</code></p>
+</header>
+
+<div class="callout">
+<b>🎯 这份稿子可以独立上场。</b> 它把你选的主题(混合索引)落到三段真实代码:<code>struct dinode</code> 是数据结构、<code>bmap</code> 分配+寻址、<code>balloc</code>/<code>bfree</code> 是位示图空闲块管理、<code>itrunc</code> 是回收。<b>逐行讲代码 + 随时指回课本概念</b>,就是“讲解+答辩”的满分形态。<br>
+概念背景忘了?回看 <a href="./0020-ch6-file-allocation-presentation.html">第 20 课(概念稿)</a>。
+</div>
+
+<h2>0. 先记这句主线(讲偏了就拉回来)</h2>
+<div class="callout ok big">
+<b>“一个文件由很多数据块组成。<code>bmap(ip, bn)</code> 干的事就一句话:<u>给我文件的第 bn 块,我告诉你它在磁盘的第几号块</u>。小块号走直接地址、大块号走一次间接——这就是课本说的‘混合索引’,只不过 xv6 简化到一级间接。”</b>
+</div>
+
+<h2>1. 数据结构:inode 就是“混合索引”本体</h2>
+<p>先给老师看文件在磁盘上的“身份证”——索引结点 inode。来自 <code>kernel/fs.h</code>:</p>
+<pre><span class="ln">27</span><span class="kw">#define</span> NDIRECT 12                       <span class="cm">// 直接地址项:12 个</span>
+<span class="ln">28</span><span class="kw">#define</span> NINDIRECT (BSIZE / <span class="kw">sizeof</span>(uint)) <span class="cm">// 一个间接块能装多少块号 = 1024/4 = 256</span>
+<span class="ln">29</span><span class="kw">#define</span> MAXFILE (NDIRECT + NINDIRECT)      <span class="cm">// 单文件最大块数 = 12 + 256 = 268 块</span>
+<span class="ln">32</span><span class="kw">struct</span> dinode {
+<span class="ln">33</span>  <span class="kw">short</span> type;            <span class="cm">// 文件类型(目录/文件/设备)</span>
+<span class="ln">37</span>  uint  size;            <span class="cm">// 文件大小(字节)</span>
+<span class="ln">38</span>  uint  addrs[NDIRECT+<span class="n">1</span>]; <span class="cm">// ★ 13 个地址:前 12 个=直接块,第 13 个=一次间接块</span>
+<span class="ln">39</span>};</pre>
+<div class="callout">
+<b>讲这页时指着 <code>addrs[NDIRECT+1]</code> 说:</b>“这一行就是‘混合索引’。数组 13 格——<b>前 12 格直接装数据块号</b>(小文件够用),<b>第 13 格装一个‘间接块’的块号</b>,那个间接块里再装 256 个数据块号(留给大文件)。课本画的‘直接地址 + 一次间接’,在 C 里就是这一个数组。”
+</div>
+
+<h2>2. 逐行讲 <code>bmap()</code>(来自 <code>kernel/fs.c</code>)</h2>
+<p>背景注释先念:<i>“返回 inode 第 bn 块的磁盘块地址;若该块还不存在,就分配一个。”</i></p>
+<pre><span class="ln">382</span><span class="kw">static</span> uint
+<span class="ln">383</span><span class="fn">bmap</span>(<span class="kw">struct</span> inode *ip, uint bn)
+<span class="ln">384</span>{
+<span class="ln">385</span>  uint addr, *a;
+<span class="ln">386</span>  <span class="kw">struct</span> buf *bp;
+<span class="ln">387</span>
+<span class="ln">388</span>  <span class="b1"><span class="kw">if</span>(bn &lt; NDIRECT){              <span class="cm">// ① 块号 &lt; 12 → 直接块</span></span>
+<span class="ln">389</span><span class="b1">    <span class="kw">if</span>((addr = ip->addrs[bn]) == <span class="n">0</span>){ <span class="cm">// 这一格还没分配?</span></span>
+<span class="ln">390</span><span class="b1">      addr = <span class="fn">balloc</span>(ip->dev);    <span class="cm">// 找一个空闲磁盘块(★空闲块管理)</span></span>
+<span class="ln">391</span><span class="b1">      <span class="kw">if</span>(addr == <span class="n">0</span>)</span>
+<span class="ln">392</span><span class="b1">        <span class="kw">return</span> <span class="n">0</span>;               <span class="cm">// 磁盘满了</span></span>
+<span class="ln">393</span><span class="b1">      ip->addrs[bn] = addr;       <span class="cm">// 记进 inode 第 bn 格</span></span>
+<span class="ln">394</span><span class="b1">    }</span>
+<span class="ln">395</span><span class="b1">    <span class="kw">return</span> addr;                  <span class="cm">// 直接返回块号——一步到位</span></span>
+<span class="ln">396</span><span class="b1">  }</span>
+<span class="ln">397</span>  bn -= NDIRECT;                  <span class="cm">// 把块号“减掉 12”,换算成间接区里的下标</span>
+<span class="ln">398</span>
+<span class="ln">399</span>  <span class="b2"><span class="kw">if</span>(bn &lt; NINDIRECT){            <span class="cm">// ② 还在 256 以内 → 一次间接块</span></span>
+<span class="ln">401</span><span class="b2">    <span class="kw">if</span>((addr = ip->addrs[NDIRECT]) == <span class="n">0</span>) <span class="cm">// 间接块本身还没分配?</span></span>
+<span class="ln">402</span><span class="b2">      ip->addrs[NDIRECT] = addr = <span class="fn">balloc</span>(ip->dev); <span class="cm">// 分配间接块</span></span>
+<span class="ln">407</span><span class="b2">    bp = <span class="fn">bread</span>(ip->dev, addr);   <span class="cm">// 把间接块从磁盘读进内存(★缓冲)</span></span>
+<span class="ln">408</span><span class="b2">    a = (uint*)bp->data;          <span class="cm">// 间接块的内容 = 一个块号数组 a[256]</span></span>
+<span class="ln">409</span><span class="b2">    <span class="kw">if</span>((addr = a[bn]) == <span class="n">0</span>){      <span class="cm">// 间接块里第 bn 项还没填?</span></span>
+<span class="ln">410</span><span class="b2">      addr = <span class="fn">balloc</span>(ip->dev);    <span class="cm">// 再分配一个数据块</span></span>
+<span class="ln">411</span><span class="b2">      <span class="kw">if</span>(addr){</span>
+<span class="ln">412</span><span class="b2">        a[bn] = addr;             <span class="cm">// 填进间接块</span></span>
+<span class="ln">413</span><span class="b2">        <span class="fn">log_write</span>(bp);            <span class="cm">// 改动经“日志”落盘(★事务/一致性)</span></span>
+<span class="ln">414</span><span class="b2">      }</span>
+<span class="ln">415</span><span class="b2">    }</span>
+<span class="ln">416</span><span class="b2">    <span class="fn">brelse</span>(bp);                  <span class="cm">// 释放缓冲块</span></span>
+<span class="ln">417</span><span class="b2">    <span class="kw">return</span> addr;</span>
+<span class="ln">418</span><span class="b2">  }</span>
+<span class="ln">420</span>  <span class="fn">panic</span>(<span class="s">"bmap: out of range"</span>); <span class="cm">// 超过 268 块?xv6 装不下</span>
+<span class="ln">421</span>}</pre>
+
+<h3>把代码切成“两段命运”讲(这是你讲解的主结构)</h3>
+<table>
+<tr><th>代码块</th><th>行</th><th>一句话讲法</th><th>对应课本</th></tr>
+<tr><td><b>① 直接块分支</b></td><td>388–396</td><td>“块号小于 12,直接在 inode 里第 bn 格拿块号;没有就 balloc 一个填进去。<b>读一次就到,这就是小文件为什么快</b>。”</td><td>直接地址</td></tr>
+<tr><td><b>换算</b></td><td>397</td><td>“块号 ≥ 12,减掉 12,剩下的是‘间接区里的第几项’。”</td><td>—</td></tr>
+<tr><td><b>② 一次间接分支</b></td><td>399–418</td><td>“先拿到间接块(没有就分配)→ 读进内存当数组 <code>a[256]</code> → 取 <code>a[bn]</code> 才是真正的数据块号。<b>多读一层,这就是大文件的代价</b>。”</td><td>一次间接地址</td></tr>
+<tr><td><b>越界</b></td><td>420</td><td>“超过 268 块直接 panic——xv6 只做到一级间接。”</td><td>(课本还有二/三级)</td></tr>
+</table>
+
+<h2>3. <code>balloc()</code> —— 这就是课本“位示图法”的真身</h2>
+<p>上面 <code>bmap</code> 多次调用 <code>balloc</code> “要一个空闲块”。它<b>怎么找空闲块</b>?来自 <code>kernel/fs.c</code>,这正是课本第六章“文件存储空间管理 · 位示图法”:</p>
+<pre><span class="ln">66</span><span class="fn">balloc</span>(uint dev){
+<span class="ln">72</span>  <span class="kw">for</span>(b = <span class="n">0</span>; b &lt; sb.size; b += BPB){      <span class="cm">// 一块块位图扫过去</span>
+<span class="ln">73</span>    bp = <span class="fn">bread</span>(dev, BBLOCK(b, sb));       <span class="cm">// 读入这一段位图(bitmap)</span>
+<span class="ln">74</span>    <span class="kw">for</span>(bi = <span class="n">0</span>; bi &lt; BPB &amp;&amp; b+bi &lt; sb.size; bi++){
+<span class="ln">75</span>      m = <span class="n">1</span> &lt;&lt; (bi % <span class="n">8</span>);                  <span class="cm">// ★ 第 bi 位的“掩码”:1 左移 (bi%8)</span>
+<span class="ln">76</span>      <span class="kw">if</span>((bp->data[bi/<span class="n">8</span>] &amp; m) == <span class="n">0</span>){       <span class="cm">// ★ 该位 = 0 ?→ 这个块空闲</span>
+<span class="ln">77</span>        bp->data[bi/<span class="n">8</span>] |= m;              <span class="cm">// ★ 置 1 = 标记“已分配”</span>
+<span class="ln">78</span>        <span class="fn">log_write</span>(bp);                   <span class="cm">// 改动写日志(一致性)</span>
+<span class="ln">80</span>        <span class="fn">bzero</span>(dev, b + bi);              <span class="cm">// 把这个块清零再交出去</span>
+<span class="ln">81</span>        <span class="kw">return</span> b + bi;                   <span class="cm">// ★ 块号 = 字节下标×8 + 位内偏移</span>
+<span class="ln">82</span>      }
+<span class="ln">83</span>    }
+<span class="ln">84</span>    <span class="fn">brelse</span>(bp);
+<span class="ln">85</span>  }
+<span class="ln">86</span>  <span class="fn">printf</span>(<span class="s">"balloc: out of blocks\n"</span>);    <span class="cm">// 整张位图都满了</span>
+<span class="ln">87</span>  <span class="kw">return</span> <span class="n">0</span>;
+<span class="ln">88</span>}</pre>
+<div class="callout">
+<b>把课本对上代码(答辩金句):</b>“课本说位示图‘0 空闲、1 已分配,盘块号 n = i×8 + j’。看代码:<code>bp->data[bi/8]</code> 就是课本的第 <b>i</b> 个字节,<code>bi % 8</code> 就是第 <b>j</b> 位,<code>m = 1&lt;&lt;(bi%8)</code> 是取那一位的掩码,<code>return b + bi</code> 就是 <b>n = i×8 + j</b>。课本的公式,在这里一行行兑现。”
+</div>
+
+<h3>配套:<code>bfree()</code> —— 回收就是把那一位清 0</h3>
+<pre><span class="ln">92</span><span class="fn">bfree</span>(int dev, uint b){
+<span class="ln">97</span>  bp = <span class="fn">bread</span>(dev, BBLOCK(b, sb));
+<span class="ln">98</span>  bi = b % BPB;
+<span class="ln">99</span>  m = <span class="n">1</span> &lt;&lt; (bi % <span class="n">8</span>);
+<span class="ln">100</span>  <span class="kw">if</span>((bp->data[bi/<span class="n">8</span>] &amp; m) == <span class="n">0</span>)
+<span class="ln">101</span>    <span class="fn">panic</span>(<span class="s">"freeing free block"</span>);    <span class="cm">// 想回收一个本就空闲的块?说明出错了</span>
+<span class="ln">102</span>  bp->data[bi/<span class="n">8</span>] &amp;= ~m;                 <span class="cm">// ★ 把该位清 0 = 标记“空闲”</span>
+<span class="ln">103</span>  <span class="fn">log_write</span>(bp);
+<span class="ln">104</span>}</pre>
+<p><b>讲法:</b>“分配是 <code>|= m</code> 把位置 1,回收是 <code>&amp;= ~m</code> 把位清 0,完全对称。第 100 行还做了个检查:回收一个<b>本来就空闲</b>的块就 panic——这正是课本‘数据一致性’里说的<b>空闲块重复</b>错误。”</p>
+
+<h2>4. <code>itrunc()</code> —— 删文件:把 <code>bmap</code> 反着走一遍(回收)</h2>
+<p>删除文件时要把它占的所有块还给磁盘。<code>itrunc</code> 的结构和 <code>bmap</code> <b>一一对应</b>:先直接块、再间接块。来自 <code>kernel/fs.c</code>:</p>
+<pre><span class="ln">426</span><span class="fn">itrunc</span>(<span class="kw">struct</span> inode *ip){
+<span class="ln">432</span>  <span class="kw">for</span>(i = <span class="n">0</span>; i &lt; NDIRECT; i++){       <span class="cm">// ① 回收 12 个直接块</span>
+<span class="ln">433</span>    <span class="kw">if</span>(ip->addrs[i]){
+<span class="ln">434</span>      <span class="fn">bfree</span>(ip->dev, ip->addrs[i]);   <span class="cm">// 每个块还给位图</span>
+<span class="ln">435</span>      ip->addrs[i] = <span class="n">0</span>;
+<span class="ln">436</span>    }
+<span class="ln">437</span>  }
+<span class="ln">439</span>  <span class="kw">if</span>(ip->addrs[NDIRECT]){            <span class="cm">// ② 有间接块?</span>
+<span class="ln">440</span>    bp = <span class="fn">bread</span>(ip->dev, ip->addrs[NDIRECT]);
+<span class="ln">441</span>    a = (uint*)bp->data;
+<span class="ln">442</span>    <span class="kw">for</span>(j = <span class="n">0</span>; j &lt; NINDIRECT; j++)     <span class="cm">// 先回收间接块里 256 个数据块</span>
+<span class="ln">443</span>      <span class="kw">if</span>(a[j]) <span class="fn">bfree</span>(ip->dev, a[j]);
+<span class="ln">446</span>    <span class="fn">brelse</span>(bp);
+<span class="ln">447</span>    <span class="fn">bfree</span>(ip->dev, ip->addrs[NDIRECT]); <span class="cm">// 再回收间接块本身</span>
+<span class="ln">448</span>    ip->addrs[NDIRECT] = <span class="n">0</span>;
+<span class="ln">449</span>  }
+<span class="ln">451</span>  ip->size = <span class="n">0</span>;                       <span class="cm">// 文件大小归零</span>
+<span class="ln">452</span>  <span class="fn">iupdate</span>(ip);                       <span class="cm">// inode 改动落盘</span>
+<span class="ln">453</span>}</pre>
+<div class="callout ok">
+<b>对称之美(讲这点显水平):</b>“<code>bmap</code> 是<b>分配 + 寻址</b>:先直接、再间接。<code>itrunc</code> 是<b>回收</b>:同样先直接、再间接,只是把 <code>balloc</code> 换成 <code>bfree</code>。<b>注意第 442 行必须先回收间接块里的 256 个数据块,最后才回收间接块本身</b>——顺序反了就会丢块(找不到那 256 个块号了)。这正是课本说的‘丢失盘块’。”
+</div>
+
+<h2>5. 一张图:bmap 怎么走(PPT 核心页)</h2>
+<div class="diagram">  bmap(ip, bn)  ——“文件第 bn 块在磁盘第几号?”
+        │
+   bn &lt; 12 ? ──是──►  ip->addrs[bn]            ← 直接块,1 步到位(小文件)
+        │否
+   bn -= 12
+        │
+   bn &lt; 256 ? ─是─►  ip->addrs[12] ─读─► 间接块 a[256] ─► a[bn]   ← 2 步(大文件)
+        │否
+      panic（超过 268 块,xv6 装不下）
+
+  容量: 12 直接块 × 1KB = 12KB   +   256 间接 × 1KB = 256KB   =  268KB / 文件</div>
+
+<h2>6. 计算:这个文件系统单文件最大多大?(算给老师看)</h2>
+<div class="callout ok big">
+盘块 <code>BSIZE = 1024B</code>,块号 <code>sizeof(uint) = 4B</code>。<br>
+• 一个间接块能装 <code>1024 ÷ 4 = 256</code> 个块号 → <code>NINDIRECT = 256</code><br>
+• 直接块:<code>12 × 1KB = 12KB</code><br>
+• 一次间接:<code>256 × 1KB = 256KB</code><br>
+• <b>合计 MAXFILE = (12 + 256) × 1KB = 268 块 = 268KB</b><br>
+对比课本(4KB 块、三级间接能到 4TB):xv6 砍到一级是<b>教学简化</b>,把同一个机制讲清楚,不被三层间接绕晕。
+</div>
+
+<h2>7. 9–10 分钟讲稿(逐字稿)</h2>
+<div class="script"><b>🎤 8 段。这版把“分配→寻址→回收”三段都讲到,撑满 10 分钟。时间紧就砍掉第 6、7 段(见 §11 砍版)。</b></div>
+<div class="timeline">
+<div class="t">0:00–1:00</div><div class="c"><b>【开场+主线】</b>“老师好。我精讲 xv6 内核文件系统的三个函数:<code>bmap</code>、<code>balloc</code>、<code>itrunc</code>。它们一起回答了课本第 6 章的核心问题——<b>文件的数据块在磁盘上怎么分配、怎么定位、删文件时怎么回收</b>。我会逐行讲,并随时指回课本概念。一句话主线:<b>bmap 把‘文件第几块’翻译成‘磁盘第几号块’</b>。”</div>
+<div class="t">1:00–2:00</div><div class="c"><b>【数据结构】</b>讲 <code>struct dinode</code> 的 <code>addrs[NDIRECT+1]</code>:13 格 = 12 直接 + 1 间接。“课本那张‘直接地址+间接地址’的图,在代码里就是这一个数组。这就是‘混合索引’。”</div>
+<div class="t">2:00–3:30</div><div class="c"><b>【bmap 直接块分支】</b>逐行讲 388–396:块号<12 直接取;为 0 就 <code>balloc</code>。“小文件只走这里,<b>一次就拿到块号</b>。”</div>
+<div class="t">3:30–5:00</div><div class="c"><b>【bmap 间接块分支】</b>逐行讲 397–418:减 12 换算 → 拿间接块 → <code>bread</code> 读进内存当 <code>a[256]</code> → 取 <code>a[bn]</code>。“访问大文件要<b>多读一层</b>,这是混合索引的取舍。”</div>
+<div class="t">5:00–6:30</div><div class="c"><b>【balloc · 位示图法】</b>“刚才反复调用的 <code>balloc</code> 怎么找空闲块?这就是课本的<b>位示图法</b>。”逐行讲 75–81:<code>m=1&lt;&lt;(bi%8)</code> 取位,<code>&amp;m==0</code> 判空闲,<code>|=m</code> 标记已用,<code>return b+bi</code>。“课本公式 <b>n=i×8+j</b>,代码里就是 <code>bi/8</code> 和 <code>bi%8</code>。”</div>
+<div class="t">6:30–8:00</div><div class="c"><b>【itrunc · 回收】</b>“删文件时,<code>itrunc</code> 把 bmap 反着走:先 <code>bfree</code> 12 个直接块,再回收间接块里 256 项,<b>最后</b>才回收间接块本身。顺序反了会丢块。”点出对称:分配 <code>|=m</code> / 回收 <code>&amp;=~m</code>。</div>
+<div class="t">8:00–9:00</div><div class="c"><b>【计算】</b>算 268KB:<code>1024/4=256</code>,<code>(12+256)×1KB</code>。“每加一级间接,容量乘 256。xv6 只做一级是教学简化,课本三级到 4TB 同理。”</div>
+<div class="t">9:00–10:00</div><div class="c"><b>【收尾】</b>“这三个函数串起了大半章:<code>addrs</code> 是<b>混合索引</b>结构、<code>bmap</code> 是寻址算法、<code>balloc</code>/<code>bfree</code> 是<b>位示图</b>空闲块管理、<code>log_write</code> 接<b>事务一致性</b>。一段代码,把课本的概念全连起来了。谢谢老师。”</div>
+</div>
+
+<h2>8. 答辩:老师可能逐行问的 12 题</h2>
+<p class="big"><b>逐行讲源码,老师最爱指着某一行问“这行干嘛”。下面是高危行的标准答法。</b></p>
+
+<div class="q"><b>Q1.</b> 指着 388 行 <code>if(bn &lt; NDIRECT)</code> 问:为什么用 12 这个数?<span class="pill high">高危</span><br>
+<b>答:</b><code>NDIRECT=12</code> 是直接地址的个数。意思是文件<b>前 12 块</b>用直接地址、一步到位。选 12 是工程权衡——让 inode 大小凑整、又能让多数小文件(≤12KB)完全走直接块。改大它,小文件更快但 inode 更大。</div>
+
+<div class="q"><b>Q2.</b> 指着 397 行 <code>bn -= NDIRECT</code> 问:为什么要减?<span class="pill high">高危</span><br>
+<b>答:</b>前 12 个块号被直接地址用掉了。到这里说明 <code>bn≥12</code>,减掉 12 后,得到的是它在<b>间接块那 256 项里的下标</b>。比如第 12 块,减完是 0,就是间接块里的第 0 项。</div>
+
+<div class="q"><b>Q3.</b> 指着 408 行 <code>a = (uint*)bp->data</code> 问:这行什么意思?<span class="pill high">高危</span><br>
+<b>答:</b>间接块从磁盘读进内存后,它的内容 <code>bp->data</code> 本质是一串字节。这行把它<b>当成一个块号数组 <code>uint a[]</code> 来看</b>,于是 <code>a[bn]</code> 就能取出第 bn 个数据块号。一次间接块里装的全是块号,不是数据。</div>
+
+<div class="q"><b>Q4.</b> <code>balloc</code> 是干嘛的?跟我们学的哪节有关?<span class="pill high">必答</span><br>
+<b>答:</b><code>balloc</code> = 分配一个空闲磁盘块,返回块号,没空闲就返回 0。它正是课本<b>“文件存储空间管理”</b>那一节——位示图法/成组链接法解决的就是“balloc 怎么快速找到空闲块”。</div>
+
+<div class="q"><b>Q5.</b> 413 行 <code>log_write(bp)</code> 为什么不直接写磁盘?<span class="pill mid">进阶</span><br>
+<b>答:</b>因为要保证<b>崩溃一致性</b>。xv6 用日志(事务):改动先记进日志,提交后才真正落盘。万一中途断电,重启能靠日志 redo/撤销,文件系统不会半新半旧。这就是课本<b>“数据一致性控制 / 事务 / Undo-Redo”</b>。</div>
+
+<div class="q"><b>Q6.</b> 访问一个大文件的某一块,要读几次磁盘?<span class="pill mid">对比</span><br>
+<b>答:</b>走间接分支:先读<b>间接块</b>(1 次),再读<b>数据块</b>(1 次)= 2 次盘访问。走直接分支只要 1 次。这量化了“大文件比小文件慢一层”。</div>
+
+<div class="q"><b>Q7.</b> 为什么 xv6 只做一级间接,课本却讲到三级?<span class="pill mid">易问</span><br>
+<b>答:</b>教学取舍。一级间接已能讲清“直接+间接”的核心机制,代码短、不绕。课本三级是为支持超大文件(到 TB 级),原理完全一样——<b>每多一级,就是把‘块号数组’再套一层</b>。</div>
+
+<div class="q"><b>Q8.</b> 这个文件系统单文件最大多大?<span class="pill high">必答</span><br>
+<b>答:</b><code>(12 + 256) × 1KB = 268KB</code>。其中 12 直接块、256 来自一个间接块(1024/4)。能在黑板上推给老师看。</div>
+
+<div class="q"><b>Q9.</b> 指着 balloc 第 75 行 <code>m = 1 &lt;&lt; (bi % 8)</code> 问:这行干嘛?<span class="pill high">高危</span><br>
+<b>答:</b>位示图里一个字节管 8 个块。<code>bi%8</code> 是这个块在字节里的第几位,<code>1&lt;&lt;(bi%8)</code> 造出“只有那一位是 1”的掩码 <code>m</code>。后面用它<b>查这一位</b>(<code>&amp;m</code>)或<b>改这一位</b>(<code>|=m</code> 置 1、<code>&amp;=~m</code> 清 0)。</div>
+
+<div class="q"><b>Q10.</b> 位示图里 0 和 1 分别代表什么?这跟课本一致吗?<span class="pill mid">必答</span><br>
+<b>答:</b>一致。<b>0=空闲,1=已分配</b>。代码第 76 行 <code>(data &amp; m)==0</code> 就是“找值为 0 的位 = 找空闲块”,找到后第 77 行 <code>|= m</code> 置 1 标记已用。和课本位示图法定义完全相同。</div>
+
+<div class="q"><b>Q11.</b> itrunc 第 442 行,为什么要先回收间接块里的 256 个块,最后才回收间接块本身?<span class="pill high">高危</span><br>
+<b>答:</b>因为那 256 个数据块的块号<b>就存在间接块里</b>。要是先把间接块回收了,这 256 个块号就读不到了,它们会变成<b>谁也找不到的“丢失盘块”</b>(课本一致性检查里的错误)。所以必须“先掏空、再扔盒子”。</div>
+
+<div class="q"><b>Q12.</b> bfree 第 100–101 行,为什么回收前要检查那一位是不是已经是 0?<span class="pill mid">进阶</span><br>
+<b>答:</b>位为 0 表示这个块本来就空闲。若此时还要回收它,说明出现了<b>“空闲块重复”</b>(同一块被释放两次),是文件系统不一致的信号,所以直接 <code>panic</code> 报错,而不是默默放过。</div>
+
+<h2>9. 临场应急</h2>
+<div class="callout warn"><b>🆘 老师问到 <code>bread/brelse/buf</code> 这些你没细看的:</b>诚实说“这是缓冲区缓存层,负责把磁盘块读进内存并管理,我这次聚焦 bmap 的索引逻辑没深入它”。<b>聚焦你讲的那条线,别被带偏</b>。</div>
+<div class="callout"><b>🆘 被问哪行而卡住:</b>三步——“这行属于①直接 / ②间接哪个分支 → 它在做分配还是查找 → 对应课本哪个概念”。</div>
+
+<h2>10. 彩排 Checklist(今晚)</h2>
+<div class="checklist">
+<label><input type="checkbox"> 1. <b>能不看注释</b>,把三段都讲出来:bmap 两分支 / balloc 找空闲位 / itrunc 反着回收</label><br>
+<label><input type="checkbox"> 2. 高危行能脱口说出“干嘛+对应课本”:<b>388 / 397 / 408</b>(bmap)、<b>75 / 76 / 81</b>(位示图)、<b>442</b>(回收顺序)</label><br>
+<label><input type="checkbox"> 3. <b>纸上推</b> 268KB(1024/4=256,(12+256)×1KB)</label><br>
+<label><input type="checkbox"> 4. <b>位示图公式</b>能说:n = i×8 + j ↔ 代码 <code>bi/8</code>、<code>bi%8</code></label><br>
+<label><input type="checkbox"> 5. 讲稿<b>出声读 3 遍</b> + 卡时间(目标 9–10 分钟,或砍版 5 分钟)</label><br>
+<label><input type="checkbox"> 6. <b>答辩 12 题</b>过一遍,高危题 Q1/Q2/Q3/Q9/Q11 各两遍</label><br>
+<label><input type="checkbox"> 7. 电脑上<b>打开真实文件</b> <code>kernel/fs.c</code>(balloc:66 / bmap:382 / itrunc:426),明天可带着</label><br>
+<label><input type="checkbox"> 8. 睡好觉</label>
+</div>
+
+<h2>11. 时间不够的「5 分钟砍版」</h2>
+<div class="callout ok">
+只讲<b>一条最短闭环</b>,砍掉 balloc/itrunc 细节:<br>
+① 一句话主线 + <code>addrs[12+1]</code> 是混合索引 →
+② bmap 直接块分支(小文件快)→
+③ bmap 间接块分支(大文件多读一层)→
+④ 算 268KB →
+⑤ 收尾:这就是课本混合索引的真代码。<br>
+答辩若被问到位示图/回收,再临场展开 §8 的 Q9–Q12。<b>讲透一条线,远胜三条线都发虚。</b>
+</div>
+
+<footer>
+第 21 课 · Ch6 文件管理 · xv6 bmap() 逐行精讲 ·
+概念背景 → <a href="./0020-ch6-file-allocation-presentation.html">第 20 课</a> ·
+刷题 → <a href="../exams/ch06-test.html">Ch6 章节测试</a><br>
+源码出处:<code>learn-code/xv6-riscv-20230207/kernel/fs.c:382</code>(bmap)、<code>kernel/fs.h:27-39</code>(dinode)。常量:BSIZE=1024,NDIRECT=12,NINDIRECT=256,MAXFILE=268 块。
+</footer>
+
+</div>
+</body>
+</html>
