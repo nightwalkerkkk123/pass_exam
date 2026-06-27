@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>概念扫雷① · OS类型/进程状态/死锁 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:19px; margin:34px 0 10px; border-left:4px solid var(--accent); padding-left:10px}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:5px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600; text-align:center}
+  .card{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:10px 14px; border-radius:4px; margin:12px 0}
+  .card .t{font-weight:700; color:var(--accent); margin-bottom:4px}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin:14px 0}
+  .quiz .qq{font-weight:600; margin-bottom:8px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:9px 13px; margin:6px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:9px; padding:9px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .score{position:sticky; top:0; background:var(--ink); color:#fff; padding:10px 16px; text-align:center; font-size:15px; z-index:5; border-radius:0 0 8px 8px}
+  footer{margin-top:46px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="score" id="score">已答 0 / 11 · 正确 0</div>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 概念扫雷(选择/填空) · 第 1 轮</div>
+  <h1>概念扫雷①:OS 类型 · 进程状态 · 死锁</h1>
+  <div class="sub">每簇先看速记卡,再做题即时判。这三组是自命题选择/填空的高频提款机。约 15 分钟。</div>
+</header>
+
+<h2>簇 ① OS 类型与"首要目标"</h2>
+<div class="card">
+  <div class="t">速记卡:每种 OS 最在乎什么</div>
+  <table>
+    <tr><th>类型</th><th>首要目标</th><th>关键词</th></tr>
+    <tr><td>多道批处理</td><td><b>吞吐量 + 周转时间</b></td><td>无交互、作业排队、效率高</td></tr>
+    <tr><td>分时系统</td><td><b>响应时间 + 交互性</b></td><td>时间片轮转;多路/独立/及时/交互</td></tr>
+    <tr><td>实时系统</td><td><b>实时性 + 可靠性</b></td><td>截止时间、必须按时</td></tr>
+  </table>
+</div>
+<div class="quiz" id="q1"><div class="qq">1. 设计<b>分时</b>系统,首先要考虑?</div>
+  <button class="opt" data-ok="0">周转时间和吞吐量</button>
+  <button class="opt" data-ok="1">交互性和响应时间</button>
+  <button class="opt" data-ok="0">实时性和可靠性</button>
+  <button class="opt" data-ok="0">灵活性和可适应性</button><div class="fb"></div></div>
+<div class="quiz" id="q2"><div class="qq">2. 设计<b>批处理</b>系统,首先要考虑?</div>
+  <button class="opt" data-ok="1">周转时间和系统吞吐量</button>
+  <button class="opt" data-ok="0">交互性和响应时间</button>
+  <button class="opt" data-ok="0">实时性和可靠性</button><div class="fb"></div></div>
+<div class="quiz" id="q3"><div class="qq">3. 多个用户在终端上交互输入、调试程序,属于哪种 OS?</div>
+  <button class="opt" data-ok="0">批处理系统</button>
+  <button class="opt" data-ok="1">分时系统</button>
+  <button class="opt" data-ok="0">实时系统</button>
+  <button class="opt" data-ok="0">单道系统</button><div class="fb"></div></div>
+
+<h2>簇 ② 进程状态 + 进程 vs 线程</h2>
+<div class="card">
+  <div class="t">速记卡:三状态 + 转换(注意"阻塞不能直接变执行")</div>
+  <ul style="margin:4px 0">
+    <li><b>就绪</b>(万事俱备只差 CPU)→ 被调度 →<b>执行</b></li>
+    <li><b>执行</b>→ 时间片用完/被抢占 →<b>就绪</b>;执行 → 请求资源/等 IO →<b>阻塞</b></li>
+    <li><b>阻塞</b>→ 事件完成 →<b>就绪</b>(⚠ 阻塞<b class="hl">不能</b>直接→执行,必须先回就绪)</li>
+  </ul>
+  <table>
+    <tr><th></th><th>进程</th><th>线程</th></tr>
+    <tr><td>是谁的基本单位</td><td><b>资源分配</b></td><td><b>CPU(处理机)调度</b></td></tr>
+    <tr><td>地址空间</td><td>各自独立</td><td>同进程的线程<b>共享</b></td></tr>
+  </table>
+</div>
+<div class="quiz" id="q4"><div class="qq">4. 进程的<b>阻塞</b>态,可以直接转换成<b>执行</b>态吗?</div>
+  <button class="opt" data-ok="0">可以,事件一完成立刻执行</button>
+  <button class="opt" data-ok="1">不可以,必须先回到"就绪",等被调度才执行</button>
+  <button class="opt" data-ok="0">可以,只要 CPU 空闲</button><div class="fb"></div></div>
+<div class="quiz" id="q5"><div class="qq">5. <b>资源分配</b>的基本单位是?</div>
+  <button class="opt" data-ok="1">进程</button>
+  <button class="opt" data-ok="0">线程</button>
+  <button class="opt" data-ok="0">程序</button>
+  <button class="opt" data-ok="0">作业</button><div class="fb"></div></div>
+<div class="quiz" id="q6"><div class="qq">6. <b>处理机(CPU)调度</b>的基本单位是?</div>
+  <button class="opt" data-ok="0">进程</button>
+  <button class="opt" data-ok="1">线程</button>
+  <button class="opt" data-ok="0">作业</button><div class="fb"></div></div>
+
+<h2>簇 ③ 死锁:四条件 + 四处理</h2>
+<div class="card">
+  <div class="t">速记卡</div>
+  <p style="margin:4px 0"><b>四个必要条件</b>(缺一不可,口诀「<b>互请不循</b>」):</p>
+  <ul style="margin:4px 0">
+    <li><b>互斥</b>:资源一次只能一个进程用</li>
+    <li><b>请求和保持</b>:占着已有的,还要新的</li>
+    <li><b>不可抢占</b>:已得到的不能被强夺</li>
+    <li><b>循环等待</b>:存在进程-资源的环</li>
+  </ul>
+  <p style="margin:4px 0"><b>四种处理方法</b>:<b>预防</b>(破坏条件,但"互斥"破坏不了)、<b>避免</b>(银行家/不进入不安全状态)、<b>检测</b>、<b>解除</b>。</p>
+</div>
+<div class="quiz" id="q7"><div class="qq">7. 下面哪个<b>不是</b>死锁的必要条件?</div>
+  <button class="opt" data-ok="0">互斥</button>
+  <button class="opt" data-ok="0">循环等待</button>
+  <button class="opt" data-ok="1">进程优先级相同</button>
+  <button class="opt" data-ok="0">请求和保持</button><div class="fb"></div></div>
+<div class="quiz" id="q8"><div class="qq">8. 银行家算法属于哪种死锁处理方法?</div>
+  <button class="opt" data-ok="0">预防</button>
+  <button class="opt" data-ok="1">避免</button>
+  <button class="opt" data-ok="0">检测</button>
+  <button class="opt" data-ok="0">解除</button><div class="fb"></div></div>
+<div class="quiz" id="q9"><div class="qq">9. 用"预防死锁"破坏条件时,哪个条件<b>通常无法破坏</b>?</div>
+  <button class="opt" data-ok="1">互斥(很多资源的固有属性,破坏不了)</button>
+  <button class="opt" data-ok="0">请求和保持</button>
+  <button class="opt" data-ok="0">不可抢占</button>
+  <button class="opt" data-ok="0">循环等待</button><div class="fb"></div></div>
+<div class="quiz" id="q10"><div class="qq">10. "进程已占有部分资源,又申请新资源而不放手"描述的是哪个条件?</div>
+  <button class="opt" data-ok="0">互斥</button>
+  <button class="opt" data-ok="1">请求和保持</button>
+  <button class="opt" data-ok="0">循环等待</button>
+  <button class="opt" data-ok="0">不可抢占</button><div class="fb"></div></div>
+<div class="quiz" id="q11"><div class="qq">11. 死锁的定义里,关键词是?</div>
+  <button class="opt" data-ok="0">一个进程占用 CPU 太久</button>
+  <button class="opt" data-ok="1">多个进程互相等待对方的资源,若无外力都无法推进</button>
+  <button class="opt" data-ok="0">内存不够用</button>
+  <button class="opt" data-ok="0">进程被高优先级抢占</button><div class="fb"></div></div>
+
+<footer>
+  <p>📌 这轮过了告诉我,我开 <b>第 2 轮</b>:存储管理概念(分页 vs 分段 vs 段页、虚拟存储、局部性、快表)。还有第 3 轮:调度算法特点对比。</p>
+  <p>📖 速记卡口径来自 ch01/ch02/ch03。有疑问<b>直接问我</b>。</p>
+</footer>
+
+</div>
+<script>
+var answered={}, correct=0;
+var FB={
+  q1:{good:'对!分时=人在终端交互,最在乎"快速响应"。',bad:'分时系统首要是"交互性和响应时间"(让用户感觉独占、秒回)。'},
+  q2:{good:'对!批处理没人盯着,追求整体吞吐和周转效率。',bad:'批处理首要是"周转时间和系统吞吐量"。'},
+  q3:{good:'对!交互输入、调试 = 分时系统的标志。',bad:'多用户终端交互、调试 → 分时系统。'},
+  q4:{good:'对!阻塞→就绪→执行,不能跳过就绪。这是常考陷阱。',bad:'不能直接跳。阻塞必须先回"就绪",再被调度才能执行。'},
+  q5:{good:'对!进程 = 资源分配的基本单位。',bad:'资源分配的基本单位是"进程";线程是 CPU 调度的基本单位。'},
+  q6:{good:'对!线程 = CPU(处理机)调度的基本单位。',bad:'CPU 调度的基本单位是"线程";资源分配才是"进程"。别记反。'},
+  q7:{good:'对!优先级和死锁无关。四条件是互斥/请求保持/不可抢占/循环等待。',bad:'四必要条件=互斥、请求和保持、不可抢占、循环等待。优先级不是。'},
+  q8:{good:'对!银行家算法=避免死锁(动态判断是否进入不安全状态)。',bad:'银行家算法属于"避免"(不是预防!避免=运行时判断安全性)。'},
+  q9:{good:'对!互斥常是资源固有属性,破坏不了;预防只能破坏其余三个。',bad:'是"互斥"。它是许多资源的固有属性,无法破坏;预防靠破坏其余三个条件。'},
+  q10:{good:'对!占着旧的要新的=请求和保持。',bad:'这是"请求和保持"条件。'},
+  q11:{good:'对!死锁=互相等待对方资源、无外力无法推进的僵局。',bad:'死锁=多进程互相等待对方资源,若无外力都无法继续推进。'}
+};
+function upd(){var n=Object.keys(answered).length;document.getElementById('score').textContent='已答 '+n+' / 11 · 正确 '+correct+(n===11?(correct>=10?' 🎉 这轮稳了':' · 看红框订正'):'');}
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      if(ok)q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+      if(!(q.id in answered)){answered[q.id]=ok;if(ok)correct++;}
+      else if(answered[q.id]!==ok){if(ok)correct++;else correct--;answered[q.id]=ok;}
+      upd();
+    });
+  });
+});
+</script>
+</body>
+</html>

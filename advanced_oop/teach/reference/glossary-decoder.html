@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>高级名词解码 · 黑话 → 人话 — Advanced OOP 复习</title>
+<style>
+  :root {
+    --fg:#1a1a1a; --muted:#6b6b6b; --line:#e6e6e6; --bg:#fafaf7;
+    --card:#fff; --accent:#0a6b3a; --warn:#c47b00; --warn-bg:#fffbe6;
+    --code-bg:#f3f3ee; --callout-bg:#f6f6f0; --hi:#fffbe6;
+    --chip-high:#0a6b3a; --chip-mid:#c47b00; --chip-low:#9a9a9a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    font-size:15px; line-height:1.7; }
+  .wrap { max-width:880px; margin:0 auto; padding:40px 24px 100px; }
+  header { border-bottom:1px solid var(--line); padding-bottom:18px; margin-bottom:24px; }
+  .eyebrow { color:var(--muted); font-size:12px; letter-spacing:.05em; text-transform:uppercase; }
+  h1 { font-size:26px; margin:6px 0 8px; }
+  h2 { font-size:19px; margin:38px 0 12px; padding-bottom:4px; border-bottom:2px solid var(--accent); scroll-margin-top:16px; }
+  h2 .cn { color:var(--muted); font-size:14px; font-weight:400; }
+  p, li { color:var(--fg); }
+  code { font-family:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,monospace; background:var(--code-bg); padding:1px 5px; border-radius:3px; font-size:.9em; }
+  .open-cmd { background:var(--code-bg); padding:6px 10px; border-radius:4px; font-size:13px; display:inline-block; margin:6px 0 4px; }
+  .lead { background:var(--callout-bg); border-left:4px solid var(--accent); padding:14px 18px; border-radius:0 6px 6px 0; margin:14px 0 8px; }
+  .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin:18px 0 6px; }
+  button.toggle { font:inherit; background:var(--fg); color:#fff; border:0; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:14px; }
+  button.toggle.on { background:var(--accent); }
+  .hint { color:var(--muted); font-size:13px; }
+  .toc { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 4px; }
+  .toc a { text-decoration:none; font-size:13px; background:#fff; border:1px solid var(--line); border-radius:20px; padding:5px 12px; color:var(--accent); }
+  .toc a:hover { background:#f0f0e8; }
+  table { width:100%; border-collapse:collapse; margin:12px 0 6px; background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  th, td { text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { background:#f0f0e8; font-size:13px; color:var(--muted); }
+  tr:last-child td { border-bottom:0; }
+  .term { font-weight:700; white-space:nowrap; }
+  .term .en { display:block; font-weight:400; font-size:12px; color:var(--muted); font-family:ui-monospace,Menlo,monospace; }
+  .chip { font-size:11px; padding:1px 7px; border-radius:10px; color:#fff; white-space:nowrap; }
+  .chip.high { background:var(--chip-high); }
+  .chip.mid  { background:var(--chip-mid); }
+  .chip.low  { background:var(--chip-low); }
+  .plain { transition:filter .12s, background .12s; }
+  body.quiz .plain { filter:blur(5px); background:var(--hi); border-radius:4px; cursor:pointer; }
+  body.quiz .plain:hover { filter:none; background:transparent; }
+  .callout { background:var(--callout-bg); border-left:3px solid var(--accent); padding:12px 16px; border-radius:0 4px 4px 0; margin:14px 0; font-size:14.5px; }
+  .callout.warn { border-left-color:var(--warn); background:#fff8ee; }
+  .callout strong { color:var(--accent); }
+  footer { margin-top:56px; padding-top:18px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+  footer a { color:var(--accent); }
+  @media print {
+    body { background:white; font-size:11.5px; }
+    .controls, button, .toc { display:none; }
+    body.quiz .plain { filter:none; background:transparent; }
+    h2 { break-after:avoid; }
+    table { break-inside:auto; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Reference · 名词解码字典</div>
+  <h1>高级名词解码：黑话 → 人话</h1>
+  <p class="muted">把 Effective Java 第 2–8 章的吓人术语，逐个翻成你已经懂的大白话。看到名词 → 立刻能说出它指什么。</p>
+  <div class="open-cmd">open /Users/bytedance/pass_exam/advanced_oop/teach/reference/glossary-decoder.html</div>
+</header>
+
+<div class="lead">
+  <strong>怎么用这张表。</strong>几乎每个"高级名词"都只是给一个朴素动作起的学名。<b>静态工厂方法</b> = 用方法 <code>return</code> 一个对象而不是 <code>new</code>；<b>泛型擦除</b> = 运行时尖括号被擦掉。先正常读一遍祛魅；然后点下面的 <b>「遮住人话考自己」</b>，把右列糊住，看着名词自己说出人话——说不出的，就是还没钉牢的。
+</div>
+
+<div class="controls">
+  <button id="quizBtn" class="toggle">遮住人话考自己</button>
+  <span class="hint">开启后右列模糊，鼠标悬停某行可临时看答案。</span>
+</div>
+
+<div class="toc">
+  <a href="#ch2">2 · 创建对象</a>
+  <a href="#ch3">3 · 通用方法</a>
+  <a href="#ch4">4 · 类与接口</a>
+  <a href="#ch5">5 · 泛型</a>
+  <a href="#ch6">6 · 枚举注解</a>
+  <a href="#ch7">7 · Lambda/Stream</a>
+</div>
+
+<!-- ===================== CH2 ===================== -->
+<h2 id="ch2">第 2 章 · 创建和销毁对象 <span class="cn">条款 1–9</span></h2>
+<table>
+  <thead><tr><th style="width:24%">名词</th><th style="width:8%">考频</th><th>一句人话（它其实就是）</th></tr></thead>
+  <tbody>
+    <tr><td class="term">静态工厂方法<span class="en">static factory</span></td><td><span class="chip high">高</span></td><td class="plain">不用 <code>new</code>，改用一个方法把对象递给你。<code>Boolean.valueOf(true)</code> 就是。5 大优点：有名字 / 可复用 / 可返子类 / 按参数返不同类型 / 服务提供者框架。</td></tr>
+    <tr><td class="term">构建器 · Builder<span class="en">builder</span></td><td><span class="chip high">高</span></td><td class="plain">参数太多（≥4 个）时，像点奶茶一样 <code>.加料().加料().build()</code>，替代又长又乱的"重叠构造器"和半成品的 JavaBeans 写法。</td></tr>
+    <tr><td class="term">Singleton 单例<span class="en">singleton</span></td><td><span class="chip mid">中</span></td><td class="plain">全程序只允许造出"独此一个"的对象。最佳实现是<b>单元素枚举</b> <code>enum X { INSTANCE }</code>。</td></tr>
+    <tr><td class="term">依赖注入<span class="en">dependency injection</span></td><td><span class="chip mid">中</span></td><td class="plain">类需要的"工具"（数据库连接、工厂等）从<b>外面传进来</b>（构造器/setter），而不是自己 <code>new</code>——这样能替换、能测试。</td></tr>
+    <tr><td class="term">自动装箱<span class="en">autoboxing</span></td><td><span class="chip high">高</span></td><td class="plain"><code>int</code>（基本类型）与 <code>Integer</code>（对象）之间偷偷自动转换。循环里误用会悄悄造一堆对象、变慢。</td></tr>
+    <tr><td class="term">过期引用 · 内存泄漏<span class="en">obsolete reference</span></td><td><span class="chip mid">中</span></td><td class="plain">该丢的对象还被一个引用攥着，GC 回收不了 → 内存泄漏。经典题：自己写的 Stack，<code>pop</code> 后要 <code>elements[--size]=null</code>。三大来源：过期引用 / 缓存 / 监听器。</td></tr>
+  </tbody>
+</table>
+<div class="callout"><strong>祛魅：</strong>"工厂""构建器""注入"听着像设计模式黑话，其实都在回答同一个朴素问题——<b>"造这个对象的活儿，该谁干、怎么干最不容易出错"</b>。</div>
+
+<!-- ===================== CH3 ===================== -->
+<h2 id="ch3">第 3 章 · 所有对象通用的方法 <span class="cn">条款 10–14</span></h2>
+<table>
+  <thead><tr><th style="width:24%">名词</th><th style="width:8%">考频</th><th>一句人话</th></tr></thead>
+  <tbody>
+    <tr><td class="term">equals 五大约定<span class="en">equals contract</span></td><td><span class="chip high">高</span></td><td class="plain">自定义"两个对象算不算相等"时必须守的 5 条规矩：<b>自反 / 对称 / 传递 / 一致 / 非 null</b>。高频反例：大小写不敏感的字符串会破坏<b>对称性</b>。</td></tr>
+    <tr><td class="term">hashCode 契约<span class="en">hashCode contract</span></td><td><span class="chip high">高</span></td><td class="plain">只要改了 <code>equals</code>，<b>必须</b>同时改 <code>hashCode</code>，否则放进 <code>HashMap</code> 会找不到。口诀：<b>equal 的对象，hashCode 必相等</b>（反过来不要求）。</td></tr>
+    <tr><td class="term">toString<span class="en"></span></td><td><span class="chip mid">中</span></td><td class="plain">让对象能被人读懂地打印出来。不覆盖默认是 <code>类名@十六进制</code>，没法调试。</td></tr>
+    <tr><td class="term">Comparable · compareTo<span class="en">comparable</span></td><td><span class="chip mid">中</span></td><td class="plain">给对象装上"可排序"开关：实现 <code>compareTo</code>，就能 <code>Collections.sort</code>。复杂排序用 <code>Comparator</code> 静态方法拼。</td></tr>
+  </tbody>
+</table>
+<div class="callout warn"><strong>重点关注（你的薄弱区）：</strong>条款 10 与 11 是一对，必须连着记——<b>改 equals 不改 hashCode = 集合里丢数据</b>。这是你之前标"模糊"的地方，建议优先做一遍代码题验证。</div>
+
+<!-- ===================== CH4 ===================== -->
+<h2 id="ch4">第 4 章 · 类和接口 <span class="cn">条款 15–25</span></h2>
+<table>
+  <thead><tr><th style="width:24%">名词</th><th style="width:8%">考频</th><th>一句人话</th></tr></thead>
+  <tbody>
+    <tr><td class="term">可访问性最小化 · 信息隐藏<span class="en">information hiding</span></td><td><span class="chip high">高</span></td><td class="plain">能 <code>private</code> 就别 <code>public</code>，把内部藏起来——就是"封装"。顺序：private → 默认 → protected → public。</td></tr>
+    <tr><td class="term">访问方法 vs 公有域<span class="en">accessor methods</span></td><td><span class="chip high">高</span></td><td class="plain">别写 <code>public double x</code>，改成 <code>private</code> 字段 + <code>getX/setX</code>，把修改入口收成唯一一个、好加检查。</td></tr>
+    <tr><td class="term">最小化可变性 · 不可变类<span class="en">immutability</span></td><td><span class="chip high">高</span></td><td class="plain">对象造好就<b>永不改</b>（如 <code>String</code>）。5 步：字段 <code>private final</code> + 类 <code>final</code> + 无 setter + 防御性拷贝 + 改就返回新对象。</td></tr>
+    <tr><td class="term">复合优先于继承 · 包装类<span class="en">composition over inheritance</span></td><td><span class="chip high">高</span></td><td class="plain">想复用别人的类，<b>别去 extends 它</b>（跨包继承会破坏封装），而是<b>把它当字段持有</b>（装饰者模式的前身）。经典题：InstrumentedHashSet。</td></tr>
+    <tr><td class="term">接口优于抽象类<span class="en">interface vs abstract</span></td><td><span class="chip mid">中</span></td><td class="plain">优先 <code>interface</code>：一个类能实现多个接口、只能继承一个父类；用 <code>default</code> 方法给演进留余地。</td></tr>
+    <tr><td class="term">标签类 → 类层次<span class="en">tagged class</span></td><td><span class="chip low">低</span></td><td class="plain">一个类里塞个 <code>type</code> 字段 + 一堆 <code>if(type==…)</code> 是反模式，应拆成父类 + 多个子类。</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================== CH5 ===================== -->
+<h2 id="ch5">第 5 章 · 泛型 <span class="cn">条款 26–33 · 名词最密，最该祛魅</span></h2>
+<table>
+  <thead><tr><th style="width:24%">名词</th><th style="width:8%">考频</th><th>一句人话</th></tr></thead>
+  <tbody>
+    <tr><td class="term">泛型<span class="en">generics</span></td><td><span class="chip high">高</span></td><td class="plain">尖括号 <code>List&lt;String&gt;</code>，给容器贴个"只准装 String"的标签，编译期就帮你挡住放错类型。</td></tr>
+    <tr><td class="term">原始类型<span class="en">raw type</span></td><td><span class="chip high">高</span></td><td class="plain">不写尖括号的老写法 <code>List</code>，丢掉类型安全。条款 23：新代码<b>别用</b>，要写就用 <code>List&lt;?&gt;</code>。</td></tr>
+    <tr><td class="term">泛型擦除<span class="en">type erasure</span></td><td><span class="chip high">高</span></td><td class="plain">编译完，<code>&lt;String&gt;</code> 这个尖括号被<b>擦掉</b>；运行时 <code>List&lt;String&gt;</code> 和 <code>List&lt;Integer&gt;</code> 是<b>同一个类</b>。Java 泛型一切"坑"的根源。</td></tr>
+    <tr><td class="term">协变 vs 不可变<span class="en">covariant / invariant</span></td><td><span class="chip mid">中</span></td><td class="plain">数组<b>协变</b>（<code>String[]</code> 能当 <code>Object[]</code> 用 → 运行时埋雷）；泛型<b>不可变</b>，<code>List&lt;String&gt;</code> <b>不能</b>当 <code>List&lt;Object&gt;</code> → 更安全。所以"列表优先于数组"。</td></tr>
+    <tr><td class="term">有界通配符 · PECS<span class="en">bounded wildcard</span></td><td><span class="chip high">高</span></td><td class="plain"><code>? extends T</code>（生产者，只读出）/ <code>? super T</code>（消费者，只写入）。口诀 <b>PECS = Producer-Extends, Consumer-Super</b>。期末高频简答。</td></tr>
+    <tr><td class="term">类型安全异构容器<span class="en">heterogeneous container</span></td><td><span class="chip low">低</span></td><td class="plain">用 <code>Class&lt;T&gt;</code> 当键，让一个容器<b>每个键各自带类型安全</b>（Favorites 类）。能看懂即可。</td></tr>
+  </tbody>
+</table>
+<div class="callout"><strong>祛魅（这一簇的钥匙）：</strong>"擦除""协变""不可变"是一根链条——<b>正因为运行时类型被擦掉，Java 才不敢让泛型协变</b>（否则埋的雷运行时才炸）。理解这一句，第 5 章一半的对比题自动会做。</div>
+
+<!-- ===================== CH6 ===================== -->
+<h2 id="ch6">第 6 章 · 枚举和注解 <span class="cn">条款 34–39</span></h2>
+<table>
+  <thead><tr><th style="width:24%">名词</th><th style="width:8%">考频</th><th>一句人话</th></tr></thead>
+  <tbody>
+    <tr><td class="term">枚举<span class="en">enum</span></td><td><span class="chip mid">中</span></td><td class="plain">一组<b>固定常量</b>的专用类型，<code>enum Day { MON, TUE }</code>，比用 <code>int</code> 当常量安全得多。</td></tr>
+    <tr><td class="term">EnumSet / EnumMap<span class="en"></span></td><td><span class="chip low">低</span></td><td class="plain">专为枚举优化的集合/字典：<code>EnumSet</code> 代替"位域"，<code>EnumMap</code> 代替"用序数当下标"的数组。</td></tr>
+    <tr><td class="term">注解<span class="en">annotation</span></td><td><span class="chip mid">中</span></td><td class="plain">贴在代码上的"标签"，如 <code>@Override</code>，给编译器或框架看。条款 39：注解优于靠方法命名约定（如 <code>testXxx</code>）。</td></tr>
+  </tbody>
+</table>
+
+<!-- ===================== CH7 ===================== -->
+<h2 id="ch7">第 7 章 · Lambda 和 Stream <span class="cn">条款 42–47</span></h2>
+<table>
+  <thead><tr><th style="width:24%">名词</th><th style="width:8%">考频</th><th>一句人话</th></tr></thead>
+  <tbody>
+    <tr><td class="term">Lambda<span class="en">lambda</span></td><td><span class="chip high">高</span></td><td class="plain">把"一小段函数"当参数传，<code>x -&gt; x + 1</code>，替代啰嗦的匿名类。条款 42：Lambda 优先于匿名类。</td></tr>
+    <tr><td class="term">函数接口<span class="en">functional interface</span></td><td><span class="chip mid">中</span></td><td class="plain">只有<b>一个</b>抽象方法的接口（如 <code>Runnable</code>、<code>Comparator</code>）。Lambda 本质就是它的简写。优先用标准库自带的。</td></tr>
+    <tr><td class="term">方法引用<span class="en">method reference</span></td><td><span class="chip mid">中</span></td><td class="plain">Lambda 的再简写：<code>x -&gt; x.length()</code> 可写成 <code>String::length</code>。</td></tr>
+    <tr><td class="term">Stream<span class="en">stream</span></td><td><span class="chip mid">中</span></td><td class="plain">数据"流水线"：<code>list.stream().filter(…).map(…).collect(…)</code>，链式处理集合。条款 46：流里的函数应<b>无副作用</b>。</td></tr>
+  </tbody>
+</table>
+
+<div class="callout warn" style="margin-top:30px">
+  <strong>下一步建议。</strong>这张表负责"祛魅"——让名词不再吓人。但"认得名" ≠ "做得对题"。挑一簇（推荐<b>泛型</b>，名词最密、占分最高），让老师给你出代码题、讲透、验证，再升级成正式 Lesson。<b>跟老师说："深讲泛型那簇"</b> 即可。
+</div>
+
+<footer>
+  <p>权威源：<a href="../../Effective_Java_期末复习资料.md">Effective_Java_期末复习资料.md</a>（条款 1–56 释义）· 配套规则速查：<a href="cheatsheet.html">cheatsheet.html</a></p>
+  <p>配套课程：<a href="../lessons/0010-java-zero-foundation.html">Lesson 0010 · 0 地基</a> · <a href="../MISSION.md">Mission</a>。本字典是 LR-0002「名词墙」的修正入口——名词祛魅后，条款理解才有挂钩。</p>
+  <p class="hint">有任何一个名词的"人话"还是看不懂，直接问老师——把它换个类比再讲一遍是老师的活儿。</p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  var btn = document.getElementById('quizBtn');
+  btn.addEventListener('click', function () {
+    var on = document.body.classList.toggle('quiz');
+    btn.classList.toggle('on', on);
+    btn.textContent = on ? '显示全部人话' : '遮住人话考自己';
+  });
+})();
+</script>
+</body>
+</html>

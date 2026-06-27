@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 22 课 · 术语 &amp; 缩写扫盲卷 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e;
+    --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:40px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:15px; margin:18px 0 6px; color:var(--accent)}
+  p{margin:9px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600; text-align:center}
+  td.k{font-weight:700; color:var(--accent); white-space:nowrap; text-align:center}
+  .mix{color:var(--bad); font-size:12.5px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:11px 15px; border-radius:4px; margin:14px 0; font-size:14.5px}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+
+  .scorebar{position:sticky; top:0; background:rgba(250,250,247,.96); backdrop-filter:blur(4px);
+    border-bottom:1px solid var(--line); padding:9px 0; margin-bottom:6px; font-weight:700; z-index:10}
+  .scorebar .num{color:var(--accent); font-size:18px}
+  .q{background:#fff; border:1px solid var(--line); border-radius:9px; padding:14px 16px; margin:12px 0}
+  .qq{font-weight:600; margin-bottom:9px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:9px 13px; margin:6px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:9px; padding:9px 12px; border-radius:6px; font-size:13.5px; line-height:1.65}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  details{margin:10px 0; border:1px solid var(--line); border-radius:8px; background:#fff; padding:4px 14px}
+  summary{cursor:pointer; font-weight:600; color:var(--accent); padding:8px 0}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13px; color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 术语与缩写 · 全章</div>
+  <h1>第 22 课 · 术语 &amp; 缩写扫盲卷</h1>
+  <div class="sub">先看速查表认脸，再做配对题练熟。专治“名词缩写记混”。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>用法：</b> ① 先把下面五张<b>速查表</b>过一遍（重点看红色“别混”提示）；② 再做第六节的<b>配对自测</b>，顶部有实时得分；③ 错的回表格再认一遍。
+</div>
+
+<h2>一、死锁：四条件 ↔ 破坏手段（最易混，重点）</h2>
+<table>
+  <tr><th>必要条件</th><th>含义</th><th>预防＝破坏它的做法</th></tr>
+  <tr><td class="k">互斥</td><td>资源同时只能一个进程用</td><td><span class="mix">一般不破坏</span>（资源天生独占）</td></tr>
+  <tr><td class="k">请求和保持</td><td>占着旧的，又要新的，且不放手</td><td><b>一次性把资源全部分配</b></td></tr>
+  <tr><td class="k">不剥夺</td><td>已占有的不被强行夺走</td><td><b>申请不到，就释放已占有的</b></td></tr>
+  <tr><td class="k">环路等待</td><td>形成 A等B→B等C→…→绕回A 的圈</td><td><b>资源按编号递增顺序申请</b></td></tr>
+</table>
+<div class="callout warn"><b>死记口诀：</b> 全分配→破<b>请求保持</b>；不到就放→破<b>不剥夺</b>；按序申请→破<b>环路等待</b>。<br>另外：<b>银行家算法 = 避免</b>（不破坏任何条件，靠预演绕开不安全状态），<b>不是预防！</b></div>
+
+<h2>二、请求分页：页表项四个字段（第 10 题考点）</h2>
+<table>
+  <tr><th>字段</th><th>管什么</th><th>别混</th></tr>
+  <tr><td class="k">状态位 P</td><td>该页<b>在不在内存</b>（P=0 → 缺页）</td><td class="mix">管“在不在”，不是“改没改”</td></tr>
+  <tr><td class="k">访问字段 A</td><td>记录最近<b>访问情况/次数</b>，供置换算法（LRU）参考</td><td class="mix">管“用得多不多”</td></tr>
+  <tr><td class="k">修改位 M</td><td>该页<b>改过没有</b>；改过→换出要<b>写回外存</b>，没改→直接丢</td><td class="mix">管“要不要写回”</td></tr>
+  <tr><td class="k">外存地址</td><td>该页在<b>磁盘</b>的位置，缺页时按它去取</td><td></td></tr>
+</table>
+<div class="callout warn"><b>一句话区分 P / A / M：</b> P = <b>在不在</b>，A = <b>用没用</b>，M = <b>改没改</b>。</div>
+
+<h2>三、各种算法缩写（别张冠李戴）</h2>
+<h3>页面置换算法</h3>
+<table>
+  <tr><td class="k">OPT</td><td>最佳置换：淘汰“以后最久不用”的页。<b>无法实现</b>，只作评价标准。</td></tr>
+  <tr><td class="k">FIFO</td><td>先进先出：淘汰<b>最早进入</b>内存的页。<span class="mix">唯一会 Belady 异常的</span></td></tr>
+  <tr><td class="k">LRU</td><td>最近最久未使用：淘汰<b>最久没被访问</b>的页。看“访问时间”</td></tr>
+  <tr><td class="k">LFU / NRU(Clock)</td><td>LFU=最少使用（看次数）；Clock/NRU=最近未用（改进型用 A、M 位）</td></tr>
+</table>
+<div class="callout warn"><b>最爱考的混淆：FIFO 看“进入时间”，LRU 看“访问时间”。</b></div>
+<h3>磁盘调度算法</h3>
+<table>
+  <tr><td class="k">FCFS</td><td>先来先服务：按请求到达顺序</td></tr>
+  <tr><td class="k">SSTF</td><td>最短寻道时间优先：每次选离磁头<b>最近</b>的</td></tr>
+  <tr><td class="k">SCAN</td><td>扫描 / <b>电梯算法</b>：单向走到头再返回</td></tr>
+  <tr><td class="k">CSCAN</td><td>循环扫描：到头后直接<b>跳回起点</b>，单向服务</td></tr>
+</table>
+
+<h2>四、I/O 与设备：缩写</h2>
+<table>
+  <tr><td class="k">DMA</td><td>直接存储器访问（Direct Memory Access）：数据<b>成块直达内存</b>，只在块首尾需 CPU</td></tr>
+  <tr><td class="k">通道</td><td>I/O 处理机：CPU 发一条指令，通道自己跑“通道程序”，管<b>一组块</b></td></tr>
+  <tr><td class="k">SPOOLing</td><td>假脱机：把<b>独占设备</b>（打印机）→ 可共享的<b>虚拟设备</b>（磁盘输出井排队）</td></tr>
+  <tr><td class="k">缓冲</td><td>缓和 CPU 与 I/O <b>速度不匹配</b>；单/双/循环缓冲、缓冲池</td></tr>
+  <tr><td class="k">TLB / 快表</td><td>放在高速缓存里的<b>部分页表</b>，<b>加速地址变换</b>（少访存一次）</td></tr>
+</table>
+
+<h2>五、进程 / 同步 / 银行家：术语</h2>
+<table>
+  <tr><td class="k">PCB</td><td>进程控制块：记录进程信息，是<b>进程存在的唯一标志</b></td></tr>
+  <tr><td class="k">TCB / LWP</td><td>TCB=线程控制块；LWP=轻型进程（内核控制线程）</td></tr>
+  <tr><td class="k">PV</td><td>P=wait（申请，S−1）；V=signal（释放，S+1）。<b>信号量 S&gt;0=可用资源数；S&lt;0 时 |S|=等待进程数</b></td></tr>
+  <tr><td class="k">EAT</td><td>有效访问时间 = (1−缺页率)×访存 + 缺页率×缺页处理</td></tr>
+  <tr><td class="k">Max/Alloc/Need</td><td>银行家：<b>Need = Max − Allocation</b>；Available=系统剩余；安全性算法里 <b>Work 初值 = Available</b></td></tr>
+</table>
+
+<h2 id="drill">六、配对自测（练熟对应关系）</h2>
+<div class="scorebar">得分：<span class="num"><span id="score">0</span> / 16</span></div>
+
+<div class="q" data-obj><div class="qq">1. “一次性把所需资源全部分配”破坏了哪个必要条件？</div>
+  <button class="opt" data-ok="0">互斥</button>
+  <button class="opt" data-ok="1">请求和保持</button>
+  <button class="opt" data-ok="0">不剥夺</button>
+  <button class="opt" data-ok="0">环路等待</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">2. “对资源编号，按编号递增顺序申请”破坏了哪个条件？</div>
+  <button class="opt" data-ok="0">请求和保持</button>
+  <button class="opt" data-ok="0">不剥夺</button>
+  <button class="opt" data-ok="1">环路等待</button>
+  <button class="opt" data-ok="0">互斥</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">3. “申请不到就释放已占有的资源”破坏了哪个条件？</div>
+  <button class="opt" data-ok="0">环路等待</button>
+  <button class="opt" data-ok="1">不剥夺</button>
+  <button class="opt" data-ok="0">请求和保持</button>
+  <button class="opt" data-ok="0">互斥</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">4. 四个必要条件里，预防时<b>一般不去破坏</b>的是？</div>
+  <button class="opt" data-ok="1">互斥</button>
+  <button class="opt" data-ok="0">请求和保持</button>
+  <button class="opt" data-ok="0">不剥夺</button>
+  <button class="opt" data-ok="0">环路等待</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">5. 页表项中表示“该页在不在内存”的是？</div>
+  <button class="opt" data-ok="1">状态位 P</button>
+  <button class="opt" data-ok="0">访问字段 A</button>
+  <button class="opt" data-ok="0">修改位 M</button>
+  <button class="opt" data-ok="0">外存地址</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">6. 页表项中决定“换出时是否需写回外存”的是？</div>
+  <button class="opt" data-ok="0">状态位 P</button>
+  <button class="opt" data-ok="0">访问字段 A</button>
+  <button class="opt" data-ok="1">修改位 M</button>
+  <button class="opt" data-ok="0">外存地址</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">7. 供置换算法（如 LRU）参考、记录访问情况的是？</div>
+  <button class="opt" data-ok="0">状态位 P</button>
+  <button class="opt" data-ok="1">访问字段 A</button>
+  <button class="opt" data-ok="0">修改位 M</button>
+  <button class="opt" data-ok="0">外存地址</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">8. DMA 的中文/含义是？</div>
+  <button class="opt" data-ok="1">直接存储器访问：数据成块直接在设备与内存间传送</button>
+  <button class="opt" data-ok="0">动态内存分配</button>
+  <button class="opt" data-ok="0">磁盘镜像阵列</button>
+  <button class="opt" data-ok="0">双重内存地址</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">9. SPOOLing（假脱机）的作用是？</div>
+  <button class="opt" data-ok="0">加快 CPU 主频</button>
+  <button class="opt" data-ok="1">把独占设备改造成可共享的虚拟设备</button>
+  <button class="opt" data-ok="0">压缩内存</button>
+  <button class="opt" data-ok="0">一种页面置换算法</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">10. 快表（TLB）的作用是？</div>
+  <button class="opt" data-ok="1">缓存部分页表项，加速地址变换（少一次访存）</button>
+  <button class="opt" data-ok="0">存放整张页表的外存区</button>
+  <button class="opt" data-ok="0">记录缺页次数</button>
+  <button class="opt" data-ok="0">磁盘缓冲池</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">11. PCB 是什么？</div>
+  <button class="opt" data-ok="1">进程控制块，进程存在的唯一标志</button>
+  <button class="opt" data-ok="0">页面缓冲区</button>
+  <button class="opt" data-ok="0">打印控制块</button>
+  <button class="opt" data-ok="0">处理器控制总线</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">12. SSTF 调度算法的含义是？</div>
+  <button class="opt" data-ok="0">先来先服务</button>
+  <button class="opt" data-ok="1">最短寻道时间优先（选离磁头最近的）</button>
+  <button class="opt" data-ok="0">单向扫描到头再返回</button>
+  <button class="opt" data-ok="0">循环扫描</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">13. 又被称为“电梯算法”的磁盘调度算法是？</div>
+  <button class="opt" data-ok="0">FCFS</button>
+  <button class="opt" data-ok="0">SSTF</button>
+  <button class="opt" data-ok="1">SCAN</button>
+  <button class="opt" data-ok="0">OPT</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">14. 关于 FIFO 和 LRU 的判据，正确的是？</div>
+  <button class="opt" data-ok="1">FIFO 看“进入内存的时间”，LRU 看“最近访问的时间”</button>
+  <button class="opt" data-ok="0">两者都看进入时间</button>
+  <button class="opt" data-ok="0">FIFO 看访问时间，LRU 看进入时间</button>
+  <button class="opt" data-ok="0">两者完全一样</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">15. 信号量 S 的值为正数时，表示？</div>
+  <button class="opt" data-ok="1">当前可用的该类资源数目</button>
+  <button class="opt" data-ok="0">正在等待的进程数</button>
+  <button class="opt" data-ok="0">已经死锁的进程数</button>
+  <button class="opt" data-ok="0">临界区长度</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">16. 银行家安全性算法中，Work 的初始值等于？</div>
+  <button class="opt" data-ok="0">Max</button>
+  <button class="opt" data-ok="0">Allocation</button>
+  <button class="opt" data-ok="1">Available（系统当前可用资源）</button>
+  <button class="opt" data-ok="0">Need</button>
+  <div class="fb"></div></div>
+
+<details>
+  <summary>📌 还想多记一点（点开）：容易忽略的几个</summary>
+  <ul>
+    <li><b>独占/共享/虚拟设备</b>：打印机=独占；磁盘=共享；SPOOLing 造出的=虚拟。</li>
+    <li><b>Belady 异常</b>：仅 FIFO；LRU/OPT（栈式算法）不会。</li>
+    <li><b>抖动 thrashing</b>：页框太少→页面频繁换入换出→效率暴跌。</li>
+    <li><b>段页式地址</b>：段号 + 段内页号 + 页内偏移（三段）。</li>
+    <li><b>进程=资源分配单位；线程=调度/执行单位。</b></li>
+  </ul>
+</details>
+
+<footer>
+  <p>覆盖全部高频术语/缩写。配套概念见 0016~0021；计算练习见 <code>exams/</code>。错的术语回顶部表格再认一遍。</p>
+</footer>
+
+</div>
+<script>
+var FB={
+ 1:{g:'对！“全部一次拿走”就不会“占着旧的再要新的”，破坏了请求和保持。',b:'是“请求和保持”。一次性全分配=不会边占边要。'},
+ 2:{g:'对！按序申请使等待关系无法成环，破坏环路等待。',b:'是“环路等待”。编号递增申请→形不成等待环。'},
+ 3:{g:'对！主动释放=允许被剥夺，破坏不剥夺条件。',b:'是“不剥夺”。申请不到就放手=资源可被剥夺。'},
+ 4:{g:'对！互斥是资源天生属性（如打印机），一般不破坏。',b:'是“互斥”。资源天生独占，预防一般从其他三个下手。'},
+ 5:{g:'对！P=状态位，管“在不在内存”。',b:'是“状态位 P”。P=在不在，A=用没用，M=改没改。'},
+ 6:{g:'对！M=修改位，改过才需写回外存。',b:'是“修改位 M”。改过→写回；没改→直接丢。'},
+ 7:{g:'对！A=访问字段，供 LRU 等置换算法参考。',b:'是“访问字段 A”，记录访问情况供置换算法用。'},
+ 8:{g:'对！DMA=直接存储器访问，成块直达内存。',b:'DMA=直接存储器访问，数据成块直接在设备↔内存传。'},
+ 9:{g:'对！SPOOLing 把独占设备虚拟成共享设备。',b:'SPOOLing=假脱机，把独占设备改造成可共享的虚拟设备。'},
+ 10:{g:'对！快表缓存页表项，加速地址变换。',b:'TLB/快表=缓存部分页表项，少一次访存，加速变换。'},
+ 11:{g:'对！PCB=进程控制块，是进程存在的唯一标志。',b:'PCB=进程控制块，记录进程信息，进程存在的标志。'},
+ 12:{g:'对！SSTF=最短寻道时间优先。',b:'SSTF=最短寻道时间优先，每次选离磁头最近的请求。'},
+ 13:{g:'对！SCAN 又叫电梯算法。',b:'是 SCAN（电梯算法）：单向走到头再返回。'},
+ 14:{g:'对！FIFO 看进入时间，LRU 看访问时间——这是最常考的区分。',b:'FIFO 看“进入内存时间”，LRU 看“最近访问时间”。'},
+ 15:{g:'对！S>0 = 可用资源数；S<0 时 |S| = 等待进程数。',b:'S 为正=可用资源数；为负时 |S|=等待进程数。'},
+ 16:{g:'对！Work 初值 = Available。',b:'Work 初值 = Available（系统当前可用资源）。'}
+};
+var answered={}, score=0;
+document.querySelectorAll('.q[data-obj]').forEach(function(q,idx){
+  var n=idx+1; var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.innerHTML=ok?FB[n].g:FB[n].b;
+      if(answered[n]!=='ok' && ok) score++;
+      if(answered[n]==='ok' && !ok) score--;
+      answered[n]=ok?'ok':'no';
+      document.getElementById('score').textContent=score;
+    });
+  });
+});
+</script>
+</body>
+</html>

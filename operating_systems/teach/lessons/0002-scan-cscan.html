@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 2 课 · 磁盘调度 SCAN / CSCAN · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .big{font-size:15px}
+  .axis{position:relative; height:84px; margin:26px 4px 34px}
+  .axis .line{position:absolute; top:50px; left:0; right:0; height:3px; background:#c9d4dd}
+  .axis .tick{position:absolute; top:42px; width:2px; height:19px; background:#9fb0bd}
+  .axis .lab{position:absolute; top:62px; transform:translateX(-50%); font-size:11px; color:var(--muted)}
+  .axis .req{position:absolute; top:26px; transform:translateX(-50%); width:30px; height:30px; line-height:30px;
+    text-align:center; background:#fff; border:2px solid var(--accent); color:var(--accent);
+    border-radius:50%; font-size:12px; font-weight:600}
+  .axis .head{position:absolute; top:2px; transform:translateX(-50%); font-size:12px; color:var(--bad); font-weight:700}
+  .axis .head::after{content:"▼"; display:block; text-align:center; color:var(--bad)}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  .jump{color:var(--bad); font-weight:700}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+  .stepnum{display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; background:var(--accent);
+    color:#fff; border-radius:50%; font-size:13px; font-weight:700; margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 计算大题 ① · 磁盘调度(2/2)</div>
+  <h1>第 2 课:SCAN(电梯)与 CSCAN</h1>
+  <div class="sub">目标:在第 1 课"算移动距离"的基础上,加上「方向」和「折返/跳回」两个新动作。约 15 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>回顾第 1 课:</b> 你已经会了<b class="hl">总寻道距离 = Σ |每一段移动|</b>(逐段相加)。
+  这一课的算法<b>完全踩在这个之上</b>——计算方法一模一样,只是「下一个去哪」的规则换了。
+  FCFS/SSTF 是"乱跑/就近跑",SCAN/CSCAN 是<b>"像电梯一样,认准一个方向扫"</b>。
+</div>
+
+<h2>一、SCAN(电梯算法):一个方向扫到头,再掉头扫回来</h2>
+<p>想象一部<b>电梯</b>:它不会有人按 5 楼就立刻折回去接 2 楼的人。它会一直<b>向上</b>,把途中要上楼的都捎上,<b>到顶</b>后再<b>向下</b>,把要下楼的都捎上。磁头也这样:</p>
+<div class="callout ok big">
+  <b>SCAN 规则:</b>选一个方向(比如先向高磁道走)→ 沿途遇到的请求都处理 → <b class="hl">走到这个方向上最后一个请求就掉头</b> → 再反方向扫回,处理另一边的请求。
+</div>
+<div class="callout warn">
+  <b>⚠ "走到头"到底走到哪?(最易丢分)</b> 汤小丹教材口径:<b>走到那个方向上的「最后一个请求」就掉头</b>,<b>不是</b>走到磁盘物理边缘(如 0 或 199)。
+  但有的老师/题目要求走到磁盘边缘——<b>考前一定看课件例题用哪种</b>。本课按教材口径(到最后请求折返)。
+</div>
+
+<h3>例题(沿用第 1 课的磁头和请求,方便对比)</h3>
+<p>磁头在 <b style="color:var(--bad)">50</b>,请求磁道 <code>30, 70, 10, 90</code>,先向<b>高磁道</b>方向走。磁盘 0–100。</p>
+<div class="axis" id="axisS"><div class="line"></div></div>
+<p>方向是向高 → 先把比 50 大的扫完(70、90),到最后请求 90 掉头 → 再扫比 50 小的(30、10)。<br>
+路径:<b>50 → 70 → 90 →(掉头)→ 30 → 10</b></p>
+<table>
+  <tr><th>从→到</th><td>50→70</td><td>70→90</td><td>90→30</td><td>30→10</td></tr>
+  <tr><th>移动量</th><td>20</td><td>20</td><td>60</td><td>20</td></tr>
+  <tr><td colspan="4" style="text-align:right"><b>总寻道距离</b></td><td><b style="color:var(--accent)">20+20+60+20 = 120</b></td></tr>
+</table>
+
+<h2>二、CSCAN(循环扫描):只往一个方向扫,到头直接"跳回"起点再扫</h2>
+<p>SCAN 有个不公平:刚被磁头越过的请求,要等磁头到头折返回来才被处理,等很久。CSCAN 的解法是<b>只单向服务</b>:</p>
+<div class="callout ok big">
+  <b>CSCAN 规则:</b>认准一个方向(如向高)扫到最后请求 → <b class="hl">不掉头</b>,直接<b>跳回到另一端的第一个请求</b> → 继续往<b>同一个方向</b>扫。这样每个请求的等待时间更均匀。
+</div>
+<div class="callout warn">
+  <b>⚠ 第 1 课那个坑在这里最致命:</b> 从最高请求<b>跳回</b>最低请求的<b>那一大段距离,要算进总寻道里!</b>
+  (教材例题这一跳是 169,很多人当"免费传送"漏掉 → 直接算错。)
+</div>
+
+<h3>同一道例题用 CSCAN</h3>
+<p>磁头 50,请求 <code>30,70,10,90</code>,向高方向。先扫高的(70、90),到 90 后<b class="jump">跳回最低请求 10</b>,再继续向高扫(到 30)。<br>
+路径:<b>50 → 70 → 90 <span class="jump">→(跳回)→ 10</span> → 30</b></p>
+<table>
+  <tr><th>从→到</th><td>50→70</td><td>70→90</td><td class="jump">90→10(跳回)</td><td>10→30</td></tr>
+  <tr><th>移动量</th><td>20</td><td>20</td><td class="jump">80</td><td>20</td></tr>
+  <tr><td colspan="4" style="text-align:right"><b>总寻道距离</b></td><td><b style="color:var(--accent)">20+20+<span class="jump">80</span>+20 = 140</b></td></tr>
+</table>
+<div class="callout">
+  对比同一道题:<b>SCAN=120,CSCAN=140</b>。CSCAN 因为多了"跳回"那一段,总距离<b>稍长</b>,换来的是<b>更公平</b>(等待时间均匀)。这正是教材说的"CSCAN 平均寻道长度比 SCAN 稍长"。
+</div>
+
+<h2>三、四大算法 · 真题级例题(教材标准题,直接背)</h2>
+<p>磁头 <b>53</b>,请求 <code>98, 183, 37, 122, 14, 124, 65, 67</code>,向高方向。这是汤小丹教材原题,数字要记住:</p>
+<table>
+  <tr><th>算法</th><th>寻道顺序</th><th>总寻道距离</th></tr>
+  <tr><td><b>FCFS</b></td><td>53→98→183→37→122→14→124→65→67</td><td><b>640</b></td></tr>
+  <tr><td><b>SSTF</b></td><td>53→65→67→37→14→98→122→124→183</td><td><b>236</b></td></tr>
+  <tr><td><b>SCAN</b></td><td>53→65→67→98→122→124→183→(掉头)→37→14</td><td><b>299</b></td></tr>
+  <tr><td><b>CSCAN</b></td><td>53→65→67→98→122→124→183→(跳回)→14→37</td><td><b>322</b></td></tr>
+</table>
+<p class="sub">排序:SSTF(236) < SCAN(299) < CSCAN(322) ≪ FCFS(640)。SSTF 最省但会饥饿;SCAN/CSCAN 稍多但公平、无饥饿。</p>
+
+<h2>四、必背(三句)</h2>
+<div class="callout">
+  <p style="margin:4px 0">① <b>SCAN</b> = 一个方向扫到最后请求,<b>掉头</b>反向扫回。</p>
+  <p style="margin:4px 0">② <b>CSCAN</b> = 单向扫到头,<b>跳回</b>另一端再同向扫;<b class="hl">跳回那段距离要算!</b></p>
+  <p style="margin:4px 0">③ 距离算法和第 1 课<b>完全一样</b>:每段 |从−到| 全加(含掉头/跳回段)。</p>
+</div>
+
+<h2>五、轮到你了</h2>
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 按汤小丹教材口径,SCAN 沿一个方向走,走到哪里才掉头?</div>
+  <button class="opt" data-ok="0">走到磁盘的最大编号(如 199)</button>
+  <button class="opt" data-ok="1">走到这个方向上的最后一个请求</button>
+  <button class="opt" data-ok="0">走到磁头出发点的对面</button>
+  <button class="opt" data-ok="0">随便走多远,有请求就掉头</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. CSCAN 从最高请求 90「跳回」最低请求 10,这段 80 的距离要不要算进总寻道?</div>
+  <button class="opt" data-ok="1">要算!跳回也是磁头真实移动,80 必须加进去</button>
+  <button class="opt" data-ok="0">不算,跳回是"免费传送",不耗距离</button>
+  <button class="opt" data-ok="0">只算一半,40</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 新题:磁头在 <b>40</b>,请求 <code>20, 60, 10, 80</code>,向<b>高磁道</b>方向,用 <b>SCAN</b>。总寻道距离 = ?</div>
+  <p class="sub" style="margin-top:-4px">先排路径:向高先扫 60、80,到 80 掉头,再扫 20、10。自己算完再点。</p>
+  <button class="opt" data-ok="0">70</button>
+  <button class="opt" data-ok="1">110</button>
+  <button class="opt" data-ok="0">90</button>
+  <button class="opt" data-ok="0">130</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q3sol').classList.toggle('hidden')">▸ 看详细步骤</span>
+  <div id="q3sol" class="hidden" style="margin-top:8px">
+    <p>路径:<b>40 → 60 → 80 →(掉头)→ 20 → 10</b></p>
+    <table>
+      <tr><th>从→到</th><td>40→60</td><td>60→80</td><td>80→20</td><td>20→10</td></tr>
+      <tr><th>移动量</th><td>20</td><td>20</td><td>60</td><td>10</td></tr>
+    </table>
+    <p><b>20+20+60+10 = 110</b></p>
+  </div>
+</div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  回到对话里告诉我两件事:<br>
+  ① 用大白话说 <b>SCAN 和 CSCAN 的区别</b>(提示:一个"掉头扫回",一个"跳回再同向扫")。<br>
+  ② <b>CSCAN 那道例题(磁头 50)总距离为什么是 140 不是 60?</b>——说出关键的那一段。
+</div>
+
+<footer>
+  <p>📌 <b>磁盘调度到此完整了</b>(FCFS/SSTF/SCAN/CSCAN 四个都会算)。下一课我们换题型,开始攻 <b>页面置换</b>——但它需要先补一节<b>分页基础</b>(你说"完全不记得了"),我会从零搭起。</p>
+  <p>📖 <b>速查卡:</b> <a href="../reference/0001-disk-scheduling-cheatsheet.html">磁盘调度速查卡</a>(已补全四算法 + 教材标准题)。</p>
+  <p>🙋 <b>有不懂直接问我。</b></p>
+  <p>来源:汤小丹《计算机操作系统》第四版 · <code>textbook/ch08_磁盘存储器管理.md §8.2</code>(SCAN/CSCAN 原理与例题)、<code>算法速查表.md §3</code>。</p>
+</footer>
+
+</div>
+<script>
+function drawAxis(id,head,reqs,min,max,ticks){
+  var axis=document.getElementById(id);
+  function pct(v){return ((v-min)/(max-min)*100)+'%';}
+  ticks.forEach(function(v){
+    var t=document.createElement('div'); t.className='tick'; t.style.left=pct(v); axis.appendChild(t);
+    var l=document.createElement('div'); l.className='lab'; l.style.left=pct(v); l.textContent=v; axis.appendChild(l);
+  });
+  reqs.forEach(function(v){
+    var r=document.createElement('div'); r.className='req'; r.style.left=pct(v); r.textContent=v; axis.appendChild(r);
+  });
+  var h=document.createElement('div'); h.className='head'; h.style.left=pct(head); h.textContent='磁头'+head; axis.appendChild(h);
+}
+drawAxis('axisS',50,[30,70,10,90],0,100,[0,20,40,60,80,100]);
+
+var FB={
+  q1:{good:'对!教材口径是"扫到该方向最后一个请求就掉头",不是冲到磁盘边缘。考前确认老师用哪种。',bad:'按汤小丹教材:走到这个方向上的最后一个请求就掉头(到 90 就掉头,不冲到 100)。'},
+  q2:{good:'对!跳回 80 是磁头真实移动,必须算。这就是 CSCAN 总距离比 SCAN 长的原因。',bad:'要算!磁头从 90 物理移动到 10,跑了 80。漏掉它就会把 CSCAN 算错(这是最常见错误)。'},
+  q3:{good:'完美!40→60→80→(掉头)→20→10 = 20+20+60+10 = 110。SCAN 你拿下了。',bad:'路径 40→60→80→(掉头)→20→10,移动量 20+20+60+10=110。点"看详细步骤"对一下。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

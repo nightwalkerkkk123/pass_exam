@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>概念扫雷③ · 调度算法 + 周转时间 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:19px; margin:34px 0 10px; border-left:4px solid var(--accent); padding-left:10px}
+  p{margin:10px 0}
+  ul{padding-left:22px} li{margin:5px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  .card{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:10px 14px; border-radius:4px; margin:12px 0}
+  .card .t{font-weight:700; color:var(--accent); margin-bottom:4px}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin:14px 0}
+  .quiz .qq{font-weight:600; margin-bottom:8px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:9px 13px; margin:6px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:9px; padding:9px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  .score{position:sticky; top:0; background:var(--ink); color:#fff; padding:10px 16px; text-align:center; font-size:15px; z-index:5; border-radius:0 0 8px 8px}
+  footer{margin-top:46px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="score" id="score">已答 0 / 11 · 正确 0</div>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 概念扫雷 · 第 3 轮</div>
+  <h1>概念扫雷③:调度算法特点 + 周转时间</h1>
+  <div class="sub">Ch3 高频:谁抢占、谁饥饿、谁公平,以及周转时间小计算。约 15 分钟。</div>
+</header>
+
+<h2>簇 ① 调度算法特点对照</h2>
+<div class="card">
+  <div class="t">速记卡</div>
+  <table>
+    <tr><th>算法</th><th>抢占?</th><th>毛病/特点</th><th>适用</th></tr>
+    <tr><td><b>FCFS</b> 先来先服务</td><td>非抢占</td><td>公平简单;短作业等太久</td><td>批处理</td></tr>
+    <tr><td><b>SJF</b> 短作业优先</td><td>非抢占*</td><td>平均周转最短;<b>长作业饥饿</b></td><td>批处理</td></tr>
+    <tr><td><b>HRRN</b> 高响应比</td><td>非抢占</td><td>兼顾长短、防饥饿;要算响应比</td><td>批处理</td></tr>
+    <tr><td><b>RR</b> 时间片轮转</td><td>抢占</td><td>响应快、公平;片太大→退化成 FCFS</td><td><b>分时</b></td></tr>
+    <tr><td><b>优先级</b></td><td>两种都有</td><td><b>低优先级饥饿</b></td><td>实时/批处理</td></tr>
+    <tr><td><b>多级反馈队列</b></td><td>抢占</td><td>兼顾长短、无需估时间,<b>通用</b></td><td>通用</td></tr>
+  </table>
+  <p style="margin:4px 0">响应比公式:<b>响应比 = 1 + 等待时间 ÷ 服务时间</b>(等得越久越优先,所以不会饿死)。</p>
+</div>
+<div class="quiz" id="q1"><div class="qq">1. FCFS 是抢占式还是非抢占式?</div>
+  <button class="opt" data-ok="1">非抢占式</button><button class="opt" data-ok="0">抢占式</button><button class="opt" data-ok="0">两者都是</button><div class="fb"></div></div>
+<div class="quiz" id="q2"><div class="qq">2. 哪个算法可能导致<b>长作业饥饿</b>?</div>
+  <button class="opt" data-ok="1">短作业优先 SJF</button><button class="opt" data-ok="0">FCFS</button><button class="opt" data-ok="0">时间片轮转</button><div class="fb"></div></div>
+<div class="quiz" id="q3"><div class="qq">3. 时间片轮转 RR 最典型的适用系统是?</div>
+  <button class="opt" data-ok="0">批处理系统</button><button class="opt" data-ok="1">分时系统</button><button class="opt" data-ok="0">实时系统</button><div class="fb"></div></div>
+<div class="quiz" id="q4"><div class="qq">4. 时间片设得<b>非常大</b>,RR 会退化成?</div>
+  <button class="opt" data-ok="1">FCFS(先来先服务)</button><button class="opt" data-ok="0">SJF</button><button class="opt" data-ok="0">优先级调度</button><div class="fb"></div></div>
+<div class="quiz" id="q5"><div class="qq">5. 高响应比优先 HRRN 的"响应比"=?</div>
+  <button class="opt" data-ok="1">1 + 等待时间 / 服务时间</button>
+  <button class="opt" data-ok="0">服务时间 / 等待时间</button>
+  <button class="opt" data-ok="0">完成时间 − 到达时间</button><div class="fb"></div></div>
+<div class="quiz" id="q6"><div class="qq">6. 优先级调度最容易出现的问题是?</div>
+  <button class="opt" data-ok="0">死锁</button>
+  <button class="opt" data-ok="1">低优先级进程饥饿(长期得不到 CPU)</button>
+  <button class="opt" data-ok="0">缓冲区溢出</button><div class="fb"></div></div>
+
+<h2>簇 ② 周转时间计算(小题常见)</h2>
+<div class="card">
+  <div class="t">两条公式焊死</div>
+  <ul style="margin:4px 0">
+    <li><b>周转时间 = 完成时间 − 到达时间</b></li>
+    <li><b>带权周转时间 = 周转时间 ÷ 服务(运行)时间</b></li>
+    <li>平均(带权)周转 = 各进程之和 ÷ 进程数</li>
+  </ul>
+  <p style="margin:8px 0 2px"><b>例(FCFS):</b></p>
+  <table>
+    <tr><th>进程</th><th>到达</th><th>服务</th><th>完成</th><th>周转=完成−到达</th><th>带权=周转/服务</th></tr>
+    <tr><td>P1</td><td>0</td><td>3</td><td>3</td><td>3−0=<b>3</b></td><td>3/3=1</td></tr>
+    <tr><td>P2</td><td>1</td><td>2</td><td>5</td><td>5−1=<b>4</b></td><td>4/2=2</td></tr>
+    <tr><td>P3</td><td>2</td><td>1</td><td>6</td><td>6−2=<b>4</b></td><td>4/1=4</td></tr>
+  </table>
+  <p style="margin:4px 0">平均周转 = (3+4+4)/3 = <b>11/3 ≈ 3.67</b>;平均带权 = (1+2+4)/3 = <b>7/3 ≈ 2.33</b>。</p>
+</div>
+<div class="quiz" id="q7"><div class="qq">7. 周转时间的公式是?</div>
+  <button class="opt" data-ok="1">完成时间 − 到达时间</button>
+  <button class="opt" data-ok="0">完成时间 − 服务时间</button>
+  <button class="opt" data-ok="0">服务时间 + 等待时间 × 2</button><div class="fb"></div></div>
+<div class="quiz" id="q8"><div class="qq">8. 带权周转时间 = ?</div>
+  <button class="opt" data-ok="0">周转时间 × 服务时间</button>
+  <button class="opt" data-ok="1">周转时间 ÷ 服务时间</button>
+  <button class="opt" data-ok="0">服务时间 ÷ 周转时间</button><div class="fb"></div></div>
+<div class="quiz" id="q9"><div class="qq">9. 某进程到达时间 2,服务 4,完成时间 10。它的<b>周转时间</b>=?</div>
+  <button class="opt" data-ok="0">6</button><button class="opt" data-ok="1">8</button><button class="opt" data-ok="0">4</button><button class="opt" data-ok="0">12</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('s9').classList.toggle('hidden')">▸ 步骤</span>
+  <div id="s9" class="hidden"><p>周转=完成−到达=10−2=<b>8</b>。(带权=8/4=2)</p></div></div>
+<div class="quiz" id="q10"><div class="qq">10. 上题那个进程的<b>带权周转时间</b>=?</div>
+  <button class="opt" data-ok="0">8</button><button class="opt" data-ok="1">2</button><button class="opt" data-ok="0">4</button><button class="opt" data-ok="0">0.5</button>
+  <div class="fb"></div></div>
+<div class="quiz" id="q11"><div class="qq">11. 多级反馈队列(MFQ)的突出优点是?</div>
+  <button class="opt" data-ok="0">只适合实时系统</button>
+  <button class="opt" data-ok="1">兼顾长短作业、无需预先估计运行时间,通用性强</button>
+  <button class="opt" data-ok="0">实现最简单</button><div class="fb"></div></div>
+
+<footer>
+  <p>📌 概念扫雷三轮(OS/进程/死锁 + 存储 + 调度)打完后,选择填空的主力考点就覆盖得差不多了。
+  接下来强烈建议做 <code>../exams/final-test.html</code> 限时模拟,我陪你批改回讲。</p>
+  <p>📖 口径来自 ch03 + 算法速查表 §1/§5。有疑问<b>直接问我</b>。</p>
+</footer>
+
+</div>
+<script>
+var answered={}, correct=0;
+var FB={
+  q1:{good:'对!FCFS 非抢占——一旦运行就跑到结束或阻塞。',bad:'FCFS 是非抢占式。先来的一直跑到完成或主动阻塞。'},
+  q2:{good:'对!SJF 总让短作业插队,长作业可能一直等→饥饿。',bad:'是 SJF(短作业优先)。短的总插队,长作业饥饿。'},
+  q3:{good:'对!RR 时间片轮转=分时系统,保证每个用户快速响应。',bad:'RR 用于分时系统(轮流给时间片,响应快)。'},
+  q4:{good:'对!片大到没人会被切换,就等于按到达顺序跑=FCFS。',bad:'时间片极大→几乎不切换→退化成 FCFS。'},
+  q5:{good:'对!响应比=1+等待/服务。等得越久越优先,所以不饿死。',bad:'响应比 = 1 + 等待时间/服务时间。'},
+  q6:{good:'对!优先级调度→低优先级进程可能长期饥饿。',bad:'是"低优先级进程饥饿"。可用动态优先级缓解。'},
+  q7:{good:'对!周转=完成−到达。',bad:'周转时间=完成时间−到达时间。'},
+  q8:{good:'对!带权周转=周转÷服务(≥1,越接近1越好)。',bad:'带权周转=周转时间÷服务时间。'},
+  q9:{good:'对!10−2=8。',bad:'周转=完成−到达=10−2=8。'},
+  q10:{good:'对!8÷4=2。',bad:'带权=周转÷服务=8÷4=2。'},
+  q11:{good:'对!MFQ 兼顾长短、不用估时间,是通用调度算法。',bad:'MFQ 优点:兼顾长短作业、无需估计运行时间、通用性强。'}
+};
+function upd(){var n=Object.keys(answered).length;document.getElementById('score').textContent='已答 '+n+' / 11 · 正确 '+correct+(n===11?(correct>=10?' 🎉 这轮稳了':' · 看红框订正'):'');}
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      if(ok)q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+      if(!(q.id in answered)){answered[q.id]=ok;if(ok)correct++;}
+      else if(answered[q.id]!==ok){if(ok)correct++;else correct--;answered[q.id]=ok;}
+      upd();
+    });
+  });
+});
+</script>
+</body>
+</html>

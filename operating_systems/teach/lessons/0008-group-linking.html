@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 8 课 · 成组链接法 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef; --p:#7a3e9d; --psoft:#f4ecfa;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .big{font-size:15px}
+  .stack{font-family:"SF Mono",Menlo,monospace; font-weight:700; font-size:15px; color:var(--p)}
+  .cnt{color:var(--bad)}
+  .trace td{font-family:"SF Mono",Menlo,monospace; text-align:left}
+  .trace .op{font-family:inherit; font-weight:600; text-align:left}
+  .top{background:#fff3cd; border-radius:3px; padding:0 4px}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 文件管理 · 老师布置过的作业题</div>
+  <h1>第 8 课:成组链接法</h1>
+  <div class="sub">目标:跟着老师的原题,做对"回收/分配空闲盘块"后的栈变化。约 18 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>这是什么:</b> 磁盘上有很多<b>空闲块</b>等着被分配。怎么记录"哪些块是空的"?如果列一张全表,几百万块太占空间。
+  <b>成组链接法</b>的妙招:把空闲块<b>每 N 个分一组</b>,组与组"链接"起来。<b class="hl">内存里只放当前这一组</b>,其余组的信息"藏"在块里,用到再读。
+</div>
+
+<h2>一、比喻:一摞钥匙,最后一把背面写着下一摞在哪</h2>
+<p>想象钥匙挂板,最多挂 <b>5 把</b>(一组)。从上往下取钥匙用。但有个机关:</p>
+<ul>
+  <li>挂板上<b>最后剩的那 1 把</b>钥匙,<b class="hl">背面写着"下一摞 5 把钥匙在哪个抽屉"</b>。</li>
+  <li>所以取到最后 1 把时,不能直接拿走——<b>先照背面地址把下一摞取来挂上</b>,再拿走这最后一把。</li>
+  <li>还钥匙就往板上挂;<b>挂满 5 把</b>时,把这板子的清单<b>抄到新还的钥匙背面</b>,让它单独成为新一组的代表。</li>
+</ul>
+
+<h2>二、表示法 + 两条规则</h2>
+<div class="callout">
+  <b>S.free 栈写法:</b> <span class="stack"><span class="cnt">[数量]</span>, 块号, 块号, …</span> —— <b>第一个数字是"空闲块数量"</b>,后面才是块号。<b>栈顶在最右边</b>。<br>
+  例:<span class="stack"><span class="cnt">[3]</span>,1,2,3</span> = 有 3 个空闲块:1、2、3,栈顶是 3。
+</div>
+<div class="callout warn big">
+  <b>🔑 分配(取块)规则:</b>
+  <ul style="margin:6px 0">
+    <li>栈里数量 <b>&gt; 1</b>:直接弹出栈顶(最右),数量 −1。</li>
+    <li>栈里数量 <b>= 1</b>(只剩 1 块):这块<b>肚子里存着下一组</b>!<b>先把它的内容读进 S.free</b>,<b>再</b>把这块分配出去。</li>
+  </ul>
+  <b>🔑 回收(还块)规则:</b>
+  <ul style="margin:6px 0 0">
+    <li>栈<b>没满</b>(&lt;5):直接把块号压入栈顶,数量 +1。</li>
+    <li>栈<b>已满</b>(=5):把<b>当前整个栈清单写进新回收的那块</b>,然后 S.free 里只剩这块(数量=1)。</li>
+  </ul>
+</div>
+
+<h2>三、跟着老师的原题走一遍</h2>
+<p><b>题:</b> 每 <b>5 块</b>一组,初始 <code>S.free = [3], 1, 2, 3</code>。依次:① 回收第 4 块 ② 回收第 7、8 块 ③ 分配 1 块 ④ 分配 3 块。求每步后的栈和空闲总数。</p>
+
+<table class="trace">
+  <tr><th>操作</th><th>动了哪块</th><th>S.free(栈顶在右)</th><th>空闲总数</th></tr>
+  <tr><td class="op">初始</td><td>—</td><td><span class="stack">[3] 1 2 <span class="top">3</span></span></td><td>3</td></tr>
+  <tr><td class="op">① 回收 4</td><td>回收 4</td><td><span class="stack">[4] 1 2 3 <span class="top">4</span></span>(没满,直接压)</td><td>4</td></tr>
+  <tr><td class="op">② 回收 7</td><td>回收 7</td><td><span class="stack">[5] 1 2 3 4 <span class="top">7</span></span>(压完<b>满了</b>)</td><td>5</td></tr>
+  <tr><td class="op">② 回收 8</td><td>回收 8</td><td>满了!把 <code>[5]1 2 3 4 7</code> <b>写进第 8 块</b>,栈变 <span class="stack">[1] <span class="top">8</span></span></td><td>6</td></tr>
+  <tr><td class="op">③ 分配 1 块</td><td>分配 8</td><td>只剩 1 块→先读出 8 的肚子,再分配 8:<span class="stack">[5] 1 2 3 4 <span class="top">7</span></span></td><td>5</td></tr>
+  <tr><td class="op">④ 分配第 1 块</td><td>分配 7</td><td><span class="stack">[4] 1 2 3 <span class="top">4</span></span></td><td>4</td></tr>
+  <tr><td class="op">④ 分配第 2 块</td><td>分配 4</td><td><span class="stack">[3] 1 2 <span class="top">3</span></span></td><td>3</td></tr>
+  <tr><td class="op">④ 分配第 3 块</td><td>分配 3</td><td><span class="stack">[2] 1 <span class="top">2</span></span></td><td>2</td></tr>
+</table>
+<div class="callout ok">
+  <b>最终答案:</b> S.free = <span class="stack">[2] 1 2</span>,空闲块剩 1、2,共 <b>2 块</b>。<br>
+  全程分配出去的块依次:<b>8 → 7 → 4 → 3</b>;回收的块:4、7、8。
+</div>
+<div class="callout warn">
+  <b>⚠ 两个最容易出错的步骤(也是给分点):</b>
+  <ul style="margin:6px 0 0">
+    <li><b>回收第 8 块</b>:不是简单压栈!栈满了,要把旧清单"灌进"第 8 块,栈只剩 <code>[1] 8</code>。</li>
+    <li><b>分配第 8 块</b>:不能直接弹走!它肚子里是下一组,要<b>先读出</b> <code>[5]1 2 3 4 7</code> <b>再</b>把 8 分出去。</li>
+  </ul>
+</div>
+
+<h2>四、必背(两句)</h2>
+<div class="callout">
+  <p style="margin:4px 0">① 内存(S.free)<b>只存当前一组</b>;其余组藏在"每组最后一块"的肚子里。</p>
+  <p style="margin:4px 0">② <b>分配剩 1 块</b> → 先读出它的肚子再分配它;<b>回收遇满组</b> → 把旧清单写进新块,新块单独成组。</p>
+</div>
+
+<h2>五、轮到你了</h2>
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 成组链接法里,内存中的 S.free 栈平时保存的是?</div>
+  <button class="opt" data-ok="0">磁盘上全部空闲块的号码</button>
+  <button class="opt" data-ok="1">只有"当前这一组"的空闲块号(和数量)</button>
+  <button class="opt" data-ok="0">全部已分配出去的块号</button>
+  <button class="opt" data-ok="0">整个磁盘的目录</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 分配时,栈里<b>只剩最后 1 块</b>了,正确做法是?</div>
+  <button class="opt" data-ok="0">直接把它分配出去,栈变空</button>
+  <button class="opt" data-ok="1">先把这块肚子里存的"下一组"读进 S.free,再把这块分配出去</button>
+  <button class="opt" data-ok="0">报错,没有空闲块了</button>
+  <button class="opt" data-ok="0">把它复制一份再分配</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 现在 <code>S.free = [5] 1 2 3 4 7</code>(已满,每组 5 块)。<b>回收第 9 块</b>后,S.free = ?</div>
+  <p class="sub" style="margin-top:-4px">满组回收 → 旧清单灌进新块。自己想完再点。</p>
+  <button class="opt" data-ok="0">[6] 1 2 3 4 7 9</button>
+  <button class="opt" data-ok="1">[1] 9 (第 9 块里存着 [5]1 2 3 4 7)</button>
+  <button class="opt" data-ok="0">[5] 1 2 3 4 9</button>
+  <button class="opt" data-ok="0">[1] 7</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('s3').classList.toggle('hidden')">▸ 解释</span>
+  <div id="s3" class="hidden"><p>栈已满(5 块),不能再压。把当前清单 <code>[5]1 2 3 4 7</code> 写进新回收的第 9 块,S.free 只剩 <b>[1] 9</b>,空闲总数 5→6。这和原题"回收第 8 块"一模一样。</p></div>
+</div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  回到对话里告诉我:<br>
+  ① S.free 栈平时存的是<b>全部空闲块还是只有一组?</b><br>
+  ② 分配时只剩 1 块,为什么<b>不能直接分配掉</b>?要先做什么?<br>
+  ③ 回收时遇到"满组",那块新回收的块被拿来干嘛了?
+</div>
+
+<footer>
+  <p>📌 文件管理这块你现在有:<b>混合索引(找数据块)</b> + <b>成组链接法(管空闲块)</b>,正好是一对(一个管"已用",一个管"空闲")。</p>
+  <p>📌 只剩最后一个题型 <b>PV 操作</b>(最难,分 2 课)。想挑战时告诉我。</p>
+  <p>🙋 有不懂<b>直接问我</b>。</p>
+  <p>来源:老师布置作业原题(<code>6_文件管理/成组链接法规则.md</code>);汤小丹《计算机操作系统》第四版 ch07 文件存储空间管理。</p>
+</footer>
+
+</div>
+<script>
+var FB={
+  q1:{good:'对!只存当前一组。这正是成组链接法省空间的关键——不用把全部空闲块都记在内存。',bad:'只存"当前这一组"。其余组的信息藏在每组最后一块的肚子里,用到才读进来。'},
+  q2:{good:'对!最后这块肚子里是下一组的清单,必须先读出来填栈,再分配它。直接分配会丢掉整条链!',bad:'最后 1 块存着"下一组"信息。要先读出它的内容到 S.free,再分配这块。直接分配会断链。'},
+  q3:{good:'对!满组回收=把旧清单灌进新块 9,S.free 只剩 [1] 9。和原题回收第 8 块一个套路。',bad:'栈满不能压。把 [5]1 2 3 4 7 写进第 9 块,S.free 变 [1] 9(9 的肚子里存着旧的一组)。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

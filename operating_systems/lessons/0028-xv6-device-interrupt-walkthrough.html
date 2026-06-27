@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 28 课 · xv6 设备中断逐行源码精讲(讲稿+答辩) · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --codebg:#272b33; --codefg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:40px 28px 80px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:24px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:34px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:8px 0}
+  ul,ol{padding-left:22px} li{margin:4px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{background:var(--codebg); color:var(--codefg); border-radius:8px; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; line-height:1.7; margin:12px 0}
+  pre .ln{color:#6f7681; user-select:none; display:inline-block; width:2.2em; text-align:right; margin-right:1em}
+  pre .kw{color:#c678dd} pre .fn{color:#61afef} pre .cm{color:#7d8590; font-style:italic}
+  pre .n{color:#e0a45e} pre .s{color:#98c379} pre .b1{background:#33402f}  pre .b2{background:#2f3a40}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  td code{font-size:12.5px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 14px; border-radius:4px; margin:14px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:#f1f9f4}
+  .q{background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px 14px; margin:10px 0}
+  .q b{color:var(--accent)}
+  .pill{display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; background:#eee; margin-left:4px}
+  .pill.high{background:#fde2dd; color:#8a1c11}
+  .pill.mid{background:#fff0d6; color:#7a4a00}
+  .script{background:#f3f7ec; border:1px dashed #5d7a00; padding:14px 16px; border-radius:6px; margin:14px 0; font-size:15px; line-height:1.85}
+  .timeline{display:grid; grid-template-columns:78px 1fr; gap:6px 12px; font-size:14px; margin:14px 0}
+  .timeline .t{color:var(--accent); font-weight:bold}
+  .timeline .c{background:#fff; padding:8px 12px; border:1px solid var(--line); border-radius:4px}
+  .checklist{background:#fff; border:1px solid var(--ok); border-left:4px solid var(--ok); padding:14px 16px; border-radius:4px; margin:14px 0}
+  .diagram{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.55; background:#fff; border:1px solid var(--line); border-radius:6px; padding:14px 16px; white-space:pre; overflow-x:auto}
+  .big{font-size:15px}
+  footer{margin-top:60px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--accent); text-decoration:none} a:hover{text-decoration:underline}
+  @media print{ body{background:#fff;font-size:13px} .wrap{padding:12mm;max-width:none} pre{background:#f0eee4;color:#222} h2{break-after:avoid} table,.q,.timeline .c{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 28 课 · Ch5 设备管理 · 逐行源码精讲 + 答辩</p>
+  <h1>xv6 设备中断与驱动逐行精讲<br><code>devintr</code> · <code>uartintr</code> · <code>consoleintr</code> ——中断 → 判断来源 → 驱动读字符 → 唤醒进程</h1>
+  <p class="sub">明天目标:对着真实 C 代码逐行讲 8–10 分钟,答得住追问 · 源码:<code>kernel/trap.c</code> · <code>uart.c</code> · <code>console.c</code></p>
+</header>
+
+<div class="callout">
+<b>🎯 这份稿子可以独立上场。</b> 它把课本第 5 章「中断驱动 I/O」落到三段真实代码:<code>devintr()</code> 判断中断来自哪个设备、<code>uartintr()</code> 是串口驱动从硬件读字符、<code>consoleintr()</code> 是控制台把字符入缓冲并 <code>wakeup</code> 唤醒等待的进程。<b>逐行讲代码 + 随时指回课本概念</b>,就是「讲解+答辩」的满分形态。<br>
+姊妹篇(文件系统索引)→ <a href="./0021-xv6-bmap-source-walkthrough.html">第 21 课</a>。
+</div>
+
+<h2>0. 先记这句主线(讲偏了就拉回来)</h2>
+<div class="callout ok big">
+<b>「键盘/串口有数据时,会向 CPU 发一个<u>中断</u>。内核的 <code>devintr()</code> 先判断<u>是哪个设备</u>的中断,是串口就交给驱动 <code>uartintr()</code> 去读字符,再交给 <code>consoleintr()</code> 把字符放进输入缓冲;一整行到齐了就 <code>wakeup</code> 唤醒正在 <code>read</code> 上睡觉的进程。」</b>
+这就是课本说的<b>中断驱动 I/O</b>——CPU 不用一直轮询设备,数据来了设备主动「敲门」。
+</div>
+
+<h2>1. 背景:三种 I/O 控制方式,为什么这里是「中断驱动」</h2>
+<p>课本第 5 章讲了四种 I/O 控制方式,先用一张表对齐老师口径,再引出我们这条代码线属于哪种:</p>
+<table>
+<tr><th>控制方式</th><th>CPU 怎么知道设备好了</th><th>缺点 / 特点</th><th>xv6 对应</th></tr>
+<tr><td><b>程序查询(轮询)</b></td><td>CPU 反复读状态寄存器「好了没?好了没?」</td><td>CPU 空转忙等,浪费</td><td><code>uartputc_sync()</code> 里的 <code>while(...)==0;</code> 自旋等待(uart.c:122)</td></tr>
+<tr><td><b>★ 中断驱动</b></td><td>设备好了主动发中断,CPU 收到才去处理</td><td>CPU 可去干别的,效率高 <b>(本课主角)</b></td><td><code>devintr→uartintr→consoleintr</code></td></tr>
+<tr><td>DMA</td><td>整块数据由 DMA 控制器搬,搬完才中断一次</td><td>适合磁盘等大块传输</td><td><code>virtio_disk</code>(磁盘,本课不展开)</td></tr>
+<tr><td>通道</td><td>独立通道处理器执行通道程序</td><td>大型机方案</td><td>(xv6 无)</td></tr>
+</table>
+<div class="callout">
+<b>讲这页的金句:</b>「串口/键盘是<b>字符设备</b>,一次来一个字节,用<b>中断驱动</b>最合适——来一个中断一次,CPU 平时该干嘛干嘛。如果用程序查询,CPU 就得一直盯着串口空转。所以 xv6 输入走中断,这正是课本『中断驱动 I/O』的活教材。」(注意:输出有一份程序查询版 <code>uartputc_sync</code> 专给 panic/printf 用,正好和中断版形成对照。)
+</div>
+
+<h2>2. 逐行讲 <code>devintr()</code> ——「这是哪个设备的中断?」(来自 <code>kernel/trap.c</code>)</h2>
+<p>背景:CPU 收到中断后,硬件跳到内核的陷入处理(<code>usertrap</code>/<code>kerneltrap</code>),它们都调用 <code>devintr()</code> 去辨认中断来源。注释先念:<i>「检查是外部中断还是软件(时钟)中断,并处理它。返回 2=时钟中断,1=其它设备,0=不认识。」</i></p>
+<pre><span class="ln">177</span><span class="kw">int</span>
+<span class="ln">178</span><span class="fn">devintr</span>()
+<span class="ln">179</span>{
+<span class="ln">180</span>  uint64 scause = <span class="fn">r_scause</span>();        <span class="cm">// ① 读「中断原因寄存器」,问硬件:为什么陷进来?</span>
+<span class="ln">181</span>
+<span class="ln">182</span>  <span class="b1"><span class="kw">if</span>((scause &amp; <span class="n">0x8000000000000000L</span>) &amp;&amp;  <span class="cm">// 最高位=1 → 是中断(不是异常/系统调用)</span></span>
+<span class="ln">183</span><span class="b1">     (scause &amp; <span class="n">0xff</span>) == <span class="n">9</span>){            <span class="cm">// 低位=9 → 是「外部中断」(来自外设)</span></span>
+<span class="ln">184</span><span class="b1">    <span class="cm">// this is a supervisor external interrupt, via PLIC.</span></span>
+<span class="ln">185</span><span class="b1"></span>
+<span class="ln">186</span><span class="b1">    <span class="cm">// irq indicates which device interrupted.</span></span>
+<span class="ln">187</span><span class="b1">    <span class="kw">int</span> irq = <span class="fn">plic_claim</span>();          <span class="cm">// ② 问中断控制器 PLIC:到底是几号设备?(取中断号)</span></span>
+<span class="ln">188</span><span class="b1"></span>
+<span class="ln">189</span><span class="b1">    <span class="kw">if</span>(irq == UART0_IRQ){          <span class="cm">// ③ 是串口(UART)的中断号 →</span></span>
+<span class="ln">190</span><span class="b1">      <span class="fn">uartintr</span>();                  <span class="cm">// ★ 派给串口驱动去处理(读字符)</span></span>
+<span class="ln">191</span><span class="b1">    } <span class="kw">else if</span>(irq == VIRTIO0_IRQ){  <span class="cm">// 是磁盘的中断号 →</span></span>
+<span class="ln">192</span><span class="b1">      <span class="fn">virtio_disk_intr</span>();          <span class="cm">// 派给磁盘驱动</span></span>
+<span class="ln">193</span><span class="b1">    } <span class="kw">else if</span>(irq){                <span class="cm">// 认不出的设备号</span></span>
+<span class="ln">194</span><span class="b1">      <span class="fn">printf</span>(<span class="s">"unexpected interrupt irq=%d\n"</span>, irq);</span>
+<span class="ln">195</span><span class="b1">    }</span>
+<span class="ln">196</span><span class="b1"></span>
+<span class="ln">200</span><span class="b1">    <span class="kw">if</span>(irq)</span>
+<span class="ln">201</span><span class="b1">      <span class="fn">plic_complete</span>(irq);          <span class="cm">// ④ 告诉 PLIC:这个设备处理完了,可以再中断了</span></span>
+<span class="ln">202</span><span class="b1"></span>
+<span class="ln">203</span><span class="b1">    <span class="kw">return</span> <span class="n">1</span>;                       <span class="cm">// 返回 1:是某个外设的中断</span></span>
+<span class="ln">204</span><span class="b1">  }</span> <span class="kw">else if</span>(scause == <span class="n">0x8000000000000001L</span>){ <span class="cm">// 否则:是软件(时钟)中断</span>
+<span class="ln">208</span>    <span class="kw">if</span>(<span class="fn">cpuid</span>() == <span class="n">0</span>)
+<span class="ln">209</span>      <span class="fn">clockintr</span>();                  <span class="cm">// 处理时钟滴答</span>
+<span class="ln">214</span>    <span class="fn">w_sip</span>(<span class="fn">r_sip</span>() &amp; ~<span class="n">2</span>);            <span class="cm">// 清中断标志位,应答</span>
+<span class="ln">216</span>    <span class="kw">return</span> <span class="n">2</span>;                       <span class="cm">// 返回 2:时钟中断(上层据此 yield 切换进程)</span>
+<span class="ln">217</span>  } <span class="kw">else</span> {
+<span class="ln">218</span>    <span class="kw">return</span> <span class="n">0</span>;                       <span class="cm">// 都不是:不认识</span>
+<span class="ln">219</span>  }
+<span class="ln">220</span>}</pre>
+
+<h3>把 <code>devintr</code> 拆成「判断来源 + 分发」两件事(这是你讲解的主结构)</h3>
+<table>
+<tr><th>代码</th><th>行</th><th>一句话讲法</th><th>对应课本</th></tr>
+<tr><td><b>读中断原因</b></td><td>180</td><td>「<code>scause</code> 是中断原因寄存器,硬件把『为什么陷进来』写在这里。最高位=1 说明是中断,低 8 位=9 说明是外部设备中断。」</td><td>中断响应 / 中断向量</td></tr>
+<tr><td><b>取中断号</b></td><td>187</td><td>「<code>plic_claim()</code> 向中断控制器 PLIC 要『中断号 irq』,这就是回答<b>『是哪个设备』</b>的关键一步。」</td><td>中断控制器 / 设备识别</td></tr>
+<tr><td><b>★ 分发到驱动</b></td><td>189–195</td><td>「按 irq 分发:是 <code>UART0_IRQ</code> 就调串口驱动 <code>uartintr</code>,是磁盘就调磁盘驱动。这就是<b>设备驱动程序分层</b>的分发点。」</td><td>设备驱动程序</td></tr>
+<tr><td><b>中断应答</b></td><td>200–201</td><td>「<code>plic_complete</code> 告诉 PLIC『我处理完了』,设备才能发下一次中断。」</td><td>中断处理结束</td></tr>
+</table>
+
+<h2>3. 逐行讲 <code>uartintr()</code> → <code>consoleintr()</code> ——读字符 + 唤醒进程</h2>
+
+<h3>3.1 <code>uartintr()</code> ——串口驱动:把硬件里的字符一个个读出来(来自 <code>kernel/uart.c</code>)</h3>
+<p>注释先念:<i>「处理一次 uart 中断:可能是有输入到了,或 uart 准备好继续输出,或两者都有。由 devintr() 调用。」</i></p>
+<pre><span class="ln">175</span><span class="kw">void</span>
+<span class="ln">176</span><span class="fn">uartintr</span>(<span class="kw">void</span>)
+<span class="ln">177</span>{
+<span class="ln">178</span>  <span class="cm">// read and process incoming characters.</span>
+<span class="ln">179</span>  <span class="b1"><span class="kw">while</span>(<span class="n">1</span>){</span>
+<span class="ln">180</span><span class="b1">    <span class="kw">int</span> c = <span class="fn">uartgetc</span>();           <span class="cm">// ① 从串口硬件寄存器读一个字符(读不到返回 -1)</span></span>
+<span class="ln">181</span><span class="b1">    <span class="kw">if</span>(c == -<span class="n">1</span>)</span>
+<span class="ln">182</span><span class="b1">      <span class="kw">break</span>;                      <span class="cm">// 读空了就退出</span></span>
+<span class="ln">183</span><span class="b1">    <span class="fn">consoleintr</span>(c);              <span class="cm">// ★ 把字符交给上层控制台处理</span></span>
+<span class="ln">184</span><span class="b1">  }</span>
+<span class="ln">185</span>
+<span class="ln">186</span>  <span class="cm">// send buffered characters.(顺便处理输出:把发送缓冲里攒的字节送出去)</span>
+<span class="ln">187</span>  <span class="fn">acquire</span>(&amp;uart_tx_lock);
+<span class="ln">188</span>  <span class="fn">uartstart</span>();                    <span class="cm">// ② 输出走「缓冲队列」:uart 空闲就从缓冲里取一个字节发</span>
+<span class="ln">189</span>  <span class="fn">release</span>(&amp;uart_tx_lock);
+<span class="ln">190</span>}</pre>
+<div class="callout">
+<b>讲清「输入来中断、输出走缓冲」(本课重点):</b><br>
+• <b>输入</b>:键盘按一个键 → 串口收到 → 发中断 → <code>uartintr</code> 用 <code>uartgetc()</code> 把字符读出来(180 行),交给 <code>consoleintr</code>。<br>
+• <b>输出</b>:进程 <code>write</code> 时,字符先进发送缓冲 <code>uart_tx_buf[]</code>(uart.c:100, <code>uartputc</code>),并不直接死等硬件;等串口「我能收下一个字节了」再发中断,<code>uartstart()</code>(188 行)从缓冲取一个字节写给硬件。这就是课本说的<b>缓冲技术</b>——用缓冲区把「快的 CPU」和「慢的设备」解耦。
+</div>
+<p><b>配套看 <code>uartgetc()</code>(uart.c:161)——它怎么「读一个字符」:</b></p>
+<pre><span class="ln">161</span><span class="kw">int</span> <span class="fn">uartgetc</span>(<span class="kw">void</span>){
+<span class="ln">164</span>  <span class="kw">if</span>(<span class="fn">ReadReg</span>(LSR) &amp; <span class="n">0x01</span>){    <span class="cm">// 查「线路状态寄存器」:输入就绪位=1?</span>
+<span class="ln">166</span>    <span class="kw">return</span> <span class="fn">ReadReg</span>(RHR);       <span class="cm">// 从「接收保持寄存器」读出那个字节</span>
+<span class="ln">167</span>  } <span class="kw">else</span> {
+<span class="ln">168</span>    <span class="kw">return</span> -<span class="n">1</span>;                 <span class="cm">// 没有数据</span>
+<span class="ln">169</span>  }
+<span class="ln">170</span>}</pre>
+
+<h3>3.2 <code>consoleintr()</code> ——控制台:字符入缓冲,一行到齐就 <code>wakeup</code>(来自 <code>kernel/console.c</code>)</h3>
+<p>注释先念:<i>「控制台输入中断处理。uartintr() 对每个输入字符调用它。做删除/退格处理,追加到 cons.buf,若一整行到了就唤醒 consoleread()。」</i>(只看默认分支这条主线,特殊控制键省略)</p>
+<pre><span class="ln">135</span><span class="kw">void</span>
+<span class="ln">136</span><span class="fn">consoleintr</span>(<span class="kw">int</span> c)
+<span class="ln">137</span>{
+<span class="ln">138</span>  <span class="fn">acquire</span>(&amp;cons.lock);            <span class="cm">// 加锁:中断处理和 read 进程会同时碰 cons 缓冲</span>
+<span class="ln">139</span>
+<span class="ln">140</span>  <span class="kw">switch</span>(c){
+<span class="ln">141</span>  <span class="cm">// case C('P')/C('U')/C('H') ... 特殊键:打印进程表、删行、退格(此处省略)</span>
+<span class="ln">158</span>  <span class="kw">default</span>:
+<span class="ln">159</span>    <span class="b1"><span class="kw">if</span>(c != <span class="n">0</span> &amp;&amp; cons.e-cons.r &lt; INPUT_BUF_SIZE){ <span class="cm">// 普通字符 且 缓冲没满</span></span>
+<span class="ln">160</span><span class="b1">      c = (c == <span class="s">'\r'</span>) ? <span class="s">'\n'</span> : c;   <span class="cm">// 回车统一成换行</span></span>
+<span class="ln">161</span><span class="b1"></span>
+<span class="ln">162</span><span class="b1">      <span class="cm">// echo back to the user.</span></span>
+<span class="ln">163</span><span class="b1">      <span class="fn">consputc</span>(c);                 <span class="cm">// ① 回显:把你敲的字符显示到屏幕</span></span>
+<span class="ln">164</span><span class="b1"></span>
+<span class="ln">165</span><span class="b1">      <span class="cm">// store for consumption by consoleread().</span></span>
+<span class="ln">166</span><span class="b1">      cons.buf[cons.e++ % INPUT_BUF_SIZE] = c; <span class="cm">// ② ★ 字符存入控制台输入缓冲</span></span>
+<span class="ln">167</span><span class="b1"></span>
+<span class="ln">168</span><span class="b1">      <span class="kw">if</span>(c == <span class="s">'\n'</span> || c == <span class="fn">C</span>(<span class="s">'D'</span>) || cons.e-cons.r == INPUT_BUF_SIZE){</span>
+<span class="ln">169</span><span class="b1">        <span class="cm">// 一整行到了(换行)、文件结束、或缓冲满 →</span></span>
+<span class="ln">171</span><span class="b1">        cons.w = cons.e;            <span class="cm">// 把「可读边界 w」推到当前位置</span></span>
+<span class="ln">172</span><span class="b1">        <span class="fn">wakeup</span>(&amp;cons.r);            <span class="cm">// ③ ★★ 唤醒在 consoleread 上睡觉等输入的进程</span></span>
+<span class="ln">173</span><span class="b1">      }</span>
+<span class="ln">174</span><span class="b1">    }</span>
+<span class="ln">175</span>    <span class="kw">break</span>;
+<span class="ln">176</span>  }
+<span class="ln">177</span>
+<span class="ln">178</span>  <span class="fn">release</span>(&amp;cons.lock);
+<span class="ln">179</span>}</pre>
+<div class="callout ok">
+<b>为什么要 <code>wakeup</code>?(高频考点)</b> 进程调用 <code>read()</code> 读键盘时,如果还没输入,它不会忙等,而是在 <code>consoleread()</code> 里 <code>sleep(&amp;cons.r, ...)</code> <b>睡着让出 CPU</b>(console.c:96)。等中断来了、一整行到齐,<code>consoleintr</code> 第 172 行 <code>wakeup(&amp;cons.r)</code> 把它叫醒,它才继续把字符拷给用户。<b>这就是「中断驱动 I/O」的精髓:进程睡着等,设备用中断把它唤醒,全程不浪费 CPU。</b>注意 <code>sleep</code> 和 <code>wakeup</code> 用<b>同一个地址 <code>&amp;cons.r</code></b> 作「等待事件」,这就是它俩能对上的暗号。
+</div>
+<p><b>对照看 <code>consoleread()</code> 的睡眠点(console.c:91-97):</b></p>
+<pre><span class="ln">91</span>    <span class="kw">while</span>(cons.r == cons.w){          <span class="cm">// 没有新数据可读</span>
+<span class="ln">96</span>      <span class="fn">sleep</span>(&amp;cons.r, &amp;cons.lock);     <span class="cm">// ★ 睡在 &amp;cons.r 上,等中断 wakeup</span>
+<span class="ln">97</span>    }
+<span class="ln">99</span>    c = cons.buf[cons.r++ % INPUT_BUF_SIZE]; <span class="cm">// 醒来后从缓冲取字符</span></pre>
+
+<h2>4. 一张图:一个字符从键盘到进程的完整旅程(PPT 核心页)</h2>
+<div class="diagram">  ┌─────────┐  按键      ┌──────────┐  数据就绪→拉中断线  ┌──────┐
+  │ 键盘/串口 │ ────────► │ UART 硬件 │ ─────────────────► │ PLIC │ (中断控制器)
+  └─────────┘            └──────────┘                     └──┬───┘
+                                                            │ 通知 CPU
+                                                            ▼
+  CPU 收到中断 → 陷入内核 usertrap()/kerneltrap()  ──调用──►  devintr()   [trap.c:178]
+                                                            │
+                          ① r_scause(): 是外部中断吗?是 ──┤
+                          ② plic_claim(): 是哪个设备? irq ─┤
+                          ③ irq == UART0_IRQ ? ────是────►  uartintr()    [uart.c:176]
+                                                            │
+                          uartgetc() 从硬件读出字符 c ──────►  consoleintr(c) [console.c:136]
+                                                            │
+                          字符存入 cons.buf;一行到齐 ──────►  wakeup(&cons.r)
+                                                            │
+                          ④ plic_complete(irq): 应答 PLIC    ▼
+                                                       睡在 read 上的进程被唤醒
+                                                       consoleread() 取走字符 → 返回用户
+
+  分层(设备驱动程序分层): trap(陷入层) → devintr(中断分发层) → uartintr(设备驱动层) → consoleintr(控制台逻辑层)</div>
+
+<h2>5. 8–10 分钟讲稿(逐字稿)</h2>
+<div class="script"><b>🎤 7 段,撑满 8–10 分钟。时间紧就砍第 6 段(输出/缓冲),只讲输入这条线(见 §8 砍版)。</b></div>
+<div class="timeline">
+<div class="t">0:00–1:00</div><div class="c"><b>【开场+主线】</b>「老师好。我精讲 xv6 的设备中断与驱动,以串口/控制台为例,对应课本第 5 章<b>中断驱动 I/O</b>。一句话主线:<b>设备有数据时发中断,内核的 <code>devintr</code> 判断是哪个设备的中断,交给对应驱动 <code>uartintr</code> 读字符,再由 <code>consoleintr</code> 入缓冲并唤醒等待的进程。</b>我会逐行讲三个函数,随时指回课本。」</div>
+<div class="t">1:00–2:00</div><div class="c"><b>【背景:为什么用中断】</b>对照课本四种 I/O 控制方式:程序查询要 CPU 忙等空转;中断驱动是设备主动敲门,CPU 平时干别的。「串口是字符设备一次来一字节,中断驱动最合适。xv6 输入正是这么做的。」(可指 <code>uartputc_sync</code> 的自旋说『这是查询式,只给 panic 用』作反例。)</div>
+<div class="t">2:00–4:00</div><div class="c"><b>【devintr 逐行】</b>讲 trap.c:180-203:① <code>r_scause()</code> 读中断原因,最高位=1 是中断、低位=9 是外部中断;② <code>plic_claim()</code> 取中断号 irq,这就是『判断哪个设备』;③ <code>if(irq==UART0_IRQ) uartintr()</code> 是分发到驱动;④ <code>plic_complete</code> 应答。「这就是设备驱动程序的<b>分发层</b>。」</div>
+<div class="t">4:00–5:30</div><div class="c"><b>【uartintr 逐行】</b>讲 uart.c:179-184:<code>while</code> 循环 <code>uartgetc()</code> 从硬件寄存器一个个读字符(读空返回 -1 退出),每读一个就 <code>consoleintr(c)</code> 交给上层。「这是<b>设备驱动层</b>,直接和硬件寄存器打交道。」</div>
+<div class="t">5:30–7:00</div><div class="c"><b>【consoleintr 逐行 + wakeup】</b>讲 console.c:163-172:回显 → 字符存入 <code>cons.buf</code> → <b>遇到换行(一整行到齐)就 <code>wakeup(&cons.r)</code></b>。点睛:「进程 read 没数据时是 <code>sleep</code> 睡着的,中断来了把它<b>唤醒</b>——全程不忙等,这就是中断驱动的精髓。」</div>
+<div class="t">7:00–8:30</div><div class="c"><b>【输入来中断 / 输出走缓冲】</b>「输入靠中断;输出 <code>uartputc</code> 先把字符放进<b>发送缓冲</b> <code>uart_tx_buf</code>,不死等硬件,等串口就绪再中断、<code>uartstart</code> 取一个发出去。这就是课本的<b>缓冲技术</b>:把快 CPU 和慢设备解耦。」</div>
+<div class="t">8:30–10:00</div><div class="c"><b>【收尾·分层】</b>「这条线把课本概念全串起来了:中断驱动 I/O(整体模型)、中断控制器 PLIC(设备识别)、<b>设备驱动程序分层</b>(trap→devintr→uartintr→consoleintr 一层层往上)、缓冲技术(输出缓冲)、以及进程同步的 sleep/wakeup。一段代码,讲透半章。谢谢老师。」</div>
+</div>
+
+<h2>6. 答辩:老师可能问的 10 题(每题给标准答法)</h2>
+<p class="big"><b>逐行讲源码,老师最爱指着某一行问「这行干嘛」,或问「这属于课本哪个概念」。下面是高危题的标准答法。</b></p>
+
+<div class="q"><b>Q1.</b> 中断驱动比程序查询(轮询)好在哪?<span class="pill high">必答</span><br>
+<b>答:</b>程序查询时 CPU 要<b>反复读状态寄存器忙等</b>,设备慢的时候 CPU 全在空转,浪费。中断驱动是<b>设备就绪后主动发中断</b>,CPU 平时可以去执行别的进程,中断来了才花一点时间处理。所以中断驱动<b>大幅提高了 CPU 利用率和并发度</b>,这也是它取代纯轮询的根本原因。</div>
+
+<div class="q"><b>Q2.</b> <code>devintr</code> 怎么知道是哪个设备的中断?<span class="pill high">高危</span><br>
+<b>答:</b>两步。第一步 <code>r_scause()</code> 读中断原因寄存器,确认这是<b>外部设备中断</b>(最高位=1 且低 8 位=9)。第二步 <code>plic_claim()</code> 向<b>中断控制器 PLIC</b> 要一个<b>中断号 irq</b>,每个设备有固定的 irq(串口是 <code>UART0_IRQ</code>、磁盘是 <code>VIRTIO0_IRQ</code>)。代码用 <code>if(irq==UART0_IRQ)</code> 一比对就知道是谁,再分发给对应驱动。</div>
+
+<div class="q"><b>Q3.</b> 读到字符后为什么要 <code>wakeup</code>?<span class="pill high">高危</span><br>
+<b>答:</b>因为进程 <code>read</code> 键盘但还没输入时,它在 <code>consoleread()</code> 里 <code>sleep</code> <b>睡着让出了 CPU</b>(不忙等)。中断处理把字符入缓冲、一整行到齐后,必须用 <code>wakeup(&cons.r)</code> 把那个睡着的进程<b>叫醒</b>,它才能继续读走数据。<code>sleep</code> 和 <code>wakeup</code> 用同一个地址 <code>&cons.r</code> 配对。这正是中断驱动 I/O 里「进程阻塞等待、设备中断唤醒」的标准配合。</div>
+
+<div class="q"><b>Q4.</b> 这套流程属于课本四种 I/O 控制方式中的哪一种?<span class="pill high">必答</span><br>
+<b>答:</b>属于<b>中断驱动(中断控制)方式</b>。判据:设备就绪靠中断通知 CPU(不是程序查询的忙等),且数据是一个字符一个字符由 CPU 在中断里搬运(不是 DMA 整块搬)。串口/键盘这类字符设备正适合中断驱动。</div>
+
+<div class="q"><b>Q5.</b> 设备驱动程序在这套流程的哪一层?分了几层?<span class="pill high">高危</span><br>
+<b>答:</b>从下到上四层:<b>① 陷入层</b> <code>usertrap/kerneltrap</code>(硬件中断进内核的统一入口)→ <b>② 中断分发层</b> <code>devintr</code>(辨认是哪个设备、分发)→ <b>③ 设备驱动层</b> <code>uartintr</code>/<code>uartgetc</code>(直接读写 UART 硬件寄存器,这才是狭义的「设备驱动程序」)→ <b>④ 设备无关的控制台逻辑层</b> <code>consoleintr</code>/<code>consoleread</code>(缓冲、行编辑、与进程交互)。分层好处:上层不用关心硬件细节,换个设备只改驱动层。</div>
+
+<div class="q"><b>Q6.</b> 指着 trap.c:180 <code>r_scause()</code> 问:这行干嘛?<span class="pill mid">高危</span><br>
+<b>答:</b><code>scause</code> 是 RISC-V 的<b>中断原因寄存器</b>。CPU 陷入内核时硬件会把「为什么陷进来」写进它。<code>devintr</code> 读它来区分:最高位=1 表示是中断(否则是异常/系统调用),低 8 位=9 表示是<b>外部设备中断</b>,=1(配合那个常量)表示时钟中断。它是辨认中断来源的第一手依据。</div>
+
+<div class="q"><b>Q7.</b> 「输入来中断,输出走缓冲」是什么意思?用了课本哪个技术?<span class="pill mid">易问</span><br>
+<b>答:</b>输入:键盘来字符靠<b>中断</b>触发 <code>uartintr</code> 去读。输出:进程 <code>write</code> 时,<code>uartputc</code> 把字符先放进<b>发送缓冲队列</b> <code>uart_tx_buf</code> 就返回,不死等硬件;等串口就绪发中断,<code>uartstart</code> 再从缓冲取字节发出。这用的是课本的<b>缓冲技术</b>,目的是缓和「CPU 快、I/O 设备慢」的速度矛盾,让进程不被慢设备拖住。</div>
+
+<div class="q"><b>Q8.</b> 处理完中断为什么要调 <code>plic_complete(irq)</code>?<span class="pill mid">进阶</span><br>
+<b>答:</b>PLIC 规定一个设备同一时刻最多挂起一个中断。<code>plic_claim</code> 取走中断号后,该设备的中断被「占用」;只有调 <code>plic_complete(irq)</code> <b>告诉 PLIC 这次处理完了</b>,这个设备才被允许再次发中断。漏掉它,该设备就再也中断不了了。这是中断的<b>应答/结束</b>环节。</div>
+
+<div class="q"><b>Q9.</b> <code>consoleintr</code> 第 138 行为什么要 <code>acquire(&cons.lock)</code> 加锁?<span class="pill mid">进阶</span><br>
+<b>答:</b>因为<b>中断处理程序</b>和<b>普通进程的 <code>consoleread</code></b> 会同时访问同一个 <code>cons.buf</code> 及读写指针。不加锁,中断在 read 改指针的半途插进来,缓冲就会被写坏(竞态)。加自旋锁保证对缓冲的访问是<b>互斥</b>的,这是课本「临界资源 / 进程同步」在驱动里的体现。</div>
+
+<div class="q"><b>Q10.</b> 为什么 <code>consoleintr</code> 不是每来一个字符就唤醒,而是等换行?<span class="pill mid">对比</span><br>
+<b>答:</b>因为 xv6 控制台是<b>行缓冲</b>(line at a time):一行没结束前,用户还可能退格修改。所以只在遇到换行 <code>\n</code>、文件结束符或缓冲满时才把可读边界 <code>cons.w=cons.e</code> 推进并 <code>wakeup</code>,让 <code>read</code> 一次拿到一整行。这减少了无谓的唤醒,也符合终端「按回车才提交一行」的使用习惯。</div>
+
+<h2>7. 临场应急</h2>
+<div class="callout warn"><b>🆘 老师问到 <code>PLIC</code>/<code>scause</code> 的硬件细节你没把握:</b>诚实说「PLIC 是 RISC-V 的平台级中断控制器,负责把多个外设的中断汇聚、分配中断号给 CPU;我这次聚焦中断进内核后『判断来源→分发→读字符→唤醒』这条软件主线」。<b>守住你讲的那条线,别被硬件细节带偏。</b></div>
+<div class="callout"><b>🆘 被问哪行而卡住:</b>三步——「这行属于<b>哪一层</b>(devintr 分发 / uartintr 驱动 / consoleintr 控制台)→ 它在做<b>判断来源、读字符、还是唤醒</b> → 对应课本哪个概念(中断驱动 / 驱动分层 / 缓冲 / sleep-wakeup)」。</div>
+
+<h2>8. 彩排 Checklist(今晚)</h2>
+<div class="checklist">
+<label><input type="checkbox"> 1. <b>能不看注释</b>讲出三段:devintr 判断来源+分发 / uartintr 读字符 / consoleintr 入缓冲+wakeup</label><br>
+<label><input type="checkbox"> 2. 高危行能脱口说出「干嘛+哪一层+对应课本」:<b>trap.c 180 / 187 / 189-190</b>、<b>uart.c 180 / 183</b>、<b>console.c 166 / 172</b></label><br>
+<label><input type="checkbox"> 3. <b>背下主线一句话</b>:设备发中断 → devintr 判断哪个设备 → uartintr 读字符 → consoleintr 入缓冲+唤醒进程</label><br>
+<label><input type="checkbox"> 4. 能说清 <b>sleep/wakeup 配对</b>:consoleread 在 <code>&cons.r</code> 上 sleep,consoleintr 在 <code>&cons.r</code> 上 wakeup</label><br>
+<label><input type="checkbox"> 5. 能对照<b>四种 I/O 控制方式</b>,说出本课为什么是「中断驱动」(对比程序查询/DMA)</label><br>
+<label><input type="checkbox"> 6. 能说出<b>四层分层</b>:trap → devintr → uartintr → consoleintr,及「换设备只改驱动层」的好处</label><br>
+<label><input type="checkbox"> 7. 讲稿<b>出声读 3 遍</b> + 卡时间(目标 8–10 分钟)</label><br>
+<label><input type="checkbox"> 8. <b>答辩 10 题</b>过一遍,高危题 Q2/Q3/Q5/Q6 各两遍</label><br>
+<label><input type="checkbox"> 9. 电脑上<b>打开真实文件</b>:<code>trap.c</code>(devintr:178)、<code>uart.c</code>(uartintr:176)、<code>console.c</code>(consoleintr:136),明天可带着</label><br>
+<label><input type="checkbox"> 10. 睡好觉</label>
+</div>
+
+<h3>时间不够的「5 分钟砍版」</h3>
+<div class="callout ok">
+只讲<b>输入这一条最短闭环</b>,砍掉输出/缓冲细节:<br>
+① 主线一句话 + 为什么用中断(对比轮询)→
+② <code>devintr</code>:<code>scause</code> 判断 + <code>plic_claim</code> 取号 + 分发到 <code>uartintr</code> →
+③ <code>uartintr</code>:循环 <code>uartgetc</code> 读字符 → <code>consoleintr</code> →
+④ <code>consoleintr</code>:入缓冲 + 一行到齐 <code>wakeup</code> →
+⑤ 收尾:这就是课本「中断驱动 I/O」+「驱动分层」的真代码。<br>
+被问到缓冲/输出再临场展开 Q7。<b>讲透一条输入线,远胜三条线都发虚。</b>
+</div>
+
+<footer>
+第 28 课 · Ch5 设备管理 · xv6 设备中断逐行精讲 ·
+姊妹篇(文件系统索引)→ <a href="./0021-xv6-bmap-source-walkthrough.html">第 21 课 bmap()</a><br>
+源码出处:<code>kernel/trap.c:178</code>(devintr)、<code>kernel/uart.c:176</code>(uartintr)、<code>kernel/uart.c:161</code>(uartgetc)、<code>kernel/uart.c:87</code>(uartputc 输出缓冲)、<code>kernel/console.c:136</code>(consoleintr)、<code>kernel/console.c:80</code>(consoleread,sleep:96)。常量:UART0_IRQ(串口中断号)、INPUT_BUF_SIZE=128(控制台输入缓冲)、UART_TX_BUF_SIZE=32(串口发送缓冲)。
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 24 课 · xv6 syscall() 逐行源码精讲(讲稿+答辩) · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --codebg:#272b33; --codefg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:40px 28px 80px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:24px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:34px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:8px 0}
+  ul,ol{padding-left:22px} li{margin:4px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{background:var(--codebg); color:var(--codefg); border-radius:8px; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; line-height:1.7; margin:12px 0}
+  pre .ln{color:#6f7681; user-select:none; display:inline-block; width:2.2em; text-align:right; margin-right:1em}
+  pre .kw{color:#c678dd} pre .fn{color:#61afef} pre .cm{color:#7d8590; font-style:italic}
+  pre .n{color:#e0a45e} pre .s{color:#98c379} pre .b1{background:#33402f}  pre .b2{background:#2f3a40}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  td code{font-size:12.5px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 14px; border-radius:4px; margin:14px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:#f1f9f4}
+  .q{background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px 14px; margin:10px 0}
+  .q b{color:var(--accent)}
+  .pill{display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; background:#eee; margin-left:4px}
+  .pill.high{background:#fde2dd; color:#8a1c11}
+  .pill.mid{background:#fff0d6; color:#7a4a00}
+  .script{background:#f3f7ec; border:1px dashed #5d7a00; padding:14px 16px; border-radius:6px; margin:14px 0; font-size:15px; line-height:1.85}
+  .timeline{display:grid; grid-template-columns:78px 1fr; gap:6px 12px; font-size:14px; margin:14px 0}
+  .timeline .t{color:var(--accent); font-weight:bold}
+  .timeline .c{background:#fff; padding:8px 12px; border:1px solid var(--line); border-radius:4px}
+  .checklist{background:#fff; border:1px solid var(--ok); border-left:4px solid var(--ok); padding:14px 16px; border-radius:4px; margin:14px 0}
+  .diagram{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.55; background:#fff; border:1px solid var(--line); border-radius:6px; padding:14px 16px; white-space:pre; overflow-x:auto}
+  .big{font-size:15px}
+  footer{margin-top:60px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--accent); text-decoration:none} a:hover{text-decoration:underline}
+  @media print{ body{background:#fff;font-size:13px} .wrap{padding:12mm;max-width:none} pre{background:#f0eee4;color:#222} h2{break-after:avoid} table,.q,.timeline .c{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 24 课 · Ch1 操作系统引论 · 逐行源码精讲 + 答辩</p>
+  <h1>xv6 系统调用机制逐行精讲<br><code>syscall()</code> ——用户态如何陷入内核、内核如何按调用号分发</h1>
+  <p class="sub">明天目标:对着真实 C 代码逐行讲 8–10 分钟,答得住追问 · 源码:<code>xv6-riscv/kernel/syscall.c</code></p>
+</header>
+
+<div class="callout">
+<b>🎯 这份稿子可以独立上场。</b> 它把课本第 1 章「<b>程序接口 = 系统调用</b>」这个抽象概念,落到一段真实的内核代码:<code>syscall()</code> 函数。<b>逐行讲代码 + 随时指回课本概念</b>(用户态/核心态、陷入指令 trap、特权指令、系统调用号),就是“讲解 + 答辩”的满分形态。
+</div>
+
+<h2>0. 先记这句主线(讲偏了就拉回来)</h2>
+<div class="callout ok big">
+<b>“用户程序把要调用的<u>系统调用号</u>放进寄存器 <code>a7</code>,执行 <code>ecall</code> 触发<u>陷入(trap)</u>进入内核;内核的 <code>syscall()</code> 拿这个号去函数指针表 <code>syscalls[]</code> 里<u>查表</u>,找到对应的内核函数 <code>sys_xxx</code> 并调用,把返回值写回 <code>a0</code> 交给用户。”</b>
+</div>
+<div class="callout">
+<b>🍽️ ELI5 比喻(开场可以用):</b>“这就像餐厅点餐——你不会冲进后厨自己炒菜(用户态不能直接碰硬件),你只把<b>菜单号</b>报给服务员(把系统调用号放进 <code>a7</code>),按一下铃(<code>ecall</code> 陷入)。后厨(内核)按号查菜谱(<code>syscalls[]</code> 表)做菜,做好把菜端回你桌上(返回值放进 <code>a0</code>)。报的号不存在,后厨就回你‘没这道菜’(返回 <code>-1</code>)。”
+</div>
+
+<h2>1. 背景:用户态 / 核心态与“陷入”(引出 a7、a0)</h2>
+<p>课本第 1 章讲:CPU 有两种运行状态——<b>用户态</b>(目态)和<b>核心态</b>(管态)。这是理解系统调用的前提:</p>
+<table>
+<tr><th>状态</th><th>谁在跑</th><th>能干什么</th></tr>
+<tr><td><b>用户态</b>(目态)</td><td>普通应用程序</td><td>不能执行特权指令、不能直接访问硬件、不能访问内核空间</td></tr>
+<tr><td><b>核心态</b>(管态)</td><td>操作系统内核</td><td>执行特权指令、访问硬件、管理内存、处理中断</td></tr>
+</table>
+<p>用户程序想读文件、想创建进程,都得借内核之手。<b>它怎么“喊”内核?</b> 不能直接 <code>call</code> 一个内核函数(那是跨特权级,硬件不允许),只能用课本说的<b>「陷入指令 trap」</b>。在 RISC-V 上这条指令叫 <code>ecall</code>。</p>
+
+<h3>用户侧入口:库函数其实只有 3 行汇编</h3>
+<p>课本说“高级语言提供与系统调用<b>一一对应的库函数</b>”。在 xv6 里,这些库函数(stub)由 <code>user/usys.pl</code> 脚本自动生成,每个就 3 行:</p>
+<pre><span class="ln">9</span><span class="kw">sub</span> entry {                 <span class="cm">// usys.pl:为每个系统调用生成一段汇编 stub</span>
+<span class="ln">13</span>    print <span class="s">" li a7, SYS_${name}\n"</span>; <span class="cm">// ① 把“系统调用号”装进 a7 寄存器</span>
+<span class="ln">14</span>    print <span class="s">" ecall\n"</span>;            <span class="cm">// ② ecall = 陷入指令 trap,切到核心态</span>
+<span class="ln">15</span>    print <span class="s">" ret\n"</span>;              <span class="cm">// ③ 内核返回后,带着 a0 里的结果回到用户程序</span>
+}</pre>
+<div class="callout">
+<b>讲这页时说:</b>“你在 C 里写的 <code>getpid()</code>,展开后就是这 3 行:<b>把号填进 a7 → ecall 陷入 → 回来</b>。<code>li a7, SYS_getpid</code> 这一句,就是课本说的‘库函数与系统调用一一对应’——库函数干的活,核心就是<b>替你把系统调用号填好、按下陷入指令</b>。”
+</div>
+
+<h3>系统调用号:一个 #define 数字</h3>
+<p>所谓“系统调用号”,就是 <code>kernel/syscall.h</code> 里一串 <code>#define</code>——每个系统调用配一个整数编号:</p>
+<pre><span class="ln">1</span><span class="cm">// System call numbers — 每个系统调用一个号</span>
+<span class="ln">2</span><span class="kw">#define</span> SYS_fork    <span class="n">1</span>
+<span class="ln">3</span><span class="kw">#define</span> SYS_exit    <span class="n">2</span>
+<span class="ln">11</span><span class="kw">#define</span> SYS_getpid <span class="n">11</span>      <span class="cm">// getpid 的号是 11</span>
+<span class="ln">16</span><span class="kw">#define</span> SYS_open   <span class="n">15</span>
+<span class="ln">22</span><span class="kw">#define</span> SYS_close  <span class="n">21</span></pre>
+<p>记住这个号:用户侧 <code>li a7, SYS_getpid</code> 就是把 <b>11</b> 装进 <code>a7</code>。内核侧 <code>syscall()</code> 待会儿就拿这个 11 去查表。<b>a7 是“点菜单号”,a0 是“上菜口”。</b></p>
+
+<h2>2. 逐行讲 <code>syscall()</code>(来自 <code>kernel/syscall.c</code>)</h2>
+<p>背景注释先念:<i>“陷入进内核后,trap 处理流程最终会调到 <code>syscall()</code>。它的任务:看 a7 里是哪个号,把活派给对应的内核函数。”</i> 这是<b>本课的核心代码,只有 16 行</b>:</p>
+<pre><span class="ln">131</span><span class="kw">void</span>
+<span class="ln">132</span><span class="fn">syscall</span>(<span class="kw">void</span>)
+<span class="ln">133</span>{
+<span class="ln">134</span>  <span class="kw">int</span> num;
+<span class="ln">135</span>  <span class="kw">struct</span> proc *p = <span class="fn">myproc</span>();          <span class="cm">// 取当前进程</span>
+<span class="ln">136</span>
+<span class="ln">137</span>  <span class="b1">num = p->trapframe->a7;</span>               <span class="cm">// ★① 从 a7 取出“系统调用号”</span>
+<span class="ln">138</span>  <span class="b2"><span class="kw">if</span>(num &gt; <span class="n">0</span> &amp;&amp; num &lt; <span class="fn">NELEM</span>(syscalls) &amp;&amp; syscalls[num]) {</span> <span class="cm">// ★② 号合法 且 表里有这个函数</span>
+<span class="ln">139</span>    <span class="cm">// Use num to lookup the system call function for num, call it,</span>
+<span class="ln">140</span>    <span class="cm">// and store its return value in p-&gt;trapframe-&gt;a0</span>
+<span class="ln">141</span>    <span class="b1">p->trapframe->a0 = syscalls[num]();</span>  <span class="cm">// ★③ 查表分发 + 调用,返回值写回 a0</span>
+<span class="ln">142</span>  } <span class="kw">else</span> {
+<span class="ln">143</span>    <span class="fn">printf</span>(<span class="s">"%d %s: unknown sys call %d\n"</span>,
+<span class="ln">144</span>            p->pid, p->name, num);
+<span class="ln">145</span>    <span class="b1">p->trapframe->a0 = -<span class="n">1</span>;</span>             <span class="cm">// ★④ 非法号 → 返回 -1 给用户</span>
+<span class="ln">146</span>  }
+<span class="ln">147</span>}</pre>
+
+<h3>把 16 行切成“四步命运”讲(这是你讲解的主结构)</h3>
+<table>
+<tr><th>步骤</th><th>行</th><th>一句话讲法</th><th>对应课本</th></tr>
+<tr><td><b>① 取号</b></td><td>137</td><td>“<code>p-&gt;trapframe</code> 是陷入时保存下来的用户寄存器快照。<code>a7</code> 就是用户刚才填的菜单号,这里把它读出来。”</td><td>系统调用号</td></tr>
+<tr><td><b>② 校验</b></td><td>138</td><td>“检查号 <b>大于 0</b>、<b>小于表长</b>(<code>NELEM</code> 算数组元素个数)、并且<b>表里那一格非空</b>。三道关,防止用户乱报一个号让内核跑飞。”</td><td>系统调用的安全检查</td></tr>
+<tr><td><b>③ 查表分发</b></td><td>141</td><td>“<code>syscalls[num]</code> 取出函数指针,后面 <code>()</code> 就是调用它;返回值直接赋给 <code>a0</code>。<b>一个数字 → 一个内核函数 → 返回值回写,全在这一行。</b>”</td><td>程序接口/服务分发</td></tr>
+<tr><td><b>④ 出错</b></td><td>143–145</td><td>“号非法就打印警告,并把 <code>a0</code> 设成 <code>-1</code>。用户程序回去一看返回值是 -1,就知道调用失败了。”</td><td>系统调用返回值约定</td></tr>
+</table>
+
+<h2>3. 核心:<code>syscalls[]</code> 怎么把“一个数字”变成“一个内核函数”</h2>
+<p>第 141 行 <code>syscalls[num]()</code> 是全课的灵魂。它能成立,靠的是顶部这张<b>函数指针数组</b>(来自 <code>kernel/syscall.c</code>):</p>
+<pre><span class="ln">105</span><span class="cm">// An array mapping syscall numbers from syscall.h</span>
+<span class="ln">106</span><span class="cm">// to the function that handles the system call.</span>
+<span class="ln">107</span><span class="kw">static</span> uint64 (*syscalls[])(<span class="kw">void</span>) = {  <span class="cm">// ★ 一个“函数指针数组”:下标=调用号,元素=内核函数</span>
+<span class="ln">108</span>[SYS_fork]    sys_fork,                <span class="cm">// 下标 1  → sys_fork</span>
+<span class="ln">109</span>[SYS_exit]    sys_exit,                <span class="cm">// 下标 2  → sys_exit</span>
+<span class="ln">118</span>[SYS_getpid]  sys_getpid,              <span class="cm">// 下标 11 → sys_getpid</span>
+<span class="ln">122</span>[SYS_open]    sys_open,                <span class="cm">// 下标 15 → sys_open</span>
+<span class="ln">128</span>[SYS_close]   sys_close,               <span class="cm">// 下标 21 → sys_close</span>
+<span class="ln">129</span>};</pre>
+<div class="callout">
+<b>讲法(答辩金句):</b>“<code>uint64 (*syscalls[])(void)</code> 读作‘一个数组,每个元素是<b>指向「无参、返回 uint64」的函数的指针</b>’。<code>[SYS_getpid] sys_getpid</code> 是 C 的<b>指定初始化器</b>,意思是‘把数组第 <code>SYS_getpid</code>(=11)格,填上 <code>sys_getpid</code> 这个函数的地址’。于是 <code>syscalls[11]</code> 就是 <code>sys_getpid</code>。<b>这张表,就是课本说的‘系统调用号’到‘服务程序’的映射——用 C 的语言写出来,就是一个数组下标查找。</b>”
+</div>
+<div class="callout ok">
+<b>为什么用函数指针数组,而不是一长串 if/switch?</b> 21 个系统调用,若写成 <code>if(num==1) sys_fork(); else if(num==2)...</code> 要 21 个分支,慢且难维护。用数组,<b>查表是 O(1) 一步到位</b>,加一个系统调用只要在表里加一行——这就是“用数据结构代替控制流”的经典做法。
+</div>
+
+<h3>派到的内核函数长什么样:以 <code>sys_getpid</code> 为例</h3>
+<p>表里指向的 <code>sys_xxx</code> 函数,才是真正干活的。最简单的一个(来自 <code>kernel/sysproc.c</code>):</p>
+<pre><span class="ln">18</span>uint64
+<span class="ln">19</span><span class="fn">sys_getpid</span>(<span class="kw">void</span>)
+<span class="ln">20</span>{
+<span class="ln">21</span>  <span class="kw">return</span> <span class="fn">myproc</span>()->pid;        <span class="cm">// 返回当前进程的 pid,这个返回值会被写进 a0</span>
+<span class="ln">22</span>}</pre>
+<p>带参数的系统调用(如 <code>sys_exit(int n)</code>)又怎么拿到参数?用 <code>syscall.c</code> 里的辅助函数 <code>argint / argaddr</code>,它们去 <b>a0~a5</b> 寄存器里取(用户陷入前把参数放在那):</p>
+<pre><span class="ln">56</span><span class="kw">void</span>
+<span class="ln">57</span><span class="fn">argint</span>(<span class="kw">int</span> n, <span class="kw">int</span> *ip)        <span class="cm">// 取第 n 个整型参数</span>
+<span class="ln">58</span>{
+<span class="ln">59</span>  *ip = <span class="fn">argraw</span>(n);              <span class="cm">// argraw(n) 按 n 返回 a0/a1/.../a5</span>
+<span class="ln">60</span>}</pre>
+<div class="callout">
+<b>一句话串起来:</b>“调用号走 <code>a7</code>,参数走 <code>a0~a5</code>,返回值走 <code>a0</code>。这套‘谁放哪个寄存器’的约定,就是<b>系统调用的调用约定(ABI)</b>——用户和内核约好的暗号。”
+</div>
+
+<h2>4. 一张图:一次系统调用的完整旅程(PPT 核心页)</h2>
+<div class="diagram">  【用户态 / 目态】                           【核心态 / 管态】
+  用户程序  getpid()
+       │
+       │  li a7, 11        ← 把系统调用号 11 放进 a7
+       │  ecall            ← 陷入指令 trap:用户态 ──切换──► 核心态
+       └────────────────────────────────►  (trap 处理流程)
+                                                 │
+                                            syscall()
+                                                 │
+                                  num = p->trapframe->a7   (取号 = 11)
+                                                 │
+                                  num 合法 且 syscalls[11] 非空 ?
+                                                 │是
+                                  a0 = syscalls[11]()  ──► sys_getpid()
+                                                 │              │
+                                                 │◄──── 返回 pid ┘
+                                  把返回值写进 a0
+                                                 │
+       ┌────────────────────────────────◄ 返回用户态(sret),恢复寄存器
+       │
+   ret 回到用户程序,a0 里就是 pid     ← 用户拿到“上菜口”a0 的结果
+
+  非法号:打印 "unknown sys call" 并把 a0 设为 -1 ──► 用户看到返回 -1</div>
+
+<h2>5. 8–10 分钟讲稿(逐字稿)</h2>
+<div class="script"><b>🎤 7 段。把“取号 → 校验 → 查表分发 → 回写 a0”讲透,撑满 8–10 分钟。时间紧砍掉第 5 段(辅助函数)。</b></div>
+<div class="timeline">
+<div class="t">0:00–1:10</div><div class="c"><b>【开场+主线】</b>“老师好。我用 xv6 内核的真实代码,讲清课本第 1 章的核心概念——<b>程序接口,也就是系统调用,是用户程序获取操作系统服务的唯一途径</b>。我聚焦一个函数:<code>syscall()</code>。一句话主线:<b>用户把系统调用号放进 a7、用 ecall 陷入内核;内核的 syscall() 拿这个号查 syscalls[] 表,找到对应函数调用,返回值写回 a0</b>。我会逐行讲,并随时指回课本。”可补一句餐厅点餐比喻。</div>
+<div class="t">1:10–2:30</div><div class="c"><b>【背景:两态 + 陷入】</b>讲用户态/核心态的区别:用户态不能执行特权指令、不能碰硬件,所以想要服务必须用<b>陷入指令 trap</b>(RISC-V 里是 <code>ecall</code>)跨进核心态。引出:用户怎么告诉内核“要哪个服务”?——靠 <b>a7 里的系统调用号</b>。</div>
+<div class="t">2:30–3:30</div><div class="c"><b>【用户侧 stub + 调用号】</b>给老师看 <code>usys.pl</code> 生成的 3 行:<code>li a7, SYS_getpid</code> / <code>ecall</code> / <code>ret</code>。“你写的库函数 getpid() 展开就是这个——<b>填号、陷入、回来</b>。这正是课本说的‘库函数与系统调用一一对应’。” 再点 <code>syscall.h</code>:号就是一串 #define,getpid 是 11。</div>
+<div class="t">3:30–5:30</div><div class="c"><b>【逐行讲 syscall()】</b>核心段。逐行讲 137–146:<br>① <code>num = p-&gt;trapframe-&gt;a7</code> 取号;<br>② <code>if(num&gt;0 &amp;&amp; num&lt;NELEM(syscalls) &amp;&amp; syscalls[num])</code> 三道校验;<br>③ <code>p-&gt;trapframe-&gt;a0 = syscalls[num]()</code>——“<b>查表 + 调用 + 回写,全在这一行</b>”;<br>④ else 分支返回 -1。强调:这 16 行就是“按号分发”的全部。</div>
+<div class="t">5:30–7:00</div><div class="c"><b>【syscalls[] 函数指针表】</b>翻到第 107 行的表。“<code>uint64 (*syscalls[])(void)</code> 是函数指针数组,下标是调用号、元素是内核函数地址。<code>[SYS_getpid] sys_getpid</code> 把第 11 格填成 sys_getpid。<b>这就是课本‘系统调用号 → 服务程序’的映射在代码里的样子。</b>用数组查表,比一长串 if/else 快、好维护。” 顺带给老师看 <code>sys_getpid</code> 就是 <code>return myproc()-&gt;pid</code>。</div>
+<div class="t">7:00–8:30</div><div class="c"><b>【系统调用 vs 库函数/普通调用】</b>课本高频考点。“<b>普通函数调用</b>是同一特权级里的 <code>call</code>,不切状态;<b>系统调用</b>必须经 <code>ecall</code> 陷入、<b>从用户态切到核心态</b>,代价大但安全。<b>库函数</b>只是对系统调用的封装(那 3 行 stub),它本身在用户态,真正进内核的是 ecall。” 这段是答辩的命门,务必讲清。</div>
+<div class="t">8:30–10:00</div><div class="c"><b>【收尾】</b>“所以这一个函数,把课本一整节连起来了:<b>a7 是系统调用号、ecall 是陷入指令、用户态/核心态是两个特权级、syscalls[] 是号到服务的映射、a0 是返回值通道</b>。课本那句‘系统调用是用户获取 OS 服务的唯一途径’,在这 16 行里完整兑现。谢谢老师。”</div>
+</div>
+
+<h2>6. 答辩:老师可能逐行问的 10 题</h2>
+<p class="big"><b>逐行讲源码,老师最爱指着某一行问“这行干嘛”,也爱问概念对比。下面是高危题的标准答法。</b></p>
+
+<div class="q"><b>Q1.</b> <code>a7</code> 是什么?为什么调用号放在 a7?<span class="pill high">必答</span><br>
+<b>答:</b><code>a7</code> 是 RISC-V 的一个通用寄存器。系统调用的<b>调用约定</b>规定:<b>用 a7 传系统调用号</b>、a0~a5 传参数、a0 传返回值。用户陷入前把号写进 a7,内核 <code>syscall()</code> 第 137 行就从 <code>p-&gt;trapframe-&gt;a7</code> 把它读出来。这是用户和内核约好的“暗号位置”。</div>
+
+<div class="q"><b>Q2.</b> 指着 137 行 <code>num = p-&gt;trapframe-&gt;a7</code> 问:<code>trapframe</code> 是什么?<span class="pill high">高危</span><br>
+<b>答:</b><code>trapframe</code> 是<b>陷入(trap)发生时,内核保存的用户寄存器快照</b>。因为陷入后内核要用这些寄存器干自己的活,必须先把用户的 a0~a7 等存起来,返回时再恢复。所以这里读 <code>trapframe-&gt;a7</code>,读的就是<b>用户陷入那一刻</b> a7 里的号。</div>
+
+<div class="q"><b>Q3.</b> 指着 138 行的三个条件,为什么要这么严格地校验?<span class="pill high">高危</span><br>
+<b>答:</b>因为号是<b>用户给的,不可信</b>。<code>num&gt;0</code> 防负数,<code>num&lt;NELEM(syscalls)</code> 防越界(<code>NELEM</code> 是数组元素个数),<code>syscalls[num]</code> 非空防“号在范围内但那格没填函数”。少一道关,用户随便报个号就可能让内核跳到非法地址——这是安全底线。</div>
+
+<div class="q"><b>Q4.</b> 指着 141 行 <code>p-&gt;trapframe-&gt;a0 = syscalls[num]()</code> 问:这一行到底发生了什么?<span class="pill high">必答</span><br>
+<b>答:</b>三件事压在一行:<b>①</b> <code>syscalls[num]</code> 用调用号当下标,从函数指针表取出对应内核函数的地址;<b>②</b> 后面的 <code>()</code> 调用它;<b>③</b> 把它的返回值赋给 <code>trapframe-&gt;a0</code>。这样返回用户态后,a0 里就是结果。<b>“查表、分发、回写”全在这。</b></div>
+
+<div class="q"><b>Q5.</b> <code>syscalls[]</code> 为什么用函数指针数组,而不是一堆 if/switch?<span class="pill high">高危</span><br>
+<b>答:</b>① <b>快</b>:数组下标访问是 O(1),不像 if/else 要逐个比;② <b>清晰可扩展</b>:加系统调用只需在表里加一行,不改 <code>syscall()</code> 主逻辑;③ 它直接对应课本“系统调用号 → 服务程序”的<b>映射表</b>概念。本质是“用数据结构代替控制流”。</div>
+
+<div class="q"><b>Q6.</b> 系统调用和普通函数调用、库函数有什么区别?<span class="pill high">必答 · 高频考点</span><br>
+<b>答:</b>三层:<b>普通函数调用</b>是同一特权级里的 <code>call</code>,不切状态、开销小;<b>系统调用</b>必须经陷入指令(<code>ecall</code>)<b>从用户态切到核心态</b>,要保存/恢复现场、做安全检查,开销大但能安全地用特权资源;<b>库函数</b>是对系统调用的封装(xv6 里就是 <code>li a7;ecall;ret</code> 那 3 行),它本身仍在用户态,真正进内核的是其中的 ecall。课本原话:库函数与系统调用<b>一一对应</b>。</div>
+
+<div class="q"><b>Q7.</b> 系统调用的返回值是怎么传回用户程序的?<span class="pill high">必答</span><br>
+<b>答:</b>走 <code>a0</code>。第 141 行把内核函数返回值写进 <code>trapframe-&gt;a0</code>;返回用户态时,内核会用 trapframe 恢复寄存器,<code>a0</code> 就被还原成这个值。用户的库函数 <code>ret</code> 回去后,a0 里就是结果。出错时第 145 行把 a0 设成 <code>-1</code>,用户据此判断失败。</div>
+
+<div class="q"><b>Q8.</b> 用户程序怎么进到 <code>syscall()</code> 的?谁调用它?<span class="pill mid">进阶</span><br>
+<b>答:</b>不是被“调用”,是被“陷入”引来的。用户执行 <code>ecall</code> 触发陷入,CPU 跳到内核预设的 trap 入口,trap 处理流程判断这是一次系统调用(而非时钟中断、缺页等),于是调用 <code>syscall()</code>。所以 <code>syscall()</code> 是 trap 处理的一个分支。</div>
+
+<div class="q"><b>Q9.</b> 带参数的系统调用,内核怎么拿到参数?<span class="pill mid">进阶</span><br>
+<b>答:</b>用 <code>syscall.c</code> 里的 <code>argint / argaddr / argstr</code>。它们调 <code>argraw(n)</code>,按 n 返回 <code>a0~a5</code> 寄存器里的值——参数也是陷入前由用户放进这些寄存器的。比如 <code>sys_exit</code> 里 <code>argint(0,&amp;n)</code> 就是取第 0 个参数(放在 a0)。</div>
+
+<div class="q"><b>Q10.</b> 报一个不存在的系统调用号会怎样?<span class="pill mid">易问</span><br>
+<b>答:</b>走 else 分支(143–145):内核 <code>printf</code> 打印 <code>"unknown sys call"</code> 警告,并把 <code>a0</code> 设为 <code>-1</code>。<b>注意它不会让内核崩溃</b>——这正是第 138 行三道校验的价值:把非法输入挡在分发之前,只温和地返回错误。</div>
+
+<h2>7. 临场应急</h2>
+<div class="callout warn"><b>🆘 老师问到 <code>trampoline / usertrap / sret</code> 这些陷入汇编细节:</b>诚实说“这是 trap 的进出汇编层,负责切页表、保存恢复寄存器,我这次聚焦 <code>syscall()</code> 的<b>分发逻辑</b>,没深入陷入的汇编实现。” <b>守住你讲的这条线,别被带进汇编泥潭。</b></div>
+<div class="callout"><b>🆘 被问哪行而卡住:</b>三步定位——“这行在<b>取号 / 校验 / 分发 / 出错</b>哪一步 → 它读还是写哪个寄存器(a7 还是 a0) → 对应课本哪个概念(调用号 / 用户核心态 / 程序接口)”。</div>
+
+<h2>8. 彩排 Checklist(今晚)</h2>
+<div class="checklist">
+<label><input type="checkbox"> 1. <b>能不看注释</b>,把四步讲出来:取 a7 号 → 三道校验 → <code>syscalls[num]()</code> 查表分发 → 回写 a0 / 出错 -1</label><br>
+<label><input type="checkbox"> 2. 高危行能脱口说出“干嘛+对应课本”:<b>137(取号)</b>、<b>138(校验)</b>、<b>141(查表分发回写)</b>、<b>107(函数指针表)</b></label><br>
+<label><input type="checkbox"> 3. 能说清 <b>a7 / a0 / a1~a5</b> 各管什么(号 / 返回值 / 参数)</label><br>
+<label><input type="checkbox"> 4. <b>背熟 Q6</b>:系统调用 vs 普通调用 vs 库函数的三层区别(高频考点)</label><br>
+<label><input type="checkbox"> 5. 能复述用户侧 3 行 stub:<code>li a7, SYS_xxx</code> / <code>ecall</code> / <code>ret</code></label><br>
+<label><input type="checkbox"> 6. 讲稿<b>出声读 3 遍</b> + 卡时间(目标 8–10 分钟)</label><br>
+<label><input type="checkbox"> 7. <b>答辩 10 题</b>过一遍,高危题 Q1/Q2/Q3/Q4/Q5/Q6/Q7 各两遍</label><br>
+<label><input type="checkbox"> 8. 电脑上<b>打开真实文件</b> <code>kernel/syscall.c</code>(syscall:131 / 表:107 / argint:56),明天可带着</label><br>
+<label><input type="checkbox"> 9. 睡好觉</label>
+</div>
+
+<h2>9. 时间不够的「5 分钟砍版」</h2>
+<div class="callout ok">
+只讲<b>一条最短闭环</b>,砍掉用户 stub 和辅助函数:<br>
+① 一句话主线 + 用户态/核心态 + a7 是调用号 →
+② 逐行 <code>syscall()</code> 四步(取号 → 校验 → <code>syscalls[num]()</code> 分发 → 回写 a0)→
+③ 翻到 <code>syscalls[]</code> 表,说清“号 → 函数”的映射 →
+④ 一句话点出系统调用 vs 普通函数(切特权级)→
+⑤ 收尾:这就是课本“程序接口=系统调用”的真代码。<br>
+被问到细节,再临场展开 §6 的 Q6–Q9。<b>讲透一条线,远胜面面俱到都发虚。</b>
+</div>
+
+<footer>
+第 24 课 · Ch1 操作系统引论 · xv6 <code>syscall()</code> 逐行精讲 ·
+姊妹篇(同款逐行精讲)→ <a href="./0021-xv6-bmap-source-walkthrough.html">第 21 课 bmap()</a><br>
+源码出处:<code>learn-code/xv6-riscv-20230207/kernel/syscall.c:131</code>(syscall)、<code>:107</code>(syscalls[] 表)、<code>:56</code>(argint)、<code>kernel/syscall.h:1-22</code>(调用号)、<code>user/usys.pl:9-15</code>(用户 stub)、<code>kernel/sysproc.c:18</code>(sys_getpid)。
+关键约定:a7=系统调用号,a0=返回值,a0~a5=参数;ecall=陷入指令 trap。
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>速查卡 · 磁盘调度 · 操作系统期末</title>
+<style>
+  :root{--ink:#1a1a1a;--muted:#666;--line:#d8dde2;--accent:#1f5d8a;--soft:#eef5fb;--ok:#1f6f43;--warn:#a85d00}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);
+    line-height:1.6;font-size:15px;margin:0;background:#fff}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 24px 60px}
+  h1{font-size:22px;margin:0 0 2px;border-bottom:3px solid var(--ink);padding-bottom:8px}
+  .sub{color:var(--muted);font-size:13px;margin:6px 0 18px}
+  h2{font-size:16px;color:var(--accent);margin:22px 0 8px;border-left:4px solid var(--accent);padding-left:8px}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13.5px}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+  th{background:#eaf1f6}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;background:#eef2f5;padding:1px 5px;border-radius:3px;font-size:13px}
+  .box{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--soft);padding:10px 14px;border-radius:4px;margin:12px 0}
+  .box.warn{border-left-color:var(--warn);background:#fff8ee}
+  .box.todo{border-left-color:var(--muted);background:#f5f5f5;color:#555}
+  b.hl{background:#fff3cd;padding:0 3px;border-radius:3px}
+  ol{padding-left:20px;margin:6px 0}
+  @media print{.wrap{max-width:100%}body{font-size:12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🧭 磁盘调度速查卡</h1>
+<div class="sub">考前 5 分钟翻这个 · 配套 <a href="../lessons/0001-disk-scheduling-head-movement.html">第 1 课</a> · 来源:汤小丹第四版 <code>算法速查表.md §3/§5</code></div>
+
+<div class="box">
+  <b>🔑 一切的核心:</b> <b class="hl">总寻道距离 = Σ |相邻两磁道之差|</b><br>
+  (一段一段算移动量,每段 = |目标磁道 − 当前磁道|,全部加起来。算的是「差」,不是磁道号本身相加。)
+</div>
+
+<h2>万能四步法</h2>
+<ol>
+  <li>磁头起点 + 所有请求,画在一条数轴上</li>
+  <li>按算法规则决定下一个去哪</li>
+  <li>每走一步记 <code>移动量 = |目标 − 当前|</code></li>
+  <li>全部移动量相加 = 总寻道距离(答案)</li>
+</ol>
+
+<h2>四大算法对照(教材口径)</h2>
+<table>
+  <tr><th>算法</th><th>规则(怎么挑下一个)</th><th>优点</th><th>缺点 / 考点</th></tr>
+  <tr><td><b>FCFS</b><br>先来先服务</td><td>按请求<b>到达顺序</b>,不挑</td><td>公平、简单</td><td>平均寻道长,来回折腾</td></tr>
+  <tr><td><b>SSTF</b><br>最短寻道优先</td><td>每步挑离<b>当前位置最近</b>的</td><td>平均寻道短</td><td><b>两端饥饿</b>(老服务中间)</td></tr>
+  <tr><td><b>SCAN</b><br>电梯算法</td><td>沿<b>一个方向</b>走到头,再折返扫回来</td><td>避免饥饿、稳定</td><td>刚越过的请求要等很久</td></tr>
+  <tr><td><b>CSCAN</b><br>循环扫描</td><td>沿一个方向走到头,<b>直接跳回另一端</b>重新扫(单向)</td><td>等待更均匀</td><td>空跳有额外开销</td></tr>
+</table>
+
+<div class="box warn">
+  <b>⚠ 两个最容易丢分的点:</b>
+  <ol style="margin:6px 0 0">
+    <li><b>折返口径:</b>汤小丹教材 = 走到该方向<b>最后一个请求</b>就掉头(不是冲到磁盘边缘 0/199)。若老师题目明确给了磁盘范围并要求到边缘,则按边缘算——<b>看清题目</b>。</li>
+    <li><b>CSCAN 的"跳回"那一段距离要算进总寻道!</b>(教材例题该段=169,最常被漏。)</li>
+  </ol>
+</div>
+
+<h2>教材标准题(背下来) · 磁头 53,请求 98,183,37,122,14,124,65,67,向高</h2>
+<table>
+  <tr><th>算法</th><th>寻道顺序</th><th>总距离</th></tr>
+  <tr><td><b>FCFS</b></td><td>53→98→183→37→122→14→124→65→67</td><td><b>640</b></td></tr>
+  <tr><td><b>SSTF</b></td><td>53→65→67→37→14→98→122→124→183</td><td><b>236</b></td></tr>
+  <tr><td><b>SCAN</b></td><td>53→…→183→(掉头)→37→14</td><td><b>299</b></td></tr>
+  <tr><td><b>CSCAN</b></td><td>53→…→183→(跳回)→14→37</td><td><b>322</b></td></tr>
+</table>
+<p style="font-size:13px;color:#555;margin:4px 0">记忆:<b>SSTF<SCAN<CSCAN≪FCFS</b>。SSTF 最省但饥饿;SCAN/CSCAN 稍多但公平无饥饿。</p>
+
+<h2>必背公式(§5)</h2>
+<table>
+  <tr><td>磁盘访问时间</td><td><code>= 寻道时间 + 旋转延迟 + 传输时间</code></td></tr>
+  <tr><td>寻道时间</td><td><code>= 启动磁臂时间 + 移动磁道数 × 每磁道时间</code></td></tr>
+  <tr><td>平均旋转延迟</td><td>转半圈 <code>= 1 / (2 × 转速)</code>(如 7200 转/分 ≈ 4.17ms)</td></tr>
+  <tr><td>传输时间</td><td><code>= 读取字节数 / 传输速率</code></td></tr>
+</table>
+
+<div class="box">
+  ✅ <b>本卡已完整:</b> 四个算法都能算了(<a href="../lessons/0001-disk-scheduling-head-movement.html">第 1 课</a> FCFS/SSTF · <a href="../lessons/0002-scan-cscan.html">第 2 课</a> SCAN/CSCAN)。考前把上面那道标准题在纸上默算一遍,四个数字对得上就稳了。
+</div>
+
+</div>
+</body>
+</html>

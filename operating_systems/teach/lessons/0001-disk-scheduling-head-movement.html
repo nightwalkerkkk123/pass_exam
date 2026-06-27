@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 1 课 · 磁盘调度:算磁头总移动距离 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .big{font-size:15px}
+  /* 数轴 */
+  .axis{position:relative; height:78px; margin:26px 4px 30px; }
+  .axis .line{position:absolute; top:46px; left:0; right:0; height:3px; background:#c9d4dd}
+  .axis .tick{position:absolute; top:38px; width:2px; height:19px; background:#9fb0bd}
+  .axis .lab{position:absolute; top:58px; transform:translateX(-50%); font-size:11px; color:var(--muted)}
+  .axis .req{position:absolute; top:24px; transform:translateX(-50%); width:30px; height:30px; line-height:30px;
+    text-align:center; background:#fff; border:2px solid var(--accent); color:var(--accent);
+    border-radius:50%; font-size:12px; font-weight:600}
+  .axis .head{position:absolute; top:0; transform:translateX(-50%); font-size:12px; color:var(--bad); font-weight:700}
+  .axis .head::after{content:"▼"; display:block; text-align:center; color:var(--bad)}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+  .step{counter-reset:none}
+  .stepnum{display:inline-block; width:22px; height:22px; line-height:22px; text-align:center; background:var(--accent);
+    color:#fff; border-radius:50%; font-size:13px; font-weight:700; margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 计算大题 ①</div>
+  <h1>第 1 课:磁盘调度 —— 算「磁头总移动距离」</h1>
+  <div class="sub">目标:这节课结束,你能拿到一个序列,自己算出 FCFS 和 SSTF 的总移动距离。约 15 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>为什么第一课先学这个?</b> 期末计算大题有 4 个来源:PV 操作、页面置换、磁盘调度、混合索引。
+  其中<b class="hl">磁盘调度是唯一一个零前置的</b>——不需要懂进程、不需要懂分页、不需要懂文件系统。
+  它本质上只是一道<b>小学数学题</b>:磁头在一条数轴上跑,把跑过的距离加起来。先把这个稳稳拿下,建立信心。
+</div>
+
+<h2>一、一句话世界观</h2>
+<p>磁盘上的数据分布在一圈圈「磁道」上(像操场的跑道,从内到外编号 0、1、2…)。读数据要先把<b>磁头</b>移动到对应磁道,这个移动叫<b class="hl">寻道</b>。移动越远越慢。所以:</p>
+
+<div class="callout ok big">
+  🎯 <b>磁盘调度要解决的唯一问题:</b> 有一堆磁道在排队等着被访问,<b>先去哪个、后去哪个</b>,才能让磁头跑的<b>总距离最短</b>?<br>
+  而<b>「总移动距离」= 每一步移动磁道数的总和 = 相邻两个磁道号之差的绝对值,一段一段加起来。</b>
+</div>
+
+<p>不同的「先去哪个」的规则,就是不同的<b>调度算法</b>。这节课只学最简单的两个:<code>FCFS</code> 和 <code>SSTF</code>。</p>
+
+<h2>二、先把题目画出来</h2>
+<p>例题:磁头当前在 <b style="color:var(--bad)">53</b> 号磁道,有 4 个请求在排队,到达顺序是 <code>65, 20, 80, 40</code>。磁盘范围 0–100。</p>
+
+<div class="axis" id="axis1">
+  <div class="line"></div>
+</div>
+<p class="sub" style="text-align:center;margin-top:-18px">红色 ▼ 是磁头当前位置;蓝圈是 4 个等待的请求。</p>
+
+<div class="callout warn">
+  <b>解题四步法(任何磁盘调度题都用它):</b>
+  <ol style="margin:8px 0 0">
+    <li><span class="stepnum">1</span>把磁头起点 + 所有请求画在一条数轴上</li>
+    <li><span class="stepnum">2</span>按算法规则,决定下一个去哪个磁道</li>
+    <li><span class="stepnum">3</span>每走一步,记下移动量 = <code>|目标磁道 − 当前磁道|</code></li>
+    <li><span class="stepnum">4</span>把所有移动量加起来 = <b>总寻道距离(就是答案)</b></li>
+  </ol>
+</div>
+
+<h2>三、算法一:FCFS(先来先服务)</h2>
+<p>规则最简单:<b>谁先来就先服务谁</b>,完全按请求到达的顺序走,不挑。顺序就是 <code>65 → 20 → 80 → 40</code>。</p>
+
+<table>
+  <tr><th>这一步</th><th>从 → 到</th><th>移动量 = |到−从|</th></tr>
+  <tr><td>1</td><td>53 → 65</td><td>|65−53| = 12</td></tr>
+  <tr><td>2</td><td>65 → 20</td><td>|20−65| = 45</td></tr>
+  <tr><td>3</td><td>20 → 80</td><td>|80−20| = 60</td></tr>
+  <tr><td>4</td><td>80 → 40</td><td>|40−80| = 40</td></tr>
+  <tr><td colspan="2"><b>总移动距离</b></td><td><b style="color:var(--bad)">12+45+60+40 = 157</b></td></tr>
+</table>
+
+<p>注意第 2 步:53 先冲到 65,又掉头回到 20,白白来回跑——这就是 FCFS 的毛病:<b>不挑近的,经常来回折腾</b>。</p>
+
+<h2>四、算法二:SSTF(最短寻道时间优先)</h2>
+<p>规则:<b>每一步都挑离「当前位置」最近的那个请求</b>(谁近先去谁),像贪吃一样就近吃。</p>
+
+<table>
+  <tr><th>当前在</th><th>还剩哪些请求</th><th>各自距离</th><th>挑最近 → 去</th><th>移动量</th></tr>
+  <tr><td>53</td><td>65,20,80,40</td><td>12, 33, 27, <b>13</b></td><td><b>65</b>(距12)</td><td>12</td></tr>
+  <tr><td>65</td><td>20,80,40</td><td>45, <b>15</b>, 25</td><td><b>80</b>(距15)</td><td>15</td></tr>
+  <tr><td>80</td><td>20,40</td><td>60, <b>40</b></td><td><b>40</b>(距40)</td><td>40</td></tr>
+  <tr><td>40</td><td>20</td><td><b>20</b></td><td><b>20</b>(距20)</td><td>20</td></tr>
+  <tr><td colspan="4"><b>总移动距离</b></td><td><b style="color:var(--ok)">12+15+40+20 = 87</b></td></tr>
+</table>
+
+<div class="callout ok">
+  <b>戏剧性的对比:</b> 同样 4 个请求,FCFS 跑了 <b style="color:var(--bad)">157</b>,SSTF 只跑了 <b style="color:var(--ok)">87</b>——<b>少了将近一半</b>!
+  这就是「算法有用」最直观的证明:换个顺序,磁盘快一倍。
+</div>
+
+<div class="callout warn">
+  <b>⚠ 老师改卷最爱抓的两个坑:</b>
+  <ul style="margin:8px 0 0">
+    <li>算的是磁道号的<b>差(移动距离)</b>,<b>不是</b>把磁道号本身加起来。157 不是 65+20+80+40。</li>
+    <li>SSTF 简答常考的缺点:总挑中间附近的,<b>两端的请求可能一直被插队 → 饥饿</b>。</li>
+  </ul>
+</div>
+
+<h2>五、必背(就两句)</h2>
+<div class="callout">
+  <p style="margin:4px 0">① <b>总寻道距离 = Σ |相邻两磁道之差|</b>(一段段加)。</p>
+  <p style="margin:4px 0">② <b>FCFS</b> = 按到达顺序;<b>SSTF</b> = 每步挑最近(会饿死两端)。</p>
+</div>
+
+<h2>六、轮到你了(点选项,立刻给反馈)</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 「磁头总移动距离」到底怎么算?</div>
+  <button class="opt" data-ok="0">把所有请求的磁道号直接加起来</button>
+  <button class="opt" data-ok="1">把相邻两个磁道号之差的绝对值,一段一段加起来</button>
+  <button class="opt" data-ok="0">用最大磁道号减最小磁道号</button>
+  <button class="opt" data-ok="0">数一共有几个请求</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 磁头在 53,请求 <code>65,20,80,40</code>。用 <b>SSTF</b>,第一个去哪个磁道?</div>
+  <button class="opt" data-ok="0">20(因为数字最小)</button>
+  <button class="opt" data-ok="0">40(距离 13)</button>
+  <button class="opt" data-ok="1">65(距离 12,最近)</button>
+  <button class="opt" data-ok="0">80(距离 27)</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 换个新题:磁头在 <b>30</b>,请求到达顺序 <code>40, 10, 50, 20</code>。用 <b>FCFS</b>,总移动距离 = ?</div>
+  <p class="sub" style="margin-top:-4px">先自己在纸上按四步法算一遍,再点答案。</p>
+  <button class="opt" data-ok="0">40(用 50−10 算的)</button>
+  <button class="opt" data-ok="1">110</button>
+  <button class="opt" data-ok="0">90(漏加了一段)</button>
+  <button class="opt" data-ok="0">120</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q3sol').classList.toggle('hidden')">▸ 看详细步骤</span>
+  <div id="q3sol" class="hidden" style="margin-top:8px">
+    <table>
+      <tr><th>从→到</th><td>30→40</td><td>40→10</td><td>10→50</td><td>50→20</td></tr>
+      <tr><th>移动量</th><td>10</td><td>30</td><td>40</td><td>30</td></tr>
+    </table>
+    <p style="margin:4px 0"><b>10+30+40+30 = 110</b></p>
+  </div>
+</div>
+
+<h2>七、通关条件(很重要)</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这一句:「磁头总移动距离是怎么算出来的?」</b><br>
+  不用背术语,用大白话说。你能说清楚,这一课才算过——然后我们进第 2 课。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 2 课):</b> <code>SCAN(电梯算法)</code> 和 <code>CSCAN</code>——它们多了「方向」和「走到头折返」的规则,
+  是磁盘调度题里更难、更常考的部分。我们用同一套四步法继续。</p>
+  <p>📖 <b>速查卡:</b> <a href="../reference/0001-disk-scheduling-cheatsheet.html">磁盘调度速查卡</a>(考前 5 分钟翻这个)。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+  <p>来源:汤小丹《计算机操作系统》第四版 · <code>textbook/算法速查表.md</code> 第三节「磁盘调度算法」、第五节「磁盘相关公式」;<code>textbook/ch08_磁盘存储器管理.md</code>。</p>
+</footer>
+
+</div>
+
+<script>
+// 画数轴:范围 0-100,磁头 53,请求 65/20/80/40
+(function(){
+  var axis=document.getElementById('axis1');
+  var min=0,max=100;
+  function pct(v){return ((v-min)/(max-min)*100)+'%';}
+  // 刻度
+  [0,20,40,60,80,100].forEach(function(v){
+    var t=document.createElement('div'); t.className='tick'; t.style.left=pct(v); axis.appendChild(t);
+    var l=document.createElement('div'); l.className='lab'; l.style.left=pct(v); l.textContent=v; axis.appendChild(l);
+  });
+  // 请求
+  [65,20,80,40].forEach(function(v){
+    var r=document.createElement('div'); r.className='req'; r.style.left=pct(v); r.textContent=v; axis.appendChild(r);
+  });
+  // 磁头
+  var h=document.createElement('div'); h.className='head'; h.style.left=pct(53); h.textContent='磁头53'; axis.appendChild(h);
+})();
+
+// quiz 反馈
+var FB={
+  q1:{good:'对!核心就是「差的绝对值累加」,跟磁道号本身大小无关。',bad:'再想想:我们关心的是磁头「跑了多远」,所以要把每一段的移动距离(差的绝对值)加起来。'},
+  q2:{good:'对!SSTF 每步挑离当前位置最近的。53 离 65 只差 12,最近。',bad:'SSTF 看的是「离当前 53 最近」,不是数字最小。|65−53|=12 是最小的。'},
+  q3:{good:'完美!10+30+40+30=110。你已经会算 FCFS 了。',bad:'按四步法:30→40→10→50→20,移动量 10+30+40+30=110。点「看详细步骤」对一下。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

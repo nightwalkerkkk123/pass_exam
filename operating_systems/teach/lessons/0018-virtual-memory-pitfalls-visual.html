@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 18 课 · 虚拟内存的坑概念（可视化）· 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e;
+    --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:40px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center}
+  th{background:#eaf1f6; font-weight:600}
+  .stage{border:1px solid var(--line); border-radius:12px; background:#fff; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  button.btn{font-family:inherit; font-size:14px; font-weight:600; padding:9px 15px; border-radius:8px;
+    border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; transition:.15s}
+  button.btn:hover{filter:brightness(1.08)}
+  button.btn.ghost{background:#fff; color:var(--accent)}
+  button.btn:disabled{opacity:.4; cursor:not-allowed}
+  .controls{display:flex; gap:9px; flex-wrap:wrap; margin:14px 0 2px; align-items:center}
+
+  /* 局部性滑动窗口 */
+  .strip{display:flex; gap:4px; flex-wrap:wrap; margin:6px 0}
+  .cell{width:30px; height:30px; border:1px solid var(--line); border-radius:5px; display:flex;
+    align-items:center; justify-content:center; font-size:13px; font-weight:600; background:#f7f7f4; transition:.2s}
+  .cell.win{background:var(--soft); border-color:var(--accent); transform:translateY(-3px)}
+  .cell.cur{background:var(--accent); color:#fff}
+
+  /* Belady 并排 */
+  .duo{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+  @media(max-width:620px){ .duo{grid-template-columns:1fr} }
+  .panel{border:1px solid var(--line); border-radius:10px; padding:12px; background:#fcfcfb}
+  .panel h4{margin:0 0 8px; font-size:15px}
+  .frames{display:flex; flex-direction:column; gap:6px; margin:8px 0}
+  .frame{height:38px; border:2px dashed #cfcfc8; border-radius:7px; display:flex; align-items:center;
+    justify-content:center; font-size:18px; font-weight:700; color:var(--accent); background:#fff; transition:.25s}
+  .frame.filled{border-style:solid; border-color:var(--accent)}
+  .frame.evict{border-color:var(--bad); color:var(--bad); background:var(--badbg)}
+  .frame.justin{border-color:var(--ok); color:var(--ok); background:var(--okbg)}
+  .refnow{font-size:14px; margin:6px 0}
+  .refnow b{font-size:20px}
+  .fcount{font-size:15px; font-weight:700}
+  .tag{display:inline-block; padding:1px 9px; border-radius:20px; font-size:12px; font-weight:700; margin-left:6px}
+  .tag.fault{background:var(--badbg); color:var(--bad); border:1px solid var(--bad)}
+  .tag.hit{background:var(--okbg); color:var(--ok); border:1px solid var(--ok)}
+  .verdict{margin-top:14px; font-size:16px; font-weight:700; padding:12px 16px; border-radius:8px; display:none}
+  .verdict.show{display:block; background:var(--badbg); border:1px solid var(--bad); color:var(--bad)}
+
+  /* 抖动曲线 */
+  .thrash{display:flex; align-items:center; gap:16px; flex-wrap:wrap}
+  .meter{flex:1; min-width:220px}
+  .bar{height:22px; border-radius:6px; background:linear-gradient(90deg,var(--ok),var(--warn),var(--bad)); position:relative}
+  .bar .pin{position:absolute; top:-6px; width:3px; height:34px; background:#111; border-radius:2px}
+  input[type=range]{width:100%}
+
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 虚拟存储器 · Ch4/5</div>
+  <h1>第 18 课 · 虚拟内存的坑概念 <span style="font-size:16px;color:var(--muted)">（可视化）</span></h1>
+  <div class="sub">局部性 → 请求分页 → 缺页 → Belady 异常 → 抖动。你会算页面置换了，这一课补齐所有“为什么”。约 18 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>一句话主线：</b> 程序有<b>局部性</b>（一段时间只用一小撮页）→ 所以不必全部装入，用<b>请求分页</b>按需调页 → 页不在内存就<b>缺页</b>去外存取 → 但置换没做好会踩两个坑：<b>Belady 异常</b>和<b>抖动</b>。
+</div>
+
+<h2>一、局部性原理：为什么不必全装入 📖</h2>
+<p>下面是一个程序在时间上的“页访问串”。点<b>播放</b>，看那个蓝色<b>窗口</b>滑过去——<b>任一时刻，窗口里只有少数几个不同的页在用</b>。这就是局部性。</p>
+<div class="stage">
+  <div class="strip" id="strip"></div>
+  <div class="controls">
+    <button class="btn" id="locPlay">▶ 播放</button>
+    <button class="btn ghost" id="locReset">↺ 重来</button>
+    <span style="font-size:14px;color:var(--muted)">当前窗口内不同页数：<b id="locDistinct" style="color:var(--accent)">–</b> 个（窗口宽 4）</span>
+  </div>
+</div>
+<div class="callout ok">
+  <b>结论：</b> 既然一段时间只用到几页，内存里<b>只放当前用到的页</b>即可，其余留在外存（磁盘）。于是 <b>20MB 内存能跑 100MB 程序</b>——这就是<b>虚拟存储器</b>的理论基础（Denning 1968 局部性规律）。
+</div>
+
+<h2>二、请求分页：按需调页 + 页表项</h2>
+<p>请求分页 = 基本分页 ＋ <b>请求调页</b> ＋ <b>页面置换</b>。页表项里多了几个位（填空高频）：</p>
+<table>
+  <tr><th>字段</th><th>作用</th></tr>
+  <tr><td><b>状态位 P</b></td><td>该页<b>在不在内存</b>。P=0 → 缺页，触发缺页中断去外存调入</td></tr>
+  <tr><td><b>访问字段 A</b></td><td>记录最近被访问情况，供<b>置换算法</b>（如 LRU）参考</td></tr>
+  <tr><td><b>修改位 M</b></td><td>调入后<b>有没有被改过</b>。改过→换出时要写回外存；没改→直接丢弃</td></tr>
+  <tr><td><b>外存地址</b></td><td>该页在磁盘的位置，缺页时按它去取</td></tr>
+</table>
+<div class="callout warn"><b>缺页的代价极大：</b> 有效访问时间 <code>EAT = (1−p)·访问内存 + p·缺页处理</code>。缺页处理要读磁盘（毫秒级），比访存（纳秒级）慢几万倍。所以缺页率 p 哪怕只有 0.1%，性能也会暴跌——<b>这正是抖动可怕的原因（见第四节）</b>。</div>
+
+<h2>三、Belady 异常：多给内存，缺页反而更多 😱</h2>
+<p>同一个访问串 <code>1 2 3 4 1 2 5 1 2 3 4 5</code>，都用 <b>FIFO</b> 置换。左边给 <b>3 个页框</b>，右边给 <b>4 个页框</b>。点“下一步”，两边同步跑，盯住缺页计数。</p>
+
+<div class="stage">
+  <div class="duo">
+    <div class="panel" id="panel3">
+      <h4>🟦 3 个页框</h4>
+      <div class="refnow">当前访问：<b id="ref3">–</b> <span id="tag3"></span></div>
+      <div class="frames" id="frames3"></div>
+      <div class="fcount">缺页次数：<span id="cnt3" style="color:var(--bad)">0</span></div>
+    </div>
+    <div class="panel" id="panel4">
+      <h4>🟩 4 个页框</h4>
+      <div class="refnow">当前访问：<b id="ref4">–</b> <span id="tag4"></span></div>
+      <div class="frames" id="frames4"></div>
+      <div class="fcount">缺页次数：<span id="cnt4" style="color:var(--bad)">0</span></div>
+    </div>
+  </div>
+  <div class="controls">
+    <button class="btn" id="belStep">下一步 ▶</button>
+    <button class="btn" id="belAuto">⏩ 跑到底</button>
+    <button class="btn ghost" id="belReset">↺ 重来</button>
+    <span style="font-size:13px;color:var(--muted)">进度 <span id="belProg">0/12</span></span>
+  </div>
+  <div class="verdict" id="belVerdict"></div>
+</div>
+<div class="callout bad">
+  <b>Belady 异常（课本叫“Belady 奇异”）：</b> 采用 <b>FIFO</b> 时，给进程<b>增加</b>页框数，缺页率<b>反而可能升高</b>的反常现象。<br>
+  注意：<b>只有 FIFO 会</b>。LRU、OPT 这类“栈式算法”不会出现 Belady 异常——这是常考的对比点。
+</div>
+
+<h2>四、抖动（Thrashing）：把时间全花在换页上 🌀</h2>
+<p>拖动滑块，调整<b>分配给进程的页框数</b>，看缺页率怎么变：</p>
+<div class="stage">
+  <div class="thrash">
+    <div class="meter">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span>页框很少</span><span>页框充足</span></div>
+      <input type="range" id="thrashRange" min="1" max="10" value="2">
+      <div class="bar"><div class="pin" id="thrashPin" style="left:50%"></div></div>
+      <div style="margin-top:8px;font-size:15px">缺页率：<b id="thrashRate" style="color:var(--bad)">很高</b> · 状态：<b id="thrashState" style="color:var(--bad)">🌀 抖动</b></div>
+    </div>
+  </div>
+  <p style="font-size:14px;margin-top:12px" id="thrashMsg"></p>
+</div>
+<div class="callout">
+  <b>抖动（课本知识清单原话）：</b> <b>页面频繁换入换出，导致系统效率急剧下降</b>。<br>
+  根因：分配给进程的<b>页框太少</b>，装不下它的“常用页集合”，于是刚换出的页马上又要用 → 反复换 → CPU 大部分时间在搬页、几乎不干正事。<br>
+  <span style="color:var(--muted)">（解决思路：按程序“工作集”——即一段时间真正在用的页集合——分配足够页框。工作集老师未重点讲，了解即可。）</span>
+</div>
+
+<h2>五、轮到你了</h2>
+<div class="quiz" id="q1"><div class="qq">Q1. 虚拟存储器能“用小内存跑大程序”，理论基础是？</div>
+  <button class="opt" data-ok="0">内存压缩技术</button>
+  <button class="opt" data-ok="1">程序执行的局部性原理</button>
+  <button class="opt" data-ok="0">CPU 主频足够高</button>
+  <button class="opt" data-ok="0">磁盘容量足够大</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q2"><div class="qq">Q2. 关于 Belady 异常，正确的是？</div>
+  <button class="opt" data-ok="0">所有置换算法增加页框都会缺页变多</button>
+  <button class="opt" data-ok="1">采用 FIFO 时，增加页框缺页率反而可能升高；LRU/OPT 不会</button>
+  <button class="opt" data-ok="0">是指内存越大缺页一定越少</button>
+  <button class="opt" data-ok="0">只有 LRU 才会出现</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q3"><div class="qq">Q3. “页面频繁换入换出、系统效率急剧下降”说的是？</div>
+  <button class="opt" data-ok="0">Belady 异常</button>
+  <button class="opt" data-ok="0">缺页中断</button>
+  <button class="opt" data-ok="1">抖动（thrashing）</button>
+  <button class="opt" data-ok="0">局部性</button>
+  <div class="fb"></div></div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  用你自己的话回答：<br>
+  ① 为什么程序不必全部装入内存就能运行？（关键词：局部性）<br>
+  ② Belady 异常是什么？哪种算法才会出现？<br>
+  ③ 抖动是怎么发生的？根本原因是什么？
+</div>
+
+<footer>
+  <p>来源：汤小丹《计算机操作系统》第四版 · 课件 <code>4_存储器管理/ppt文本.md（局部性原理、请求分页、Belady 奇异）</code> + <code>第4章-知识清单.html（抖动）</code>。</p>
+  <p>配套计算练习见 <code>exams/ch04-test.html / ch05-test.html</code>；有不懂 <b>直接问我</b>。</p>
+</footer>
+
+</div>
+<script>
+// ============ 一、局部性滑动窗口 ============
+var LOC_SEQ = [1,1,2,1,2,2,1,3,3,2,3,3,7,7,8,7,8,8,7,9,9,8,9,9];
+var WIN = 4;
+(function buildStrip(){
+  var s=document.getElementById("strip");
+  LOC_SEQ.forEach(function(p,i){
+    var d=document.createElement("div"); d.className="cell"; d.id="loc"+i; d.textContent=p; s.appendChild(d);
+  });
+})();
+var locTimer=null, locI=0;
+function locRender(){
+  LOC_SEQ.forEach(function(_,i){
+    var c=document.getElementById("loc"+i);
+    c.className="cell";
+    if(i>locI-WIN && i<=locI) c.classList.add("win");
+    if(i===locI) c.classList.add("cur");
+  });
+  var set={}; for(var j=Math.max(0,locI-WIN+1); j<=locI; j++) set[LOC_SEQ[j]]=1;
+  document.getElementById("locDistinct").textContent = Object.keys(set).length;
+}
+function locStep(){
+  locI++;
+  if(locI>=LOC_SEQ.length){ clearInterval(locTimer); locTimer=null; document.getElementById("locPlay").textContent="▶ 播放"; locI=LOC_SEQ.length-1; }
+  locRender();
+}
+document.getElementById("locPlay").addEventListener("click",function(){
+  if(locTimer){ clearInterval(locTimer); locTimer=null; this.textContent="▶ 播放"; return; }
+  if(locI>=LOC_SEQ.length-1){ locI=-1; }
+  this.textContent="⏸ 暂停";
+  locTimer=setInterval(locStep,420);
+});
+document.getElementById("locReset").addEventListener("click",function(){
+  if(locTimer){clearInterval(locTimer);locTimer=null;}
+  document.getElementById("locPlay").textContent="▶ 播放"; locI=0; locRender();
+});
+locRender();
+
+// ============ 三、Belady 并排 FIFO ============
+var BEL_SEQ=[1,2,3,4,1,2,5,1,2,3,4,5];
+function newRun(cap){ return {cap:cap, frames:[], faults:0}; }
+var run3, run4, belI;
+function belInit(){
+  run3=newRun(3); run4=newRun(4); belI=0;
+  renderFrames("frames3", run3, -1, false);
+  renderFrames("frames4", run4, -1, false);
+  document.getElementById("ref3").textContent="–"; document.getElementById("ref4").textContent="–";
+  document.getElementById("tag3").innerHTML=""; document.getElementById("tag4").innerHTML="";
+  document.getElementById("cnt3").textContent="0"; document.getElementById("cnt4").textContent="0";
+  document.getElementById("belProg").textContent="0/"+BEL_SEQ.length;
+  document.getElementById("belVerdict").className="verdict";
+  document.getElementById("belStep").disabled=false; document.getElementById("belAuto").disabled=false;
+}
+function renderFrames(id, run, evictIdx, justInIdx){
+  var box=document.getElementById(id); box.innerHTML="";
+  for(var k=0;k<run.cap;k++){
+    var d=document.createElement("div"); d.className="frame";
+    if(k<run.frames.length){ d.classList.add("filled"); d.textContent=run.frames[k]; }
+    if(k===evictIdx) d.classList.add("evict");
+    if(k===justInIdx) d.classList.add("justin");
+    box.appendChild(d);
+  }
+}
+function stepRun(run, ref, refId, tagId, cntId){
+  document.getElementById(refId).textContent=ref;
+  var hit = run.frames.indexOf(ref)>=0;
+  if(hit){
+    document.getElementById(tagId).innerHTML='<span class="tag hit">命中</span>';
+    renderFrames(refId==="ref3"?"frames3":"frames4", run, -1, run.frames.indexOf(ref));
+  } else {
+    run.faults++;
+    var evictIdx=-1;
+    if(run.frames.length>=run.cap){ run.frames.shift(); }
+    run.frames.push(ref);
+    document.getElementById(tagId).innerHTML='<span class="tag fault">缺页!</span>';
+    renderFrames(refId==="ref3"?"frames3":"frames4", run, -1, run.frames.length-1);
+  }
+  document.getElementById(cntId).textContent=run.faults;
+}
+function belStep(){
+  if(belI>=BEL_SEQ.length) return false;
+  var ref=BEL_SEQ[belI];
+  stepRun(run3, ref, "ref3", "tag3", "cnt3");
+  stepRun(run4, ref, "ref4", "tag4", "cnt4");
+  belI++;
+  document.getElementById("belProg").textContent=belI+"/"+BEL_SEQ.length;
+  if(belI>=BEL_SEQ.length){
+    document.getElementById("belStep").disabled=true; document.getElementById("belAuto").disabled=true;
+    var v=document.getElementById("belVerdict"); v.className="verdict show";
+    v.innerHTML="😱 3 框缺页 <b>"+run3.faults+"</b> 次，4 框缺页 <b>"+run4.faults+"</b> 次 —— <b>多给一个页框，缺页反而更多！</b> 这就是 Belady 异常（仅 FIFO 会）。";
+    return false;
+  }
+  return true;
+}
+document.getElementById("belStep").addEventListener("click", belStep);
+document.getElementById("belReset").addEventListener("click", belInit);
+document.getElementById("belAuto").addEventListener("click", function(){
+  var t=setInterval(function(){ if(!belStep()) clearInterval(t); }, 520);
+});
+belInit();
+
+// ============ 四、抖动滑块 ============
+var R=document.getElementById("thrashRange"), pin=document.getElementById("thrashPin");
+var rate=document.getElementById("thrashRate"), state=document.getElementById("thrashState"), msg=document.getElementById("thrashMsg");
+function thrashRender(){
+  var v=+R.value; // 1..10
+  pin.style.left = ((v-1)/9*100)+"%";
+  if(v<=3){ rate.textContent="很高"; rate.style.color="var(--bad)"; state.textContent="🌀 抖动"; state.style.color="var(--bad)";
+    msg.innerHTML='页框太少，装不下进程的常用页：刚换出的页马上又要用 → <b style="color:var(--bad)">反复换入换出</b>，CPU 几乎全在搬页、不干正事。<b>这就是抖动。</b>'; }
+  else if(v<=6){ rate.textContent="中等"; rate.style.color="var(--warn)"; state.textContent="⚠ 偏紧"; state.style.color="var(--warn)";
+    msg.innerHTML='页框勉强够用，偶有缺页，性能尚可但不富裕。'; }
+  else { rate.textContent="低"; rate.style.color="var(--ok)"; state.textContent="✅ 正常"; state.style.color="var(--ok)";
+    msg.innerHTML='页框充足，能装下常用页集合（工作集），缺页很少，系统高效运行。'; }
+}
+R.addEventListener("input", thrashRender); thrashRender();
+
+// ============ 自测批改 ============
+var FB={
+  q1:{good:'对！局部性原理是虚拟存储器的理论基础。',bad:'是“局部性原理”：一段时间只用一小撮页，所以不必全装入。'},
+  q2:{good:'对！Belady 异常只在 FIFO 出现；LRU/OPT（栈式算法）不会。',bad:'Belady 异常：FIFO 增加页框缺页反而可能升高；LRU/OPT 不会出现。'},
+  q3:{good:'对！这就是抖动（thrashing）。',bad:'是“抖动”：页面频繁换入换出导致系统效率急剧下降。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      if(ok)q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

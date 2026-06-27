@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>仿真期末卷 · 操作系统(120分钟)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:840px; margin:0 auto; padding:30px 28px 90px}
+  .bar{position:sticky; top:0; background:var(--ink); color:#fff; padding:10px 16px; z-index:10;
+    display:flex; justify-content:space-between; align-items:center; border-radius:0 0 8px 8px; flex-wrap:wrap; gap:8px}
+  .bar .timer{font-family:"SF Mono",Menlo,monospace; font-size:20px; font-weight:700}
+  .bar .timer.warn{color:#ffd24d} .bar .timer.over{color:#ff7a6e}
+  .bar button{font-family:inherit; font-size:14px; font-weight:600; border:0; border-radius:6px; padding:7px 14px; cursor:pointer; background:var(--ok); color:#fff}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:12px; margin:16px 0 8px}
+  h1{font-size:24px; margin:6px 0}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:19px; margin:30px 0 8px; border-left:4px solid var(--accent); padding-left:10px}
+  .q{background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 16px; margin:12px 0}
+  .qn{font-weight:600}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:8px 12px; margin:5px 0; cursor:pointer; font-size:15px; font-family:inherit}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.sel{border-color:var(--accent); background:var(--soft); font-weight:600}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{background:#272b33; color:#e6e3d8; border-radius:8px; padding:12px 14px; overflow-x:auto; font-size:13px; line-height:1.6}
+  .ans{display:none; margin-top:10px; padding:10px 14px; background:var(--okbg); border:1px solid var(--ok); border-radius:6px; font-size:14px}
+  .ans.show{display:block}
+  .ans .t{font-weight:700; color:var(--ok); margin-bottom:4px}
+  table{border-collapse:collapse; width:100%; margin:8px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:6px 8px; text-align:center}
+  th{background:#eaf1f6}
+  .result{display:none; background:var(--soft); border:2px solid var(--accent); border-radius:10px; padding:16px 20px; margin:16px 0; font-size:16px}
+  .result.show{display:block}
+  .big{font-size:30px; font-weight:800; color:var(--accent)}
+  footer{margin-top:40px; border-top:1px solid var(--line); padding-top:14px; font-size:13px; color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="bar">
+  <span>📝 操作系统 · 仿真期末卷 · 满分 100</span>
+  <span class="timer" id="timer">120:00</span>
+  <button onclick="submitExam()">交卷并批改(选择题)</button>
+</div>
+<div class="wrap">
+
+<header class="h">
+  <h1>《操作系统》仿真期末考试卷</h1>
+  <div class="sub">限时 120 分钟。选择题交卷自动判分;问答/计算/设计题做完后<b>把答案发给老师(对话)批改回讲</b>。先做选择(30) → 计算(40) → 问答(20) → 设计(10),按分值排时间。</div>
+</header>
+
+<div class="result" id="result"></div>
+
+<h2>一、选择题(15 × 2 = 30 分)</h2>
+
+<div class="q" data-a="1"><div class="qn">1. 操作系统的四个基本特征是?</div>
+  <button class="opt">分时、实时、批处理、网络</button>
+  <button class="opt">并发、共享、虚拟、异步</button>
+  <button class="opt">并行、独占、固定、同步</button>
+  <button class="opt">多道、单道、分时、实时</button></div>
+
+<div class="q" data-a="2"><div class="qn">2. 在单 CPU 的操作系统中,关于"并发"与"并行"正确的是?</div>
+  <button class="opt">既有并发也有并行</button>
+  <button class="opt">只有并行没有并发</button>
+  <button class="opt">只有并发没有并行</button>
+  <button class="opt">两者都没有</button></div>
+
+<div class="q" data-a="0"><div class="qn">3. 设计分时操作系统,首先要考虑的是?</div>
+  <button class="opt">交互性和响应时间</button>
+  <button class="opt">周转时间和吞吐量</button>
+  <button class="opt">实时性和可靠性</button>
+  <button class="opt">灵活性和可适应性</button></div>
+
+<div class="q" data-a="3"><div class="qn">4. 系统中资源分配的基本单位是?</div>
+  <button class="opt">线程</button>
+  <button class="opt">程序</button>
+  <button class="opt">作业</button>
+  <button class="opt">进程</button></div>
+
+<div class="q" data-a="0"><div class="qn">5. 处理机(CPU)调度的基本单位是?</div>
+  <button class="opt">线程</button>
+  <button class="opt">进程</button>
+  <button class="opt">作业</button>
+  <button class="opt">程序</button></div>
+
+<div class="q" data-a="2"><div class="qn">6. 进程的"阻塞"状态可以直接转换为"执行"状态吗?</div>
+  <button class="opt">可以,事件完成立即执行</button>
+  <button class="opt">可以,只要 CPU 空闲</button>
+  <button class="opt">不可以,必须先变为"就绪"</button>
+  <button class="opt">不可以,只能转为"终止"</button></div>
+
+<div class="q" data-a="3"><div class="qn">7. 下列<b>不属于</b>死锁必要条件的是?</div>
+  <button class="opt">互斥条件</button>
+  <button class="opt">请求和保持条件</button>
+  <button class="opt">循环等待条件</button>
+  <button class="opt">进程优先级相同</button></div>
+
+<div class="q" data-a="1"><div class="qn">8. 银行家算法属于哪一类死锁处理方法?</div>
+  <button class="opt">预防死锁</button>
+  <button class="opt">避免死锁</button>
+  <button class="opt">检测死锁</button>
+  <button class="opt">解除死锁</button></div>
+
+<div class="q" data-a="0"><div class="qn">9. 分页存储管理中,逻辑地址是?</div>
+  <button class="opt">一维的</button>
+  <button class="opt">二维的</button>
+  <button class="opt">三维的</button>
+  <button class="opt">不确定</button></div>
+
+<div class="q" data-a="2"><div class="qn">10. 分页存储管理会产生哪种碎片?</div>
+  <button class="opt">既有内部又有外部碎片</button>
+  <button class="opt">外部碎片</button>
+  <button class="opt">内部碎片(无外部碎片)</button>
+  <button class="opt">没有任何碎片</button></div>
+
+<div class="q" data-a="1"><div class="qn">11. 更便于实现"信息的共享和保护"的存储管理方式是?</div>
+  <button class="opt">分页</button>
+  <button class="opt">分段</button>
+  <button class="opt">连续分配</button>
+  <button class="opt">单一连续分配</button></div>
+
+<div class="q" data-a="0"><div class="qn">12. 可能出现 Belady 异常(物理块增多缺页反而增多)的置换算法是?</div>
+  <button class="opt">FIFO</button>
+  <button class="opt">LRU</button>
+  <button class="opt">OPT</button>
+  <button class="opt">三者都会</button></div>
+
+<div class="q" data-a="3"><div class="qn">13. 虚拟存储器的理论基础是?</div>
+  <button class="opt">摩尔定律</button>
+  <button class="opt">分段机制</button>
+  <button class="opt">磁盘调度算法</button>
+  <button class="opt">程序的局部性原理</button></div>
+
+<div class="q" data-a="2"><div class="qn">14. 最短寻道时间优先(SSTF)磁盘调度算法的主要缺点是?</div>
+  <button class="opt">寻道距离太长</button>
+  <button class="opt">实现太复杂</button>
+  <button class="opt">两端请求可能"饥饿"</button>
+  <button class="opt">无法避免死锁</button></div>
+
+<div class="q" data-a="1"><div class="qn">15. 时间片轮转(RR)中,若时间片取得非常大,算法将退化为?</div>
+  <button class="opt">SJF</button>
+  <button class="opt">FCFS</button>
+  <button class="opt">优先级调度</button>
+  <button class="opt">多级反馈队列</button></div>
+
+<h2>二、问答题(5 × 4 = 20 分)</h2>
+<div class="q"><div class="qn">1. 简述磁盘调度中 SCAN(电梯)算法与 CSCAN(循环扫描)算法的区别。</div>
+  <div class="ans"><div class="t">参考答案</div>SCAN:磁头沿一个方向移动,处理沿途请求,<b>到达该方向最后一个请求后掉头</b>,反向扫回处理另一侧请求。CSCAN:磁头沿一个方向扫到最后请求后,<b>不掉头,直接跳回另一端的第一个请求</b>,再继续同方向扫描(单向服务)。区别:SCAN 双向往返;CSCAN 单向+跳回,各请求等待时间更均匀,但跳回有额外开销。</div></div>
+<div class="q"><div class="qn">2. 为什么 FIFO 可能出现 Belady 异常,而 LRU 不会?</div>
+  <div class="ans"><div class="t">参考答案</div>FIFO 仅按"进入内存的先后"淘汰,与页面是否常用无关,增加物理块后淘汰序列可能变化,导致缺页反而增多(Belady 异常)。LRU 属于<b>堆栈类算法</b>:物理块多时,内存中保留的页面集合是块少时的"超集",缺页次数随块数<b>单调不增</b>,故不会出现 Belady 异常。</div></div>
+<div class="q"><div class="qn">3. 写出产生死锁的四个必要条件。</div>
+  <div class="ans"><div class="t">参考答案</div>① 互斥条件 ② 请求和保持条件 ③ 不可抢占(不可剥夺)条件 ④ 循环等待条件。(四者同时成立才会死锁,破坏其一即可预防。)</div></div>
+<div class="q"><div class="qn">4. 简述分页和分段的三点主要区别。</div>
+  <div class="ans"><div class="t">参考答案</div>① 划分依据:分页是<b>物理</b>单位(系统按固定大小划分),分段是<b>逻辑</b>单位(按程序逻辑、大小可变)。② 地址结构:分页<b>一维</b>,分段<b>二维</b>(段号+段内偏移)。③ 碎片:分页有<b>内部</b>碎片无外部,分段有<b>外部</b>碎片无内部。(另:分段更便于共享和保护。)</div></div>
+<div class="q"><div class="qn">5. 什么是虚拟存储器?它的实现基于什么原理?</div>
+  <div class="ans"><div class="t">参考答案</div>虚拟存储器:基于请求调页(段)和置换功能,把部分程序装入内存即可运行,使用户感觉到的内存容量远大于实际物理内存——逻辑上扩充了内存。其实现基于<b>程序的局部性原理</b>(时间局部性 + 空间局部性):程序在一段时间内只访问局部的少数页面,故无需全部装入。</div></div>
+
+<h2>三、计算题(5 × 8 = 40 分)</h2>
+
+<div class="q"><div class="qn">1.【磁盘调度】磁头当前在 <b>53</b> 号磁道,请求队列为 <code>98, 183, 37, 122, 14, 124, 65, 67</code>,先向磁道号<b>增大</b>方向移动。分别求 <b>FCFS、SSTF、SCAN、CSCAN</b> 的总寻道距离(SCAN/CSCAN 到该方向最后一个请求即折返/跳回)。</div>
+  <div class="ans"><div class="t">参考答案</div>
+  <b>FCFS</b>:53→98→183→37→122→14→124→65→67,=45+85+146+85+108+110+59+2 = <b>640</b>。<br>
+  <b>SSTF</b>:53→65→67→37→14→98→122→124→183 = <b>236</b>。<br>
+  <b>SCAN</b>(向大,到183折返):53→65→67→98→122→124→183→37→14 = (183−53)+(183−14)=130+169 = <b>299</b>。<br>
+  <b>CSCAN</b>:53→65→67→98→122→124→183→(跳回)14→37 = (183−53)+(183−14)+(37−14)=130+169+23 = <b>322</b>。</div></div>
+
+<div class="q"><div class="qn">2.【页面置换】物理块数 <b>3</b>,页面访问串 <code>7, 0, 1, 2, 0, 3, 0, 4</code>。分别求 <b>FIFO</b> 和 <b>LRU</b> 的缺页次数。</div>
+  <div class="ans"><div class="t">参考答案</div>
+  <b>FIFO</b>:依次缺页 7,0,1,2,(0命中),3,0,4 → 共 <b>7 次缺页</b>(命中 1 次)。<br>
+  &nbsp;过程:[7][7,0][7,0,1]→换7[0,1,2]→0命中→换0[1,2,3]→换1[2,3,0]→换2[3,0,4]。<br>
+  <b>LRU</b>:7,0,1,2,(0命中),3,(0命中),4 → 共 <b>6 次缺页</b>(命中 2 次)。<br>
+  &nbsp;过程:[7][7,0][7,0,1]→换7[0,1,2]→0命中→换1[2,0,3]→0命中→换2[0,3,4]。<br>
+  LRU(6)优于 FIFO(7),因为 0 被频繁访问,LRU 把它保留下来。</div></div>
+
+<div class="q"><div class="qn">3.【混合索引】某文件系统采用 UNIX 混合索引:<b>10 个直接</b>地址项 + <b>1 个一级</b>间接 + <b>1 个二级</b>间接 + <b>1 个三级</b>间接。磁盘块大小 <b>1KB</b>,每个地址项 <b>4B</b>。求一个磁盘块能存放的地址项数 N,以及该文件系统的<b>最大文件大小</b>。</div>
+  <div class="ans"><div class="t">参考答案</div>
+  N = 块大小 ÷ 地址项大小 = 1024 ÷ 4 = <b>256</b>。<br>
+  直接:10 × 1KB = 10KB;一级:256 × 1KB = 256KB;二级:256² × 1KB = 65536KB = 64MB;三级:256³ × 1KB = 16M×1KB = 16GB。<br>
+  最大文件 = 10KB + 256KB + 64MB + 16GB <b>≈ 16GB</b>。</div></div>
+
+<div class="q"><div class="qn">4.【周转时间】4 个进程采用 <b>FCFS</b> 调度。P1(到达0,服务4)、P2(到达1,服务3)、P3(到达2,服务5)、P4(到达3,服务2)。求各进程的周转时间、带权周转时间,以及平均周转时间、平均带权周转时间。</div>
+  <div class="ans"><div class="t">参考答案</div>
+  <table><tr><th>进程</th><th>到达</th><th>服务</th><th>完成</th><th>周转</th><th>带权</th></tr>
+  <tr><td>P1</td><td>0</td><td>4</td><td>4</td><td>4</td><td>1</td></tr>
+  <tr><td>P2</td><td>1</td><td>3</td><td>7</td><td>6</td><td>2</td></tr>
+  <tr><td>P3</td><td>2</td><td>5</td><td>12</td><td>10</td><td>2</td></tr>
+  <tr><td>P4</td><td>3</td><td>2</td><td>14</td><td>11</td><td>5.5</td></tr></table>
+  平均周转 = (4+6+10+11)/4 = 31/4 = <b>7.75</b>;平均带权周转 = (1+2+2+5.5)/4 = 10.5/4 = <b>2.625</b>。</div></div>
+
+<div class="q"><div class="qn">5.【成组链接法】空闲块管理用成组链接法,<b>每 3 块为一组</b>。当前 <code>S.free = [2], 5, 6</code>(2 个空闲块 5、6,栈顶在右)。依次:① 回收第 7 块 ② 回收第 8 块 ③ 分配 2 块。写出每步后的 S.free 和空闲总数。</div>
+  <div class="ans"><div class="t">参考答案</div>
+  ① 回收7:栈未满(2&lt;3),压入 → <code>[3]5,6,7</code>,总数 3(此时满)。<br>
+  ② 回收8:栈已满(3)!把 <code>5,6,7</code> 写入第8块,S.free 只剩 → <code>[1]8</code>,总数 4。<br>
+  ③ 分配第1块:只剩1块,第8块存着下一组→<b>先读出</b> <code>5,6,7</code> 到 S.free,<b>再分配8</b> → <code>[3]5,6,7</code>,总数 3。<br>
+  &nbsp;&nbsp;&nbsp;分配第2块:弹栈顶7 → <code>[2]5,6</code>,总数 2。<br>
+  <b>最终 S.free = [2]5,6,空闲总数 2;依次分配出 8、7。</b></div></div>
+
+<h2>四、设计题(10 分)</h2>
+<div class="q"><div class="qn">1. 有一个可存放 <b>n 个</b>产品的缓冲池,多个<b>生产者</b>进程不断生产产品放入缓冲池,多个<b>消费者</b>进程不断从缓冲池取产品消费。要求:① 定义所需信号量及其初值;② 用 P/V 操作写出生产者和消费者的同步互斥算法;③ 说明两个 P 操作的顺序为什么不能颠倒。</div>
+  <div class="ans"><div class="t">参考答案</div>
+  ① 信号量:<code>mutex=1</code>(缓冲池互斥)、<code>empty=n</code>(空缓冲区数)、<code>full=0</code>(满缓冲区/产品数)。
+<pre>producer(){              consumer(){
+  生产一个产品;            P(full);    // 申请产品
+  P(empty); // 申请空位     P(mutex);   // 进缓冲池
+  P(mutex); // 进缓冲池     从缓冲池取产品;
+  放入缓冲池;              V(mutex);
+  V(mutex);               V(empty);   // 多一个空位
+  V(full);  // 多一个产品  }
+}</pre>
+  ③ 必须<b>先 P(资源信号量 empty/full),再 P(mutex)</b>。若颠倒(先 P(mutex) 再 P(empty/full)):例如缓冲池空时消费者先拿到 mutex(钥匙),再 P(full) 因无产品而阻塞,<b>但它仍占着 mutex</b>;此时生产者想放产品却 P(mutex) 拿不到钥匙也阻塞 → 双方互相等待,<b>死锁</b>。而两个 V 操作顺序可以颠倒,不会死锁。</div></div>
+
+<footer>
+  <p>⏱ 做完后:选择题点上方"交卷"自动判分;<b>计算/问答/设计题把你的答案发到对话里,我逐题批改 + 回讲错题</b>。</p>
+  <p>本卷按你提供的题型结构(选择15/问答5/计算5/设计1,共100分)命制,覆盖 ch01-08 高频考点。</p>
+</footer>
+
+</div>
+<script>
+// timer
+var total=120*60, el=document.getElementById('timer');
+function tick(){
+  var m=Math.floor(total/60), s=total%60;
+  el.textContent=(m<10?'0':'')+m+':'+(s<10?'0':'')+s;
+  el.className='timer'+(total<=600?' over':(total<=1800?' warn':''));
+  if(total>0){total--; setTimeout(tick,1000);} else {el.textContent='00:00 时间到!';}
+}
+tick();
+// 选择题选中
+document.querySelectorAll('.q[data-a]').forEach(function(q){
+  q.querySelectorAll('.opt').forEach(function(b,i){
+    b.addEventListener('click',function(){
+      if(q.dataset.done) return;
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('sel')});
+      b.classList.add('sel'); q.dataset.pick=i;
+    });
+  });
+});
+function submitExam(){
+  var correct=0, tot=0;
+  document.querySelectorAll('.q[data-a]').forEach(function(q){
+    tot++; q.dataset.done='1';
+    var a=+q.dataset.a, pick=q.dataset.pick!==undefined?+q.dataset.pick:-1;
+    q.querySelectorAll('.opt').forEach(function(o,i){
+      o.classList.remove('sel');
+      if(i===a)o.classList.add('correct');
+      if(i===pick&&pick!==a)o.classList.add('wrong');
+    });
+    if(pick===a)correct++;
+  });
+  document.querySelectorAll('.ans').forEach(function(a){a.classList.add('show')});
+  var r=document.getElementById('result');
+  r.className='result show';
+  r.innerHTML='选择题:答对 <span class="big">'+correct+' / '+tot+'</span>(得 '+(correct*2)+' / 30 分)。<br>'+
+    '下方已显示<b>全部参考答案</b>。请把你的<b>计算题(40)/问答题(20)/设计题(10)</b>答案发到对话里,我来批改并回讲——这三部分占 70 分,是大头。';
+  window.scrollTo(0,0);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 16 课 · 银行家算法（可视化）· 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e;
+    --okbg:#f1f9f4; --badbg:#fdf0ef; --gold:#c8951a; --goldbg:#fff8e8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:40px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:40px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+
+  /* ---- 可视化舞台 ---- */
+  .stage{border:1px solid var(--line); border-radius:12px; background:#fff; padding:20px; margin:18px 0;
+    box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .vault{display:flex; align-items:center; justify-content:center; gap:14px; flex-wrap:wrap; margin:6px 0 18px}
+  .vault-box{display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-width:150px; padding:14px 22px; border-radius:14px; background:linear-gradient(160deg,#fff8e8,#ffeec0);
+    border:2px solid var(--gold)}
+  .vault-box .lbl{font-size:13px; color:var(--warn); font-weight:600}
+  .vault-num{font-size:46px; font-weight:800; color:var(--gold); line-height:1.1; font-variant-numeric:tabular-nums}
+  .vault-box .unit{font-size:12px; color:var(--muted)}
+  .vault.bump{animation:bump .45s ease}
+  @keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+  .procs{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px}
+  .pcard{border:1px solid var(--line); border-radius:10px; padding:12px 14px; background:#fcfcfb; transition:.25s}
+  .pcard.active{border-color:var(--accent); box-shadow:0 0 0 3px var(--soft); background:#fff}
+  .pcard.done{border-color:var(--ok); background:var(--okbg); opacity:.85}
+  .pcard.stuck{border-color:var(--bad); background:var(--badbg)}
+  .pcard .ptop{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px}
+  .pname{font-weight:700; font-size:17px}
+  .pbadge{font-size:12px; padding:2px 8px; border-radius:20px; background:#eee; color:var(--muted)}
+  .pcard.done .pbadge{background:var(--ok); color:#fff}
+  .pcard.active .pbadge{background:var(--accent); color:#fff}
+  .pcard.stuck .pbadge{background:var(--bad); color:#fff}
+  .bar{display:flex; height:26px; border-radius:6px; overflow:hidden; border:1px solid var(--line); background:#f3f3f0}
+  .seg{display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; font-weight:600; transition:.4s}
+  .seg.alloc{background:var(--accent)}
+  .seg.need{background:repeating-linear-gradient(45deg,#d9c089,#d9c089 6px,#e7d3a0 6px,#e7d3a0 12px); color:#6b5316}
+  .pmeta{display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); margin-top:6px}
+  .pmeta b{color:var(--ink)}
+
+  .controls{display:flex; gap:10px; flex-wrap:wrap; margin:16px 0 6px}
+  button.btn{font-family:inherit; font-size:15px; font-weight:600; padding:10px 18px; border-radius:8px;
+    border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; transition:.15s}
+  button.btn:hover{filter:brightness(1.07)}
+  button.btn.ghost{background:#fff; color:var(--accent)}
+  button.btn.danger{background:var(--bad); border-color:var(--bad)}
+  button.btn:disabled{opacity:.4; cursor:not-allowed}
+
+  .seq{margin:14px 0 2px; font-size:15px}
+  .seq .chip{display:inline-block; background:var(--okbg); border:1px solid var(--ok); color:var(--ok);
+    font-weight:700; padding:3px 12px; border-radius:20px; margin:0 4px 4px 0}
+  .seq .arrow{color:var(--muted); margin:0 2px}
+  .logbox{margin-top:12px; background:#0f2230; color:#cfe6f5; border-radius:8px; padding:12px 14px;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.7; min-height:48px; white-space:pre-wrap}
+  .logbox .g{color:#7fd99a} .logbox .y{color:#ffd87a} .logbox .r{color:#ff9a90}
+  .verdict{margin-top:14px; font-size:17px; font-weight:700; padding:12px 16px; border-radius:8px; display:none}
+  .verdict.show{display:block}
+  .verdict.safe{background:var(--okbg); border:1px solid var(--ok); color:var(--ok)}
+  .verdict.unsafe{background:var(--badbg); border:1px solid var(--bad); color:var(--bad)}
+
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center}
+  th{background:#eaf1f6; font-weight:600}
+
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+  .hint{font-size:13px; color:var(--muted); margin-top:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 死锁避免 · Ch3</div>
+  <h1>第 16 课 · 银行家算法 <span style="font-size:16px;color:var(--muted)">（动手可视化版）</span></h1>
+  <div class="sub">这一版不靠你硬记。你亲手点“下一步”，看金库怎么“滚雪球”，再看“乱借”怎么把所有人卡死。约 15 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>一句话先记住：</b> 银行家算法是死锁的「<b>避免</b>」——<b>每次借钱前先在脑子里预演一遍</b>：借了之后，还能不能找到一个顺序让所有客户都<b>凑够、干完、还钱</b>？能→「安全」→借；找不到→「不安全」→让他等。<b>目的不是赚利息，是不让大家互相卡死。</b>
+</div>
+
+<h2>一、先看懂一张“进程卡片”</h2>
+<p>每个客户（=进程）就是一张卡片。卡片上的横条 = 他<b>总共需要的钱（Max）</b>。横条分两段：</p>
+<ul>
+  <li><span style="color:var(--accent);font-weight:700">蓝色 = 已经借走的（Allocation）</span></li>
+  <li><span style="color:#6b5316;font-weight:700">斜纹 = 还差多少才够开工（Need = Max − Allocation）</span></li>
+</ul>
+<div class="callout"><b>开工规则（关键设定）：</b> 客户必须把斜纹部分也<b>借满</b>，才能开工赚钱；干完工，会把<b>借的钱一分不少全还回金库</b>。没借满 → 攥着钱<b>干等</b>，不开工也不还钱。</div>
+
+<h2>二、动手演示 ①：安全状态 + 滚雪球 🏦</h2>
+<p>教材原例：系统共 <b>12</b> 台磁带机。三个进程如下，金库现在剩 <b>Available = 3</b>。点 <b>“下一步”</b>，亲手把它们一个个喂饱。</p>
+
+<div class="stage" id="stageA">
+  <div class="vault" id="vaultA">
+    <div class="vault-box">
+      <span class="lbl">🏦 金库手头（Work）</span>
+      <span class="vault-num" id="workA">3</span>
+      <span class="unit">台磁带机可用</span>
+    </div>
+  </div>
+  <div class="procs" id="procsA"></div>
+  <div class="controls">
+    <button class="btn" id="stepA">下一步 ▶</button>
+    <button class="btn ghost" id="resetA">↺ 重来</button>
+  </div>
+  <div class="seq" id="seqWrapA" style="display:none">安全序列：<span id="seqA"></span></div>
+  <div class="logbox" id="logA">点“下一步”：系统会去找一个「还需 ≤ 手头」的进程……</div>
+  <div class="verdict" id="verdictA"></div>
+</div>
+
+<div class="callout ok">
+  <b>注意第一步的“反直觉”：</b> 一开始手头只有 3，P1 还需 5、P3 还需 7，都喂不饱，看着像要卡住。但 <b>P2 只还需 2 ≤ 3</b>，先喂它！它一跑完还回 2，手头变 5……原本喂不饱的 P1 现在够了。<b class="hl">这就是滚雪球。</b>
+</div>
+
+<h2>三、动手演示 ②：乱借 → 死锁 💥</h2>
+<p>同样的初始局面（金库 3 台）。这次银行家<b>不预演</b>，看见 P3 张口就把 3 台全给了它。点下面的红按钮，看会发生什么：</p>
+
+<div class="stage" id="stageB">
+  <div class="vault" id="vaultB">
+    <div class="vault-box" style="background:linear-gradient(160deg,#fff,#f3f3f0);border-color:#bbb">
+      <span class="lbl" style="color:var(--muted)">🏦 金库手头</span>
+      <span class="vault-num" id="workB" style="color:#555">3</span>
+      <span class="unit">台磁带机可用</span>
+    </div>
+  </div>
+  <div class="procs" id="procsB"></div>
+  <div class="controls">
+    <button class="btn danger" id="badA">把 3 台全借给 P3 ▶</button>
+    <button class="btn ghost" id="resetB">↺ 重来</button>
+  </div>
+  <div class="logbox" id="logB">点红按钮，模拟“不预演、乱借”……</div>
+  <div class="verdict" id="verdictB"></div>
+</div>
+
+<div class="callout bad">
+  <b>看明白了吗？</b> 金库被掏空成 0，可 P1 还需 5、P2 还需 2、P3 还需 4——<b>谁都喂不饱、谁都不开工、谁都不还钱</b>，永远互相干等。这就是<b>死锁</b>。银行家算法存在的全部意义，就是<b>在借出去之前预演一遍，提前发现这条死路并绕开它</b>。
+</div>
+
+<h2>四、把演示①写成“安全性算法”（考试写法）</h2>
+<div class="callout warn">
+  <ol style="margin:4px 0 0">
+    <li>令 <code>Work = Available</code>，所有进程 <code>Finish = 假</code>。</li>
+    <li>找一个 <b>Finish=假</b> 且 <b>Need ≤ Work</b> 的进程。</li>
+    <li>假设它跑完：<code>Work = Work + Allocation</code>（它把占用的全还回来），<code>Finish=真</code>。回到第 2 步。</li>
+    <li>全部 <code>Finish=真</code> → <b>安全</b>（记下顺序=安全序列）；中途找不到 → <b>不安全</b>。</li>
+  </ol>
+</div>
+<table>
+  <tr><th>步</th><th>Work（手头）</th><th>挑中谁（Need≤Work）</th><th>它还钱后 Work</th></tr>
+  <tr><td>1</td><td>3</td><td>P2（还需2 ≤ 3）✅</td><td>3 + 2 = <b>5</b></td></tr>
+  <tr><td>2</td><td>5</td><td>P1（还需5 ≤ 5）✅</td><td>5 + 5 = <b>10</b></td></tr>
+  <tr><td>3</td><td>10</td><td>P3（还需7 ≤ 10）✅</td><td>10 + 2 = <b>12</b></td></tr>
+</table>
+<p>全部完成 → <b>安全，安全序列 P2 → P1 → P3</b>。和你刚才点出来的一模一样。</p>
+
+<h2>五、必背三句</h2>
+<div class="callout">
+  <p style="margin:4px 0">① <b>Need = Max − Allocation</b>（还差的 = 最多要的 − 已拿的）。</p>
+  <p style="margin:4px 0">② 安全性算法：<b>找 Need≤Work 的进程 → 它跑完 Work += Allocation → 重复</b>，全完成则安全。</p>
+  <p style="margin:4px 0">③ 银行家算法 = 死锁<b>避免</b>（不是预防）：每次分配前预演，绝不踏入不安全状态。</p>
+</div>
+
+<h2>六、轮到你了</h2>
+<div class="quiz" id="q1"><div class="qq">Q1. 演示①第一步为什么先喂 P2，而不是 P1？</div>
+  <button class="opt" data-ok="0">因为 P2 借的利息最高</button>
+  <button class="opt" data-ok="1">因为只有 P2 的“还需(2)”≤ 手头(3)，当下只喂得饱它</button>
+  <button class="opt" data-ok="0">因为 P2 编号小，必须按顺序来</button>
+  <button class="opt" data-ok="0">因为 P2 的 Max 最小</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q2"><div class="qq">Q2. 一个进程“跑完”后，金库（Work）会怎样？</div>
+  <button class="opt" data-ok="0">不变，钱已经花掉了</button>
+  <button class="opt" data-ok="0">减去它的 Need</button>
+  <button class="opt" data-ok="1">加上它的 Allocation —— 它把占用的资源全还回来了</button>
+  <button class="opt" data-ok="0">清零</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q3"><div class="qq">Q3. 演示②里，把 3 台全借给 P3 后系统卡死。这种局面在课本里叫？</div>
+  <button class="opt" data-ok="0">安全状态</button>
+  <button class="opt" data-ok="0">就绪状态</button>
+  <button class="opt" data-ok="1">不安全状态（继续下去就死锁）</button>
+  <button class="opt" data-ok="0">临界区</button>
+  <div class="fb"></div></div>
+
+<h2>七、通关条件</h2>
+<div class="callout ok">
+  回到对话里，用<b>你自己的话</b>告诉我：<br>
+  ① 银行家“预演”到底是为了什么？（一句话，别提利息）<br>
+  ② “滚雪球”是什么意思？为什么先喂还需少的人很关键？<br>
+  ③ Need 怎么算？银行家算法属于死锁的“避免”还是“预防”？
+</div>
+
+<footer>
+  <p>📌 多类资源（A/B/C 三种）时：把每个数字换成<b>向量</b>，<code>Need ≤ Work</code> 要求<b>每一类都 ≤</b>；其余步骤完全一样（逐列比较、逐列相加）。</p>
+  <p>来源：汤小丹《计算机操作系统》第四版 · 课件 <code>3_处理机调度/ppt文本.md §3.6.2 系统安全状态、§3.6.3 银行家算法</code>（12 台磁带机原例）。</p>
+  <p>配套练习见 <code>exams/ch03-test.html</code>；有不懂 <b>直接问我</b>。</p>
+</footer>
+
+</div>
+<script>
+// ---------- 数据：教材原例（12 台磁带机）----------
+function makeProcs(){
+  return [
+    {name:"P1", max:10, alloc:5, finish:false},
+    {name:"P2", max:4,  alloc:2, finish:false},
+    {name:"P3", max:9,  alloc:2, finish:false},
+  ];
+}
+function need(p){ return p.max - p.alloc; }
+
+// ---------- 渲染一张进程卡片 ----------
+function renderProcs(containerId, procs, opts){
+  opts = opts || {};
+  var box = document.getElementById(containerId);
+  box.innerHTML = "";
+  procs.forEach(function(p){
+    var n = need(p);
+    var cls = "pcard";
+    if(p.finish) cls += " done";
+    else if(opts.activeName === p.name) cls += " active";
+    else if(opts.stuck) cls += " stuck";
+    var badge = p.finish ? "✓ 已完成" : (opts.activeName===p.name ? "◀ 选中" : (opts.stuck ? "✗ 卡住" : "等待中"));
+    // 进度条按 Max 等比
+    var allocPct = p.max ? Math.round(p.alloc/p.max*100) : 0;
+    var needPct  = 100 - allocPct;
+    var allocSeg = p.alloc>0 ? '<div class="seg alloc" style="width:'+allocPct+'%">已借'+p.alloc+'</div>' : '';
+    var needSeg  = n>0 ? '<div class="seg need" style="width:'+needPct+'%">还需'+n+'</div>' : '';
+    if(p.finish){ allocSeg = '<div class="seg alloc" style="width:100%;background:var(--ok)">已还清 '+p.max+'</div>'; needSeg=''; }
+    var html = ''
+      + '<div class="'+cls+'">'
+      +   '<div class="ptop"><span class="pname">'+p.name+'</span><span class="pbadge">'+badge+'</span></div>'
+      +   '<div class="bar">'+allocSeg+needSeg+'</div>'
+      +   '<div class="pmeta"><span>Max <b>'+p.max+'</b></span><span>已借 <b>'+p.alloc+'</b></span><span>还需 <b>'+n+'</b></span></div>'
+      + '</div>';
+    box.insertAdjacentHTML("beforeend", html);
+  });
+}
+
+// ---------- 数字滚动动画 ----------
+function animateNum(el, from, to){
+  var start=null, dur=450;
+  function tick(ts){
+    if(!start) start=ts;
+    var t=Math.min(1,(ts-start)/dur);
+    el.textContent = Math.round(from+(to-from)*t);
+    if(t<1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ================= 演示 ① 安全序列（分两拍：选中 → 跑完）=================
+var A = {};
+function initA(){
+  A.procs = makeProcs();
+  A.work = 3;
+  A.seq = [];
+  A.pending = null;   // 已选中、等下一拍跑完的进程
+  A.over = false;
+  document.getElementById("workA").textContent = A.work;
+  document.getElementById("seqWrapA").style.display = "none";
+  document.getElementById("seqA").innerHTML = "";
+  document.getElementById("logA").innerHTML = '点“下一步”：系统会去找一个「还需 ≤ 手头」的进程……';
+  var v=document.getElementById("verdictA"); v.className="verdict"; v.textContent="";
+  document.getElementById("stepA").disabled=false;
+  renderProcs("procsA", A.procs, {});
+}
+function log(id, html){ document.getElementById(id).innerHTML = html; }
+function bump(id){ var v=document.getElementById(id); v.classList.remove("bump"); void v.offsetWidth; v.classList.add("bump"); }
+
+document.getElementById("stepA").addEventListener("click", function(){
+  if(A.over) return;
+  if(A.pending){
+    // 第二拍：让选中的进程跑完、还钱
+    var p = A.pending; A.pending=null;
+    var before = A.work;
+    p.finish = true;
+    A.work += p.alloc;
+    A.seq.push(p.name);
+    renderProcs("procsA", A.procs, {});
+    animateNum(document.getElementById("workA"), before, A.work); bump("vaultA");
+    document.getElementById("seqWrapA").style.display="block";
+    document.getElementById("seqA").innerHTML = A.seq.map(function(n,i){
+      return (i?'<span class="arrow">→</span>':'')+'<span class="chip">'+n+'</span>';
+    }).join("");
+    log("logA",'<span class="g">'+p.name+' 跑完！</span>它把占用的 <b>'+p.alloc+'</b> 台还回金库 → 手头 '+before+' + '+p.alloc+' = <span class="y">'+A.work+'</span>。');
+    if(A.procs.every(function(x){return x.finish;})){
+      A.over=true; document.getElementById("stepA").disabled=true;
+      var v=document.getElementById("verdictA"); v.className="verdict show safe";
+      v.textContent="✅ 全部完成 → 系统安全！安全序列：" + A.seq.join(" → ");
+    }
+    return;
+  }
+  // 第一拍：找一个 Need ≤ Work 的未完成进程
+  var cand = A.procs.find(function(p){ return !p.finish && need(p) <= A.work; });
+  if(!cand){
+    A.over=true; document.getElementById("stepA").disabled=true;
+    renderProcs("procsA", A.procs, {stuck:true});
+    var v=document.getElementById("verdictA"); v.className="verdict show unsafe";
+    v.textContent="❌ 没有进程的“还需”≤ 手头 → 不安全（卡住）";
+    return;
+  }
+  A.pending = cand;
+  renderProcs("procsA", A.procs, {activeName:cand.name});
+  log("logA",'手头 = <span class="y">'+A.work+'</span>。找到 <b>'+cand.name+'</b>：还需 '+need(cand)+' ≤ '+A.work+' ✅ 喂得饱！<br>再点一次“下一步”，让它跑完、还钱。');
+});
+document.getElementById("resetA").addEventListener("click", initA);
+
+// ================= 演示 ② 乱借导致死锁 =================
+var B = {};
+function initB(){
+  B.procs = makeProcs();
+  B.work = 3;
+  B.done = false;
+  document.getElementById("workB").textContent = 3;
+  log("logB", '点红按钮，模拟“不预演、乱借”……');
+  var v=document.getElementById("verdictB"); v.className="verdict"; v.textContent="";
+  document.getElementById("badA").disabled=false;
+  renderProcs("procsB", B.procs, {});
+}
+document.getElementById("badA").addEventListener("click", function(){
+  if(B.done) return;
+  B.done=true; document.getElementById("badA").disabled=true;
+  var p3 = B.procs[2];
+  var before = B.work;
+  p3.alloc += 3;          // 把 3 台全给 P3
+  B.work = 0;
+  renderProcs("procsB", B.procs, {stuck:true});
+  animateNum(document.getElementById("workB"), before, 0); bump("vaultB");
+  log("logB",
+    '<span class="r">把 3 台全给了 P3。</span>P3 现在持有 '+p3.alloc+' 台，但它 Max='+p3.max+'，还差 '+need(p3)+' 才能开工 → 开不了工。<br>'
+    + '金库 = <span class="r">0</span>。现在 P1 还需 5、P2 还需 2、P3 还需 '+need(p3)+'，<span class="r">手头 0，谁都喂不饱</span>。');
+  var v=document.getElementById("verdictB"); v.className="verdict show unsafe";
+  v.textContent="💥 死锁！三个进程互相干等，永远无法推进。——这正是“预演”要提前避开的。";
+});
+document.getElementById("resetB").addEventListener("click", initB);
+
+// ================= 自测题批改 =================
+var FB={
+  q1:{good:'对！银行家不看利息，只看“当下手头喂不喂得饱”。只有 P2 还需2≤手头3。',bad:'关键是“还需 ≤ 手头”。开始手头只有 3，只有 P2(还需2) 喂得饱，跟利息、编号、Max 都无关。'},
+  q2:{good:'对！进程跑完会释放它占用的全部资源，所以 Work += Allocation，手头变多——这就是滚雪球的动力。',bad:'进程跑完会把占用的资源全还回来：Work = Work + Allocation，手头因此变多。'},
+  q3:{good:'对！找不到任何安全序列就是“不安全状态”，再走下去就死锁。',bad:'课本叫“不安全状态”：找不到能让所有进程都完成的顺序，继续分配就会死锁。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      if(ok)q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+
+// 初始化
+initA(); initB();
+</script>
+</body>
+</html>
