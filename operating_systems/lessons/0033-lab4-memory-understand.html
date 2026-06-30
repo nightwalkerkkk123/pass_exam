@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实验④ 内存分配与回收 · 理解版 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#5a6475; --line:#e3e6ec; --bg:#f6f8fc; --card:#ffffff;
+    --blue:#2b6cb0; --green:#2f855a; --amber:#b7791f; --red:#c53030; --purple:#6b46c1;
+    --green-bg:#e7f6ec; --green-bd:#9ad0ad;
+    --amber-bg:#fdeccd; --amber-bd:#e8b86a;
+    --blue-bg:#e7eefc; --blue-bd:#9bb6ec;
+    --shadow:0 1px 3px rgba(20,30,60,.05), 0 6px 24px rgba(20,30,60,.04);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:
+      radial-gradient(1200px 500px at 80% -10%, #eaf1ff 0%, transparent 60%),
+      radial-gradient(900px 400px at -10% 10%, #fef3e6 0%, transparent 55%),
+      var(--bg);
+    line-height:1.75; font-size:16px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px; margin:0 auto; padding:36px 22px 110px}
+
+  /* header */
+  header.h{margin-bottom:26px}
+  .eyebrow{display:inline-block; color:#fff; background:linear-gradient(135deg,var(--green),#256d49);
+    font-weight:700; letter-spacing:.04em; font-size:12.5px; padding:4px 11px; border-radius:20px}
+  h1{font-size:27px; margin:14px 0 8px; letter-spacing:-.01em; line-height:1.3}
+  .sub{color:var(--muted); font-size:14.5px; max-width:62ch}
+  .tagrow{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap}
+  .tag{font-size:12.5px; color:var(--muted); background:#fff; border:1px solid var(--line);
+    padding:3px 10px; border-radius:20px}
+
+  h2{font-size:20px; margin:42px 0 12px; display:flex; align-items:center; gap:10px}
+  h2 .n{display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+    border-radius:9px; background:var(--blue); color:#fff; font-size:15px; font-weight:700; flex:0 0 auto}
+  p{margin:9px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6;
+    padding:1px 6px; border-radius:4px; color:#33415c}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:20px 22px; margin:16px 0; box-shadow:var(--shadow)}
+  .eli5{background:linear-gradient(180deg,#fffaf2,#fff); border:1px solid var(--amber-bd);
+    border-left:4px solid var(--amber); border-radius:10px; padding:14px 16px; margin:16px 0}
+  .eli5 .lbl{color:var(--amber); font-weight:700; font-size:13px; letter-spacing:.03em}
+  .key{background:linear-gradient(180deg,#f1fbf4,#fff); border:1px solid var(--green-bd);
+    border-left:4px solid var(--green); border-radius:10px; padding:14px 16px; margin:16px 0}
+  .key .lbl{color:var(--green); font-weight:700; font-size:13px}
+  .warn{background:#fff5f5; border:1px solid #f5c2c2; border-left:4px solid var(--red);
+    border-radius:10px; padding:14px 16px; margin:16px 0}
+  .warn .lbl{color:var(--red); font-weight:700; font-size:13px}
+
+  /* 问题对照表 */
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top}
+  th{background:#f0f3f9; font-weight:700}
+  td.c{text-align:center}
+
+  /* ===== 地址翻译交互可视化 ===== */
+  .vabar{display:flex; gap:4px; flex-wrap:wrap; margin:12px 0 4px; font-family:"SF Mono",Menlo,monospace}
+  .seg{flex:1; min-width:60px; border-radius:9px; padding:9px 6px; text-align:center;
+    border:1.5px solid var(--line); background:#fbfcfe; transition:all .2s; user-select:none}
+  .seg .nm{font-size:11px; color:var(--muted)} .seg .bt{font-size:11px; color:var(--muted)}
+  .seg .val{font-size:16px; font-weight:800; color:var(--ink); margin:2px 0}
+  .seg.s2{border-color:var(--ink)} .seg.s1{border-color:var(--amber-bd)}
+  .seg.s0{border-color:var(--blue-bd)} .seg.off{border-color:var(--green-bd)}
+  .seg.cur{box-shadow:0 0 0 3px rgba(43,108,176,.25); transform:translateY(-2px)}
+
+  .stage{display:grid; grid-template-columns: 1fr; gap:18px; margin-top:8px}
+  @media(min-width:720px){ .stage{grid-template-columns: 1fr 1fr 1fr} }
+  .pt{border:2px solid var(--line); border-radius:12px; padding:12px; background:#fff; opacity:.4; transition:all .25s}
+  .pt.lit{opacity:1}
+  .pt.lit.l2{border-color:var(--ink)} .pt.lit.l1{border-color:var(--amber)} .pt.lit.l0{border-color:var(--blue)}
+  .pt .ph{font-size:12.5px; font-weight:700; text-align:center; margin-bottom:8px; color:var(--muted)}
+  .pt .rows{display:grid; grid-template-columns:1fr; gap:3px; font-family:"SF Mono",Menlo,monospace; font-size:11.5px}
+  .pt .row{display:flex; justify-content:space-between; padding:3px 7px; border-radius:6px; background:#f4f6fa; color:#55607a}
+  .pt .row.hit{background:var(--blue); color:#fff; font-weight:700}
+  .pt .row .v{opacity:.7}
+  .arrowdown{text-align:center; color:#bbb; font-size:20px; margin:-4px 0}
+
+  .readout{min-height:54px; background:#0f1626; color:#e8edf6; border-radius:10px;
+    padding:11px 14px; font-size:13.5px; line-height:1.55; margin-top:14px}
+  .readout b{color:#ffd479}
+  .readout .ok{color:#7ee0a6; font-weight:700}
+  .ctrls{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center}
+  .ctrls .lab{font-size:13px; color:var(--muted)}
+  .btn{font:inherit; font-size:13.5px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:7px 14px; border-radius:22px; cursor:pointer; transition:background .15s}
+  .btn:hover{background:#eef4fb}
+  .btn.amber{border-color:var(--amber); color:var(--amber)} .btn.amber:hover{background:#fdf3e2}
+  .btn.reset{border-color:#bbb; color:#777} .btn.reset:hover{background:#f2f2f2}
+  select{font:inherit; font-size:13.5px; padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:#fff}
+
+  /* freelist 小动画 */
+  .flrow{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-family:"SF Mono",Menlo,monospace; margin:10px 0}
+  .pg{border:1.5px solid var(--green-bd); background:var(--green-bg); color:#1f5135; border-radius:8px;
+    padding:8px 12px; font-size:13px; font-weight:700; transition:all .25s}
+  .pg.head{box-shadow:0 0 0 3px rgba(47,133,90,.2)}
+  .pg.gone{opacity:.25; text-decoration:line-through}
+  .flarrow{color:#9aa; font-size:14px}
+
+  /* 自测 */
+  .q{margin:12px 0; padding:13px 15px; border:1px solid var(--line); border-radius:10px; background:#fff}
+  .q .qt{font-weight:600}
+  .q .ans{margin-top:8px; padding:10px 12px; background:#f1fbf4; border-radius:8px; font-size:14px;
+    border:1px solid var(--green-bd); display:none}
+  .q .ans.show{display:block}
+  .reveal{margin-top:8px; font-size:13px; color:var(--blue); background:none; border:none; cursor:pointer; padding:0; text-decoration:underline}
+
+  footer{margin-top:50px; padding-top:16px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  footer a{color:var(--blue); text-decoration:none}
+  .pill{display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:20px; background:#eef4fb;
+    color:var(--blue); margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="h">
+    <span class="eyebrow">实验④ 内存分配与回收 · 理解版</span>
+    <h1>一个虚拟地址，是怎么"逐级查表"变成物理地址的?</h1>
+    <p class="sub">这一页不教你上台讲，只让你自己<b>真正看懂</b>两件事:① 一个虚拟地址要走三级页表、逐级查表，才落到物理页;② "分配/回收一页内存"就是从一条空闲链表上摘一个、还回去。看懂了，再去看讲解版（第 34 课）。</p>
+    <div class="tagrow">
+      <span class="tag">对应教材 Ch4 存储器管理 · 分页 · 地址变换</span>
+      <span class="tag">对应 xv6 <code>kernel/vm.c</code> 的 walk()</span>
+      <span class="tag">+ <code>kernel/kalloc.c</code> 的 kalloc/kfree</span>
+    </div>
+  </header>
+
+  <!-- 1. 直觉 -->
+  <h2><span class="n">1</span>先建立一个画面</h2>
+  <div class="eli5">
+    <span class="lbl">🧸 ELI5：省 → 市 → 区，三级查地址</span>
+    <p>你要寄一个快递，地址写的是"<b>2 省 1 市 5 区 偏移 23 号</b>"。快递员不是一下子就知道门牌在哪，而是<b>一级一级查表</b>:</p>
+    <p>先翻<b>全国省级名册</b>，按"2"找到那一省的<b>市级名册在哪</b> → 再翻这本市级名册，按"1"找到<b>区级名册在哪</b> → 再翻区级名册，按"5"找到<b>这个小区的大门</b> → 最后进了门，按"偏移 23 号"找到<b>具体那一户</b>。</p>
+    <p>CPU 把虚拟地址翻成物理地址，干的就是<b>一模一样的事</b>:虚拟地址被切成"省 / 市 / 区 / 户号"四段，前三段各查一级页表，最后一段是<b>页内偏移</b>，直接落到页里的某个字节。</p>
+  </div>
+
+  <!-- 2. 核心矛盾 -->
+  <h2><span class="n">2</span>核心矛盾:为什么不用一张大表，偏要分三级?</h2>
+  <p>地址变换本来一张表就够:虚拟页号当下标，查出物理页号。问题是这张表<b>会大到离谱</b>:</p>
+  <table>
+    <tr><th>做法</th><th>表有多大</th><th>问题</th></tr>
+    <tr><td><b>单级页表</b><br>(一张大表全列出)</td><td class="c">512×512×512 个表项<br>≈ 1.3 亿项 · 每进程</td><td class="c" style="color:var(--red)">大部分虚拟地址<b>根本没用到</b>，<br>表项却必须先占着 → 极度浪费</td></tr>
+    <tr><td><b>三级页表</b><br>(按需分层建)</td><td class="c">只建用到的那几张<br>小表（每张 512 项）</td><td class="c" style="color:var(--green)">没用到的整片区域，<br><b>连下一级表都不用建</b> → 省</td></tr>
+  </table>
+  <div class="key">
+    <span class="lbl">💡 解决方案:多级页表（xv6 是三级，叫 Sv39）</span>
+    <p>把一张巨表<b>拆成树状的多级</b>。上一级的表项不直接存数据，而是<b>存"下一级表在物理内存哪一页"</b>。哪片虚拟地址没被用到，对应的下级表就<b>干脆不建</b>——表项缺省为空（有效位是 0）。于是真正占内存的，只有你<b>实际用到的</b>那几张小表。这就是教材"<b>多级页表节省页表空间</b>"那段话的本质。</p>
+  </div>
+
+  <!-- 3. 交互可视化 -->
+  <h2><span class="n">3</span>动手:选一个虚拟地址，看它逐级点亮三级页表</h2>
+  <p>xv6 把一个 64 位虚拟地址的低 39 位切成 <code>9 + 9 + 9 + 12</code>:三段 9 位的<b>索引</b>（L2→L1→L0），加上最低 12 位的<b>页内偏移</b>。选一个地址，点"开始翻译"，跟着 <code>walk()</code> 的 <code>for</code> 循环走一遍。</p>
+
+  <div class="card">
+    <div class="ctrls" style="margin-top:0">
+      <span class="lab">选一个虚拟地址:</span>
+      <select id="vasel">
+        <option value="0">L2=2 · L1=1 · L0=5 · 偏移=23</option>
+        <option value="1">L2=0 · L1=3 · L0=7 · 偏移=100</option>
+        <option value="2">L2=5 · L1=0 · L0=2 · 偏移=8</option>
+      </select>
+    </div>
+
+    <!-- 虚拟地址被切成四段 -->
+    <div class="vabar" id="vabar">
+      <div class="seg s2" id="seg2"><div class="nm">L2 索引</div><div class="val" id="v2">2</div><div class="bt">9 位</div></div>
+      <div class="seg s1" id="seg1"><div class="nm">L1 索引</div><div class="val" id="v1">1</div><div class="bt">9 位</div></div>
+      <div class="seg s0" id="seg0"><div class="nm">L0 索引</div><div class="val" id="v0">5</div><div class="bt">9 位</div></div>
+      <div class="seg off" id="segoff"><div class="nm">页内偏移</div><div class="val" id="voff">23</div><div class="bt">12 位</div></div>
+    </div>
+
+    <!-- 三级页表 -->
+    <div class="stage">
+      <div class="pt l2" id="pt2"><div class="ph">① L2 页表（根·satp 指向）</div><div class="rows" id="rows2"></div></div>
+      <div class="pt l1" id="pt1"><div class="ph">② L1 页表</div><div class="rows" id="rows1"></div></div>
+      <div class="pt l0" id="pt0"><div class="ph">③ L0 页表</div><div class="rows" id="rows0"></div></div>
+    </div>
+
+    <div class="readout" id="readout">← 选好地址后，点下面"▶ 开始翻译"，一步步走。</div>
+    <div class="ctrls">
+      <button class="btn" id="stepbtn" onclick="step()">▶ 开始翻译</button>
+      <button class="btn reset" onclick="resetWalk()">重置</button>
+    </div>
+  </div>
+
+  <div class="eli5">
+    <span class="lbl">🔑 你应该看出来的事</span>
+    <p>每一级页表<b>只用对应那 9 位索引去查一行</b>:L2 用 L2 索引、L1 用 L1 索引、L0 用 L0 索引。查出来的不是数据，而是"<b>下一级表在物理内存的哪一页</b>"（直到最后一级才是真正的物理页号）。</p>
+    <p>查每一行时都要看<b>有效位 PTE_V</b>:如果是 1，说明这一项有效、可以顺着走下去;如果是 0，说明这片地址<b>还没建过表</b>——<code>walk()</code> 里要么报错返回，要么（带 alloc 时）现场 <code>kalloc()</code> 一页新表挂上去。这就是为什么源码里反复出现 <code>if(*pte &amp; PTE_V)</code>。</p>
+    <p>三级查完，把最后查到的<b>物理页号</b>和虚拟地址的<b>页内偏移</b>一拼，就是最终物理地址。<b>偏移那 12 位从头到尾原样不动</b>——它不参与查表。</p>
+  </div>
+
+  <!-- 4. 分配回收 -->
+  <h2><span class="n">4</span>另一半:"分配/回收一页"就是链表摘挂</h2>
+  <p>翻译要用到的那些表页、还有进程要用的内存页，都是一页一页（4096 字节）发出去的。谁来管"哪些页还空着"? xv6 的答案简单到不可思议:<b>把所有空闲页串成一条单链表</b>，叫 <code>freelist</code>。</p>
+  <div class="card">
+    <p style="margin-top:0"><b><code>kalloc()</code> 分配一页</b> = 从链表<b>头</b>摘下第一个，返回给你:</p>
+    <div class="flrow" id="fl-alloc">
+      <span class="pg head">页A</span><span class="flarrow">→</span>
+      <span class="pg">页B</span><span class="flarrow">→</span>
+      <span class="pg">页C</span><span class="flarrow">→</span>
+      <span class="pg" style="border-style:dashed;background:#fff;color:#999">null</span>
+    </div>
+    <button class="btn" onclick="doAlloc()">▶ kalloc()：摘下表头</button>
+    <p style="margin-top:18px"><b><code>kfree(p)</code> 回收一页</b> = 把这一页重新<b>挂回链表头</b>:</p>
+    <div class="flrow" id="fl-free">
+      <span class="pg">页B</span><span class="flarrow">→</span>
+      <span class="pg">页C</span><span class="flarrow">→</span>
+      <span class="pg" style="border-style:dashed;background:#fff;color:#999">null</span>
+    </div>
+    <button class="btn amber" onclick="doFree()">▶ kfree(页A)：挂回表头</button>
+    <div class="readout" id="fl-readout" style="margin-top:14px">空闲页就是一条链。摘头、挂头，都不用遍历——所以分配和回收都是 <span class="ok">O(1)</span>。</div>
+  </div>
+
+  <div class="key">
+    <span class="lbl">💡 一个巧思:链表的"指针"藏在空闲页自己身上</span>
+    <p>你可能会问:这条链表的 next 指针存哪? 答案是——<b>就存在空闲页的开头</b>。反正这页现在空着没人用，xv6 就把它强转成 <code>struct run { struct run *next; }</code>，借这一页的前 8 个字节存"下一个空闲页的地址"。<b>所以管理空闲页几乎不额外花内存</b>。这正是教材"空闲分区/空闲块链表法"在真实代码里的样子。</p>
+  </div>
+
+  <div class="warn">
+    <span class="lbl">⚠ 别把"分页"和"页表查找"两件事搅在一起</span>
+    <p><b>分页</b>解决的是"内存按固定大小切块、按页分配回收"（第 4 节这条链表）;<b>地址变换 / 多级页表</b>解决的是"程序里的虚拟地址怎么映射到物理页"（第 3 节那棵树）。考试里它们常一起出现，但回答时要分清:链表管的是<b>物理页够不够用</b>，页表管的是<b>这个虚拟地址该落到哪一页</b>。</p>
+  </div>
+
+  <!-- 5. 自测 -->
+  <h2><span class="n">5</span>复述检查（看懂了就能答）</h2>
+  <div class="q">
+    <div class="qt">Q1. 一个虚拟地址被切成几段? 每段干什么用? 哪一段不参与查表?</div>
+    <button class="reveal" onclick="this.nextElementSibling.classList.add('show');this.style.display='none'">看答案</button>
+    <div class="ans">切成 <b>9+9+9+12</b> 四段。前三段（各 9 位）分别是 <b>L2、L1、L0 的索引</b>，用来逐级在三级页表里查行;最后 <b>12 位是页内偏移</b>，<b>不参与查表</b>，最后直接拼到物理页号后面定位到具体字节。</div>
+  </div>
+  <div class="q">
+    <div class="qt">Q2. <code>walk()</code> 那个 <code>for(level=2; level&gt;0; level--)</code> 循环在干嘛? 为什么是从 2 到 1、只循环两次?</div>
+    <button class="reveal" onclick="this.nextElementSibling.classList.add('show');this.style.display='none'">看答案</button>
+    <div class="ans">循环负责<b>从上一级表走到下一级表</b>:用 <code>PX(level,va)</code> 取出该级的 9 位索引、查出下一级表的物理页，再换页继续。循环只走 <b>level=2 和 level=1 两次</b>（走完 L2、L1），最后一级 L0 在循环外用 <code>&amp;pagetable[PX(0,va)]</code> 直接返回那个 PTE 的地址——因为最后要的是 PTE 本身，不再往下跳了。</div>
+  </div>
+  <div class="q">
+    <div class="qt">Q3. 为什么 kalloc/kfree 用链表就能做到 O(1)? "省内存"体现在哪?</div>
+    <button class="reveal" onclick="this.nextElementSibling.classList.add('show');this.style.display='none'">看答案</button>
+    <div class="ans">分配只是<b>摘链表头</b>、回收只是<b>挂回链表头</b>，都不用遍历，所以是 <b>O(1)</b>。省内存体现在:链表的 next 指针<b>借空闲页自己的开头 8 字节</b>存（<code>struct run</code>），不需要另开一张大数组去记每页空闲与否。</div>
+  </div>
+
+  <footer>
+    <p><span class="pill">理解版</span>看懂这一页后 → 去 <b>第 34 课 讲解版</b>:把这套画面落到真实 C 代码 <code>walk()</code> / <code>kalloc()</code> / <code>kfree()</code>，逐行讲 + 答辩。</p>
+    <p>讲解版直达:<a href="0034-lab4-memory-present.html">0034 内存分配与回收·讲解版（上台稿）</a></p>
+  </footer>
+
+</div>
+
+<script>
+  // ===== 三级页表地址翻译 =====
+  // 三个示例地址：[L2, L1, L0, 偏移]
+  var ADDRS = [
+    {l2:2, l1:1, l0:5, off:23},
+    {l2:0, l1:3, l0:7, off:100},
+    {l2:5, l1:0, l0:2, off:8}
+  ];
+  // 每级表里"下一级表所在的物理页号"（示意值，仅为讲清楚"查出来的是下一级表地址"）
+  var NEXTPAGE = {l2:0x80a, l1:0x81c, l0:0x95f}; // L0 这一格查出来的就是最终物理页号
+
+  var cur = ADDRS[0];
+  var phase = 0; // 0=未开始 1=查完L2 2=查完L1 3=查完L0(完成)
+
+  function buildRows(elId, idx, hitLabel){
+    var el = document.getElementById(elId);
+    el.innerHTML = '';
+    // 只画 0..7 八行做示意（真实是 512 行）
+    for(var i=0;i<8;i++){
+      var row = document.createElement('div');
+      row.className = 'row' + (i===idx ? ' hit' : '');
+      var right = (i===idx) ? hitLabel : '·';
+      row.innerHTML = '<span>['+i+']</span><span class="v">'+right+'</span>';
+      el.appendChild(row);
+    }
+  }
+
+  function renderVA(){
+    document.getElementById('v2').textContent = cur.l2;
+    document.getElementById('v1').textContent = cur.l1;
+    document.getElementById('v0').textContent = cur.l0;
+    document.getElementById('voff').textContent = cur.off;
+  }
+
+  function resetWalk(){
+    phase = 0;
+    ['seg2','seg1','seg0','segoff'].forEach(function(id){ document.getElementById(id).classList.remove('cur'); });
+    ['pt2','pt1','pt0'].forEach(function(id){ document.getElementById(id).classList.remove('lit'); });
+    document.getElementById('rows2').innerHTML='';
+    document.getElementById('rows1').innerHTML='';
+    document.getElementById('rows0').innerHTML='';
+    document.getElementById('stepbtn').textContent = '▶ 开始翻译';
+    document.getElementById('readout').innerHTML = '← 选好地址后，点下面"▶ 开始翻译"，一步步走。';
+    renderVA();
+  }
+
+  function step(){
+    var r = document.getElementById('readout');
+    var btn = document.getElementById('stepbtn');
+    if(phase >= 3){ resetWalk(); return; }
+    phase++;
+    if(phase===1){
+      // 查 L2
+      document.getElementById('seg2').classList.add('cur');
+      document.getElementById('pt2').classList.add('lit');
+      buildRows('rows2', cur.l2, '→L1表@'+NEXTPAGE.l2);
+      r.innerHTML = '<b>第①级 (level=2)</b>：取虚拟地址的 L2 索引 = <b>'+cur.l2+'</b>，用 <code>PX(2,va)</code> 在根页表里查第 '+cur.l2+' 行。查到的不是数据，是 <b>L1 页表所在的物理页</b>。看到 PTE_V=1，有效 → 换到 L1 表继续。';
+      btn.textContent = '▶ 下一跳 (查 L1)';
+    } else if(phase===2){
+      document.getElementById('seg1').classList.add('cur');
+      document.getElementById('pt1').classList.add('lit');
+      buildRows('rows1', cur.l1, '→L0表@'+NEXTPAGE.l1);
+      r.innerHTML = '<b>第②级 (level=1)</b>：取 L1 索引 = <b>'+cur.l1+'</b>，用 <code>PX(1,va)</code> 在 L1 表里查第 '+cur.l1+' 行，查到 <b>L0 页表所在的物理页</b>。PTE_V=1 → 再换到 L0 表。这就是 walk 的 for 循环第二圈。';
+      btn.textContent = '▶ 最后一跳 (查 L0)';
+    } else if(phase===3){
+      document.getElementById('seg0').classList.add('cur');
+      document.getElementById('segoff').classList.add('cur');
+      document.getElementById('pt0').classList.add('lit');
+      buildRows('rows0', cur.l0, '物理页@'+NEXTPAGE.l0);
+      r.innerHTML = '<b>第③级 (level=0)</b>：取 L0 索引 = <b>'+cur.l0+'</b>，查出<b>真正的物理页号 '+NEXTPAGE.l0+'</b>。再把页内偏移 <b>'+cur.off+'</b>（那 12 位，全程没动过）拼上去 → <span class="ok">物理地址 = 物理页'+NEXTPAGE.l0+' + 偏移'+cur.off+' ✅ 翻译完成，共逐级查表 3 次</span>';
+      btn.textContent = '↻ 再来一遍';
+    }
+  }
+
+  document.getElementById('vasel').onchange = function(){
+    cur = ADDRS[parseInt(this.value,10)];
+    resetWalk();
+  };
+  resetWalk();
+
+  // ===== freelist 分配/回收动画 =====
+  var allocated = false;
+  function doAlloc(){
+    var ro = document.getElementById('fl-readout');
+    var head = document.querySelector('#fl-alloc .pg.head');
+    if(!allocated){
+      head.classList.add('gone'); allocated = true;
+      ro.innerHTML = 'kalloc()：把表头 <b>页A</b> 从链表摘下，<code>freelist</code> 指向下一个（页B）。页A 交给你用。这一步只动了一个指针 → <span class="ok">O(1)</span>。';
+    }else{
+      head.classList.remove('gone'); allocated = false;
+      ro.innerHTML = '（已重置）空闲页就是一条链。摘头、挂头，都不用遍历——所以分配和回收都是 <span class="ok">O(1)</span>。';
+    }
+  }
+  function doFree(){
+    var ro = document.getElementById('fl-readout');
+    var fl = document.getElementById('fl-free');
+    if(!fl.querySelector('.justfreed')){
+      var pg = document.createElement('span'); pg.className='pg head justfreed'; pg.textContent='页A';
+      var ar = document.createElement('span'); ar.className='flarrow'; ar.textContent='→';
+      fl.insertBefore(ar, fl.firstChild);
+      fl.insertBefore(pg, fl.firstChild);
+      ro.innerHTML = 'kfree(页A)：让页A 的 next 指向原表头（页B），再把 <code>freelist</code> 指向页A。<b>页A 现在是新表头</b>。同样只动指针 → <span class="ok">O(1)</span>。';
+    }else{
+      fl.removeChild(fl.querySelector('.justfreed'));
+      fl.removeChild(fl.querySelector('.flarrow'));
+      ro.innerHTML = '（已重置）回收就是把一页重新挂回链表头。';
+    }
+  }
+</script>
+</body>
+</html>
