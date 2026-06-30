@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实验② 处理机调度 · 讲解版(上台稿) · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#5a6475; --line:#e3e6ec; --bg:#f6f8fc; --card:#ffffff;
+    --blue:#2b6cb0; --green:#2f855a; --amber:#b7791f; --red:#c53030; --purple:#6b46c1;
+    --green-bg:#e7f6ec; --green-bd:#9ad0ad;
+    --amber-bg:#fdeccd; --amber-bd:#e8b86a;
+    --blue-bg:#e7eefc; --blue-bd:#9bb6ec;
+    --shadow:0 1px 3px rgba(20,30,60,.05), 0 6px 24px rgba(20,30,60,.04);
+    --codebg:#0f1626;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:
+      radial-gradient(1200px 500px at 80% -10%, #eaf1ff 0%, transparent 60%),
+      radial-gradient(900px 400px at -10% 10%, #fef3e6 0%, transparent 55%),
+      var(--bg);
+    line-height:1.75; font-size:16px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px; margin:0 auto; padding:36px 22px 110px}
+
+  header.h{margin-bottom:22px}
+  .eyebrow{display:inline-block; color:#fff; background:linear-gradient(135deg,var(--blue),#1f4f86);
+    font-weight:700; letter-spacing:.04em; font-size:12.5px; padding:4px 11px; border-radius:20px}
+  h1{font-size:27px; margin:14px 0 8px; letter-spacing:-.01em; line-height:1.3}
+  .sub{color:var(--muted); font-size:14.5px; max-width:64ch}
+
+  h2{font-size:20px; margin:40px 0 12px; display:flex; align-items:center; gap:10px}
+  h2 .n{display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+    border-radius:9px; background:var(--blue); color:#fff; font-size:15px; font-weight:700; flex:0 0 auto}
+  p{margin:9px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6;
+    padding:1px 6px; border-radius:4px; color:#33415c}
+
+  /* 顶部信息条 */
+  .meta{display:flex; gap:10px; flex-wrap:wrap; margin:16px 0 4px}
+  .chip{font-size:12.5px; background:#fff; border:1px solid var(--line); border-radius:20px;
+    padding:5px 12px; box-shadow:var(--shadow)}
+  .chip b{color:var(--blue)}
+
+  /* 主线条 */
+  .mainline{background:linear-gradient(135deg,#11203a,#0f1626); color:#eaf1ff; border-radius:14px;
+    padding:20px 22px; margin:18px 0; box-shadow:var(--shadow)}
+  .mainline .lbl{color:#ffd479; font-weight:700; font-size:13px; letter-spacing:.03em}
+  .mainline .q{font-size:18px; line-height:1.6; margin-top:6px}
+
+  /* 时间分配 */
+  .timeline{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin:14px 0}
+  .seg{background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px; box-shadow:var(--shadow)}
+  .seg .t{font-size:18px; font-weight:800; color:var(--blue)}
+  .seg .l{font-size:12px; color:var(--muted)}
+
+  /* 讲稿 + 代码 配对 */
+  .step{margin:18px 0; border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); background:#fff}
+  .step .bar{display:flex; align-items:center; gap:10px; padding:10px 16px; background:#f0f3f9; border-bottom:1px solid var(--line)}
+  .step .bar .tag{font-size:12px; font-weight:700; color:#fff; background:var(--green); border-radius:6px; padding:2px 8px}
+  .step .bar .tag.idx{background:var(--amber)}
+  .step .bar .file{font-family:"SF Mono",Menlo,monospace; font-size:12px; color:var(--muted)}
+  pre{margin:0; background:var(--codebg); color:#e8edf6; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.65}
+  pre .cm{color:#8aa0c0}        /* 注释 */
+  pre .kw{color:#ff9d7a}        /* 关键字 */
+  pre .hl{background:rgba(255,212,121,.16); display:inline-block; width:100%}
+  .say{padding:14px 16px; background:linear-gradient(180deg,#fffdf7,#fff); border-top:2px dashed var(--amber-bd)}
+  .say .lbl{display:inline-block; color:var(--amber); font-weight:700; font-size:12.5px; letter-spacing:.03em; margin-bottom:4px}
+  .say p{margin:6px 0}
+  .say .lit{background:#fff7e6; border-left:3px solid var(--amber); padding:8px 12px; border-radius:6px; font-size:14.5px}
+
+  .board{background:linear-gradient(180deg,#f1fbf4,#fff); border:1px solid var(--green-bd);
+    border-left:4px solid var(--green); border-radius:12px; padding:16px 18px; margin:16px 0}
+  .board .lbl{color:var(--green); font-weight:700; font-size:13px}
+  .board ul{margin:8px 0 0; padding-left:20px} .board li{margin:5px 0}
+
+  /* 答辩 Q&A */
+  .qa{border:1px solid var(--line); border-radius:12px; margin:10px 0; overflow:hidden; background:#fff; box-shadow:var(--shadow)}
+  .qa summary{cursor:pointer; padding:13px 16px; font-weight:600; list-style:none; display:flex; gap:10px; align-items:flex-start}
+  .qa summary::-webkit-details-marker{display:none}
+  .qa summary .qmark{color:#fff; background:var(--red); border-radius:6px; font-size:12px; padding:1px 7px; flex:0 0 auto; margin-top:3px}
+  .qa[open] summary{border-bottom:1px solid var(--line); background:#fafbfd}
+  .qa .body{padding:13px 16px; font-size:14.5px}
+  .qa .body .how{background:#f1fbf4; border:1px solid var(--green-bd); border-radius:8px; padding:10px 12px; margin-top:6px}
+  .qa .body .how b{color:var(--green)}
+
+  .cut{background:#fff5f5; border:1px solid #f5c2c2; border-left:4px solid var(--red); border-radius:12px; padding:16px 18px; margin:16px 0}
+  .cut .lbl{color:var(--red); font-weight:700; font-size:13px}
+
+  .check{list-style:none; padding:0; margin:10px 0}
+  .check li{padding:8px 12px; border:1px solid var(--line); border-radius:9px; margin:6px 0; background:#fff; font-size:14.5px}
+  .check li::before{content:"☐ "; color:var(--blue); font-weight:700}
+
+  footer{margin-top:50px; padding-top:16px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  footer a{color:var(--blue); text-decoration:none}
+  .pill{display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:20px; background:#e7eefc; color:var(--blue); margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="h">
+    <span class="eyebrow">实验② 处理机调度 · 讲解版(上台稿)</span>
+    <h1>逐行讲 <code>scheduler()</code> 与 <code>swtch</code> —— CPU 怎么换人</h1>
+    <p class="sub">这一页是<b>上台逐句念的稿子</b>:每段代码下面都写好"嘴上怎么说"。先用第 31 课理解版看懂画面,再用这页练口。源码:<code>kernel/proc.c</code> + <code>kernel/swtch.S</code> + <code>kernel/proc.h</code>。</p>
+    <div class="meta">
+      <span class="chip"><b>时长</b> 9 分钟(留 2–3 分钟答辩)</span>
+      <span class="chip"><b>只过</b> ~15 行,不逐行 100 行</span>
+      <span class="chip"><b>板书</b> 1 图 + 1 类比 + 1 句设计意图</span>
+    </div>
+  </header>
+
+  <!-- 主线 -->
+  <div class="mainline">
+    <span class="lbl">★ 主线句(讲偏了就拉回这句)</span>
+    <div class="q">"每个 CPU 都有一个 <code style="background:rgba(255,255,255,.12);color:#ffe">scheduler</code> 调度线程,它<b>循环</b>做一件事:在进程表里<b>挑一个就绪(RUNNABLE)进程</b>,用 <code style="background:rgba(255,255,255,.12);color:#ffe">swtch</code> 把 CPU 现场切给它跑;进程让出时,又 <code style="background:rgba(255,255,255,.12);color:#ffe">swtch</code> 切回 scheduler。进程之间<b>从不直接切</b>,全经过它转手。"</div>
+  </div>
+
+  <!-- 时间分配 -->
+  <h2><span class="n">0</span>9 分钟怎么分配</h2>
+  <div class="timeline">
+    <div class="seg"><div class="t">1.5'</div><div class="l">① 主线 + 状态/context 结构</div></div>
+    <div class="seg"><div class="t">2.5'</div><div class="l">② scheduler 主循环</div></div>
+    <div class="seg"><div class="t">2.5'</div><div class="l">③ swtch 切的是什么(重点)</div></div>
+    <div class="seg"><div class="t">1.5'</div><div class="l">④ 板书 + 设计意图</div></div>
+    <div class="seg"><div class="t">1'</div><div class="l">⑤ 收尾金句</div></div>
+  </div>
+
+  <!-- 段1 -->
+  <h2><span class="n">1</span>先亮"现场"长什么样:状态 + context</h2>
+  <div class="step">
+    <div class="bar"><span class="tag">数据结构</span><span class="file">kernel/proc.h</span></div>
+<pre><span class="cm">// 进程的 6 种状态</span>
+<span class="kw">enum</span> procstate { UNUSED, USED, SLEEPING, <span class="hl">RUNNABLE, RUNNING</span>, ZOMBIE };
+
+<span class="cm">// 切换时要保存的寄存器(就这 14 个!)</span>
+<span class="kw">struct</span> context {
+  <span class="hl">  uint64 ra;            <span class="cm">// 返回地址:ret 之后跳到哪</span></span>
+  <span class="hl">  uint64 sp;            <span class="cm">// 栈指针:用的是哪个内核栈</span></span>
+  <span class="cm">// callee-saved</span>
+  uint64 s0;
+  uint64 s1;
+  ...
+  uint64 s11;           <span class="cm">// s0–s11 共 12 个被调用者保存寄存器</span>
+};</pre>
+    <div class="say">
+      <span class="lbl">🎤 怎么说</span>
+      <p class="lit">"先看两样东西。上面是进程的<b>状态</b>,今天只关心两个:<b>RUNNING(正占着 CPU 跑)</b>和 <b>RUNNABLE(就绪,排队等 CPU)</b>。下面这个 <code>struct context</code> 就是一个进程的'<b>现场快照</b>'——注意它只存 <b>14 个</b>寄存器:<code>ra</code>(回到哪)、<code>sp</code>(用哪个栈)、加 <code>s0–s11</code>。切换,本质就是存好旧的这 14 个、装回新的这 14 个。"</p>
+    </div>
+  </div>
+
+  <!-- 段2 -->
+  <h2><span class="n">2</span>scheduler 主循环:挑一个、切过去</h2>
+  <div class="step">
+    <div class="bar"><span class="tag">主循环</span><span class="file">kernel/proc.c · scheduler()</span></div>
+<pre><span class="kw">void</span>
+scheduler(<span class="kw">void</span>)
+{
+  <span class="kw">struct</span> proc *p;
+  <span class="kw">struct</span> cpu *c = mycpu();   <span class="cm">// 本 CPU 自己的结构</span>
+  c-&gt;proc = 0;
+  <span class="kw">for</span>(;;){                    <span class="cm">// 永远循环,scheduler 不返回</span>
+    intr_on();               <span class="cm">// 开中断,避免死锁</span>
+    <span class="kw">for</span>(p = proc; p &lt; &amp;proc[NPROC]; p++) {  <span class="cm">// 扫一遍进程表</span>
+      acquire(&amp;p-&gt;lock);
+      <span class="hl">      <span class="kw">if</span>(p-&gt;state == RUNNABLE) {        <span class="cm">// 找到就绪进程</span></span>
+        p-&gt;state = RUNNING;             <span class="cm">// 标记为运行态</span>
+        c-&gt;proc = p;
+        <span class="hl">        swtch(&amp;c-&gt;context, &amp;p-&gt;context); <span class="cm">// ★切过去:存scheduler,装p</span></span>
+        c-&gt;proc = 0;                    <span class="cm">// 回来了:p 让出了 CPU</span>
+      }
+      release(&amp;p-&gt;lock);
+    }
+  }
+}</pre>
+    <div class="say">
+      <span class="lbl">🎤 怎么说</span>
+      <p class="lit">"这是<b>每个 CPU 自己</b>跑的调度循环,<code>for(;;)</code> 永不退出。它扫进程表,<b>一看到 state == RUNNABLE 的进程,就把它改成 RUNNING、然后 swtch 过去</b>。"</p>
+      <p>👉 指着那行 <code>swtch(&amp;c->context, &amp;p->context)</code> 说:"注意参数——<b>第一个是 scheduler 自己的 context(往里存),第二个是进程 p 的 context(从里面装)</b>。这一行执行完,CPU 就不在 scheduler 里了,而是在 p 里跑。等 p 让出 CPU,控制流<b>又从这一行的下一句回来</b>,继续找下一个。"</p>
+    </div>
+  </div>
+
+  <!-- 段3 -->
+  <h2><span class="n">3</span>swtch 切的到底是什么?(重点)</h2>
+  <div class="step">
+    <div class="bar"><span class="tag idx">汇编</span><span class="file">kernel/swtch.S</span></div>
+<pre><span class="cm"># void swtch(struct context *old, struct context *new);</span>
+<span class="cm"># a0 = old(往里存),  a1 = new(从里面装)</span>
+swtch:
+    <span class="hl">    sd ra, 0(a0)      <span class="cm"># 存:把当前 ra 写进 old->ra</span></span>
+    <span class="hl">    sd sp, 8(a0)      <span class="cm"># 存:把当前 sp 写进 old->sp(记住旧栈)</span></span>
+        sd s0, 16(a0)
+        ...               <span class="cm"># s1..s11 一路存进 old</span>
+        sd s11, 104(a0)
+
+    <span class="hl">    ld ra, 0(a1)      <span class="cm"># 装:从 new->ra 取出新的返回地址</span></span>
+    <span class="hl">    ld sp, 8(a1)      <span class="cm"># 装:从 new->sp 换上新栈(换人关键!)</span></span>
+        ld s0, 16(a1)
+        ...               <span class="cm"># s1..s11 一路装回</span>
+        ld s11, 104(a1)
+    <span class="hl">    ret               <span class="cm"># 跳到新的 ra —— 已经在另一个线程里了</span></span></pre>
+    <div class="say">
+      <span class="lbl">🎤 怎么说(这段最容易被追问,慢讲)</span>
+      <p class="lit">"swtch 没什么魔法,就两段:<b>上半段 sd(store)把当前这 14 个寄存器存进 old</b>;<b>下半段 ld(load)从 new 里把另一套 14 个装回 CPU</b>。最关键是这两行:<code>ld sp</code> 换了栈指针——等于换了内核栈;<code>ld ra</code> 换了返回地址。所以最后那个 <code>ret</code> 一执行,CPU '<b>返回</b>'到的根本不是调它的地方,而是 <b>new 这个线程上次离开的位置</b>。换人就这么发生了。"</p>
+      <p>👉 一句收口:"<b>它切的是栈 + 寄存器,不是地址空间</b>——页表没动。这是辨析题最爱考的点。"</p>
+    </div>
+  </div>
+
+  <!-- 段3.5 sched -->
+  <h2><span class="n">3.5</span>进程怎么"让出":yield → sched</h2>
+  <div class="step">
+    <div class="bar"><span class="tag">让出</span><span class="file">kernel/proc.c · yield() / sched()</span></div>
+<pre><span class="kw">void</span> yield(<span class="kw">void</span>) {
+  <span class="kw">struct</span> proc *p = myproc();
+  acquire(&amp;p-&gt;lock);
+  <span class="hl">  p-&gt;state = RUNNABLE;    <span class="cm">// 我还想跑,先改回就绪、去排队</span></span>
+  sched();
+  release(&amp;p-&gt;lock);
+}
+
+<span class="kw">void</span> sched(<span class="kw">void</span>) {
+  ...
+  <span class="hl">  <span class="kw">if</span>(!holding(&amp;p-&gt;lock)) panic("sched p->lock");   <span class="cm">// 必须持锁</span></span>
+  <span class="hl">  <span class="kw">if</span>(intr_get())        panic("sched interruptible");<span class="cm">// 必须关中断</span></span>
+  <span class="hl">  swtch(&amp;p-&gt;context, &amp;mycpu()-&gt;context);  <span class="cm">// 切回本CPU的scheduler</span></span>
+}</pre>
+    <div class="say">
+      <span class="lbl">🎤 怎么说</span>
+      <p class="lit">"进程时间片到了,时钟中断里会调 <code>yield</code>。它做两件事:<b>把自己的状态从 RUNNING 改回 RUNNABLE</b>(我还想跑,只是先排队),然后调 <code>sched()</code>。sched 里那行 <code>swtch(&amp;p->context, &amp;mycpu()->context)</code>——<b>正好和 scheduler 里的方向相反</b>:存进程 p、装回 scheduler。于是控制流回到了刚才 scheduler 那行 swtch 的下一句。"</p>
+      <p>👉 点一下两个 panic:"注意上面这两行检查——<b>调 sched 之前必须持着 p->lock、必须关中断</b>。为什么,留到答辩 Q4 说。"</p>
+    </div>
+  </div>
+
+  <!-- 板书 -->
+  <h2><span class="n">4</span>板书:1 图 + 1 类比 + 1 句设计意图</h2>
+  <div class="board">
+    <span class="lbl">✍️ 上台就画这一张</span>
+    <ul>
+      <li><b>图</b>:画三个框 [进程A] [scheduler] [进程B]。A 和 B <b>不直接连</b>;A→scheduler 画一条 swtch 箭头(标"存A装sched"),scheduler→B 再画一条(标"存sched装B")。底下写"<b>一次换人 = 2 次 swtch</b>"。</li>
+      <li><b>类比</b>:"接力赛交接棒——选手累了不直接把棒塞给下一个,而是<b>先把棒交回裁判(scheduler)</b>,裁判看名单挑出下一位就绪选手再递过去。每条跑道(每个 CPU)配一位专属裁判。"</li>
+      <li><b>设计意图(1 句)</b>:"<b>调度逻辑只写一处</b>——所有切换都过 scheduler,挑谁跑的策略集中在一个循环里,不会散落在各个进程里互相打架;每个 CPU 一个 scheduler,多核才能各跑各的、不踩同一套寄存器。"</li>
+    </ul>
+  </div>
+
+  <!-- 答辩 -->
+  <h2><span class="n">5</span>答辩 Q&amp;A(老师最可能问的 5 个)</h2>
+  <details class="qa"><summary><span class="qmark">Q1</span>为什么每个 CPU 要有一个独立的 scheduler 线程?</summary>
+    <div class="body">
+      <div class="how"><b>答法:</b> "多核要<b>同时</b>调度,各调各的。如果共用一个 scheduler,多核就得抢同一套调度寄存器/栈,反而要加锁串行。每个 CPU 一个 scheduler(有自己的 <code>c->context</code>、自己的栈),互不干扰,真正并行。而且它是个<b>独立的内核线程</b>,进程切回它、它再切给下一个进程,所有切换路径统一。"</div>
+    </div>
+  </details>
+  <details class="qa"><summary><span class="qmark">Q2</span><code>swtch</code> 切换了什么?切地址空间(页表)吗?</summary>
+    <div class="body"><div class="how"><b>答法:</b> "切的是 <b>14 个寄存器:ra、sp、s0–s11</b>。换 sp 等于换内核栈,换 ra 等于换返回点,ret 后就在另一个线程里了。<b>它不切页表/地址空间</b>——那是另一回事。所以'进程切换(换 CPU 现场)'和'地址空间切换(换页表)'要分清。"</div></div>
+  </details>
+  <details class="qa"><summary><span class="qmark">Q3</span>RUNNABLE 和 RUNNING 区别?进程让出 CPU 后变哪个?</summary>
+    <div class="body"><div class="how"><b>答法:</b> "<b>RUNNING</b> = 此刻正占着某个 CPU 在跑;<b>RUNNABLE</b> = 就绪,万事俱备只差 CPU,在队列里等。进程 <code>yield</code> 让出时把自己改成 <b>RUNNABLE</b>(还想跑,先排队),scheduler 挑中谁就把谁改成 <b>RUNNING</b>。对应教材的'运行态 ↔ 就绪态'转换。"</div></div>
+  </details>
+  <details class="qa"><summary><span class="qmark">Q4</span>为什么 <code>sched()</code> 之前要持锁 + 关中断?</summary>
+    <div class="body"><div class="how"><b>答法:</b> "① <b>持 p->lock</b>:切换过程里进程状态(RUNNABLE)和现场是'半截'的,锁防止<b>另一个 CPU 同时把这个进程也调走</b>跑两份。要等切到 scheduler、对方拿到锁才安全放手。② <b>关中断</b>:切换中途若来中断、又触发调度,会嵌套切换、栈乱套。所以 sched 里用 panic 强制检查这两个前提。"</div></div>
+  </details>
+  <details class="qa"><summary><span class="qmark">Q5</span>这段代码对应教材哪个知识点?</summary>
+    <div class="body"><div class="how"><b>答法:</b> "对应 <b>Ch3 处理机调度</b>里的<b>进程切换 / 上下文(现场)的保存与恢复</b>,以及进程的<b>运行态↔就绪态</b>状态转换。<code>scheduler</code> 体现'调度程序按策略选进程',<code>swtch</code> 体现'保存现场、恢复现场'。这也是本学期<b>实验② 处理机调度</b>的核心。"</div></div>
+  </details>
+
+  <!-- 砍版 -->
+  <h2><span class="n">6</span>万一超时:5 分钟砍版</h2>
+  <div class="cut">
+    <span class="lbl">✂️ 时间不够就只讲这条线</span>
+    <p>① 念主线句 → ② 亮 <code>struct context</code>(指"就 14 个寄存器")→ ③ scheduler 只讲 <code>if(state==RUNNABLE)</code> + <code>swtch</code> 那两行 → ④ swtch 只讲 <code>ld sp</code> / <code>ld ra</code> / <code>ret</code> 三行(换栈换返回点)→ ⑤ 一句"一次换人 = 两次 swtch,经过 scheduler"收尾。<b>yield/sched 一句话带过</b>,持锁关中断留给答辩。</p>
+  </div>
+
+  <!-- 彩排 -->
+  <h2><span class="n">7</span>上台前彩排清单</h2>
+  <ul class="check">
+    <li>能不看稿说出主线句</li>
+    <li>能徒手画出"A → scheduler → B,两次 swtch"那张图</li>
+    <li>能指着 <code>ld sp</code>、<code>ld ra</code>、<code>ret</code> 说出"换栈、换返回点、跳到新线程"</li>
+    <li>能说清 RUNNABLE 与 RUNNING 的区别</li>
+    <li>5 个答辩题,每个能答出 1–2 句</li>
+    <li>掐表念一遍,控制在 9 分钟内</li>
+  </ul>
+
+  <footer>
+    <p><span class="pill">讲解版</span>配套理解版 → <a href="0031-lab2-scheduler-understand.html">第 31 课 处理机调度·理解版</a>(先看懂再练口)</p>
+    <p>源码出处:<code>kernel/proc.c</code> 的 <code>scheduler()</code> / <code>sched()</code> / <code>yield()</code> + <code>kernel/swtch.S</code> + <code>kernel/proc.h</code></p>
+  </footer>
+
+</div>
+</body>
+</html>

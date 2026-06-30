@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实验① 并发程序设计 · 理解版 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#5a6475; --line:#e3e6ec; --bg:#f6f8fc; --card:#ffffff;
+    --blue:#2b6cb0; --green:#2f855a; --amber:#b7791f; --red:#c53030; --purple:#6b46c1;
+    --green-bg:#e7f6ec; --green-bd:#9ad0ad;
+    --amber-bg:#fdeccd; --amber-bd:#e8b86a;
+    --blue-bg:#e7eefc; --blue-bd:#9bb6ec;
+    --shadow:0 1px 3px rgba(20,30,60,.05), 0 6px 24px rgba(20,30,60,.04);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:
+      radial-gradient(1200px 500px at 80% -10%, #eaf1ff 0%, transparent 60%),
+      radial-gradient(900px 400px at -10% 10%, #fef3e6 0%, transparent 55%),
+      var(--bg);
+    line-height:1.75; font-size:16px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px; margin:0 auto; padding:36px 22px 110px}
+
+  /* header */
+  header.h{margin-bottom:26px}
+  .eyebrow{display:inline-block; color:#fff; background:linear-gradient(135deg,var(--green),#256d49);
+    font-weight:700; letter-spacing:.04em; font-size:12.5px; padding:4px 11px; border-radius:20px}
+  h1{font-size:27px; margin:14px 0 8px; letter-spacing:-.01em; line-height:1.3}
+  .sub{color:var(--muted); font-size:14.5px; max-width:62ch}
+  .tagrow{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap}
+  .tag{font-size:12.5px; color:var(--muted); background:#fff; border:1px solid var(--line);
+    padding:3px 10px; border-radius:20px}
+
+  h2{font-size:20px; margin:42px 0 12px; display:flex; align-items:center; gap:10px}
+  h2 .n{display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+    border-radius:9px; background:var(--blue); color:#fff; font-size:15px; font-weight:700; flex:0 0 auto}
+  p{margin:9px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6;
+    padding:1px 6px; border-radius:4px; color:#33415c}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:20px 22px; margin:16px 0; box-shadow:var(--shadow)}
+  .eli5{background:linear-gradient(180deg,#fffaf2,#fff); border:1px solid var(--amber-bd);
+    border-left:4px solid var(--amber); border-radius:10px; padding:14px 16px; margin:16px 0}
+  .eli5 .lbl{color:var(--amber); font-weight:700; font-size:13px; letter-spacing:.03em}
+  .key{background:linear-gradient(180deg,#f1fbf4,#fff); border:1px solid var(--green-bd);
+    border-left:4px solid var(--green); border-radius:10px; padding:14px 16px; margin:16px 0}
+  .key .lbl{color:var(--green); font-weight:700; font-size:13px}
+  .warn{background:#fff5f5; border:1px solid #f5c2c2; border-left:4px solid var(--red);
+    border-radius:10px; padding:14px 16px; margin:16px 0}
+  .warn .lbl{color:var(--red); font-weight:700; font-size:13px}
+
+  /* 问题对照表 */
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top}
+  th{background:#f0f3f9; font-weight:700}
+  td.c{text-align:center}
+
+  /* ===== 竞态交互可视化 ===== */
+  .race{display:grid; grid-template-columns:1fr; gap:14px}
+  .procs{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .proc{border:2px solid var(--line); border-radius:12px; padding:12px 14px; background:#fbfcfe; transition:all .2s}
+  .proc.pA{border-color:var(--blue-bd)}
+  .proc.pB{border-color:var(--amber-bd)}
+  .proc .ptitle{font-weight:700; font-size:13px; margin-bottom:8px; display:flex; align-items:center; gap:6px}
+  .proc.pA .ptitle{color:var(--blue)}
+  .proc.pB .ptitle{color:var(--amber)}
+  .ops{display:flex; flex-direction:column; gap:5px}
+  .op{font-family:"SF Mono",Menlo,monospace; font-size:12.5px; padding:6px 9px; border-radius:7px;
+    background:#fff; border:1px solid var(--line); color:#33415c; opacity:.4; transition:all .25s}
+  .op.done{opacity:1; background:#eef4fb; border-color:var(--blue-bd)}
+  .proc.pB .op.done{background:#fdf3e2; border-color:var(--amber-bd)}
+  .op.cur{outline:3px solid var(--blue); outline-offset:1px; opacity:1}
+  .proc.pB .op.cur{outline-color:var(--amber)}
+  .op .reg{color:var(--muted); font-size:11px}
+
+  .shared{display:flex; align-items:center; justify-content:center; gap:14px;
+    background:#0f1626; color:#e8edf6; border-radius:12px; padding:14px 18px}
+  .shared .lbl3{font-size:12.5px; color:#9fb0c8}
+  .shared .val{font-size:34px; font-weight:800; color:#ffd479; min-width:54px; text-align:center; transition:color .2s}
+  .shared .val.flash{color:#7ee0a6}
+
+  .readout{min-height:42px; background:#11203a; color:#e8edf6; border-radius:10px;
+    padding:11px 14px; font-size:13.5px; line-height:1.5}
+  .readout b{color:#ffd479}
+  .readout .ok{color:#7ee0a6; font-weight:700}
+  .readout .bad{color:#ff8d8d; font-weight:700}
+
+  .ctrls{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px; align-items:center}
+  .btn{font:inherit; font-size:13.5px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:7px 14px; border-radius:22px; cursor:pointer; transition:background .15s}
+  .btn:hover{background:#eef4fb}
+  .btn.green{border-color:var(--green); color:var(--green)} .btn.green:hover{background:#eaf7ef}
+  .btn.reset{border-color:#bbb; color:#777} .btn.reset:hover{background:#f2f2f2}
+  .btn:disabled{opacity:.4; cursor:not-allowed}
+  .modepill{font-size:12px; color:var(--muted); margin-left:auto}
+  .lockbadge{display:inline-block; font-size:12px; font-weight:700; padding:2px 9px; border-radius:20px}
+  .lockbadge.off{background:#fdecec; color:var(--red)}
+  .lockbadge.on{background:var(--green-bg); color:var(--green)}
+
+  /* 自测 */
+  .q{margin:12px 0; padding:13px 15px; border:1px solid var(--line); border-radius:10px; background:#fff}
+  .q .qt{font-weight:600}
+  .q .ans{margin-top:8px; padding:10px 12px; background:#f1fbf4; border-radius:8px; font-size:14px;
+    border:1px solid var(--green-bd); display:none}
+  .q .ans.show{display:block}
+  .reveal{margin-top:8px; font-size:13px; color:var(--blue); background:none; border:none; cursor:pointer; padding:0; text-decoration:underline}
+
+  footer{margin-top:50px; padding-top:16px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  footer a{color:var(--blue); text-decoration:none}
+  .pill{display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:20px; background:#eef4fb;
+    color:var(--blue); margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="h">
+    <span class="eyebrow">实验① 并发程序设计 · 理解版</span>
+    <h1>两个进程同时改一个数，为什么会"丢"?</h1>
+    <p class="sub">这一页不教你上台讲，只让你自己<b>真正看懂</b>一件事:并发时多个进程抢着改同一个变量，结果会出错（竞态）；"锁"用一个<b>不可打断的原子操作</b>保证一次只有一个进去改。看懂了，再去看讲解版（第 36 课）。</p>
+    <div class="tagrow">
+      <span class="tag">对应教材 Ch2 进程同步</span>
+      <span class="tag">对应 xv6 <code>kernel/spinlock.c</code> 的 acquire()</span>
+      <span class="tag">关键词:临界区 · 互斥 · 原子操作</span>
+    </div>
+  </header>
+
+  <!-- 1. 直觉 -->
+  <h2><span class="n">1</span>先建立一个画面</h2>
+  <div class="eli5">
+    <span class="lbl">🧸 ELI5</span>
+    <p>把那个共享变量想成<b>一间只有一把钥匙的公共卫生间</b>。一次只能进一个人，钥匙挂在门口。</p>
+    <p>正常情况:你拿钥匙进去、锁上、出来、把钥匙挂回——下一个人才能进。<b>这就是"互斥"。</b></p>
+    <p>出问题的情况:钥匙没了，A 和 B 同时推门进去。两人都以为里面没人，各干各的，最后<b>互相把对方做的事抹掉了</b>。在程序里，这就是两个进程同时改一个变量、结果对不上的"竞态条件"。</p>
+  </div>
+
+  <!-- 2. 核心矛盾 -->
+  <h2><span class="n">2</span>核心矛盾:一句 <code>count++</code> 其实是三步</h2>
+  <p>你以为 <code>count++</code> 是一步完成的，其实 CPU 要分<b>三步</b>:</p>
+  <table>
+    <tr><th>步骤</th><th>动作</th><th>说明</th></tr>
+    <tr><td class="c">① 读 (read)</td><td>把内存里的 count 读进寄存器</td><td>"现在是几?"</td></tr>
+    <tr><td class="c">② 改 (modify)</td><td>寄存器里 +1</td><td>"加一"</td></tr>
+    <tr><td class="c">③ 写 (write)</td><td>把结果写回内存 count</td><td>"存回去"</td></tr>
+  </table>
+  <p>麻烦就在:这三步中间<b>随时可能被切换走</b>，让另一个进程插队。一插队，两边读到的是同一个旧值，各自 +1 再写回，<b>两次加一只生效了一次</b>。</p>
+  <table>
+    <tr><th>做法</th><th>结果</th><th>安全吗</th></tr>
+    <tr><td>不加锁，读-改-写交错</td><td>两次 ++ 只涨了 1<br><span style="color:var(--red)">→ 丢失更新、数据错乱</span></td><td class="c">❌</td></tr>
+    <tr><td>加锁，一次只放一个进临界区</td><td>两次 ++ 老老实实涨 2<br><span style="color:var(--green)">→ 串行、安全</span></td><td class="c">✅</td></tr>
+  </table>
+
+  <!-- 3. 交互可视化 -->
+  <h2><span class="n">3</span>动手:亲眼看一次"丢失更新"</h2>
+  <p>下面 A、B 两个进程都要执行一次 <code>count++</code>（即"读→改→写"三步）。<b>不加锁</b>时，你每点一次"单步"，就让<b>下一个进程走它的下一步</b>——故意让它们交错，看 count 怎么算错。再切到<b>加锁</b>模式，看它怎么被强制串行、算对。</p>
+
+  <div class="card">
+    <div class="race">
+      <div class="shared">
+        <span class="lbl3">共享变量 count =</span>
+        <span class="val" id="countVal">0</span>
+      </div>
+      <div class="procs">
+        <div class="proc pA" id="procA">
+          <div class="ptitle">🅰 进程 A &nbsp;<span class="reg" id="regA">寄存器=?</span></div>
+          <div class="ops">
+            <div class="op" data-p="A" data-s="0">① read：r ← count</div>
+            <div class="op" data-p="A" data-s="1">② modify：r ← r + 1</div>
+            <div class="op" data-p="A" data-s="2">③ write：count ← r</div>
+          </div>
+        </div>
+        <div class="proc pB" id="procB">
+          <div class="ptitle">🅱 进程 B &nbsp;<span class="reg" id="regB">寄存器=?</span></div>
+          <div class="ops">
+            <div class="op" data-p="B" data-s="0">① read：r ← count</div>
+            <div class="op" data-p="B" data-s="1">② modify：r ← r + 1</div>
+            <div class="op" data-p="B" data-s="2">③ write：count ← r</div>
+          </div>
+        </div>
+      </div>
+      <div class="readout" id="readout">← 选模式，然后点"单步交错执行"。目标:两个进程各 ++ 一次，count 应该 = 2。</div>
+      <div class="ctrls">
+        <button class="btn" id="btnStep" onclick="step()">▶ 单步交错执行</button>
+        <button class="btn reset" onclick="resetRace()">重置</button>
+        <span class="modepill">
+          锁:<span class="lockbadge off" id="lockBadge" onclick="toggleLock()" style="cursor:pointer">关（点我切换）</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="eli5">
+    <span class="lbl">🔑 你应该看出来的事</span>
+    <p><b>不加锁</b>:如果 A 读了 0、还没写回，就被切到 B；B 也读到 0、加成 1 写回；A 再回来把自己手里的 1 写回——两次 ++ 最后 count 还是 <b>1</b>，丢了一次。这就是<b>竞态条件</b>:结果取决于"谁先谁后"这种偶然的执行顺序。</p>
+    <p><b>加锁</b>:A 先拿到锁，B 想进只能<b>原地等（忙等待 / spin）</b>，直到 A 把"读改写"三步整段做完、放锁。B 才进去，读到的是 1，加成 2。<b>"读改写"被锁保护成了不可分割的一整块</b>——这块就叫<b>临界区</b>。</p>
+  </div>
+
+  <!-- 4. 原子操作 -->
+  <h2><span class="n">4</span>那"锁"本身靠什么保证不被插队?</h2>
+  <p>这里有个套娃问题:锁是用来防止 count 被同时改的，可<b>"locked 这个变量"本身</b>也是个共享变量啊——两个进程会不会同时把它从 0 抢成 1，都以为自己拿到了锁?</p>
+  <div class="key">
+    <span class="lbl">💡 解决方案:原子操作（atomic）</span>
+    <p>硬件提供一条<b>"测试并设置"指令</b>:把 locked 读出来、同时写成 1，<b>这两件事在一条 CPU 指令里一气呵成，中间绝不可能被打断</b>。在 xv6 里就是 <code>__sync_lock_test_and_set(&lk-&gt;locked, 1)</code>(底层是 RISC-V 的 <code>amoswap</code> 原子交换)。</p>
+    <p>它返回 locked 的<b>旧值</b>:旧值是 0 → 说明刚才没人占，你抢到了；旧值是 1 → 别人占着，你继续转圈等。因为"读+写"原子化，<b>绝不会出现两个进程都拿到旧值 0</b> 的情况。原子操作就是整座锁的地基。</p>
+  </div>
+  <div class="warn">
+    <span class="lbl">⚠ 还有一步:acquire 里为什么要先关中断?</span>
+    <p>xv6 的 <code>acquire()</code> 第一行是 <code>push_off()</code>——<b>关本 CPU 的中断</b>。原因:如果我拿着锁，这时来个中断、中断处理程序又想拿<b>同一把锁</b>，它会原地 spin 等我放锁，可我被它打断了根本没机会放——<b>自己把自己锁死（死锁）</b>。所以持锁期间先关中断，放锁时(<code>pop_off()</code>)再开回来。</p>
+  </div>
+
+  <!-- 5. sleep/wakeup -->
+  <h2><span class="n">5</span>延伸:等不到资源，与其干转，不如睡一觉</h2>
+  <p>自旋锁让等待者<b>原地转圈（忙等待）</b>,适合"马上就能拿到"的短临界区。可如果要等的是"<b>磁盘数据还没来</b>"这种很久的事，干转就是白白烧 CPU。</p>
+  <div class="key">
+    <span class="lbl">💡 sleep / wakeup:让出 CPU，别人备好了再叫醒你</span>
+    <p>xv6 的 <code>sleep(chan, lk)</code>:进程把自己标成 <b>SLEEPING</b>、挂在某个"等待频道 chan"上，然后<b>主动让出 CPU</b>给别人跑。等资源准备好了，另一个进程调 <code>wakeup(chan)</code> 把睡在这个频道上的进程改回 <b>RUNNABLE</b>，它就能被重新调度。这对应教材<b>信号量 P/V 操作</b>里的"睡眠等待"。</p>
+  </div>
+  <div class="warn">
+    <span class="lbl">⚠ 关键陷阱:sleep 为什么必须"带着锁"进去?</span>
+    <p>设想没有锁保护:进程 A 检查到"资源还没好"，正准备睡。<b>就在这个空档</b>，进程 B 把资源备好了、还喊了一声 <code>wakeup</code>——可 A 这会儿还没真正睡下，<b>这一声叫醒落空了</b>。等 A 反应过来真睡下去，再没人来叫它，它就<b>永远睡死</b>了。这叫 <b>lost wakeup（丢失唤醒）</b>。<br>
+    解法:A 必须<b>握着保护资源的那把锁去 sleep</b>，sleep 内部会在确实睡好之后才原子地放掉这把锁——这样 B 想喊 wakeup 就得先拿到同一把锁，必然等到 A 睡稳了才喊得出，那一声就不会丢。</p>
+  </div>
+
+  <!-- 6. 自测 -->
+  <h2><span class="n">6</span>复述检查（看懂了就能答）</h2>
+  <div class="q">
+    <div class="qt">Q1. 一句 <code>count++</code> 在并发下为什么会"丢更新"? 它到底分几步、错在哪一步之间?</div>
+    <button class="reveal" onclick="this.nextElementSibling.classList.add('show');this.style.display='none'">看答案</button>
+    <div class="ans"><code>count++</code> 是<b>读→改→写</b>三步。错在:A 读完旧值还没写回时被切走，B 也读到同一个旧值，两人各 +1 写回，<b>两次加一只生效一次</b>。结果取决于执行顺序，就是<b>竞态条件</b>。把这三步用锁圈成<b>临界区</b>就安全了。</div>
+  </div>
+  <div class="q">
+    <div class="qt">Q2. 锁保护 count，可 locked 自己也是共享变量，凭什么不会被两个进程同时抢到?</div>
+    <button class="reveal" onclick="this.nextElementSibling.classList.add('show');this.style.display='none'">看答案</button>
+    <div class="ans">靠<b>原子操作</b><code>__sync_lock_test_and_set</code>:把 locked"读出旧值 + 写成 1"<b>合成一条不可打断的指令</b>。返回旧值 0 才算抢到。因为读写一气呵成，<b>不可能两个进程都拿到旧值 0</b>。原子性是锁的地基。</div>
+  </div>
+  <div class="q">
+    <div class="qt">Q3. 自旋锁 <code>acquire</code> 进来第一件事就是关中断，为什么? 不关会怎样?</div>
+    <button class="reveal" onclick="this.nextElementSibling.classList.add('show');this.style.display='none'">看答案</button>
+    <div class="ans">防<b>死锁</b>。若持锁期间来中断、中断处理又要拿<b>同一把锁</b>，它会 spin 等我放锁，可我被它打断了没法放——<b>自锁死</b>。所以 <code>push_off()</code> 关中断、<code>pop_off()</code> 放锁后再开回来。</div>
+  </div>
+
+  <footer>
+    <p><span class="pill">理解版</span>看懂这一页后 → 去 <b>第 36 课 讲解版</b>:把这套画面落到真实 C 代码 <code>acquire()/release()</code> 与 <code>sleep()/wakeup()</code>，逐行讲 + 答辩。</p>
+    <p>下一步:<a href="0036-lab1-concurrency-present.html">0036 并发·讲解版（上台稿）</a></p>
+  </footer>
+
+</div>
+
+<script>
+  // ====== 竞态交互 ======
+  // 两进程各 3 步(读0/改1/写2)。无锁:用户手动单步,系统在 A/B 间交替推进 -> 制造交错丢更新
+  // 有锁:必须 A 三步全做完才轮到 B -> 串行正确
+  var locked = false;          // 是否加锁模式
+  var count = 0;               // 共享变量
+  var reg = {A:null, B:null};  // 各自寄存器
+  var stepIdx = {A:0, B:0};    // 各自下一步(0..3, 3=完成)
+  var turn = 'A';              // 无锁模式下下一个该走谁
+  var holder = null;           // 有锁模式下谁持锁
+  var finished = false;
+
+  var STEP_NAMES = ['read','modify','write'];
+
+  function $(id){ return document.getElementById(id); }
+
+  function paint(){
+    $('countVal').textContent = count;
+    $('regA').textContent = '寄存器=' + (reg.A===null?'?':reg.A);
+    $('regB').textContent = '寄存器=' + (reg.B===null?'?':reg.B);
+    document.querySelectorAll('.op').forEach(function(op){
+      var p = op.dataset.p, s = +op.dataset.s;
+      op.classList.remove('done','cur');
+      if(s < stepIdx[p]) op.classList.add('done');
+    });
+    $('lockBadge').className = 'lockbadge ' + (locked?'on':'off');
+    $('lockBadge').textContent = locked ? '开（串行保护）' : '关（点我切换）';
+  }
+
+  function highlightCur(p, s){
+    var sel = '.op[data-p="'+p+'"][data-s="'+s+'"]';
+    var el = document.querySelector(sel);
+    if(el) el.classList.add('cur');
+  }
+
+  function flashCount(){
+    var v = $('countVal'); v.classList.add('flash');
+    setTimeout(function(){ v.classList.remove('flash'); }, 400);
+  }
+
+  // 执行某进程的某一步
+  function doStep(p){
+    var s = stepIdx[p];
+    if(s === 0){ reg[p] = count; }              // read
+    else if(s === 1){ reg[p] = reg[p] + 1; }    // modify
+    else if(s === 2){ count = reg[p]; flashCount(); } // write
+    stepIdx[p] = s + 1;
+    return s;
+  }
+
+  function bothDone(){ return stepIdx.A >= 3 && stepIdx.B >= 3; }
+
+  function report(p, s){
+    var r = $('readout');
+    var name = STEP_NAMES[s];
+    var who = (p==='A'?'🅰 A':'🅱 B');
+    var msg = who + ' 执行 <b>'+name+'</b>：';
+    if(s===0) msg += '把 count(='+count+') 读进自己的寄存器。';
+    else if(s===1) msg += '寄存器 +1 → '+reg[p]+'（此时还<b>没写回内存</b>）。';
+    else msg += '把寄存器值 '+reg[p]+' 写回 count。现在 count = <b>'+count+'</b>。';
+    r.innerHTML = msg;
+  }
+
+  function step(){
+    if(finished) return;
+
+    if(!locked){
+      // 无锁:在还没做完的进程间交替,制造交错
+      // 选 turn,若 turn 已完成则换另一个
+      var p = turn;
+      if(stepIdx[p] >= 3) p = (p==='A'?'B':'A');
+      if(stepIdx[p] >= 3){ return; } // 都完了
+      var s = doStep(p);
+      report(p, s);
+      // 下次轮到另一个(若另一个还没完)
+      turn = (p==='A'?'B':'A');
+    } else {
+      // 有锁:必须一个进程把三步全做完才放锁,另一个才能开始
+      if(holder === null){
+        holder = (stepIdx.A < 3) ? 'A' : 'B';
+      }
+      var pp = holder;
+      var ss = doStep(pp);
+      report(pp, ss);
+      $('readout').innerHTML += ' <span class="ok">['+(pp==='A'?'A':'B')+' 持锁，独占临界区]</span>';
+      if(stepIdx[pp] >= 3){ holder = null; } // 放锁
+    }
+
+    paint();
+    // 高亮下一个待执行步
+    var nextP = locked ? (holder || (stepIdx.A<3?'A':'B')) : turn;
+    if(stepIdx.A>=3 && stepIdx.B>=3) nextP = null;
+    else if(stepIdx[nextP] >= 3) nextP = (nextP==='A'?'B':'A');
+    if(nextP && stepIdx[nextP] < 3) highlightCur(nextP, stepIdx[nextP]);
+
+    if(bothDone()){
+      finished = true;
+      $('btnStep').disabled = true;
+      var r = $('readout');
+      if(count === 2){
+        r.innerHTML += '<br><span class="ok">✅ 完成：两次 ++ 都生效，count = 2，正确！</span>';
+      } else {
+        r.innerHTML += '<br><span class="bad">❌ 出错了：两次 ++ 只涨到 count = '+count+'，丢了一次更新！这就是竞态条件。</span>';
+      }
+    }
+  }
+
+  function resetRace(){
+    count = 0; reg = {A:null,B:null}; stepIdx = {A:0,B:0};
+    turn = 'A'; holder = null; finished = false;
+    $('btnStep').disabled = false;
+    $('readout').innerHTML = locked
+      ? '🔒 加锁模式：A 必须把"读改写"三步整段做完、放锁后，B 才能开始。点"单步"看它被强制串行。'
+      : '🔓 无锁模式：点"单步"会在 A、B 间交替推进，故意交错。看 count 会不会算错。';
+    paint();
+    var first = (stepIdx.A<3?'A':'B');
+    highlightCur(first, 0);
+  }
+
+  function toggleLock(){
+    locked = !locked;
+    resetRace();
+  }
+
+  // 初始化
+  resetRace();
+</script>
+</body>
+</html>

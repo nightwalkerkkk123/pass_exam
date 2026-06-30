@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实验④ 内存分配与回收 · 讲解版（上台稿） · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#5a6475; --line:#e3e6ec; --bg:#f6f8fc; --card:#ffffff;
+    --blue:#2b6cb0; --green:#2f855a; --amber:#b7791f; --red:#c53030; --purple:#6b46c1;
+    --green-bg:#e7f6ec; --green-bd:#9ad0ad;
+    --amber-bg:#fdeccd; --amber-bd:#e8b86a;
+    --blue-bg:#e7eefc; --blue-bd:#9bb6ec;
+    --shadow:0 1px 3px rgba(20,30,60,.05), 0 6px 24px rgba(20,30,60,.04);
+    --codebg:#0f1626;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:
+      radial-gradient(1200px 500px at 80% -10%, #eaf1ff 0%, transparent 60%),
+      radial-gradient(900px 400px at -10% 10%, #fef3e6 0%, transparent 55%),
+      var(--bg);
+    line-height:1.75; font-size:16px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px; margin:0 auto; padding:36px 22px 110px}
+
+  header.h{margin-bottom:22px}
+  .eyebrow{display:inline-block; color:#fff; background:linear-gradient(135deg,var(--blue),#1f4f86);
+    font-weight:700; letter-spacing:.04em; font-size:12.5px; padding:4px 11px; border-radius:20px}
+  h1{font-size:27px; margin:14px 0 8px; letter-spacing:-.01em; line-height:1.3}
+  .sub{color:var(--muted); font-size:14.5px; max-width:64ch}
+
+  h2{font-size:20px; margin:40px 0 12px; display:flex; align-items:center; gap:10px}
+  h2 .n{display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+    border-radius:9px; background:var(--blue); color:#fff; font-size:15px; font-weight:700; flex:0 0 auto}
+  p{margin:9px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6;
+    padding:1px 6px; border-radius:4px; color:#33415c}
+
+  /* 顶部信息条 */
+  .meta{display:flex; gap:10px; flex-wrap:wrap; margin:16px 0 4px}
+  .chip{font-size:12.5px; background:#fff; border:1px solid var(--line); border-radius:20px;
+    padding:5px 12px; box-shadow:var(--shadow)}
+  .chip b{color:var(--blue)}
+
+  /* 主线条 */
+  .mainline{background:linear-gradient(135deg,#11203a,#0f1626); color:#eaf1ff; border-radius:14px;
+    padding:20px 22px; margin:18px 0; box-shadow:var(--shadow)}
+  .mainline .lbl{color:#ffd479; font-weight:700; font-size:13px; letter-spacing:.03em}
+  .mainline .q{font-size:18px; line-height:1.6; margin-top:6px}
+
+  /* 时间分配 */
+  .timeline{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px; margin:14px 0}
+  .seg{background:#fff; border:1px solid var(--line); border-radius:10px; padding:10px 12px; box-shadow:var(--shadow)}
+  .seg .t{font-size:18px; font-weight:800; color:var(--blue)}
+  .seg .l{font-size:12px; color:var(--muted)}
+
+  /* 讲稿 + 代码 配对 */
+  .step{margin:18px 0; border:1px solid var(--line); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); background:#fff}
+  .step .bar{display:flex; align-items:center; gap:10px; padding:10px 16px; background:#f0f3f9; border-bottom:1px solid var(--line)}
+  .step .bar .tag{font-size:12px; font-weight:700; color:#fff; background:var(--green); border-radius:6px; padding:2px 8px}
+  .step .bar .tag.idx{background:var(--amber)}
+  .step .bar .file{font-family:"SF Mono",Menlo,monospace; font-size:12px; color:var(--muted)}
+  pre{margin:0; background:var(--codebg); color:#e8edf6; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.65}
+  pre .cm{color:#8aa0c0}        /* 注释 */
+  pre .kw{color:#ff9d7a}        /* 关键字 */
+  pre .hl{background:rgba(255,212,121,.16); display:inline-block; width:100%}
+  .say{padding:14px 16px; background:linear-gradient(180deg,#fffdf7,#fff); border-top:2px dashed var(--amber-bd)}
+  .say .lbl{display:inline-block; color:var(--amber); font-weight:700; font-size:12.5px; letter-spacing:.03em; margin-bottom:4px}
+  .say p{margin:6px 0}
+  .say .lit{background:#fff7e6; border-left:3px solid var(--amber); padding:8px 12px; border-radius:6px; font-size:14.5px}
+
+  .board{background:linear-gradient(180deg,#f1fbf4,#fff); border:1px solid var(--green-bd);
+    border-left:4px solid var(--green); border-radius:12px; padding:16px 18px; margin:16px 0}
+  .board .lbl{color:var(--green); font-weight:700; font-size:13px}
+  .board ul{margin:8px 0 0; padding-left:20px} .board li{margin:5px 0}
+
+  /* 答辩 Q&A */
+  .qa{border:1px solid var(--line); border-radius:12px; margin:10px 0; overflow:hidden; background:#fff; box-shadow:var(--shadow)}
+  .qa summary{cursor:pointer; padding:13px 16px; font-weight:600; list-style:none; display:flex; gap:10px; align-items:flex-start}
+  .qa summary::-webkit-details-marker{display:none}
+  .qa summary .qmark{color:#fff; background:var(--red); border-radius:6px; font-size:12px; padding:1px 7px; flex:0 0 auto; margin-top:3px}
+  .qa[open] summary{border-bottom:1px solid var(--line); background:#fafbfd}
+  .qa .body{padding:13px 16px; font-size:14.5px}
+  .qa .body .how{background:#f1fbf4; border:1px solid var(--green-bd); border-radius:8px; padding:10px 12px; margin-top:6px}
+  .qa .body .how b{color:var(--green)}
+
+  .cut{background:#fff5f5; border:1px solid #f5c2c2; border-left:4px solid var(--red); border-radius:12px; padding:16px 18px; margin:16px 0}
+  .cut .lbl{color:var(--red); font-weight:700; font-size:13px}
+
+  .check{list-style:none; padding:0; margin:10px 0}
+  .check li{padding:8px 12px; border:1px solid var(--line); border-radius:9px; margin:6px 0; background:#fff; font-size:14.5px}
+  .check li::before{content:"☐ "; color:var(--blue); font-weight:700}
+
+  footer{margin-top:50px; padding-top:16px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  footer a{color:var(--blue); text-decoration:none}
+  .pill{display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:20px; background:#e7eefc; color:var(--blue); margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="h">
+    <span class="eyebrow">实验④ 内存分配与回收 · 讲解版（上台稿）</span>
+    <h1>逐行讲 <code>walk()</code> 与 <code>kalloc()/kfree()</code> —— 地址变换 + 物理页分配</h1>
+    <p class="sub">这一页是<b>上台逐句念的稿子</b>:每段代码下面都写好"嘴上怎么说"。先用第 33 课理解版看懂画面，再用这页练口。源码:<code>xv6-riscv/kernel/vm.c</code> + <code>kalloc.c</code> + <code>riscv.h</code>。</p>
+    <div class="meta">
+      <span class="chip"><b>时长</b> 9 分钟（留 2–3 分钟答辩）</span>
+      <span class="chip"><b>只过</b> ~15 行 C，不逐行铺满</span>
+      <span class="chip"><b>板书</b> 1 图 + 1 类比 + 1 句设计意图</span>
+    </div>
+  </header>
+
+  <!-- 主线 -->
+  <div class="mainline">
+    <span class="lbl">★ 主线句（讲偏了就拉回这句）</span>
+    <div class="q">"这段代码干两件事:<b><code style="background:rgba(255,255,255,.12);color:#ffe">walk(va)</code> 把一个虚拟地址逐级查三级页表、翻成物理页;</b> 而查表要用的页、还有进程要用的内存页，都靠 <b><code style="background:rgba(255,255,255,.12);color:#ffe">kalloc/kfree</code> 从一条空闲链表上摘下、还回去</b>。前者是课本的'地址变换 + 多级页表'，后者是'内存的分配与回收'。"</div>
+  </div>
+
+  <!-- 时间分配 -->
+  <h2><span class="n">0</span>9 分钟怎么分配</h2>
+  <div class="timeline">
+    <div class="seg"><div class="t">1.5'</div><div class="l">① 主线 + 虚拟地址切 9+9+9+12</div></div>
+    <div class="seg"><div class="t">3.5'</div><div class="l">② walk 三级查表（重点）</div></div>
+    <div class="seg"><div class="t">2'</div><div class="l">③ kalloc/kfree 链表摘挂</div></div>
+    <div class="seg"><div class="t">1'</div><div class="l">④ 板书 + 设计意图</div></div>
+    <div class="seg"><div class="t">1'</div><div class="l">⑤ 收尾金句</div></div>
+  </div>
+
+  <!-- 段1 -->
+  <h2><span class="n">1</span>先亮宏：虚拟地址是怎么被切开的</h2>
+  <div class="step">
+    <div class="bar"><span class="tag">数据结构</span><span class="file">kernel/riscv.h</span></div>
+<pre><span class="cm">// Sv39：64 位虚拟地址的低 39 位 = 9 + 9 + 9 + 12</span>
+<span class="cm">//   30..38 → L2 索引(9 位)</span>
+<span class="cm">//   21..29 → L1 索引(9 位)</span>
+<span class="cm">//   12..20 → L0 索引(9 位)</span>
+<span class="cm">//    0..11 → 页内偏移(12 位)</span>
+<span class="cm">#define PGSHIFT 12</span>                  <span class="cm">// 页内偏移占的位数</span>
+<span class="hl"><span class="cm">#define PXMASK  0x1FF</span>                 <span class="cm">// 9 个 1，取出一段索引</span></span>
+<span class="cm">#define PXSHIFT(level)  (PGSHIFT+(9*(level)))</span>
+<span class="hl"><span class="cm">#define PX(level, va) ((((uint64)(va)) &gt;&gt; PXSHIFT(level)) &amp; PXMASK)</span></span>
+
+<span class="cm">#define PTE_V (1L &lt;&lt; 0)</span>  <span class="cm">// 有效位：这一项是不是有效</span>
+<span class="cm">#define PTE2PA(pte) (((pte) &gt;&gt; 10) &lt;&lt; 12)</span>  <span class="cm">// 从页表项里抠出物理页地址</span></pre>
+    <div class="say">
+      <span class="lbl">🎤 怎么说</span>
+      <p class="lit">"先看 CPU 怎么拆地址。<code>PX(level, va)</code> 就是个<b>取索引器</b>:右移把那一段挪到最低位，再 <code>&amp; 0x1FF</code> 砍出 9 位。<b>level=2 取最高那 9 位、level=1 取中间、level=0 取最低那 9 位索引</b>。最低 12 位是<b>页内偏移</b>，它不参与查表。还有 <code>PTE_V</code> 这个<b>有效位</b>，记住它——下面每查一级都要看它。"</p>
+    </div>
+  </div>
+
+  <!-- 段2 -->
+  <h2><span class="n">2</span>核心：walk 逐级查三级页表（重点）</h2>
+  <div class="step">
+    <div class="bar"><span class="tag">地址变换</span><span class="file">kernel/vm.c · walk()</span></div>
+<pre><span class="kw">pte_t</span> *
+walk(pagetable_t pagetable, <span class="kw">uint64</span> va, <span class="kw">int</span> alloc)
+{
+  <span class="kw">if</span>(va &gt;= MAXVA)
+    panic(<span class="cm">"walk"</span>);
+
+<span class="hl">  <span class="kw">for</span>(<span class="kw">int</span> level = 2; level &gt; 0; level--) {  <span class="cm">// ★走 L2、L1 两级</span></span>
+    pte_t *pte = &amp;pagetable[<span class="hl">PX(level, va)</span>];   <span class="cm">// 用该级 9 位索引取一行</span>
+    <span class="hl">    <span class="kw">if</span>(*pte &amp; PTE_V) {                  <span class="cm">// 这一项有效?</span></span>
+      pagetable = (pagetable_t)PTE2PA(*pte); <span class="cm">// 顺着走到下一级表</span>
+    } <span class="kw">else</span> {
+      <span class="hl">      <span class="kw">if</span>(!alloc || (pagetable = (pde_t*)kalloc()) == 0)</span>
+        <span class="kw">return</span> 0;                       <span class="cm">// 没建表&amp;不让分配 → 失败</span>
+      memset(pagetable, 0, PGSIZE);      <span class="cm">// kalloc 出一张新表，清零</span>
+      *pte = PA2PTE(pagetable) | PTE_V;   <span class="cm">// 挂上去，置有效位</span>
+    }
+  }
+  <span class="kw">return</span> &amp;pagetable[<span class="hl">PX(0, va)</span>];          <span class="cm">// L0：返回最后那个 PTE 的地址</span>
+}</pre>
+    <div class="say">
+      <span class="lbl">🎤 怎么说（这段最容易被追问，慢讲）</span>
+      <p class="lit">"看这个 <code>for(level=2; level&gt;0; level--)</code>——它就是'<b>逐级查表</b>'本身。第一圈 level=2:用 <code>PX(2,va)</code> 在<b>根页表</b>取一行，<b>如果有效位 PTE_V=1</b>，就 <code>PTE2PA</code> 把它指向的<b>下一级表地址</b>取出来、换过去。第二圈 level=1 同样操作，走到 L0 表。"</p>
+      <p>👉 指着 <code>else</code> 那支说:"<b>如果这一格无效（PTE_V=0），说明这片地址还没建过表</b>。<code>alloc</code> 参数就在这儿起作用:<b>alloc=0 就直接失败返回;alloc≠0 就现场 kalloc 一张新表、清零、挂上去并置有效位。</b>"</p>
+      <p>👉 一句收口:"循环只走两级，最后一级 <code>PX(0,va)</code> 在循环外，<b>直接返回那个 PTE 的地址</b>——因为调用者要的就是它。三级查完，物理页号配上页内偏移，地址变换完成。"</p>
+    </div>
+  </div>
+
+  <!-- 段3 -->
+  <h2><span class="n">3</span>另一半：kalloc / kfree —— 物理页的分配与回收</h2>
+  <div class="step">
+    <div class="bar"><span class="tag idx">分配回收</span><span class="file">kernel/kalloc.c</span></div>
+<pre><span class="kw">struct</span> run {
+  <span class="kw">struct</span> run *next;   <span class="cm">// ★指针借空闲页自己开头存</span>
+};
+<span class="kw">struct</span> {
+  <span class="kw">struct</span> spinlock lock;
+  <span class="hl">  <span class="kw">struct</span> run *freelist;  <span class="cm">// ★所有空闲页串成一条链</span></span>
+} kmem;
+
+<span class="kw">void</span> kfree(<span class="kw">void</span> *pa) {              <span class="cm">// 回收一页</span>
+  <span class="kw">struct</span> run *r = (<span class="kw">struct</span> run*)pa;
+  acquire(&amp;kmem.lock);
+  <span class="hl">  r-&gt;next = kmem.freelist;       <span class="cm">// 让这页指向原表头</span></span>
+  <span class="hl">  kmem.freelist = r;             <span class="cm">// 这页成为新表头 → 挂头 O(1)</span></span>
+  release(&amp;kmem.lock);
+}
+
+<span class="kw">void</span> *kalloc(<span class="kw">void</span>) {              <span class="cm">// 分配一页</span>
+  acquire(&amp;kmem.lock);
+  <span class="kw">struct</span> run *r = kmem.freelist;
+  <span class="hl">  <span class="kw">if</span>(r) kmem.freelist = r-&gt;next; <span class="cm">// 摘下表头 → 摘头 O(1)</span></span>
+  release(&amp;kmem.lock);
+  <span class="kw">return</span> (<span class="kw">void</span>*)r;
+}</pre>
+    <div class="say">
+      <span class="lbl">🎤 怎么说</span>
+      <p class="lit">"刚才 walk 要新表时调的 <code>kalloc</code>，就是这个。xv6 管空闲内存的办法极简:<b>把所有 4KB 空闲页串成一条单链表 freelist</b>。<b>kalloc 就是摘表头、kfree 就是挂表头</b>，都只动一两个指针，<b>不用遍历，所以是 O(1)</b>。"</p>
+      <p>👉 指着 <code>struct run</code> 说:"妙在链表的 next 指针存哪——<b>就借空闲页自己开头那 8 个字节</b>。反正它空着，不另花内存。这就是课本'<b>空闲块链表法</b>'最干净的实现。"</p>
+    </div>
+  </div>
+
+  <!-- 板书 -->
+  <h2><span class="n">4</span>板书：1 图 + 1 类比 + 1 句设计意图</h2>
+  <div class="board">
+    <span class="lbl">✍️ 上台就画这一张</span>
+    <ul>
+      <li><b>图</b>:横着画一条虚拟地址，切成四格标 <b>[L2 | L1 | L0 | 偏移]</b>（9/9/9/12）。下面竖着画三个方块 L2→L1→L0 表，箭头从 L2 表某行指到 L1 表、再指到 L0 表，L0 表某行指到"<b>物理页</b>"。最后把"偏移"那段直接拉一条线拼到物理页里 → 得到物理地址。</li>
+      <li><b>类比</b>:"<b>省 → 市 → 区，逐级查名册</b>。L2 索引查到'L1 名册在哪'，L1 查到'L0 名册在哪'，L0 才查到'物理页大门'，最后按页内偏移进具体那一户。没用到的省份，连下级名册都不印——这就是多级页表省内存。"</li>
+      <li><b>设计意图（1 句）</b>:"<b>多级是为了省页表空间</b>——没用到的虚拟地址区域，对应的下级页表干脆不建;<b>空闲页用链表是为了 O(1) 又不额外占内存</b>——指针藏在空闲页自己身上。"</li>
+    </ul>
+  </div>
+
+  <!-- 答辩 -->
+  <h2><span class="n">5</span>答辩 Q&amp;A（老师最可能问的 5 个）</h2>
+  <details class="qa"><summary><span class="qmark">Q1</span>为什么用多级页表，不用一张单级大表?</summary>
+    <div class="body">
+      <div class="how"><b>答法:</b> "<b>省内存。</b>单级表要为每个虚拟页都留一个表项，Sv39 有 512×512×512≈1.3 亿项，每个进程都得占着，绝大多数还用不到。多级把表拆成树，<b>没用到的整片区域连下一级表都不建</b>（有效位为 0），真正占内存的只有实际用到的那几张小表——这就是'<b>多级页表节省页表空间</b>'。"</div>
+    </div>
+  </details>
+  <details class="qa"><summary><span class="qmark">Q2</span><code>walk</code> 里的 <code>alloc</code> 参数是干嘛的?</summary>
+    <div class="body"><div class="how"><b>答法:</b> "它控制<b>查到某级页表不存在时，要不要现场建一张</b>。<code>alloc=0</code>（如 <code>walkaddr</code> 纯查地址）就直接返回 0;<code>alloc≠0</code>（如 <code>mappages</code> 要建映射）就 <b>kalloc 一页当新页表、清零、挂上去并置 PTE_V</b>。一句话:查路 vs 修路。"</div></div>
+  </details>
+  <details class="qa"><summary><span class="qmark">Q3</span><code>PTE_V</code> 是什么? 为什么每级都要判它?</summary>
+    <div class="body"><div class="how"><b>答法:</b> "PTE_V 是页表项的<b>有效位</b>。<code>*pte &amp; PTE_V</code> 为真，说明这一项指向的下级表/物理页是有效的、能顺着走;为 0 说明这片地址<b>还没建立映射</b>，要么报错，要么去分配。它是逐级查表能不能继续往下走的<b>开关</b>。"</div></div>
+  </details>
+  <details class="qa"><summary><span class="qmark">Q4</span>kalloc 为什么用链表管理空闲页? 为什么说是 O(1)?</summary>
+    <div class="body"><div class="how"><b>答法:</b> "所有空闲页串成单链表 <code>freelist</code>。<b>分配=摘表头、回收=挂表头</b>，都只改一两个指针、不遍历，所以是 <b>O(1)</b>。而且链表的 next 指针<b>借空闲页自己开头 8 字节</b>存（<code>struct run</code>），管理几乎不额外占内存——对应课本'<b>空闲块链表法</b>'。"</div></div>
+  </details>
+  <details class="qa"><summary><span class="qmark">Q5</span>这段代码对应教材哪个知识点?</summary>
+    <div class="body"><div class="how"><b>答法:</b> "对应 <b>Ch4 存储器管理</b>:<code>walk</code> 是<b>分页</b>里的<b>地址变换机构 + 多级页表</b>（虚拟地址→物理地址）;<code>kalloc/kfree</code> 是<b>内存的分配与回收</b>（空闲块链表法）。这两块正是本学期<b>实验④ 内存分配与回收</b>的核心。"</div></div>
+  </details>
+
+  <!-- 砍版 -->
+  <h2><span class="n">6</span>万一超时：5 分钟砍版</h2>
+  <div class="cut">
+    <span class="lbl">✂️ 时间不够就只讲这条线</span>
+    <p>① 念主线句 → ② 亮 <code>PX</code> 说"地址切 9+9+9+12" → ③ 只讲 walk 的 <b>for 循环 + <code>if(*pte &amp; PTE_V)</code></b>（逐级走、有效位是开关）→ ④ 一句话带过 kalloc 是"摘链表头、O(1)" → ⑤ 一句设计意图收尾。<b>kfree、alloc 分支细节留给答辩问到再说。</b></p>
+  </div>
+
+  <!-- 彩排 -->
+  <h2><span class="n">7</span>上台前彩排清单</h2>
+  <ul class="check">
+    <li>能不看稿说出主线句</li>
+    <li>能徒手画出那张"地址切四段 → L2→L1→L0 → 物理页 + 偏移"的图</li>
+    <li>能指着 <code>for</code> 循环和 <code>if(*pte &amp; PTE_V)</code> 说出"逐级查表、有效位是开关"</li>
+    <li>能解释 <code>alloc</code> 参数 = "要不要现场建一张新页表"</li>
+    <li>能一句话说清 kalloc/kfree 是"摘/挂链表头、O(1)"</li>
+    <li>5 个答辩题，每个能答出 1–2 句</li>
+    <li>掐表念一遍，控制在 9 分钟内</li>
+  </ul>
+
+  <footer>
+    <p><span class="pill">讲解版</span>配套理解版 → <a href="0033-lab4-memory-understand.html">第 33 课 内存分配与回收·理解版</a>（先看懂再练口）</p>
+    <p>源码:<code>kernel/vm.c</code> · <code>kernel/kalloc.c</code> · <code>kernel/riscv.h</code></p>
+  </footer>
+
+</div>
+</body>
+</html>
