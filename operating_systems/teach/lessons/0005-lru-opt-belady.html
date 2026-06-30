@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 5 课 · 页面置换 LRU / OPT / Belady · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  .trace td,.trace th{padding:6px 8px; font-family:"SF Mono",Menlo,monospace}
+  .trace .ref{font-weight:700; font-size:16px; background:#f0f4f7}
+  .fault{background:#fdecea; color:var(--bad); font-weight:700}
+  .hit{background:#eaf6ee; color:var(--ok); font-weight:700}
+  .ev{color:var(--bad); font-weight:700}
+  .keep{background:#fff7e0}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .big{font-size:15px}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 虚拟存储 · 计算大题 ②(2/2)</div>
+  <h1>第 5 课:LRU、OPT 与 Belady 异常</h1>
+  <div class="sub">目标:会算 LRU/OPT 的缺页,看懂为什么 LRU 比 FIFO 强,记住 Belady 异常。约 18 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>接上一课的悬念:</b> FIFO 的硬伤是"<b>命中不续命</b>"——刚用过的页也可能被踢。
+  <b>LRU 就是来修它的</b>:谁<b>最近被用过</b>,就给谁续命;真要踢,踢<b>最久没人碰</b>的那个。
+  这一课我们用<b>同一条访问串</b> <code>1 2 3 1 4 1 2</code>(3 个物理块),把 FIFO / LRU / OPT 摆在一起对比。
+</div>
+
+<h2>一、LRU(最近最久未使用):踢"最久没被碰过"的页</h2>
+<div class="callout ok big">
+  🔑 <b>LRU 规则:</b>要踢页时,踢<b class="hl">最近最久没有被访问过</b>的那一页。<b>命中会"刷新"它</b>(算作刚用过,排到最不该踢的位置)。
+</div>
+<p>同一条串 <code>1 2 3 1 4 1 2</code> 用 LRU:</p>
+<table class="trace">
+  <tr><th>访问</th><td class="ref">1</td><td class="ref">2</td><td class="ref">3</td><td class="ref">1</td><td class="ref">4</td><td class="ref">1</td><td class="ref">2</td></tr>
+  <tr><th>块1</th><td class="keep">1</td><td class="keep">1</td><td class="keep">1</td><td class="keep">1</td><td class="keep">1</td><td class="keep">1</td><td class="keep">1</td></tr>
+  <tr><th>块2</th><td></td><td>2</td><td>2</td><td>2</td><td><span class="ev">4</span></td><td>4</td><td>4</td></tr>
+  <tr><th>块3</th><td></td><td></td><td>3</td><td>3</td><td>3</td><td>3</td><td><span class="ev">2</span></td></tr>
+  <tr><th>结果</th><td class="fault">缺</td><td class="fault">缺</td><td class="fault">缺</td><td class="hit">命中</td><td class="fault">缺</td><td class="hit">命中</td><td class="fault">缺</td></tr>
+</table>
+<p><b style="color:var(--ok)">缺页 5 次</b>(第 1,2,3,5,7 次)。</p>
+<div class="callout warn big">
+  <b>🎯 看第 6 次访问 1 —— 这就是 LRU 打败 FIFO 的地方:</b><br>
+  上一课 FIFO 在第 5 次就把 1 踢了,所以第 6 次访问 1 → <b style="color:var(--bad)">缺页</b>。<br>
+  而 LRU 因为 1 在第 4 次刚被用过,<b>给它续了命</b>,第 5 次踢的是"最久没碰"的 2。所以第 6 次访问 1 → <b style="color:var(--ok)">命中</b>!(看上表黄色那行,1 从头到尾都在)<br>
+  <b>这就是"看最近用没用"比"看谁先来"聪明的原因。</b>
+</div>
+
+<h2>二、OPT(最佳置换):踢"将来最久用不到"的页</h2>
+<div class="callout ok big">
+  🔑 <b>OPT 规则:</b>要踢页时,往<b>后面</b>看访问串,踢"<b class="hl">将来最长时间用不到(或再也不用)</b>"的那一页。它<b>缺页最少</b>,但要"预知未来"所以<b>没法真正实现</b>,只用来当"满分参考线"。
+</div>
+<p>同一条串 <code>1 2 3 1 4 1 2</code> 用 OPT:</p>
+<table class="trace">
+  <tr><th>访问</th><td class="ref">1</td><td class="ref">2</td><td class="ref">3</td><td class="ref">1</td><td class="ref">4</td><td class="ref">1</td><td class="ref">2</td></tr>
+  <tr><th>块1</th><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+  <tr><th>块2</th><td></td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td><td>2</td></tr>
+  <tr><th>块3</th><td></td><td></td><td>3</td><td>3</td><td><span class="ev">4</span></td><td>4</td><td>4</td></tr>
+  <tr><th>结果</th><td class="fault">缺</td><td class="fault">缺</td><td class="fault">缺</td><td class="hit">命中</td><td class="fault">缺</td><td class="hit">命中</td><td class="hit">命中</td></tr>
+</table>
+<p><b style="color:var(--ok)">缺页 4 次</b>(第 1,2,3,5 次)。</p>
+<p>第 5 次要踢页,看将来:1 在第 6 次还要用、2 在第 7 次还要用、<b>3 后面再也不用了</b> → 踢 <b>3</b>。于是后面 1、2 全部命中。</p>
+
+<h2>三、三个算法摆一起(同一道题)</h2>
+<table>
+  <tr><th>算法</th><th>淘汰谁</th><th>本题缺页次数</th><th>能否实现</th></tr>
+  <tr><td><b>FIFO</b></td><td>进入最早的</td><td><b style="color:var(--bad)">6 次</b></td><td>能(最简单)</td></tr>
+  <tr><td><b>LRU</b></td><td>最久没被访问的</td><td><b>5 次</b></td><td>能(需硬件,主流)</td></tr>
+  <tr><td><b>OPT</b></td><td>将来最久不用的</td><td><b style="color:var(--ok)">4 次</b></td><td>不能(理论最优/基准)</td></tr>
+</table>
+<p class="sub">排名永远是 <b>OPT ≤ LRU</b>(OPT 是天花板)。FIFO 经常最差,还会犯下面这个怪病 ↓</p>
+
+<h2>四、Belady 异常(选择题高频,记结论即可)</h2>
+<div class="callout warn">
+  <b>Belady 异常:</b>正常想法是"物理块越多,缺页越少"。但 <b class="hl">FIFO</b> 有个怪病——<b>给的块更多,缺页反而更多!</b><br>
+  经典例子:访问串 <code>1 2 3 4 1 2 5 1 2 3 4 5</code>,FIFO 用 <b>3 块缺 9 次</b>,用 <b>4 块反而缺 10 次</b>。<br>
+  <b>只有 FIFO 会犯</b>。LRU、OPT 属于"堆栈类算法",块越多缺页只会少不会多,<b>不会有 Belady 异常</b>。
+</div>
+<div class="callout">
+  <b>常考填空/选择:</b>"哪个算法可能出现 Belady 异常?" → <b>FIFO</b>。"LRU 会吗?" → <b>不会</b>。
+</div>
+
+<h2>五、必背(三句)</h2>
+<div class="callout">
+  <p style="margin:4px 0">① <b>LRU</b> 踢"最久没被访问"的(向<b>过去</b>看);<b>命中会续命</b>。</p>
+  <p style="margin:4px 0">② <b>OPT</b> 踢"将来最久不用"的(向<b>未来</b>看);最优但不可实现。</p>
+  <p style="margin:4px 0">③ <b>Belady 异常</b>(块多反而更缺页)<b>只有 FIFO</b> 会犯。</p>
+</div>
+
+<h2>六、轮到你了</h2>
+<div class="quiz" id="q1">
+  <div class="qq">Q1. LRU 要淘汰页时,踢哪一个?</div>
+  <button class="opt" data-ok="0">将来最长时间用不到的(这是 OPT)</button>
+  <button class="opt" data-ok="1">最近最久没有被访问过的</button>
+  <button class="opt" data-ok="0">最先进入内存的(这是 FIFO)</button>
+  <button class="opt" data-ok="0">被访问次数最多的</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 新题:物理块 <b>3</b> 个,访问串 <code>4 5 6 4 7 4 5</code>,用 <b>LRU</b>。缺页几次?</div>
+  <p class="sub" style="margin-top:-4px">画表,命中时记得给那页"续命"(排到最不该踢)。自己数完再点。</p>
+  <button class="opt" data-ok="0">7 次</button>
+  <button class="opt" data-ok="0">3 次</button>
+  <button class="opt" data-ok="1">5 次</button>
+  <button class="opt" data-ok="0">4 次</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q2sol').classList.toggle('hidden')">▸ 看详细步骤</span>
+  <div id="q2sol" class="hidden" style="margin-top:8px">
+    <table class="trace">
+      <tr><th>访问</th><td class="ref">4</td><td class="ref">5</td><td class="ref">6</td><td class="ref">4</td><td class="ref">7</td><td class="ref">4</td><td class="ref">5</td></tr>
+      <tr><th>块1</th><td>4</td><td>4</td><td>4</td><td>4</td><td>4</td><td>4</td><td>4</td></tr>
+      <tr><th>块2</th><td></td><td>5</td><td>5</td><td>5</td><td><span class="ev">7</span></td><td>7</td><td><span class="ev">5</span></td></tr>
+      <tr><th>块3</th><td></td><td></td><td>6</td><td>6</td><td>6</td><td>6</td><td>6</td></tr>
+      <tr><th>结果</th><td class="fault">缺</td><td class="fault">缺</td><td class="fault">缺</td><td class="hit">命中</td><td class="fault">缺</td><td class="hit">命中</td><td class="fault">缺</td></tr>
+    </table>
+    <p>第 5 次踢"最久没碰"的 5(4 第 4 次刚用、6 比 5 晚用),第 7 次 5 已被踢→缺。共 <b>缺页 5 次</b>。</p>
+  </div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. "物理块增多,缺页反而增多"的 Belady 异常,可能出现在哪个算法?</div>
+  <button class="opt" data-ok="0">LRU</button>
+  <button class="opt" data-ok="0">OPT</button>
+  <button class="opt" data-ok="1">FIFO</button>
+  <button class="opt" data-ok="0">三个都会</button>
+  <div class="fb"></div>
+</div>
+
+<h2>七、通关条件</h2>
+<div class="callout ok">
+  回到对话里告诉我:<br>
+  ① 一句话说 <b>LRU 淘汰哪一页</b>(和 OPT、FIFO 区分开)。<br>
+  ② 那道题第 6 次访问 1,<b>为什么 LRU 命中、FIFO 缺页?</b>(关键:LRU 看了什么、FIFO 看了什么)<br>
+  ③ Belady 异常<b>只有哪个算法</b>会犯?
+</div>
+
+<footer>
+  <p>📌 <b>页面置换题型到此完整了!</b> 你已掌握 FIFO/LRU/OPT 三种算法 + 缺页率 + Belady。
+  这是自命题最爱考的计算大题之一。下一步可选:<b>混合索引(inode 文件大小)</b> 或 <b>PV 操作</b>,你定。</p>
+  <p>🙋 有不懂<b>直接问我</b>。</p>
+  <p>来源:汤小丹《计算机操作系统》第四版 · <code>textbook/ch05_虚拟存储器.md §5.4</code>(OPT/FIFO/LRU、Belady 异常)。</p>
+</footer>
+
+</div>
+<script>
+var FB={
+  q1:{good:'对!LRU 向"过去"看,踢最久没被访问的。将来最久不用是 OPT,最先进入是 FIFO,别混。',bad:'LRU=最近最久未使用,踢"过去"最久没被碰的。"将来最久不用"是 OPT,"最先进入"是 FIFO。'},
+  q2:{good:'完美!LRU 缺页 5 次。你已经会处理"命中续命"了,这是 LRU 比 FIFO 难的唯一点。',bad:'4缺5缺6缺,4命中(续命),7缺(踢最久没碰的5),4命中,5缺(5已被踢)。共 5 次。看步骤对一下。'},
+  q3:{good:'对!Belady 异常只有 FIFO 会犯。LRU/OPT 是堆栈类,块越多缺页只少不多。',bad:'只有 FIFO 会犯 Belady 异常。LRU、OPT 是堆栈类算法,块越多缺页单调不增,不会犯。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

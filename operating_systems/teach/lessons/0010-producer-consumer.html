@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 10 课 · 生产者-消费者问题 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef; --code:#272b33; --codefg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  pre{background:var(--code); color:var(--codefg); border-radius:8px; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; line-height:1.8; margin:12px 0}
+  pre .c{color:#7d8590; font-style:italic} pre .k{color:#c678dd} pre .r{color:#e06c75} pre .g{color:#98c379} pre .n{color:#e0a45e}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  .two{display:flex; gap:14px; flex-wrap:wrap}
+  .two>div{flex:1; min-width:280px}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 进程同步 · 计算大题 ④(2/2) · 压轴</div>
+  <h1>第 10 课:生产者-消费者问题</h1>
+  <div class="sub">目标:会写生产者/消费者的 PV 代码,讲清两个 P 的顺序为什么不能反。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>场景:</b> 一个能放 <b>n 件</b>货的<b>货架(缓冲区)</b>。<b>生产者</b>不停往里放货,<b>消费者</b>不停取货。三条约束:<br>
+  ① 货架满了,生产者得<b>等</b>(没空位);② 货架空了,消费者得<b>等</b>(没货);③ 同一时刻<b>只能一个人</b>动货架(互斥)。
+</div>
+
+<h2>一、三个信号量,各管一件事</h2>
+<table>
+  <tr><th>信号量</th><th>初值</th><th>管什么</th><th>类比</th></tr>
+  <tr><td><code>mutex</code></td><td><b>1</b></td><td>货架互斥(一次一人动)</td><td>货架的<b>一把钥匙</b></td></tr>
+  <tr><td><code>empty</code></td><td><b>n</b></td><td>还有几个<b>空位</b>(生产者关心)</td><td>"空位"牌,初始 n 个</td></tr>
+  <tr><td><code>full</code></td><td><b>0</b></td><td>已有几件<b>货</b>(消费者关心)</td><td>"有货"牌,初始 0 个</td></tr>
+</table>
+<div class="callout big">
+  记忆:<b>empty 初值 = n</b>(一开始全是空位),<b>full 初值 = 0</b>(一开始没货),<b>mutex = 1</b>(一把钥匙)。
+  生产者消耗 empty、产出 full;消费者消耗 full、产出 empty。<b>一减一加,刚好对称。</b>
+</div>
+
+<h2>二、两段代码(对称着记)</h2>
+<div class="two">
+  <div>
+    <h3>生产者(放货)</h3>
+<pre><span class="k">producer</span>() {
+  生产一件产品;
+  <span class="r">P(empty)</span>;   <span class="c">// 申请1个空位(满了就等)</span>
+  <span class="r">P(mutex)</span>;   <span class="c">// 拿钥匙,进货架</span>
+  把产品放入缓冲区;
+  <span class="g">V(mutex)</span>;   <span class="c">// 还钥匙</span>
+  <span class="g">V(full)</span>;    <span class="c">// 货物 +1,通知消费者</span>
+}</pre>
+  </div>
+  <div>
+    <h3>消费者(取货)</h3>
+<pre><span class="k">consumer</span>() {
+  <span class="r">P(full)</span>;    <span class="c">// 申请1件货(没货就等)</span>
+  <span class="r">P(mutex)</span>;   <span class="c">// 拿钥匙,进货架</span>
+  从缓冲区取出产品;
+  <span class="g">V(mutex)</span>;   <span class="c">// 还钥匙</span>
+  <span class="g">V(empty)</span>;   <span class="c">// 空位 +1,通知生产者</span>
+}</pre>
+  </div>
+</div>
+<div class="callout ok">
+  <b>对称规律(背这个就不会写错):</b>
+  <ul style="margin:6px 0 0">
+    <li>生产者:<b>P(empty)</b> → P(mutex) → 放 → V(mutex) → <b>V(full)</b></li>
+    <li>消费者:<b>P(full)</b> → P(mutex) → 取 → V(mutex) → <b>V(empty)</b></li>
+    <li>两者只是把 <b>empty↔full</b> 对调。先 P 资源、再 P 钥匙;先还钥匙、再 V 资源。</li>
+  </ul>
+</div>
+
+<h2>三、💀 全题唯一的死亡陷阱:两个 P 的顺序</h2>
+<div class="callout bad big">
+  <b>P(资源) 必须在 P(mutex) 之前!绝不能反!</b><br>
+  也就是:必须 <b>先申请空位/货(empty/full),再拿钥匙(mutex)</b>。反过来会<b>死锁</b>。
+</div>
+<p>看反过来会怎样——假设消费者写成 <code>P(mutex); P(full);</code>(先拿钥匙再申请货),而此刻货架是<b>空的</b>:</p>
+<table>
+  <tr><th>步</th><th>消费者</th><th>生产者</th><th>结果</th></tr>
+  <tr><td>1</td><td>P(mutex):拿到钥匙(mutex=0)</td><td>—</td><td>消费者进了货架</td></tr>
+  <tr><td>2</td><td>P(full):没货(full=0→−1)→<b>睡</b></td><td>—</td><td><b>消费者攥着钥匙睡着了</b></td></tr>
+  <tr><td>3</td><td>(睡)</td><td>P(empty):有空位,OK</td><td>生产者想放货</td></tr>
+  <tr><td>4</td><td>(睡)</td><td>P(mutex):钥匙被攥着(mutex=0→−1)→<b>睡</b></td><td>生产者也睡了</td></tr>
+</table>
+<div class="callout bad">
+  <b>死锁!</b> 消费者攥着钥匙等"货",生产者等"钥匙"才能放货送来"货"——<b>互相死等,谁也动不了</b>。<br>
+  正确写法(先 P(full) 再 P(mutex)):货架空时消费者卡在 P(full),<b>但它还没拿钥匙</b>,生产者照样能拿钥匙放货 → 不死锁。
+</div>
+<div class="callout warn">
+  <b>⚠ 记牢:</b> 两个 <b>P 的顺序要命</b>(资源在前、mutex 在后);两个 <b>V 的顺序无所谓</b>(还钥匙/通知,先后都不会死锁)。
+</div>
+
+<h2>四、必背(三句)</h2>
+<div class="callout">
+  <p style="margin:4px 0">① 三信号量:<b>mutex=1,empty=n,full=0</b>。</p>
+  <p style="margin:4px 0">② 生产者 <b>P(empty)→P(mutex)→放→V(mutex)→V(full)</b>;消费者把 empty/full 对调。</p>
+  <p style="margin:4px 0">③ <b>P(资源) 一定在 P(mutex) 前</b>,反了会死锁;V 顺序随意。</p>
+</div>
+
+<h2>五、轮到你了</h2>
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 缓冲区大小 n。empty 和 full 的初值分别是?</div>
+  <button class="opt" data-ok="0">empty=0,full=n</button>
+  <button class="opt" data-ok="1">empty=n,full=0</button>
+  <button class="opt" data-ok="0">empty=1,full=1</button>
+  <button class="opt" data-ok="0">都等于 n</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 生产者放产品之前,两个 P 操作的正确顺序是?</div>
+  <button class="opt" data-ok="1">先 P(empty),再 P(mutex)</button>
+  <button class="opt" data-ok="0">先 P(mutex),再 P(empty)</button>
+  <button class="opt" data-ok="0">先 P(full),再 P(mutex)</button>
+  <button class="opt" data-ok="0">随便,无所谓</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 如果把消费者写成 <code>P(mutex); P(full); …</code>(先拿钥匙再申请货),可能发生什么?</div>
+  <button class="opt" data-ok="0">效率更高</button>
+  <button class="opt" data-ok="0">完全没区别</button>
+  <button class="opt" data-ok="1">死锁:货架空时,消费者攥着钥匙睡,生产者拿不到钥匙放货</button>
+  <button class="opt" data-ok="0">缓冲区溢出</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('s3').classList.toggle('hidden')">▸ 回顾死锁推演</span>
+  <div id="s3" class="hidden"><p>货架空时:消费者 P(mutex) 拿钥匙 → P(full) 没货睡着(<b>还攥着钥匙</b>)→ 生产者 P(mutex) 拿不到钥匙也睡 → 互相死等。所以 <b>P(full) 必须在 P(mutex) 前</b>。</p></div>
+</div>
+
+<h2>六、通关条件(最后一关!)</h2>
+<div class="callout ok">
+  回到对话里告诉我:<br>
+  ① <b>三个信号量各是多少初值?</b>(mutex / empty / full)<br>
+  ② 生产者<b>两个 P 的顺序</b>是什么?能不能换?<br>
+  ③ 一句话:<b>换了为什么会死锁?</b>(关键:攥着什么、等着什么)
+</div>
+
+<footer>
+  <p>🎉 <b>这是第四个、也是最后一个计算大题型!</b> 答对通关条件,你就集齐了:磁盘调度 + 页面置换 + 混合索引 + 成组链接法 + <b>PV(生产者-消费者)</b>。
+  自命题的计算大题,你全有了招。</p>
+  <p>📌 接下来建议:做 <code>../exams/</code> 里的章节测 / 仿真期末卷,把"会做"练成"快做"。要不要我陪你限时模拟,你定。</p>
+  <p>🙋 这课最硬,哪一步绕不过来<b>尽管问我</b>。</p>
+  <p>来源:汤小丹《计算机操作系统》第四版 · <code>textbook/ch02_进程的描述与控制.md §2.5 生产者-消费者</code>、<code>算法速查表.md §6.3</code>。</p>
+</footer>
+
+</div>
+<script>
+var FB={
+  q1:{good:'对!empty=n(一开始全空位),full=0(一开始没货),mutex=1。',bad:'empty=n(初始全是空位),full=0(初始没货)。别记反了。'},
+  q2:{good:'对!先 P(empty) 申请空位,再 P(mutex) 拿钥匙。资源在前,钥匙在后。',bad:'先 P(empty) 再 P(mutex)。资源信号量的 P 必须在 mutex 之前,否则会死锁。'},
+  q3:{good:'对!这正是死锁:消费者攥着钥匙等货,生产者等钥匙才能送货来。所以 P(full) 要在 P(mutex) 前。',bad:'会死锁:货架空时消费者拿了钥匙却卡在 P(full) 睡着,生产者拿不到钥匙没法放货。P(资源) 必须在 P(mutex) 前。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

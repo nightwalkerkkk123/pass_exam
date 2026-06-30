@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 9 课 · 信号量与 PV 操作(互斥) · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef; --code:#272b33; --codefg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  pre{background:var(--code); color:var(--codefg); border-radius:8px; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; line-height:1.7; margin:12px 0}
+  pre .c{color:#7d8590; font-style:italic} pre .k{color:#c678dd} pre .f{color:#61afef}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .big{font-size:15px}
+  .pv{display:flex; gap:14px; flex-wrap:wrap; margin:14px 0}
+  .pv>div{flex:1; min-width:240px; border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:#fff}
+  .pv .t{font-weight:700; font-size:16px; margin-bottom:6px}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 进程同步 · 计算大题 ④(1/2)</div>
+  <h1>第 9 课:信号量与 PV 操作(先搞懂互斥)</h1>
+  <div class="sub">目标:看懂信号量是什么、P/V 各干什么、怎么用它实现"互斥"。约 18 分钟。这是 PV 大题的地基。</div>
+</header>
+
+<div class="callout">
+  <b>问题从哪来:</b> 两个进程<b>同时</b>改一个共享变量(比如都给余额 +1),可能互相覆盖,结果出错(叫"竞态")。
+  解决办法:让访问共享资源的那段代码<b class="hl">一次只许一个进程进</b>——这就是<b>互斥</b>。信号量就是实现它的工具。
+</div>
+
+<h2>一、两个名词(先认门)</h2>
+<table>
+  <tr><th>名词</th><th>意思</th><th>大白话</th></tr>
+  <tr><td><b>临界资源</b></td><td>一段时间内只允许一个进程访问的资源</td><td>单间厕所(一次一人)</td></tr>
+  <tr><td><b>临界区</b></td><td>进程中访问临界资源的那段代码</td><td>"上厕所"那段动作</td></tr>
+</table>
+
+<h2>二、信号量 = 一个计数器 + 两个动作</h2>
+<p><b>信号量 S</b> 就是一个整数,代表"<b>还剩多少个资源可用</b>"。它只能被两个<b>原子操作</b>(不可被打断)碰:</p>
+<div class="pv">
+  <div>
+    <div class="t" style="color:var(--bad)">P(S) ·又叫 wait(S)·"申请"</div>
+    <pre><span class="k">P(S)</span>:
+  S = S - 1;        <span class="c">// 先减 1(拿走一个)</span>
+  <span class="k">if</span> (S &lt; 0)
+    阻塞,排队等;   <span class="c">// 没了→睡觉,让出CPU</span></pre>
+    <p style="margin:4px 0">类比:<b>拿厕所钥匙</b>。没钥匙就在门口排队。</p>
+  </div>
+  <div>
+    <div class="t" style="color:var(--ok)">V(S) ·又叫 signal(S)·"释放"</div>
+    <pre><span class="k">V(S)</span>:
+  S = S + 1;        <span class="c">// 先加 1(还回一个)</span>
+  <span class="k">if</span> (S &lt;= 0)
+    唤醒一个等待者;  <span class="c">// 有人在等→叫醒他</span></pre>
+    <p style="margin:4px 0">类比:<b>还厕所钥匙</b>,并喊一声"下一位"。</p>
+  </div>
+</div>
+<div class="callout ok big">
+  🔑 <b>一句话记死:</b> <b style="color:var(--bad)">P = 申请 = 减 1</b>(不够就排队睡);<b style="color:var(--ok)">V = 释放 = 加 1</b>(有人等就叫醒)。<br>
+  口诀:<b>"P 进 V 出","P 减 V 加"</b>。
+</div>
+<div class="callout">
+  <b>S 的值代表什么(常考填空):</b>
+  <ul style="margin:6px 0 0">
+    <li><b>S &gt; 0</b>:还有 S 个资源可用(几把空钥匙)。</li>
+    <li><b>S = 0</b>:资源刚好用完,但没人在等。</li>
+    <li><b>S &lt; 0</b>:资源没了,而且 <b>|S| = 正在排队等待的进程数</b>。(S=−2 → 2 个进程在等)</li>
+  </ul>
+</div>
+
+<h2>三、用信号量实现"互斥"(最基本的模板)</h2>
+<p>只要一把"钥匙"——<b>互斥信号量 mutex,初值 = 1</b>(一开始钥匙挂在墙上,可用)。把临界区夹在 P 和 V 中间:</p>
+<pre><span class="k">semaphore</span> mutex = <span style="color:#e0a45e">1</span>;   <span class="c">// 一把钥匙</span>
+
+进程() {
+  <span class="k">P(mutex)</span>;        <span class="c">// 拿钥匙(拿不到就等)——进门</span>
+  <span class="f">// 临界区:访问共享资源</span>
+  <span class="k">V(mutex)</span>;        <span class="c">// 还钥匙,喊下一位——出门</span>
+}</pre>
+<div class="callout ok">
+  为什么这样就互斥了?mutex 初值 1。第一个进程 P(mutex)→ mutex 变 0,进去了。
+  第二个进程 P(mutex)→ mutex 变 −1(&lt;0),<b>排队睡</b>。等第一个 V(mutex)→ mutex 回 0,<b>叫醒</b>第二个。
+  <b>任何时刻最多 1 个进程在临界区。</b>
+</div>
+<div class="callout warn">
+  <b>⚠ 两个必丢分的坑:</b>
+  <ul style="margin:6px 0 0">
+    <li><b>P 和 V 必须成对</b>。只 P 不 V → 钥匙永远不还,后面全卡死(死锁)。</li>
+    <li>互斥信号量<b>初值必须是 1</b>。设成 0 → 第一个进程都进不去;设成 2 → 两个人同时进,失去互斥。</li>
+  </ul>
+</div>
+
+<h2>四、必背(三句)</h2>
+<div class="callout">
+  <p style="margin:4px 0">① <b>P = 申请 = S−1</b>(&lt;0 则阻塞排队);<b>V = 释放 = S+1</b>(≤0 则唤醒一个)。</p>
+  <p style="margin:4px 0">② <b>互斥</b>:mutex 初值 <b>=1</b>,临界区夹在 <code>P(mutex) … V(mutex)</code> 之间。</p>
+  <p style="margin:4px 0">③ S&lt;0 时,<b>|S| = 等待的进程数</b>。</p>
+</div>
+
+<h2>五、轮到你了</h2>
+<div class="quiz" id="q1">
+  <div class="qq">Q1. P(S) 操作(wait)做的是?</div>
+  <button class="opt" data-ok="0">S 加 1,若有人等就唤醒</button>
+  <button class="opt" data-ok="1">S 减 1,若 S&lt;0 则当前进程阻塞排队</button>
+  <button class="opt" data-ok="0">直接冲进临界区,不管别人</button>
+  <button class="opt" data-ok="0">把 S 清零</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 用信号量实现互斥,mutex 的初值应该设为?</div>
+  <button class="opt" data-ok="0">0</button>
+  <button class="opt" data-ok="1">1</button>
+  <button class="opt" data-ok="0">2</button>
+  <button class="opt" data-ok="0">进程的个数</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 现在 mutex = −2,这说明?</div>
+  <button class="opt" data-ok="0">有 2 个空闲资源</button>
+  <button class="opt" data-ok="1">资源已被占用,且有 2 个进程正在排队等待</button>
+  <button class="opt" data-ok="0">出错了,信号量不能是负数</button>
+  <button class="opt" data-ok="0">还能再进 2 个进程</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('s3').classList.toggle('hidden')">▸ 解释</span>
+  <div id="s3" class="hidden"><p>S&lt;0 时 |S| = 等待进程数。mutex=−2 → 1 个进程在临界区里,另外 <b>2 个在门口排队</b>。</p></div>
+</div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  回到对话里告诉我:<br>
+  ① <b>P 操作和 V 操作分别干什么?</b>(各一句,带上"减/加"和"排队/唤醒")<br>
+  ② 实现互斥时 <b>mutex 初值设几?为什么?</b><br>
+  ③ 临界区代码要夹在哪两个操作<b>之间</b>?
+</div>
+
+<footer>
+  <p>📌 <b>下一课(最后一课):</b> <b>生产者-消费者问题</b>——PV 大题的主角。会用到<b>三个</b>信号量(互斥 + 两个计数),还有个致命的"P 操作顺序"陷阱。地基打牢了,下课就去拿这道压轴大题。</p>
+  <p>🙋 PV 抽象,卡住<b>随时问我</b>,别自己硬扛。</p>
+  <p>来源:汤小丹《计算机操作系统》第四版 · <code>textbook/ch02_进程的描述与控制.md §2.4 信号量机制</code>、<code>算法速查表.md §6</code>。</p>
+</footer>
+
+</div>
+<script>
+var FB={
+  q1:{good:'对!P=申请=减1,减到<0说明没资源了,当前进程排队睡(让出CPU)。',bad:'P(申请)是 S−1;若 S<0 表示没资源,当前进程阻塞排队。加1+唤醒是 V。'},
+  q2:{good:'对!mutex=1 表示"一把钥匙",保证一次只有一个进程进临界区。',bad:'互斥 mutex 初值=1(一把钥匙)。设0谁都进不去,设2会有两人同时进、失去互斥。'},
+  q3:{good:'对!S<0 时 |S| 就是排队人数。−2 = 2 个进程在等(另有1个正在用)。',bad:'S<0 时 |S|=等待进程数。mutex=−2 表示资源被占,还有 2 个进程在排队。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

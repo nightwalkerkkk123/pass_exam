@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 27 课 · xv6 walk() 逐行源码精讲(讲稿+答辩) · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --codebg:#272b33; --codefg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:40px 28px 80px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:24px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:34px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:8px 0}
+  ul,ol{padding-left:22px} li{margin:4px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{background:var(--codebg); color:var(--codefg); border-radius:8px; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; line-height:1.7; margin:12px 0}
+  pre .ln{color:#6f7681; user-select:none; display:inline-block; width:2.2em; text-align:right; margin-right:1em}
+  pre .kw{color:#c678dd} pre .fn{color:#61afef} pre .cm{color:#7d8590; font-style:italic}
+  pre .n{color:#e0a45e} pre .s{color:#98c379} pre .b1{background:#33402f}  pre .b2{background:#2f3a40}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  td code{font-size:12.5px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 14px; border-radius:4px; margin:14px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:#f1f9f4}
+  .q{background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px 14px; margin:10px 0}
+  .q b{color:var(--accent)}
+  .pill{display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; background:#eee; margin-left:4px}
+  .pill.high{background:#fde2dd; color:#8a1c11}
+  .pill.mid{background:#fff0d6; color:#7a4a00}
+  .script{background:#f3f7ec; border:1px dashed #5d7a00; padding:14px 16px; border-radius:6px; margin:14px 0; font-size:15px; line-height:1.85}
+  .timeline{display:grid; grid-template-columns:78px 1fr; gap:6px 12px; font-size:14px; margin:14px 0}
+  .timeline .t{color:var(--accent); font-weight:bold}
+  .timeline .c{background:#fff; padding:8px 12px; border:1px solid var(--line); border-radius:4px}
+  .checklist{background:#fff; border:1px solid var(--ok); border-left:4px solid var(--ok); padding:14px 16px; border-radius:4px; margin:14px 0}
+  .diagram{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.55; background:#fff; border:1px solid var(--line); border-radius:6px; padding:14px 16px; white-space:pre; overflow-x:auto}
+  .big{font-size:15px}
+  .bits{display:flex; width:100%; margin:14px 0; font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12.5px; text-align:center; border:1px solid var(--line); border-radius:6px; overflow:hidden}
+  .bits div{padding:8px 4px; border-right:1px solid var(--line)}
+  .bits div:last-child{border-right:none}
+  .bits .z{flex:0 0 18%; background:#f0f0f0; color:#999}
+  .bits .l2{flex:1; background:#fde2dd}
+  .bits .l1{flex:1; background:#fff0d6}
+  .bits .l0{flex:1; background:#e3f0e3}
+  .bits .off{flex:1.3; background:#eef5fb}
+  .bits small{display:block; color:#555; font-size:11px; margin-top:3px}
+  footer{margin-top:60px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--accent); text-decoration:none} a:hover{text-decoration:underline}
+  @media print{ body{background:#fff;font-size:13px} .wrap{padding:12mm;max-width:none} pre{background:#f0eee4;color:#222} h2{break-after:avoid} table,.q,.timeline .c{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 27 课 · Ch4 存储器管理 · 逐行源码精讲 + 答辩</p>
+  <h1>xv6 <code>walk()</code> 逐行精讲<br>分页地址翻译——把虚拟地址翻成物理地址</h1>
+  <p class="sub">明天目标:对着真实 C 代码逐行讲 8–10 分钟,答得住追问 · 源码:<code>xv6-riscv/kernel/vm.c</code></p>
+</header>
+
+<div class="callout">
+<b>🎯 这份稿子可以独立上场。</b> 它把课本第 4 章「基本分页存储管理 · 地址变换机构」落到一段真实代码:<code>walk()</code> 就是课本那张「逻辑地址 → 页表 → 物理地址」框图的<b>软件实现</b>。<b>逐行讲代码 + 随时指回课本概念(页号 P、页内地址 d、地址变换、多级页表、快表 TLB)</b>,就是「讲解 + 答辩」的满分形态。
+</div>
+
+<h2>0. 先记这句主线(讲偏了就拉回来)</h2>
+<div class="callout ok big">
+<b>「CPU 给出一个<u>虚拟地址</u>,页表负责把它翻译成<u>物理地址</u>。<code>walk()</code> 就是这个翻译过程的软件实现——把虚拟地址拆成『几级页号 + 页内偏移』,一级级查页表,最后拿到物理页。」</b><br>
+对应课本一句话:<b>页号 P 查页表得物理块号,块号 × 页大小 + 页内地址 d = 物理地址。</b>xv6 只是把「一级页号」换成了「三级页号」(多级页表)。
+</div>
+
+<h2>1. 背景:一个虚拟地址是怎么拆的?</h2>
+<p>课本说:逻辑地址 = <b>页号 P + 页内地址 d</b>。xv6 跑在 RISC-V 的 <b>Sv39</b> 方案上,页大小 4KB,页表分<b>三级</b>。所以「页号」不是一段,而是被切成<b>三段 9 位的索引</b>,再加上 12 位页内偏移。源码注释(<code>vm.c</code> 第 79–84 行)讲得很清楚:</p>
+
+<pre><span class="ln">79</span><span class="cm">// A 64-bit virtual address is split into five fields:</span>
+<span class="ln">80</span><span class="cm">//   39..63 -- must be zero.        (高位必须为 0)</span>
+<span class="ln">81</span><span class="cm">//   30..38 -- 9 bits of level-2 index.  (第 2 级页号)</span>
+<span class="ln">82</span><span class="cm">//   21..29 -- 9 bits of level-1 index.  (第 1 级页号)</span>
+<span class="ln">83</span><span class="cm">//   12..20 -- 9 bits of level-0 index.  (第 0 级页号)</span>
+<span class="ln">84</span><span class="cm">//    0..11 -- 12 bits of byte offset within the page. (页内偏移 d)</span></pre>
+
+<div class="bits">
+  <div class="z">63..39<small>必须为 0</small></div>
+  <div class="l2">L2 索引<small>38..30 · 9位</small></div>
+  <div class="l1">L1 索引<small>29..21 · 9位</small></div>
+  <div class="l0">L0 索引<small>20..12 · 9位</small></div>
+  <div class="off">页内偏移 d<small>11..0 · 12位</small></div>
+</div>
+
+<div class="callout">
+<b>对上课本:</b>课本里逻辑地址 = <code>页号 P | 页内地址 d</code>。这里只是把「页号 P」这一大段,再切成 <b>L2 / L1 / L0 三个 9 位小段</b>——这就是<b>多级(三级)页表</b>的地址结构。最右边 12 位永远是<b>页内偏移 d</b>,翻译过程中<b>原封不动</b>带到物理地址里。
+</div>
+
+<h3>为什么 4KB 页 → 偏移正好 12 位?</h3>
+<div class="callout ok">
+页内偏移要能表示「一页里的每一个字节」。一页 = 4KB = 4096 字节 = 2<sup>12</sup>,要区分 4096 个字节地址,正好需要 <b>12 位</b>(2<sup>12</sup>=4096)。所以 <code>PGSHIFT = 12</code>。同理每级 9 位,因为一张页表正好装 <b>2<sup>9</sup> = 512</b> 个页表项(<code>riscv.h: pagetable_t // 512 PTEs</code>)。
+</div>
+
+<h3>为什么用多级页表?(对照课本「两级页表」)</h3>
+<div class="callout">
+课本讲两级页表的理由就是<b>省内存</b>。如果用一张单级页表覆盖整个虚拟空间,光页表本身就要占巨大的连续内存(且大多是空洞)。多级页表的妙处:<b>只有真正用到的那一小块地址,才需要为它分配下一级页表</b>。没映射的区域,上一级页表项是空的,根本不占下一级页表的空间。代码里这点体现在 <code>walk()</code> 的 <b>按需分配</b>(后面第 96–99 行)。
+</div>
+
+<h2>2. 逐行讲 <code>walk()</code>(来自 <code>kernel/vm.c</code>)</h2>
+<p>背景注释先念:<i>「返回页表 pagetable 中与虚拟地址 va 对应的那个最低级 PTE 的地址;若 alloc≠0,沿途缺哪级页表就新建哪级。」</i></p>
+
+<pre><span class="ln">85</span>pte_t *
+<span class="ln">86</span><span class="fn">walk</span>(pagetable_t pagetable, uint64 va, <span class="kw">int</span> alloc)
+<span class="ln">87</span>{
+<span class="ln">88</span>  <span class="kw">if</span>(va &gt;= MAXVA)
+<span class="ln">89</span>    <span class="fn">panic</span>(<span class="s">"walk"</span>);            <span class="cm">// ① 越界检查:va 超过最大虚拟地址就报错(对应课本"越界中断")</span>
+<span class="ln">90</span>
+<span class="ln">91</span>  <span class="b1"><span class="kw">for</span>(<span class="kw">int</span> level = <span class="n">2</span>; level &gt; <span class="n">0</span>; level--) {  <span class="cm">// ② 从最高级 L2 逐级往下走到 L1</span></span>
+<span class="ln">92</span><span class="b1">    pte_t *pte = &amp;pagetable[<span class="fn">PX</span>(level, va)];  <span class="cm">// ③ 取本级 9 位页号当下标 → 定位 PTE</span></span>
+<span class="ln">93</span><span class="b1">    <span class="kw">if</span>(*pte &amp; PTE_V) {                  <span class="cm">// ④ 这个 PTE 有效吗?(V=有效位)</span></span>
+<span class="ln">94</span><span class="b1">      pagetable = (pagetable_t)<span class="fn">PTE2PA</span>(*pte); <span class="cm">// ⑤ 有效→取出下一级页表的物理地址,进入下一级</span></span>
+<span class="ln">95</span><span class="b1">    } <span class="kw">else</span> {                            <span class="cm">// ⑥ 无效→这一级还没建</span></span>
+<span class="ln">96</span><span class="b1">      <span class="kw">if</span>(!alloc || (pagetable = (pde_t*)<span class="fn">kalloc</span>()) == <span class="n">0</span>)</span>
+<span class="ln">97</span><span class="b1">        <span class="kw">return</span> <span class="n">0</span>;                      <span class="cm">// 不让分配 / 分配失败 → 翻译失败</span></span>
+<span class="ln">98</span><span class="b1">      <span class="fn">memset</span>(pagetable, <span class="n">0</span>, PGSIZE);     <span class="cm">// 新页表清零(全部 PTE 设为无效)</span></span>
+<span class="ln">99</span><span class="b1">      *pte = <span class="fn">PA2PTE</span>(pagetable) | PTE_V; <span class="cm">// 把新页表登记进上一级 PTE,并置有效位</span></span>
+<span class="ln">100</span><span class="b1">    }</span>
+<span class="ln">101</span><span class="b1">  }</span>
+<span class="ln">102</span>  <span class="kw">return</span> &amp;pagetable[<span class="fn">PX</span>(<span class="n">0</span>, va)];  <span class="cm">// ⑦ 循环结束已到 L0 页表,返回最低级 PTE 的地址</span>
+<span class="ln">103</span>}</pre>
+
+<h3>三个关键宏(讲代码时一定会被指着问)</h3>
+<p>这几个宏来自 <code>kernel/riscv.h</code>,是「拆地址、读 PTE」的核心工具:</p>
+<pre><span class="ln">355</span><span class="kw">#define</span> PXMASK          <span class="n">0x1FF</span> <span class="cm">// 9 位掩码,二进制 9 个 1 = 511,正好取 9 位</span>
+<span class="ln">356</span><span class="kw">#define</span> PXSHIFT(level)  (PGSHIFT+(<span class="n">9</span>*(level))) <span class="cm">// 该级索引在地址里要右移多少位</span>
+<span class="ln">357</span><span class="kw">#define</span> PX(level, va) ((((uint64) (va)) &gt;&gt; PXSHIFT(level)) &amp; PXMASK) <span class="cm">// 取出第 level 级的 9 位页号</span>
+<span class="ln">348</span><span class="kw">#define</span> PA2PTE(pa)  ((((uint64)pa) &gt;&gt; <span class="n">12</span>) &lt;&lt; <span class="n">10</span>) <span class="cm">// 物理地址 → 装进 PTE(去掉低 12 位,腾出低 10 位放标志)</span>
+<span class="ln">350</span><span class="kw">#define</span> PTE2PA(pte) (((pte) &gt;&gt; <span class="n">10</span>) &lt;&lt; <span class="n">12</span>) <span class="cm">// PTE → 还原出物理页地址(扔掉低 10 位标志,补回 12 位)</span>
+<span class="ln">341</span><span class="kw">#define</span> PTE_V (<span class="n">1L</span> &lt;&lt; <span class="n">0</span>) <span class="cm">// 有效位:第 0 位,1=该 PTE 指向真实页/页表</span></pre>
+
+<div class="callout">
+<b>把 <code>PX(level, va)</code> 讲透(这是全场最该会的一行):</b>它就是课本「从逻辑地址里切出页号 P」的代码版。<code>va &gt;&gt; PXSHIFT(level)</code> 把要的那 9 位<b>移到最低位</b>,再 <code>&amp; 0x1FF</code> 把<b>高位全抹掉,只留 9 位</b>。比如取 L2:右移 30 位(12+9×2),再 &amp;511,得到的就是 38..30 那 9 位。<b>移位 + 掩码 = 切地址</b>,这是分页地址变换最核心的位运算。
+</div>
+
+<h3>把代码切成「一句话讲法」表(这是你讲解的主结构)</h3>
+<table>
+<tr><th>行</th><th>代码</th><th>一句话讲法</th><th>对应课本</th></tr>
+<tr><td>88–89</td><td><code>va &gt;= MAXVA</code></td><td>「先做越界检查,地址超范围直接 panic。」</td><td>越界中断</td></tr>
+<tr><td>91</td><td><code>for level 2→1</code></td><td>「从最高级 L2 往下逐级走。三级页表就走两次循环 + 最后一级。」</td><td>多级页表</td></tr>
+<tr><td><b>92</b></td><td><code>PX(level,va)</code></td><td>「取这一级的 <b>9 位页号</b>当下标,定位到本级页表里的那个 PTE。」</td><td><b>页号 P 查页表</b></td></tr>
+<tr><td><b>93</b></td><td><code>*pte &amp; PTE_V</code></td><td>「检查这个 PTE 的<b>有效位</b>——这一级映射建好了没。」</td><td>页表项有效位</td></tr>
+<tr><td><b>94</b></td><td><code>PTE2PA(*pte)</code></td><td>「有效就取出<b>下一级页表的物理地址</b>,进入下一级继续查。」</td><td>逐级地址变换</td></tr>
+<tr><td>96–99</td><td><code>kalloc + PA2PTE</code></td><td>「无效且允许分配,就<b>新建一级页表</b>登记进去——这就是多级页表『按需分配、省内存』。」</td><td>两级/多级页表省内存</td></tr>
+<tr><td><b>102</b></td><td><code>&amp;pagetable[PX(0,va)]</code></td><td>「走到最低级 L0,返回那个 <b>PTE 的地址</b>。里面装的就是真正的物理页框号。」</td><td>得物理块号</td></tr>
+</table>
+
+<div class="callout warn">
+<b>注意一个常见误解:</b><code>walk()</code> 返回的是<b>最低级 PTE 的指针</b>,<u>不是物理地址本身</u>。要真正拿到物理地址,得再 <code>PTE2PA(*pte)</code> 取出物理页框号,<b>再加上页内偏移 d</b>。这一步在 <code>walkaddr()</code> 第 124 行:<code>pa = PTE2PA(*pte)</code>。把这点说清楚,显示你真读懂了。
+</div>
+
+<h2>3. 一张图:walk 怎么走(PPT 核心页)</h2>
+<div class="diagram">  虚拟地址 va = [ L2(9) | L1(9) | L0(9) | offset(12) ]
+        │
+   satp 寄存器 ──► L2 页表(根)
+        │  下标 = PX(2,va)
+        ▼
+     L2[PX2] ──*pte&amp;PTE_V?─是─► PTE2PA ──► L1 页表
+        │                                    │  下标 = PX(1,va)
+        ▼                                    ▼
+     L1[PX1] ──*pte&amp;PTE_V?─是─► PTE2PA ──► L0 页表
+        │                                    │  下标 = PX(0,va)
+        ▼                                    ▼
+     L0[PX0] ───── PTE2PA ─────► 物理页框号(物理页)
+        │
+        └──► 物理地址 = 物理页框号 × 4KB  +  offset(那 12 位原样带过来)
+
+  口诀:三级页号一级级查页表，最后一级 PTE 给出物理页；偏移 12 位全程不变。</div>
+
+<h2>4. 计算:页号 / 偏移 / 物理地址(算给老师看)</h2>
+<p class="big">老师在第 4 章<b>必考</b>这种计算。先用课本最经典的「一级页表」算法热身,再说明 xv6 三级只是多查几层。</p>
+
+<div class="callout ok big">
+<b>例题(课本式,页大小 L = 4KB = 4096B):</b>给逻辑地址 <code>LA = 9000</code>。<br>
+① 页号 <b>P</b> = INT(LA / L) = INT(9000 / 4096) = <b>2</b><br>
+② 页内偏移 <b>d</b> = LA mod L = 9000 mod 4096 = 9000 − 2×4096 = <b>808</b><br>
+③ 查页表:设页号 2 对应物理块号(页框号) <b>= 5</b><br>
+④ 物理地址 <b>PA</b> = 物理块号 × 页大小 + 页内偏移 = 5 × 4096 + 808 = 20480 + 808 = <b>21288</b>
+</div>
+
+<div class="callout">
+<b>换成 xv6 的视角讲一句:</b>「课本这里页号 P 是一段,直接查一次页表得块号。xv6 的页号被切成 <code>L2 | L1 | L0</code> 三段,要<b>查三层页表</b>才得到最终物理页框号;但<b>第 ④ 步『块号 × 页大小 + 偏移』完全一样</b>——偏移那 12 位永远不参与翻译,原样拼到物理地址末尾。」
+</div>
+
+<h3>验证「为什么偏移是 12 位」(顺手算给老师)</h3>
+<div class="callout ok">
+d 的范围是 0 ~ 4095(一页 4096 个字节)。4096 = 2<sup>12</sup>,所以表示偏移恰好要 12 个二进制位 → <code>PGSHIFT = 12</code>。上例 d = 808,二进制 <code>001100101000</code> 正好 12 位以内。这也解释了 <code>PTE2PA</code> 为什么右移再左移 12 位:页框号天然「页对齐」,低 12 位永远是 0,留给偏移用。
+</div>
+
+<h2>5. 8–10 分钟讲稿(逐字稿)</h2>
+<div class="script"><b>🎤 7 段,正好 8–10 分钟。时间紧就砍第 6 段(多级页表为何省内存),核心是第 2–4 段逐行讲 walk。</b></div>
+<div class="timeline">
+<div class="t">0:00–1:00</div><div class="c"><b>【开场+主线】</b>「老师好。我精讲 xv6 内核里的 <code>walk()</code> 函数,它对应课本第 4 章<b>分页存储管理的地址变换机构</b>。一句话主线:<b>CPU 给出虚拟地址,页表负责把它翻译成物理地址,<code>walk()</code> 就是这个翻译过程的软件实现</b>——把虚拟地址拆成『页号 + 页内偏移』,一级级查页表,拿到物理页。」</div>
+<div class="t">1:00–2:30</div><div class="c"><b>【背景:地址怎么拆】</b>指着 <code>vm.c</code> 79–84 行注释和位段图讲:「课本说逻辑地址 = 页号 P + 页内地址 d。xv6 跑在 RISC-V Sv39,页 4KB、三级页表,所以页号被切成 <b>L2/L1/L0 三段各 9 位</b>,加 <b>12 位页内偏移</b>。4KB=2¹²,所以偏移正好 12 位;每级 9 位因为一张页表装 512 项。」</div>
+<div class="t">2:30–4:00</div><div class="c"><b>【walk 主循环 + PX】</b>逐行讲 91–94:「for 从 L2 走到 L1。第 92 行 <code>PX(level,va)</code> 是核心——它用<b>移位 + 掩码</b>从地址里切出这一级的 9 位页号,当页表下标,这就是课本『用页号查页表』。第 93 行查<b>有效位 PTE_V</b>,有效就第 94 行 <code>PTE2PA</code> 取出下一级页表地址,进入下一层。」</div>
+<div class="t">4:00–5:00</div><div class="c"><b>【按需分配 + 返回 PTE】</b>讲 96–99:「如果这一级页表还没建,且 alloc 允许,就 <code>kalloc</code> 新建一张、清零、登记进上一级 PTE。这就是多级页表<b>省内存</b>的关键——用到才建。」讲 102 行:「循环到 L0,返回<b>最低级 PTE 的地址</b>。」</div>
+<div class="t">5:00–6:30</div><div class="c"><b>【从 PTE 到物理地址】</b>「<code>walk</code> 返回的是 PTE 指针,不是物理地址。看 <code>walkaddr</code> 第 124 行 <code>pa = PTE2PA(*pte)</code> 取出物理页框号,<b>再加页内偏移</b>才是物理地址。这正好对上课本:<b>块号 × 页大小 + 页内地址 = 物理地址</b>。偏移那 12 位全程没动过。」</div>
+<div class="t">6:30–8:00</div><div class="c"><b>【计算例题】</b>「算给老师看:逻辑地址 9000、页 4KB。页号 P=INT(9000/4096)=2,偏移 d=9000 mod 4096=808。设页号 2 查得块号 5,物理地址 = 5×4096+808 = 21288。xv6 唯一的区别是页号要查三层,最后一步公式一模一样。」</div>
+<div class="t">8:00–9:30</div><div class="c"><b>【多级页表 + 快表收尾】</b>「为什么三级不嫌慢?课本答案是<b>快表 TLB</b>:翻译过的页号缓存在 TLB,下次直接命中,不用再走三层。多级页表换来省内存,TLB 补回速度。这一段代码,把课本『地址变换 + 多级页表 + 快表』全连起来了。谢谢老师。」</div>
+</div>
+
+<h2>6. 答辩:老师可能逐行问的 10 题</h2>
+<p class="big"><b>逐行讲源码,老师最爱指着某一行问「这行干嘛」。下面是高危行的标准答法。</b></p>
+
+<div class="q"><b>Q1.</b> 虚拟地址是怎么拆成页号和偏移的?<span class="pill high">必答</span><br>
+<b>答:</b>低 <b>12 位</b>是<b>页内偏移 d</b>(因为页 4KB=2¹²);剩下的高位是<b>页号</b>。在 xv6 Sv39 里页号又被切成三段各 9 位(L2/L1/L0)。代码里用 <code>PX(level,va)</code> 完成:<code>va 右移 (12+9×level) 位,再 &amp; 0x1FF</code>,就取出某一级的 9 位页号。<b>移位定位、掩码截断。</b></div>
+
+<div class="q"><b>Q2.</b> 指着第 92 行 <code>PX(level, va)</code> 问:这行到底干嘛?<span class="pill high">高危</span><br>
+<b>答:</b>它从虚拟地址里<b>切出第 level 级的 9 位页号</b>,作为本级页表的数组下标。<code>&gt;&gt; PXSHIFT(level)</code> 把那 9 位移到最低位,<code>&amp; PXMASK(0x1FF)</code> 只保留 9 位。这就是课本「用页号 P 去页表里定位表项」的代码实现。</div>
+
+<div class="q"><b>Q3.</b> <code>PTE_V</code> 是什么?第 93 行为什么要判断它?<span class="pill high">高危</span><br>
+<b>答:</b><code>PTE_V</code> 是页表项的<b>有效位(Valid)</b>,在 PTE 的第 0 位。第 93 行 <code>*pte &amp; PTE_V</code> 就是问「这一级的映射建好了吗」。有效→顺着它进下一级;无效→要么(允许时)新建一级页表,要么翻译失败返回 0。它对应课本里页表项的<b>存在位/有效位</b>,也是<b>缺页判断</b>的基础。</div>
+
+<div class="q"><b>Q4.</b> 一次地址翻译要查几次页表?为什么用多级,不怕慢吗?<span class="pill high">必答</span><br>
+<b>答:</b>Sv39 三级,<b>一次翻译最多查 3 层页表</b>(再加 1 次访问数据本身)。用多级是为了<b>省内存</b>——只给真正用到的地址分配下一级页表,空洞区域不占空间。怕慢的问题靠<b>快表 TLB</b> 解决:翻译结果缓存起来,绝大多数访问直接命中 TLB,不用再走三层。这正是课本「具有快表的地址变换机构」。</div>
+
+<div class="q"><b>Q5.</b> 页大小 4KB,为什么页内偏移正好是 12 位?<span class="pill high">高危</span><br>
+<b>答:</b>偏移要能寻址一页里的每个字节。4KB = 4096 = 2<sup>12</sup>,要区分 4096 个地址正好需要 12 位。所以 <code>PGSHIFT=12</code>。若页改成 8KB(2¹³),偏移就要 13 位。</div>
+
+<div class="q"><b>Q6.</b> 第 94 行 <code>PTE2PA(*pte)</code> 干嘛?它和 <code>PA2PTE</code> 什么关系?<span class="pill mid">高危</span><br>
+<b>答:</b>PTE 的低 10 位是标志位(V/R/W/X/U 等),高位才是物理页号。<code>PTE2PA</code> 把 PTE <b>右移 10 位扔掉标志、再左移 12 位</b>,还原成下一级页表(或物理页)的物理地址。<code>PA2PTE</code> 是反操作:把物理地址装进 PTE。两者一对正反变换。</div>
+
+<div class="q"><b>Q7.</b> <code>walk()</code> 返回的是物理地址吗?<span class="pill mid">易错</span><br>
+<b>答:</b>不是。它返回<b>最低级 PTE 的指针</b>。要得到物理地址还要两步:<code>PTE2PA(*pte)</code> 取出物理页框号,<b>再加上页内偏移 d</b>。这一步在 <code>walkaddr</code> 第 124 行。对应课本公式 <b>物理地址 = 块号 × 页大小 + 页内地址</b>。</div>
+
+<div class="q"><b>Q8.</b> 第 96–99 行的「按需分配」在课本里对应什么?<span class="pill mid">进阶</span><br>
+<b>答:</b>对应课本讲<b>多级(两级)页表为什么省内存</b>。如果某段虚拟地址从没用过,它对应的上级 PTE 一直无效,<b>就永远不会为它分配下一级页表</b>。只有真正建立映射(<code>mappages</code>)时,<code>walk(...,alloc=1)</code> 才一路把缺的页表新建出来。</div>
+
+<div class="q"><b>Q9.</b> 这套机制是软件做的还是硬件做的?那 <code>walk()</code> 算什么?<span class="pill mid">易问</span><br>
+<b>答:</b>真实 CPU 运行时,地址翻译由 <b>MMU 硬件</b>自动完成(读 satp 指向的页表,逐级查)。<code>walk()</code> 是<b>内核软件</b>用同样的算法来「<b>读/改</b>页表」——比如建立映射(<code>mappages</code>)、查物理地址(<code>walkaddr</code>)。它和硬件 MMU 走的是<b>同一张页表、同一套拆分规则</b>,所以读 <code>walk()</code> 就等于读懂了硬件翻译过程。</div>
+
+<div class="q"><b>Q10.</b> 第 88 行 <code>va &gt;= MAXVA</code> 的检查对应课本哪个概念?<span class="pill mid">易答</span><br>
+<b>答:</b>对应课本地址变换里的<b>越界检查</b>(页号 ≥ 页表长度则越界中断)。Sv39 只用 39 位虚拟地址,超过 <code>MAXVA</code> 的地址非法,直接 panic,防止访问到不该访问的内存。</div>
+
+<h2>7. 临场应急</h2>
+<div class="callout warn"><b>🆘 老师问到 <code>kalloc / satp / TLB 刷新(sfence_vma)</code> 这些你没细看的:</b>诚实说「<code>kalloc</code> 是物理页分配器,<code>satp</code> 是页表基址寄存器,我这次聚焦 <code>walk</code> 的翻译逻辑,没深入它们的实现」。<b>聚焦你讲的那条线,别被带偏。</b></div>
+<div class="callout"><b>🆘 被指着某行卡住:</b>三步救场——「这行在<b>取索引(PX)</b> / <b>判有效(PTE_V)</b> / <b>进下一级(PTE2PA)</b> 哪一类 → 它对应课本『页号查页表 / 有效位 / 逐级变换』哪个概念 → 一句话说完」。</div>
+
+<h2>8. 彩排 Checklist(今晚)</h2>
+<div class="checklist">
+<label><input type="checkbox"> 1. <b>能不看注释</b>讲出主循环三步:取索引 <code>PX</code> → 判 <code>PTE_V</code> → <code>PTE2PA</code> 进下一级</label><br>
+<label><input type="checkbox"> 2. 高危行能脱口说出「干嘛+对应课本」:<b>92(PX)/ 93(PTE_V)/ 94(PTE2PA)/ 102(返回 PTE)</b></label><br>
+<label><input type="checkbox"> 3. <b>纸上推</b>例题:LA=9000、页 4KB → P=2、d=808 → 块号 5 → PA=21288</label><br>
+<label><input type="checkbox"> 4. 会答「<b>偏移为什么 12 位</b>」「<b>每级为什么 9 位</b>(512 项)」</label><br>
+<label><input type="checkbox"> 5. 会答「<b>一次翻译查几层</b>(3)」「<b>多级为什么省内存</b>」「<b>不怕慢吗 → TLB 快表</b>」</label><br>
+<label><input type="checkbox"> 6. 记牢:<code>walk</code> 返回的是 <b>PTE 指针</b>,不是物理地址;物理地址 = 块号×页大小 + 偏移</label><br>
+<label><input type="checkbox"> 7. 讲稿<b>出声读 3 遍</b>并卡时间(目标 8–10 分钟)</label><br>
+<label><input type="checkbox"> 8. 电脑上<b>打开真实文件</b> <code>kernel/vm.c</code>(walk:85)、<code>kernel/riscv.h</code>(PX:357),明天可带着</label><br>
+<label><input type="checkbox"> 9. 睡好觉</label>
+</div>
+
+<footer>
+第 27 课 · Ch4 存储器管理 · xv6 <code>walk()</code> 逐行精讲 ·
+姊妹篇(同款逐行讲法)→ <a href="./0021-xv6-bmap-source-walkthrough.html">第 21 课 bmap()</a><br>
+源码出处:<code>learn-code/xv6-riscv-20230207/kernel/vm.c:85</code>(walk)、<code>:108</code>(walkaddr)、<code>:142</code>(mappages)。
+宏定义:<code>kernel/riscv.h</code> —— <code>PGSHIFT=12</code>(:336)、<code>PX/PXMASK/PXSHIFT</code>(:355–357)、<code>PA2PTE</code>(:348)、<code>PTE2PA</code>(:350)、<code>PTE_V</code>(:341)、<code>MAXVA</code>(:363)。
+RISC-V Sv39:三级页表,虚拟地址 = L2(9) + L1(9) + L0(9) + 偏移(12)。
+</footer>
+
+</div>
+</body>
+</html>

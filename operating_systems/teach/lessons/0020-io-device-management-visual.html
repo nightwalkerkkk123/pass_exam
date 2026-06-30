@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 20 课 · I/O 与设备管理（可视化）· 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e;
+    --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:40px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center}
+  th{background:#eaf1f6; font-weight:600}
+  .stage{border:1px solid var(--line); border-radius:12px; background:#fff; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(0,0,0,.04)}
+
+  /* 四种方式切换 */
+  .tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px}
+  .tab{flex:1; min-width:130px; border:1px solid var(--line); border-radius:9px; padding:10px 8px; cursor:pointer;
+    background:#fcfcfb; text-align:center; transition:.15s; font-weight:600; font-size:14px}
+  .tab:hover{border-color:var(--accent)}
+  .tab.on{background:var(--accent); color:#fff; border-color:var(--accent)}
+  .tab .step{font-size:11px; opacity:.8; display:block}
+  .detail{display:none}
+  .detail.on{display:block}
+  .metric{margin:10px 0}
+  .metric .lab{font-size:13px; color:var(--muted); margin-bottom:3px}
+  .meter{height:20px; border-radius:6px; background:#eee; overflow:hidden}
+  .meter > i{display:block; height:100%; border-radius:6px; transition:width .5s}
+  .cpubar > i{background:linear-gradient(90deg,#b3261e,#e07a4f)}
+  .parbar > i{background:linear-gradient(90deg,#7fbf8e,#1f6f43)}
+  .unit{display:inline-block; background:var(--soft); border:1px solid var(--accent); color:var(--accent);
+    border-radius:20px; padding:2px 12px; font-weight:700; font-size:13px}
+
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 设备管理 · Ch5</div>
+  <h1>第 20 课 · I/O 与设备管理 <span style="font-size:16px;color:var(--muted)">（可视化）</span></h1>
+  <div class="sub">一条主线：让 CPU 越来越少为慢设备操心。四种 I/O 控制方式 + 缓冲 + SPOOLing。约 16 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>核心矛盾：</b> CPU 极快、I/O 设备极慢。设备管理的一切技术，都是为了<b>别让 CPU 干等慢设备</b>、提高两者的<b>并行</b>。
+</div>
+
+<h2>一、四种 I/O 控制方式：点一下看 CPU 被解放多少</h2>
+<p>点上面四个标签切换，看 <b>CPU 干预程度</b>（越短越好）和 <b>并行程度</b>（越长越好）怎么变。这是一条进化线。</p>
+<div class="stage">
+  <div class="tabs" id="tabs">
+    <div class="tab on" data-k="0">① 程序直接控制<span class="step">轮询 / 忙等</span></div>
+    <div class="tab" data-k="1">② 中断驱动<span class="step">完成才打扰</span></div>
+    <div class="tab" data-k="2">③ DMA<span class="step">整块自己搬</span></div>
+    <div class="tab" data-k="3">④ 通道<span class="step">一组块自己跑</span></div>
+  </div>
+
+  <div class="detail on" id="d0">
+    <p><b>怎么工作：</b> CPU 不停地<b>查询</b>设备状态位“好了没？好了没？”，在设备完成前<b>一直死等（忙等 busy-waiting）</b>，什么别的都干不了。</p>
+    <p><b>课本例子：</b> 从终端输入一个字符约 100ms，CPU 约有 <b>99.9ms 在忙等</b>中空转。</p>
+    <div class="metric"><div class="lab">CPU 干预程度（越短越好）</div><div class="meter cpubar"><i style="width:100%"></i></div></div>
+    <div class="metric"><div class="lab">CPU 与 I/O 并行程度（越长越好）</div><div class="meter parbar"><i style="width:5%"></i></div></div>
+    <p>数据单位：<span class="unit">字</span></p>
+  </div>
+
+  <div class="detail" id="d1">
+    <p><b>怎么工作：</b> CPU 启动 I/O 后<b>去干别的</b>；设备<b>完成时发一个中断</b>，CPU 才停下来处理一下（取走数据），然后接着干别的。</p>
+    <p><b>关键：</b> 每传输<b>一个字</b>就中断 CPU 一次。比起忙等，CPU 利用率“成百倍”提高。</p>
+    <div class="metric"><div class="lab">CPU 干预程度（越短越好）</div><div class="meter cpubar"><i style="width:65%"></i></div></div>
+    <div class="metric"><div class="lab">CPU 与 I/O 并行程度（越长越好）</div><div class="meter parbar"><i style="width:50%"></i></div></div>
+    <p>数据单位：<span class="unit">字</span></p>
+  </div>
+
+  <div class="detail" id="d2">
+    <p><b>怎么工作：</b> 加一个 <b>DMA 控制器</b>。数据<b>直接在设备↔内存之间成块传送</b>，全程不经过 CPU；只在<b>一个数据块的开头和结尾</b>才需要 CPU 干预（启动、收尾中断）。</p>
+    <p><b>关键：</b> 数据单位是<b>块</b>，不再是字。DMA 传输期间“窃取”总线周期，CPU 可并行做别的。</p>
+    <div class="metric"><div class="lab">CPU 干预程度（越短越好）</div><div class="meter cpubar"><i style="width:30%"></i></div></div>
+    <div class="metric"><div class="lab">CPU 与 I/O 并行程度（越长越好）</div><div class="meter parbar"><i style="width:75%"></i></div></div>
+    <p>数据单位：<span class="unit">数据块</span></p>
+  </div>
+
+  <div class="detail" id="d3">
+    <p><b>怎么工作：</b> 通道是一种<b>专门的 I/O 处理机</b>。CPU 只需发<b>一条 I/O 指令</b>（给出通道程序首址），通道就自己执行“通道程序”，完成<b>一组数据块</b>的传输与控制。</p>
+    <p><b>关键：</b> 是 DMA 的发展，干预单位从“一个块”升级到“<b>一组块</b>”。可实现 <b>CPU、通道、设备三者并行</b>。</p>
+    <div class="metric"><div class="lab">CPU 干预程度（越短越好）</div><div class="meter cpubar"><i style="width:12%"></i></div></div>
+    <div class="metric"><div class="lab">CPU 与 I/O 并行程度（越长越好）</div><div class="meter parbar"><i style="width:95%"></i></div></div>
+    <p>数据单位：<span class="unit">一组数据块</span></p>
+  </div>
+</div>
+<div class="callout ok">
+  <b>一句话记牢这条线：</b> CPU 干预 <b>每个字 → 每次完成 → 每个块 → 每组块</b>，越来越少；并行度越来越高。<br>
+  最常考的分界：<b>中断（单位=字） vs DMA（单位=块）</b>。
+</div>
+
+<h2>二、缓冲技术：为什么要在中间放个“缓冲区”</h2>
+<div class="callout">
+  <b>引入缓冲的三个目的（课本原话）：</b><br>
+  ① <b>缓和 CPU 与 I/O 设备速度不匹配</b>的矛盾；<br>
+  ② 减少对 CPU 的中断频率，放宽中断响应时间限制；<br>
+  ③ 提高 CPU 和 I/O 设备之间的<b>并行性</b>。
+</div>
+<p>就像水池：水龙头（快）和下水道（慢）速度不一致，中间放个<b>水池（缓冲区）</b>缓冲一下，两边就不用互相干等。</p>
+<table>
+  <tr><th>类型</th><th>特点</th></tr>
+  <tr><td><b>单缓冲</b></td><td>一个缓冲区，输入和提取<b>串行</b>，处理一个数据时间 = max(C,T)+M</td></tr>
+  <tr><td><b>双缓冲</b></td><td>两个缓冲区轮流用（缓冲对换），输入与“传送+计算”可<b>并行</b>，更快</td></tr>
+  <tr><td><b>循环缓冲</b></td><td>多个缓冲区组成循环队列</td></tr>
+  <tr><td><b>缓冲池</b></td><td>公用缓冲区池，多进程共享（空/输入/输出三种队列）</td></tr>
+</table>
+
+<h2>三、设备分类 + SPOOLing（假脱机）</h2>
+<div class="callout">
+  <b>设备按共享属性分三类：</b> <b>独占设备</b>（一段时间只许一个用户用，如打印机）、<b>共享设备</b>（可并发多用户用，如磁盘）、<b>虚拟设备</b>（用虚拟技术把一个物理设备变成多个逻辑设备）。
+</div>
+<p><b>SPOOLing（假脱机）</b>就是制造“虚拟设备”的技术：打印机本是<b>独占设备</b>，多个进程抢着打会乱。SPOOLing 让每个进程先把要打印的内容<b>写到磁盘的输出井</b>（排队），再由专门的程序一个个真正送去打印。</p>
+<div class="callout ok">
+  <b>效果：</b> 在用户看来，好像<b>人人都有一台打印机</b>（虚拟设备），其实底层只有一台被排队共享。SPOOLing 把<b>独占设备改造成了可共享的虚拟设备</b>。
+</div>
+
+<h2>四、轮到你了</h2>
+<div class="quiz" id="q1"><div class="qq">Q1. 这四种 I/O 控制方式的演进，核心趋势是？</div>
+  <button class="opt" data-ok="0">CPU 对 I/O 的干预越来越多</button>
+  <button class="opt" data-ok="1">CPU 对 I/O 的干预越来越少，CPU 与 I/O 并行度越来越高</button>
+  <button class="opt" data-ok="0">数据传输越来越慢</button>
+  <button class="opt" data-ok="0">设备越来越贵</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q2"><div class="qq">Q2. 中断驱动方式 与 DMA 方式最主要的区别是？</div>
+  <button class="opt" data-ok="1">中断方式以“字”为单位传输/打扰CPU，DMA 以“数据块”为单位、数据直接进内存</button>
+  <button class="opt" data-ok="0">DMA 需要 CPU 全程搬运数据</button>
+  <button class="opt" data-ok="0">中断方式不需要 CPU 参与</button>
+  <button class="opt" data-ok="0">两者完全相同</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q3"><div class="qq">Q3. 引入缓冲技术，最主要的目的是？</div>
+  <button class="opt" data-ok="0">增加内存容量</button>
+  <button class="opt" data-ok="1">缓和 CPU 与 I/O 设备速度不匹配的矛盾，提高并行性</button>
+  <button class="opt" data-ok="0">让 CPU 跑得更快</button>
+  <button class="opt" data-ok="0">减少磁盘容量占用</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q4"><div class="qq">Q4. SPOOLing 技术把打印机这种独占设备变成了？</div>
+  <button class="opt" data-ok="0">更快的独占设备</button>
+  <button class="opt" data-ok="1">可共享的虚拟设备（人人都像有一台）</button>
+  <button class="opt" data-ok="0">物理上的多台打印机</button>
+  <button class="opt" data-ok="0">一个缓冲区</button>
+  <div class="fb"></div></div>
+
+<h2>五、通关条件</h2>
+<div class="callout ok">
+  用你自己的话回答：<br>
+  ① 四种 I/O 控制方式的演进主线是什么？（关键词：CPU 干预、并行）<br>
+  ② 中断方式和 DMA 方式最大的区别？（提示：数据单位）<br>
+  ③ 为什么要引入缓冲？SPOOLing 把独占设备变成了什么？
+</div>
+
+<footer>
+  <p>来源：汤小丹《计算机操作系统》第四版 · 课件 <code>5_设备管理/ppt文本.md §5.2 I/O控制方式 / §5.3 缓冲管理 / 设备分类</code>。</p>
+  <p>🎉 这是 Ch1–8 概念硬骨头的最后一块。配套练习见 <code>exams/</code>；有不懂 <b>直接问我</b>。</p>
+</footer>
+
+</div>
+<script>
+document.querySelectorAll('#tabs .tab').forEach(function(t){
+  t.addEventListener('click',function(){
+    document.querySelectorAll('#tabs .tab').forEach(function(x){x.classList.remove('on')});
+    document.querySelectorAll('.detail').forEach(function(d){d.classList.remove('on')});
+    t.classList.add('on');
+    document.getElementById('d'+t.dataset.k).classList.add('on');
+  });
+});
+var FB={
+  q1:{good:'对！主线就是 CPU 干预递减、并行度递增。',bad:'核心趋势是 CPU 对 I/O 的干预越来越少，CPU 与 I/O 并行度越来越高。'},
+  q2:{good:'对！中断以“字”为单位、DMA 以“块”为单位且数据直达内存。',bad:'中断方式每个字都打扰 CPU；DMA 整块数据直接进内存，只在块首尾才需 CPU。'},
+  q3:{good:'对！缓冲就是缓和 CPU 与 I/O 速度不匹配、提高并行。',bad:'引入缓冲是为了缓和 CPU 与 I/O 速度不匹配的矛盾、减少中断、提高并行性。'},
+  q4:{good:'对！SPOOLing 把独占设备改造成可共享的虚拟设备。',bad:'SPOOLing 把独占设备（打印机）变成可共享的虚拟设备，人人都像有一台。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      if(ok)q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

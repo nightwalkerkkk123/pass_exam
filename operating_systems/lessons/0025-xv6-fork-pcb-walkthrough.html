@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 25 课 · xv6 struct proc(PCB)与 fork() 逐行源码精讲(讲稿+答辩) · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --codebg:#272b33; --codefg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:40px 28px 80px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:24px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:34px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:8px 0}
+  ul,ol{padding-left:22px} li{margin:4px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{background:var(--codebg); color:var(--codefg); border-radius:8px; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; line-height:1.7; margin:12px 0}
+  pre .ln{color:#6f7681; user-select:none; display:inline-block; width:2.6em; text-align:right; margin-right:1em}
+  pre .kw{color:#c678dd} pre .fn{color:#61afef} pre .cm{color:#7d8590; font-style:italic}
+  pre .n{color:#e0a45e} pre .s{color:#98c379} pre .b1{background:#33402f}  pre .b2{background:#2f3a40}
+  pre .hot{background:#5a2a2a}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  td code{font-size:12.5px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 14px; border-radius:4px; margin:14px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:#f1f9f4}
+  .q{background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px 14px; margin:10px 0}
+  .q b{color:var(--accent)}
+  .pill{display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; background:#eee; margin-left:4px}
+  .pill.high{background:#fde2dd; color:#8a1c11}
+  .pill.mid{background:#fff0d6; color:#7a4a00}
+  .script{background:#f3f7ec; border:1px dashed #5d7a00; padding:14px 16px; border-radius:6px; margin:14px 0; font-size:15px; line-height:1.85}
+  .timeline{display:grid; grid-template-columns:78px 1fr; gap:6px 12px; font-size:14px; margin:14px 0}
+  .timeline .t{color:var(--accent); font-weight:bold}
+  .timeline .c{background:#fff; padding:8px 12px; border:1px solid var(--line); border-radius:4px}
+  .checklist{background:#fff; border:1px solid var(--ok); border-left:4px solid var(--ok); padding:14px 16px; border-radius:4px; margin:14px 0}
+  .diagram{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.55; background:#fff; border:1px solid var(--line); border-radius:6px; padding:14px 16px; white-space:pre; overflow-x:auto}
+  .big{font-size:15px}
+  footer{margin-top:60px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--accent); text-decoration:none} a:hover{text-decoration:underline}
+  @media print{ body{background:#fff;font-size:13px} .wrap{padding:12mm;max-width:none} pre{background:#f0eee4;color:#222} h2{break-after:avoid} table,.q,.timeline .c{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 25 课 · Ch2 进程管理 · 逐行源码精讲 + 答辩</p>
+  <h1>xv6 进程的诞生:<code>struct proc</code>(PCB)与 <code>fork()</code> 逐行精讲<br>——进程在内核里到底长什么样,fork 怎么"复制"出一个新进程</h1>
+  <p class="sub">明天目标:对着真实 C 代码逐行讲 8–10 分钟,答得住追问 · 源码:<code>xv6-riscv/kernel/proc.h</code> 与 <code>kernel/proc.c</code></p>
+</header>
+
+<div class="callout">
+<b>🎯 这份稿子可以独立上场。</b> 它把课本第 2 章的两个核心概念落到真实代码:<code>struct proc</code> 就是课本说的<b>进程控制块 PCB</b>(进程存在的唯一标志);<code>fork()</code> 就是课本说的<b>进程创建</b>(申请空白 PCB → 分配资源 → 初始化 → 插入就绪队列)。<b>逐行讲代码 + 随时指回课本概念</b>,就是"讲解+答辩"的满分形态。<br>
+想看同款文件系统精讲?见 <a href="./0021-xv6-bmap-source-walkthrough.html">第 21 课(bmap 逐行精讲)</a>。
+</div>
+
+<h2>0. 先记这句主线(讲偏了就拉回来)</h2>
+<div class="callout ok big">
+<b>"进程在内核里就是一个 <code>struct proc</code>——这就是课本说的 PCB,装着进程的一切(状态、PID、内存、寄存器、打开的文件)。<code>fork()</code> 干的事就一句话:<u>复制父进程的 PCB 和内存,造出一个子进程</u>。一次调用、返回两次——父进程拿到子进程的 pid,子进程拿到 0。"</b>
+</div>
+
+<h2>1. 数据结构:<code>struct proc</code> 就是课本的 PCB</h2>
+<p>先给老师看进程在内核里的"身份证"。来自 <code>kernel/proc.h</code>,第 85 行。<b>课本说"PCB 保存进程标识、处理机状态、调度信息、控制信息,是进程存在的唯一标志"——这个结构体就是它的真身</b>:</p>
+<pre><span class="ln">82</span><span class="kw">enum</span> procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE }; <span class="cm">// ★进程状态枚举</span>
+<span class="ln">84</span><span class="cm">// Per-process state —— 每个进程的全部状态</span>
+<span class="ln">85</span><span class="kw">struct</span> proc {
+<span class="ln">86</span>  <span class="kw">struct</span> spinlock lock;        <span class="cm">// 保护本 PCB 的自旋锁(多核要加锁)</span>
+<span class="ln">89</span>  <span class="kw">enum</span> procstate state;        <span class="cm">// ★进程状态 → 对应课本"就绪/运行/阻塞"</span>
+<span class="ln">90</span>  <span class="kw">void</span> *chan;                  <span class="cm">// 阻塞时"睡在"哪个事件上(非0即在等待)</span>
+<span class="ln">91</span>  <span class="kw">int</span> killed;                  <span class="cm">// 是否被要求杀死</span>
+<span class="ln">92</span>  <span class="kw">int</span> xstate;                  <span class="cm">// 退出码,留给父进程 wait() 取走</span>
+<span class="ln">93</span>  <span class="kw">int</span> pid;                     <span class="cm">// ★进程标识符 PID → 课本"内部标识符"</span>
+<span class="ln">96</span>  <span class="kw">struct</span> proc *parent;         <span class="cm">// ★父进程指针 → 课本"父进程标识/家族关系"</span>
+<span class="ln">99</span>  uint64 kstack;               <span class="cm">// 内核栈的虚拟地址</span>
+<span class="ln">100</span>  uint64 sz;                   <span class="cm">// ★进程内存大小(字节)</span>
+<span class="ln">101</span>  pagetable_t pagetable;       <span class="cm">// ★用户页表 → 进程的地址空间(程序段+数据段)</span>
+<span class="ln">102</span>  <span class="kw">struct</span> trapframe *trapframe; <span class="cm">// ★陷入帧:保存用户态寄存器 → 课本"处理机状态"</span>
+<span class="ln">103</span>  <span class="kw">struct</span> context context;      <span class="cm">// ★内核上下文:切换进程时存/取的寄存器</span>
+<span class="ln">104</span>  <span class="kw">struct</span> file *ofile[NOFILE];  <span class="cm">// ★打开文件表 → 课本"资源清单"</span>
+<span class="ln">105</span>  <span class="kw">struct</span> inode *cwd;           <span class="cm">// 当前工作目录</span>
+<span class="ln">106</span>  <span class="kw">char</span> name[<span class="n">16</span>];               <span class="cm">// 进程名(调试用)</span>
+<span class="ln">107</span>};</pre>
+
+<h3>逐字段对照课本(这是你讲解的主结构)</h3>
+<table>
+<tr><th>字段</th><th>行</th><th>一句话讲法</th><th>对应课本 PCB 的哪类信息</th></tr>
+<tr><td><code>state</code></td><td>89</td><td>"进程现在是什么状态——就绪能跑、正在跑、还是在睡(等 I/O)。"</td><td>进程调度信息·进程状态</td></tr>
+<tr><td><code>pid</code></td><td>93</td><td>"进程的唯一编号,系统靠它认出'你是谁'。"</td><td>进程标识符·内部标识符</td></tr>
+<tr><td><code>parent</code></td><td>96</td><td>"指向我的父进程,记录家族关系。"</td><td>进程标识符·父子标识</td></tr>
+<tr><td><code>sz</code> / <code>pagetable</code></td><td>100–101</td><td>"进程的内存有多大、地址空间长什么样——程序段和数据段都在这页表里。"</td><td>进程控制信息·程序和数据的地址</td></tr>
+<tr><td><code>trapframe</code></td><td>102</td><td>"陷入内核那一刻,用户态的全部寄存器(包括 PC、返回值 a0)都存这儿。"</td><td>处理机状态(CPU 现场)</td></tr>
+<tr><td><code>context</code></td><td>103</td><td>"内核切换进程时要保存/恢复的寄存器,调度的'存档点'。"</td><td>处理机状态(现场保护)</td></tr>
+<tr><td><code>ofile[]</code></td><td>104</td><td>"这个进程打开了哪些文件——它拥有的资源。"</td><td>进程控制信息·资源清单</td></tr>
+</table>
+
+<div class="callout">
+<b>讲这页时,指着整个结构体说:</b>"课本讲 PCB 抽象地分四类信息——进程标识、处理机状态、调度信息、控制信息。看代码,它们全在这里:<code>pid</code>/<code>parent</code> 是标识,<code>trapframe</code>/<code>context</code> 是处理机状态,<code>state</code> 是调度信息,<code>pagetable</code>/<code>ofile</code> 是控制信息。<b>一个 <code>struct proc</code>,就是进程在内核里的全部存在</b>——课本说'PCB 是进程存在的唯一标志',这句话在代码里就是字面意思:这个结构体被回收(<code>state=UNUSED</code>),进程就不存在了。"
+</div>
+
+<h3>state 字段对照课本"进程状态"(高频考点)</h3>
+<p>xv6 的 <code>enum procstate</code> 有 6 个值,正好覆盖课本的进程状态模型:</p>
+<table>
+<tr><th>xv6 状态</th><th>含义</th><th>对应课本状态</th></tr>
+<tr><td><code>RUNNING</code></td><td>正在 CPU 上执行</td><td><b>运行态(执行态)</b></td></tr>
+<tr><td><code>RUNNABLE</code></td><td>万事俱备,只差 CPU,随时可跑</td><td><b>就绪态</b></td></tr>
+<tr><td><code>SLEEPING</code></td><td>在等某个事件(如 I/O),给 CPU 也跑不了</td><td><b>阻塞态(等待态)</b></td></tr>
+<tr><td><code>UNUSED</code></td><td>这个 PCB 槽还空着,没分配给任何进程</td><td>(进程尚未创建)</td></tr>
+<tr><td><code>USED</code></td><td>PCB 刚被 <code>allocproc</code> 占用,还没初始化完</td><td>创建态(过渡)</td></tr>
+<tr><td><code>ZOMBIE</code></td><td>已退出但父进程还没 <code>wait()</code> 回收</td><td>终止态(过渡)</td></tr>
+</table>
+<div class="callout ok">
+<b>答辩金句:</b>"课本最常讲<b>三态(运行/就绪/阻塞)</b>,xv6 的 <code>RUNNING / RUNNABLE / SLEEPING</code> 就是这三态。课本如果讲<b>五态</b>,会再加上<b>创建态</b>和<b>终止态</b>——对应 xv6 的 <code>USED</code>(刚分配、正在初始化)和 <code>ZOMBIE</code>(已退出、等回收)。<code>UNUSED</code> 则表示这个 PCB 槽位还空着,连进程都还没有。"
+</div>
+
+<h2>2. 逐行讲 <code>fork()</code>(来自 <code>kernel/proc.c</code>,第 280 行)</h2>
+<p>背景注释先念:<i>"创建一个新进程,复制父进程。设置子进程的内核栈,让它像刚从 fork() 系统调用返回一样。"</i></p>
+
+<h3>2.1 先看 <code>allocproc()</code>:申请并初始化一个空白 PCB</h3>
+<p><code>fork</code> 第一步就调它。这正是课本进程创建的<b>前两步</b>:申请空白 PCB、分配资源。来自 <code>proc.c</code> 第 110 行:</p>
+<pre><span class="ln">109</span><span class="kw">static</span> <span class="kw">struct</span> proc*
+<span class="ln">110</span><span class="fn">allocproc</span>(<span class="kw">void</span>)
+<span class="ln">111</span>{
+<span class="ln">112</span>  <span class="kw">struct</span> proc *p;
+<span class="ln">114</span>  <span class="kw">for</span>(p = proc; p &lt; &amp;proc[NPROC]; p++) { <span class="cm">// ① 扫描进程表,找一个空槽</span>
+<span class="ln">115</span>    <span class="fn">acquire</span>(&amp;p->lock);
+<span class="ln">116</span>    <span class="kw">if</span>(p->state == UNUSED) {              <span class="cm">// ★ 找到 UNUSED 的就是空白 PCB</span>
+<span class="ln">117</span>      <span class="kw">goto</span> found;
+<span class="ln">118</span>    } <span class="kw">else</span> { <span class="fn">release</span>(&amp;p->lock); }
+<span class="ln">121</span>  }
+<span class="ln">122</span>  <span class="kw">return</span> <span class="n">0</span>;                              <span class="cm">// 进程表满了,创建失败</span>
+<span class="ln">124</span>found:
+<span class="ln">125</span>  p->pid = <span class="fn">allocpid</span>();                   <span class="cm">// ★ 分配一个全新 PID</span>
+<span class="ln">126</span>  p->state = USED;                       <span class="cm">// ★ 标记"创建中"(对应创建态)</span>
+<span class="ln">129</span>  <span class="kw">if</span>((p->trapframe = (...)<span class="fn">kalloc</span>()) == <span class="n">0</span>){ <span class="cm">// ② 分配 trapframe 页(处理机状态区)</span>
+<span class="ln">130</span>    <span class="fn">freeproc</span>(p); <span class="fn">release</span>(&amp;p->lock); <span class="kw">return</span> <span class="n">0</span>;
+<span class="ln">133</span>  }
+<span class="ln">136</span>  p->pagetable = <span class="fn">proc_pagetable</span>(p);     <span class="cm">// ② 建一张空用户页表(地址空间)</span>
+<span class="ln">137</span>  <span class="kw">if</span>(p->pagetable == <span class="n">0</span>){ ... <span class="kw">return</span> <span class="n">0</span>; }
+<span class="ln">145</span>  <span class="fn">memset</span>(&amp;p->context, <span class="n">0</span>, <span class="kw">sizeof</span>(p->context)); <span class="cm">// ③ 初始化内核上下文</span>
+<span class="ln">146</span>  p->context.ra = (uint64)forkret;       <span class="cm">// 让它被调度时从 forkret 开始跑</span>
+<span class="ln">147</span>  p->context.sp = p->kstack + PGSIZE;
+<span class="ln">149</span>  <span class="kw">return</span> p;                              <span class="cm">// 返回这个初始化好的空白 PCB(锁还握着)</span>
+<span class="ln">150</span>}</pre>
+<div class="callout">
+<b>对上课本:</b>"课本说进程创建第一步是'申请空白 PCB',就是第 116 行<b>找一个 <code>state==UNUSED</code> 的槽</b>;第二步'为新进程分配资源',就是第 129、136 行<b>分配 trapframe 和页表</b>;第三步'初始化 PCB',就是第 125–147 行<b>填 pid、置状态、设上下文</b>。"
+</div>
+
+<h3>2.2 fork() 本体:复制父进程,造出子进程</h3>
+<pre><span class="ln">279</span><span class="kw">int</span>
+<span class="ln">280</span><span class="fn">fork</span>(<span class="kw">void</span>)
+<span class="ln">281</span>{
+<span class="ln">282</span>  <span class="kw">int</span> i, pid;
+<span class="ln">283</span>  <span class="kw">struct</span> proc *np;                 <span class="cm">// np = new proc,子进程</span>
+<span class="ln">284</span>  <span class="kw">struct</span> proc *p = <span class="fn">myproc</span>();        <span class="cm">// p = 当前进程,父进程</span>
+<span class="ln">287</span>  <span class="b1"><span class="kw">if</span>((np = <span class="fn">allocproc</span>()) == <span class="n">0</span>){    <span class="cm">// ① 申请一个空白 PCB 给子进程</span></span>
+<span class="ln">288</span><span class="b1">    <span class="kw">return</span> -<span class="n">1</span>;                       <span class="cm">// 没有空槽 → fork 失败返回 -1</span></span>
+<span class="ln">289</span><span class="b1">  }</span>
+<span class="ln">291</span>  <span class="b2"><span class="kw">if</span>(<span class="fn">uvmcopy</span>(p->pagetable, np->pagetable, p->sz) &lt; <span class="n">0</span>){ <span class="cm">// ② ★复制父进程整片内存</span></span>
+<span class="ln">293</span><span class="b2">    <span class="fn">freeproc</span>(np); <span class="fn">release</span>(&amp;np->lock); <span class="kw">return</span> -<span class="n">1</span>;</span>
+<span class="ln">295</span><span class="b2">  }</span>
+<span class="ln">297</span>  np->sz = p->sz;                    <span class="cm">// 子进程内存大小 = 父进程</span>
+<span class="ln">300</span>  *(np->trapframe) = *(p->trapframe); <span class="cm">// ③ ★复制处理机状态(全部用户寄存器)</span>
+<span class="ln">302</span>  <span class="cm">// Cause fork to return 0 in the child. —— 让 fork 在子进程里返回 0</span>
+<span class="ln">303</span>  <span class="hot">np->trapframe->a0 = <span class="n">0</span>;             <span class="cm">// ★★★ 这一行就是"子进程返回 0"的实现!</span></span>
+<span class="ln">306</span>  <span class="kw">for</span>(i = <span class="n">0</span>; i &lt; NOFILE; i++)       <span class="cm">// ④ ★复制打开文件表(共享文件,引用计数+1)</span>
+<span class="ln">307</span>    <span class="kw">if</span>(p->ofile[i])
+<span class="ln">308</span>      np->ofile[i] = <span class="fn">filedup</span>(p->ofile[i]);
+<span class="ln">309</span>  np->cwd = <span class="fn">idup</span>(p->cwd);            <span class="cm">// 复制当前工作目录</span>
+<span class="ln">311</span>  <span class="fn">safestrcpy</span>(np->name, p->name, ...); <span class="cm">// 复制进程名</span>
+<span class="ln">313</span>  pid = np->pid;                     <span class="cm">// ★记下子进程的 pid(待会儿返回给父进程)</span>
+<span class="ln">315</span>  <span class="fn">release</span>(&amp;np->lock);
+<span class="ln">317</span>  <span class="fn">acquire</span>(&amp;wait_lock);
+<span class="ln">318</span>  np->parent = p;                    <span class="cm">// ⑤ ★认父亲:建立家族关系</span>
+<span class="ln">319</span>  <span class="fn">release</span>(&amp;wait_lock);
+<span class="ln">321</span>  <span class="fn">acquire</span>(&amp;np->lock);
+<span class="ln">322</span>  np->state = RUNNABLE;              <span class="cm">// ⑥ ★置就绪态 → 课本"插入就绪队列"</span>
+<span class="ln">323</span>  <span class="fn">release</span>(&amp;np->lock);
+<span class="ln">325</span>  <span class="kw">return</span> pid;                       <span class="cm">// ★★ 父进程在这里返回:拿到的是子进程的 pid</span>
+<span class="ln">326</span>}</pre>
+
+<h3>把 fork 切成六步讲(讲解主结构)</h3>
+<table>
+<tr><th>步骤</th><th>行</th><th>一句话讲法</th><th>对应课本</th></tr>
+<tr><td><b>① 申请空白 PCB</b></td><td>287</td><td>"<code>allocproc</code> 给子进程要一个空 PCB,没有就返回 -1。"</td><td>创建·申请空白 PCB</td></tr>
+<tr><td><b>② 复制内存</b></td><td>291–297</td><td>"<code>uvmcopy</code> 把父进程整片内存逐页拷给子进程——子进程拿到一份一模一样的地址空间。"</td><td>创建·分配资源</td></tr>
+<tr><td><b>③ 复制处理机状态</b></td><td>300</td><td>"把父进程的 trapframe 整个拷过去——所有用户寄存器、PC 都一样,所以子进程会从'同一行代码'继续。"</td><td>处理机状态复制</td></tr>
+<tr><td><b>★ a0 = 0</b></td><td><b>303</b></td><td>"<b>唯一被改掉的寄存器</b>:把子进程的返回值寄存器 a0 设成 0。这就是'子进程 fork 返回 0'的实现。"</td><td>父子返回值不同</td></tr>
+<tr><td><b>④ 复制打开文件</b></td><td>306–309</td><td>"父进程开的文件,子进程也都能用(引用计数 +1)。"</td><td>资源清单复制</td></tr>
+<tr><td><b>⑤ 认父亲</b></td><td>318</td><td>"<code>np->parent = p</code>,建立父子家族关系。"</td><td>父子进程标识</td></tr>
+<tr><td><b>⑥ 置就绪</b></td><td>322</td><td>"<code>state = RUNNABLE</code>,子进程进入就绪态,等调度器挑它跑。"</td><td>创建·插入就绪队列</td></tr>
+<tr><td><b>返回 pid</b></td><td>325</td><td>"<b>父进程</b>从 fork 返回,拿到的是子进程的 pid。"</td><td>父返回子 pid</td></tr>
+</table>
+
+<h2>3. 核心:为什么"一次调用,返回两次"?(必考)</h2>
+<div class="callout ok big">
+<b>ELI5 比喻:</b>fork 就像<b>把自己整个人复印了一份</b>。复印件(子进程)从复印机里站起来时,它<b>和你长得一模一样、记忆一样、手里拿的东西也一样</b>(内存、寄存器、打开的文件全是复制的)。唯一的区别:<b>你手里的纸条上写着复印件的编号(子 pid),复印件手里的纸条上写着 0</b>。两个人看着各自的纸条,就知道"我是本体还是复印件",于是走向不同的人生分支。
+</div>
+<p><b>从代码讲清楚"返回两次":</b></p>
+<ul>
+<li>第 300 行把父进程的 trapframe 整个复制给子进程,<b>包括返回地址</b>——所以父子进程都会"从 fork 系统调用返回"这同一个点继续执行。这就是"返回两次"的物理原因:有两个进程,各自都要从这里返回一次。</li>
+<li><b>父进程</b>这条路:执行到第 325 行 <code>return pid</code>,返回值是子进程的 pid(一个 &gt;0 的数)。</li>
+<li><b>子进程</b>这条路:它不走 325 行(它是被调度器唤醒、从 trapframe 恢复现场的)。它的返回值来自 <code>trapframe->a0</code>,而第 <b>303</b> 行已经把 <code>a0</code> 设成了 0。所以子进程"看到"的 fork 返回值是 <b>0</b>。</li>
+</ul>
+<div class="callout warn">
+<b>为什么改 a0?(指到第 303 行答这题)</b>RISC-V 调用约定里,<b>函数返回值放在寄存器 <code>a0</code></b>。系统调用返回用户态时,用户程序就是从 a0 读返回值的。父进程的 a0 会被设成 pid(由内核 syscall 返回机制写入),而子进程的 a0 被这行代码<b>手动设成 0</b>。同一个 fork,两个进程读各自的 a0,就得到了不同的返回值——这就是教科书那句"fork 对父进程返回子 pid、对子进程返回 0"在代码里的落地。
+</div>
+
+<h2>4. 一张图:fork() 怎么走(PPT 核心页)</h2>
+<div class="diagram">          父进程调用 fork()
+                │
+        ┌───────▼────────┐
+        │ allocproc()    │  ← 申请空白 PCB(找 UNUSED 槽 + 分配 pid/trapframe/页表)
+        └───────┬────────┘
+                │
+        ┌───────▼────────┐
+        │ uvmcopy()      │  ← 复制父进程整片内存(子进程拿到同样的地址空间)
+        └───────┬────────┘
+                │
+   *(np->trapframe) = *(p->trapframe)  ← 复制全部用户寄存器(处理机状态)
+                │
+        np->trapframe->a0 = 0   ★ 只改这一个:子进程返回值 = 0
+                │
+        复制 ofile[] / cwd / name   ← 复制资源清单
+                │
+        np->parent = p             ← 认父亲(家族关系)
+                │
+        np->state = RUNNABLE       ← 置就绪态(插入就绪队列)
+                │
+        ┌───────┴──────── 一次调用,返回两次 ────────┐
+        ▼                                            ▼
+   父进程: return pid (&gt;0)                    子进程: 读 a0 = 0
+   "我是父亲,孩子的编号是 pid"            "我是孩子,我的 fork 返回 0"</div>
+
+<h2>5. 8–10 分钟讲稿(逐字稿)</h2>
+<div class="script"><b>🎤 8 段。把"PCB 是什么 → fork 怎么复制 → 为什么返回两次"讲透,撑满 10 分钟。时间紧就砍掉第 6 段(见 §8 应急)。</b></div>
+<div class="timeline">
+<div class="t">0:00–1:00</div><div class="c"><b>【开场+主线】</b>"老师好。我讲 xv6 内核里进程的诞生,对应课本第 2 章<b>进程控制块和进程创建</b>。一句话主线:<b>进程在内核里就是一个 <code>struct proc</code>,这就是课本说的 PCB;<code>fork()</code> 通过复制父进程的 PCB 和内存,造出子进程</b>。我会逐行讲,并随时指回课本。"</div>
+<div class="t">1:00–2:30</div><div class="c"><b>【PCB 数据结构】</b>打开 <code>proc.h</code> 第 85 行,讲 <code>struct proc</code> 的关键字段:<code>pid</code> 是标识、<code>trapframe</code>/<code>context</code> 是处理机状态、<code>state</code> 是调度信息、<code>pagetable</code>/<code>ofile</code> 是控制信息。"课本说 PCB 是<b>进程存在的唯一标志</b>,在代码里就是字面意思——这个结构体被回收,进程就没了。"</div>
+<div class="t">2:30–3:30</div><div class="c"><b>【state 对照课本状态】</b>讲 <code>enum procstate</code>:"<code>RUNNING/RUNNABLE/SLEEPING</code> 就是课本的<b>运行/就绪/阻塞</b>三态;<code>USED</code> 和 <code>ZOMBIE</code> 对应五态里的<b>创建态和终止态</b>。"</div>
+<div class="t">3:30–4:30</div><div class="c"><b>【allocproc 申请空白 PCB】</b>讲 <code>proc.c</code> 第 110 行:扫进程表找 <code>UNUSED</code> 槽(第116行)→ 分配 pid、trapframe、页表。"这正是课本进程创建的前三步:<b>申请空白 PCB、分配资源、初始化 PCB</b>。"</div>
+<div class="t">4:30–6:30</div><div class="c"><b>【fork 逐行】</b>讲第 280 行起六步:①<code>allocproc</code> 申请 PCB → ②<code>uvmcopy</code> 复制内存 → ③复制 trapframe → ④复制打开文件 → ⑤<code>parent=p</code> 认父亲 → ⑥<code>state=RUNNABLE</code> 置就绪。"对应课本创建流程一一落地。"</div>
+<div class="t">6:30–8:00</div><div class="c"><b>【高潮:a0=0 与返回两次】</b>指着第 <b>303</b> 行 <code>np->trapframe->a0 = 0</code>:"这是整个 fork 最妙的一行。父子进程的寄存器全一样,<b>唯独这一个返回值寄存器被改成 0</b>。于是<b>父进程返回子 pid、子进程返回 0</b>——一次调用返回两次,就靠这一行实现。"配合复印件比喻。</div>
+<div class="t">8:00–9:00</div><div class="c"><b>【fork vs exec】</b>"fork 只<b>复制</b>,不换程序;要运行新程序得再调 <code>exec</code> 换掉内存映像。Unix 的 <code>fork+exec</code> 组合,就是课本'进程创建'的经典实现。"</div>
+<div class="t">9:00–10:00</div><div class="c"><b>【收尾】</b>"所以这两段代码串起了大半章:<code>struct proc</code> 是<b>PCB</b>、<code>state</code> 是<b>进程状态</b>、<code>allocproc</code>+<code>fork</code> 是<b>进程创建</b>、<code>parent</code> 是<b>父子关系</b>。课本的概念,在这里一行行兑现。谢谢老师。"</div>
+</div>
+
+<h2>6. 答辩:老师可能问的 10 题(每题给标准答法)</h2>
+<p class="big"><b>逐行讲源码,老师最爱指着某一行问"这行干嘛"。下面是高频题的标准答法。</b></p>
+
+<div class="q"><b>Q1.</b> PCB 里都装了什么?在代码里指给我看。<span class="pill high">必答</span><br>
+<b>答:</b>PCB 就是 <code>struct proc</code>(proc.h 第85行)。课本分四类信息,代码里都有:<b>进程标识</b>=<code>pid</code>/<code>parent</code>;<b>处理机状态</b>=<code>trapframe</code>(用户寄存器)和 <code>context</code>(内核切换现场);<b>调度信息</b>=<code>state</code>;<b>控制信息</b>=<code>pagetable</code>(地址空间)、<code>ofile[]</code>(资源清单)、<code>cwd</code>。</div>
+
+<div class="q"><b>Q2.</b> 为什么说"PCB 是进程存在的唯一标志"?<span class="pill mid">必答</span><br>
+<b>答:</b>因为进程的一切都挂在 PCB 上——没有 PCB,内核就无从知道这个进程是谁、跑到哪、有什么资源。代码里,一个 <code>struct proc</code> 的 <code>state</code> 是 <code>UNUSED</code> 就表示"这里没进程";<code>allocproc</code> 占用它、<code>freeproc</code> 把它清回 <code>UNUSED</code>,进程就从创建到消亡。PCB 在,进程在;PCB 没了,进程就不存在了。</div>
+
+<div class="q"><b>Q3.</b> <code>state</code> 字段对应课本哪几个状态?<span class="pill high">高危</span><br>
+<b>答:</b><code>RUNNING</code>=运行态、<code>RUNNABLE</code>=就绪态、<code>SLEEPING</code>=阻塞态,这是课本的<b>三态</b>。若讲<b>五态</b>,再加 <code>USED</code>=创建态(刚分配、初始化中)、<code>ZOMBIE</code>=终止态(已退出、等父进程回收)。<code>UNUSED</code> 是空槽,还没有进程。</div>
+
+<div class="q"><b>Q4.</b> fork() 为什么会"返回两次"?哪行实现的?<span class="pill high">高危必答</span><br>
+<b>答:</b>因为 fork 之后<b>有两个进程</b>,各自都要从 fork 系统调用返回一次。物理原因在第 300 行 <code>*(np->trapframe) = *(p->trapframe)</code>——把父进程的全部寄存器(含返回地址)复制给子进程,所以子进程也会"从 fork 返回点"继续跑。父进程走第 325 行 <code>return pid</code>;子进程被调度后从它的 trapframe 恢复,返回值取自 <code>a0</code>,而第 <b>303</b> 行已把它设成 0。</div>
+
+<div class="q"><b>Q5.</b> 子进程的 a0 为什么是 0?这行(303)什么意思?<span class="pill high">高危</span><br>
+<b>答:</b>RISC-V 约定<b>函数返回值放在寄存器 a0</b>。子进程的 a0 被第 303 行手动设成 0,所以子进程看到的 fork 返回值是 0;父进程的 a0 由内核 syscall 返回机制写成子 pid。<b>这一个寄存器的差异,就是"父返回 pid、子返回 0"的全部秘密。</b></div>
+
+<div class="q"><b>Q6.</b> fork 和 exec 有什么区别?<span class="pill mid">易问</span><br>
+<b>答:</b><b>fork 只复制、不换程序</b>:子进程是父进程的副本,跑的还是同一个程序。<b>exec 是换程序</b>:把当前进程的内存映像替换成一个新可执行文件,pid 不变但代码全换了。Unix 创建新程序的经典套路是 <b>fork + exec</b>:先 fork 出一个副本,子进程再 exec 换成想运行的程序。这正是课本"进程创建"的工程实现。</div>
+
+<div class="q"><b>Q7.</b> 指着第 291 行 <code>uvmcopy</code> 问:它在干嘛?<span class="pill high">高危</span><br>
+<b>答:</b>把父进程用户内存的每一页<b>逐页复制</b>到子进程的页表里(从地址 0 复制到 <code>p->sz</code>)。复制完,子进程拥有一份和父进程内容相同、但<b>物理上独立</b>的地址空间——父进程改自己的变量,不会影响子进程。这就是"复印一份自己"里的"内存"部分。</div>
+
+<div class="q"><b>Q8.</b> 指着第 322 行 <code>np->state = RUNNABLE</code> 问:为什么是 RUNNABLE 不是 RUNNING?<span class="pill mid">进阶</span><br>
+<b>答:</b>因为子进程还没轮到 CPU。<code>RUNNABLE</code>=就绪态,意思是"万事俱备、等调度器挑我"。只有当调度器真正把 CPU 给它、切换上去时,它才变成 <code>RUNNING</code>(运行态)。这对应课本进程创建最后一步:<b>"将新进程插入就绪队列"</b>。</div>
+
+<div class="q"><b>Q9.</b> <code>allocproc</code> 怎么找到一个能用的 PCB?<span class="pill mid">易问</span><br>
+<b>答:</b>第 114–116 行,遍历全局进程表 <code>proc[NPROC]</code>,找第一个 <code>state==UNUSED</code> 的槽。xv6 用<b>固定大小的静态数组</b>管理所有 PCB(最多 NPROC 个进程)。找到就 <code>goto found</code> 初始化它,找不到就返回 0(进程表满,创建失败)。这对应课本"申请空白 PCB"。</div>
+
+<div class="q"><b>Q10.</b> fork 失败会怎样?返回什么?<span class="pill mid">进阶</span><br>
+<b>答:</b>两种失败:进程表满(<code>allocproc</code> 返回 0,见第287–288行)或复制内存失败(<code>uvmcopy</code> &lt;0,见第291–295行,会先 <code>freeproc</code> 回收已分配的资源)。两种情况 fork 都<b>返回 -1</b> 给父进程,且<b>不创建子进程</b>。所以用户态写代码要判断 fork 的三种返回:&lt;0 失败、==0 子进程、&gt;0 父进程(值为子 pid)。</div>
+
+<h2>7. 临场应急</h2>
+<div class="callout warn"><b>🆘 老师问到 <code>trampoline.S</code> / <code>swtch</code> / 调度器细节(你没细看的):</b>诚实说"这次我聚焦 PCB 结构和 fork 的复制逻辑,调度切换的汇编层(<code>swtch</code>、<code>scheduler</code>)我没深入。"<b>守住你讲的那条线(PCB + fork),别被带进汇编。</b></div>
+<div class="callout"><b>🆘 被问哪行而卡住:</b>三步法——"这行属于 fork 六步里的哪一步(申请PCB/复制内存/复制寄存器/复制文件/认父/置就绪)→ 它在复制什么 → 对应课本哪个概念"。</div>
+<div class="callout"><b>🆘 被追问"父子进程的内存是共享还是独立":</b>答"独立"。<code>uvmcopy</code> 是真复制(各有各的物理页);打开文件 <code>ofile</code> 是<b>共享同一个文件对象</b>(<code>filedup</code> 只是引用计数+1),这点别说反了。</div>
+
+<h2>8. 彩排 Checklist(今晚)</h2>
+<div class="checklist">
+<label><input type="checkbox"> 1. <b>能不看注释</b>说出 <code>struct proc</code> 至少 5 个关键字段 + 各自对应课本 PCB 哪类信息</label><br>
+<label><input type="checkbox"> 2. <code>state</code> 三态/五态对照能脱口而出:RUNNING/RUNNABLE/SLEEPING ↔ 运行/就绪/阻塞</label><br>
+<label><input type="checkbox"> 3. <b>能背 fork 六步</b>:allocproc → uvmcopy → 复制 trapframe → a0=0 → 复制文件 → RUNNABLE → return pid</label><br>
+<label><input type="checkbox"> 4. <b>高危行</b>能脱口说"干嘛+对应课本":<b>303</b>(a0=0)、<b>300</b>(复制寄存器)、<b>291</b>(uvmcopy)、<b>322</b>(RUNNABLE)、<b>287</b>(allocproc)</label><br>
+<label><input type="checkbox"> 5. "返回两次"能讲清:两个进程各返回一次,父=pid、子=0,靠第303行</label><br>
+<label><input type="checkbox"> 6. 复印件比喻能顺嘴说出来(纸条上写 0)</label><br>
+<label><input type="checkbox"> 7. 讲稿<b>出声读 3 遍</b> + 卡时间(目标 8–10 分钟)</label><br>
+<label><input type="checkbox"> 8. <b>答辩 10 题</b>过一遍,高危题 Q1/Q3/Q4/Q5/Q7 各两遍</label><br>
+<label><input type="checkbox"> 9. 电脑上<b>打开真实文件</b> <code>proc.h:85</code>(struct proc)、<code>proc.c:110</code>(allocproc)、<code>proc.c:280</code>(fork),明天可带着</label><br>
+<label><input type="checkbox"> 10. 睡好觉</label>
+</div>
+
+<footer>
+第 25 课 · Ch2 进程管理 · xv6 <code>struct proc</code>(PCB)与 <code>fork()</code> 逐行精讲 ·
+同款文件系统精讲 → <a href="./0021-xv6-bmap-source-walkthrough.html">第 21 课(bmap)</a><br>
+源码出处:<code>learn-code/xv6-riscv-20230207/kernel/proc.h:82-107</code>(enum procstate / struct proc)、
+<code>kernel/proc.c:109-150</code>(allocproc)、<code>kernel/proc.c:279-326</code>(fork,a0=0 在第 303 行)。
+代码忠于真实文件,部分次要行已用 <code>...</code> 省略,未作改动。
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>操作系统期末考 · 诊断测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            color: #666;
+            margin: 5px 0;
+        }
+
+        .timer {
+            display: inline-block;
+            background: #ffe66d;
+            color: #333;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 10px;
+            font-size: 1.2em;
+        }
+
+        .chapter-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+
+        .chapter-btn {
+            padding: 10px 15px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            font-size: 0.95em;
+        }
+
+        .chapter-btn:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .chapter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .question-block {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f9f9f9;
+            border-left: 4px solid #667eea;
+            border-radius: 6px;
+        }
+
+        .question-number {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+
+        .question-text {
+            font-size: 1em;
+            color: #333;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .options {
+            margin-left: 20px;
+        }
+
+        .option {
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .option:hover {
+            background: #f0f4ff;
+            padding-left: 8px;
+        }
+
+        .option input[type="radio"] {
+            margin-right: 10px;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .option label {
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1em;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-submit {
+            background: #667eea;
+            color: white;
+            padding: 12px 32px;
+        }
+
+        .btn-submit:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-reset {
+            background: #f5f5f5;
+            color: #333;
+            border: 2px solid #ddd;
+        }
+
+        .btn-reset:hover {
+            background: #ddd;
+        }
+
+        .result-box {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f0f4ff;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .result-box.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .score-display {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        }
+
+        .score-label {
+            font-size: 1.2em;
+            color: #666;
+        }
+
+        .chapter-score {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .score-card {
+            background: white;
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+            border: 2px solid #ddd;
+        }
+
+        .score-card.pass {
+            border-color: #4caf50;
+            background: #f1f8f4;
+        }
+
+        .score-card.warning {
+            border-color: #ff9800;
+            background: #fff8f4;
+        }
+
+        .score-card.fail {
+            border-color: #f44336;
+            background: #fff4f4;
+        }
+
+        .score-card-label {
+            font-weight: bold;
+            font-size: 0.95em;
+            margin-bottom: 5px;
+        }
+
+        .score-card-value {
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            text-align: left;
+            line-height: 1.8;
+        }
+
+        .error-list {
+            margin-top: 15px;
+            padding: 15px;
+            background: #fff4f4;
+            border-left: 4px solid #f44336;
+            border-radius: 4px;
+        }
+
+        .error-item {
+            margin: 8px 0;
+            color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>操作系统期末考 · 诊断测试</h1>
+            <p>快速评估你的各章节掌握程度</p>
+            <div class="timer" id="timer">⏱️ 15:00</div>
+        </div>
+
+        <div class="chapter-selector" id="chapters">
+            <!-- 动态生成 -->
+        </div>
+
+        <div id="questions-container">
+            <!-- 动态生成 -->
+        </div>
+
+        <div class="controls">
+            <button class="btn-submit" onclick="submitTest()">📊 提交并批改</button>
+            <button class="btn-reset" onclick="resetTest()">🔄 重置答案</button>
+        </div>
+
+        <div class="result-box" id="result-box">
+            <div class="score-label">诊断结果</div>
+            <div class="score-display" id="total-score">0</div>
+            <div style="color: #666; font-size: 1em; margin-bottom: 20px;">总分（满分 100 分）</div>
+
+            <div class="chapter-score" id="chapter-scores">
+                <!-- 动态生成 -->
+            </div>
+
+            <div class="feedback" id="feedback">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 题库数据
+        const chapters = {
+            'ch1': {
+                name: 'Ch1 引论',
+                questions: [
+                    { q: '操作系统是下列哪一类软件？', opts: ['系统软件', '应用软件', '工具软件', '语言处理程序'], ans: 0 },
+                    { q: '操作系统的四大基本特征（口诀「并共异虚」）是？', opts: ['并发、共享、虚拟、异步', '并发、分时、实时、网络', '批处理、分时、实时、网络', '单道、多道、分时、实时'], ans: 0 },
+                    { q: '区分程序和进程最关键的 OS 特征是？', opts: ['并发性', '开放性', '可移植性', '安全性'], ans: 0 },
+                    { q: '以下哪种资源属于 CPU 管理的范畴？', opts: ['进程调度', '内存分配', '磁盘读写', '打印机使用'], ans: 0 },
+                    { q: '设计分时操作系统时，首先要考虑的是？', opts: ['灵活性和可适应性', '交互性和响应时间', '周转时间和系统吞吐量', '实时性和可靠性'], ans: 1 },
+                    { q: '设计批处理系统时，首先要考虑的是？', opts: ['灵活性和可适应性', '交互性和响应时间', '周转时间和系统吞吐量', '实时性和可靠性'], ans: 2 },
+                    { q: '设计实时操作系统时，首先要考虑的是？', opts: ['灵活性和可适应性', '交互性和响应时间', '周转时间和系统吞吐量', '实时性和可靠性'], ans: 3 },
+                    { q: '多个用户在终端设备上交互输入、排错和控制程序运行，是哪一种 OS？', opts: ['批处理 OS', '分时 OS', '实时 OS', '网络 OS'], ans: 1 },
+                    { q: '把一个程序划分成若干个同时执行的程序模块的设计方法是？', opts: ['多重程序设计', '多道程序设计', '并发程序设计', '分布式系统'], ans: 2 },
+                    { q: '由多个计算机组成、互相通信、共享资源、无主次之分的系统，对应的 OS 是？', opts: ['网络 OS', '分布式 OS', '分时 OS', '批处理 OS'], ans: 1 },
+                    { q: '系统调用是用户程序请求 OS 服务的接口，调用时会发生？', opts: ['用户态 → 核心态 切换', '核心态 → 用户态 切换', '用户态内部切换', '核心态内部切换'], ans: 0 },
+                    { q: '微内核 OS 结构的主要缺点是？', opts: ['灵活性低', '性能开销大', '可移植性差', '不支持多线程'], ans: 1 }
+                ]
+            },
+            'ch2': {
+                name: 'Ch2 进程同步',
+                questions: [
+                    { q: '在多进程环境中，对共享资源的访问需要通过什么机制来保证？', opts: ['中断', '临界区保护', '页面置换', '文件锁'], ans: 1 },
+                    { q: 'PV 操作中，P 操作的作用是？', opts: ['信号量加 1', '信号量减 1，如果为负则等待', '进程创建', '进程销毁'], ans: 1 },
+                    { q: '信号量的初值应该是？', opts: ['总是 0', '可用资源的数量', '进程数量', '随意设置'], ans: 1 },
+                    { q: '生产者-消费者问题中，缓冲区满时生产者应该执行？', opts: ['V(empty)', 'P(full)', 'P(empty)', 'V(full)'], ans: 2 },
+                    { q: '哲学家进餐问题的关键在于避免？', opts: ['等待太久', '死锁', '资源浪费', '优先级倒置'], ans: 1 }
+                ]
+            },
+            'ch3': {
+                name: 'Ch3 调度死锁',
+                questions: [
+                    { q: 'FCFS 调度算法的特点是？', opts: ['最优的', '非抢占式', '响应时间短', '自适应'], ans: 1 },
+                    { q: '死锁产生的必要条件包括互斥、持有和等待、不可剥夺和？', opts: ['优先级', '循环等待', '资源有限', '进程多'], ans: 1 },
+                    { q: '银行家算法属于以下哪种死锁处理方式？', opts: ['预防', '避免', '检测', '恢复'], ans: 1 },
+                    { q: '优先级反转问题可能发生在？', opts: ['FCFS 调度', '时间片轮转', '优先级抢占式调度', '任何调度方式'], ans: 2 },
+                    { q: '短作业优先调度可能导致？', opts: ['死锁', '长作业饥饿', '高 CPU 利用率', '响应时间长'], ans: 1 }
+                ]
+            },
+            'ch4': {
+                name: 'Ch4 存储管理',
+                questions: [
+                    { q: '分页存储中，逻辑地址转换为物理地址需要？', opts: ['中断', '页表查询', '磁盘访问', '重新编译'], ans: 1 },
+                    { q: '页面的大小通常是？', opts: ['1KB', '4KB', '1MB', '随意大小'], ans: 1 },
+                    { q: '分段存储的优点包括？', opts: ['物理地址连续', '便于保护和共享', '浪费内存少', '寻址速度快'], ans: 1 },
+                    { q: '虚拟存储技术基于什么原理？', opts: ['时间局部性', '空间局部性', '程序局部性', '以上都是'], ans: 2 },
+                    { q: '缺页异常发生时，OS 需要？', opts: ['中止程序', '从磁盘加载页面', '增加内存', '重启系统'], ans: 1 }
+                ]
+            },
+            'ch5': {
+                name: 'Ch5 虚拟存储',
+                questions: [
+                    { q: 'LRU 页面置换算法的原理是？', opts: ['最早进入的页置换', '最近最少使用的页置换', '随意置换', '最优的置换'], ans: 1 },
+                    { q: 'OPT 算法是？', opts: ['最差的算法', '最优的算法', '最实用的算法', '最快的算法'], ans: 1 },
+                    { q: 'Belady 异常发生在？', opts: ['OPT', 'LRU', 'FIFO', 'SCAN'], ans: 2 },
+                    { q: '工作集概念用于？', opts: ['加快磁盘速度', '预测进程需要的页集合', '增加 CPU 速度', '减少进程数'], ans: 1 },
+                    { q: '缺页率高的原因通常是？', opts: ['CPU 太慢', '工作集与物理内存不匹配', '磁盘满', '进程太多'], ans: 1 }
+                ]
+            },
+            'ch6': {
+                name: 'Ch6 文件管理',
+                questions: [
+                    { q: '文件的物理结构通常采用？', opts: ['连续分配', '链接分配', '混合索引', '以上都可以'], ans: 3 },
+                    { q: '成组链接法的优点是？', opts: ['简单快速', '内存中只需保存当前组', '不会碎片化', '无需目录'], ans: 1 },
+                    { q: 'UNIX inode 包含几个直接指针？', opts: ['10', '12', '13', '15'], ans: 0 },
+                    { q: '混合索引支持多大的文件大小（假设 block=1KB，指针=4B）？', opts: ['10KB', '1MB', '约 16GB', '无限制'], ans: 2 },
+                    { q: '文件的逻辑结构包括？', opts: ['有序文件和无序文件', '流式文件', '记录式文件', '以上都是'], ans: 3 }
+                ]
+            },
+            'ch8': {
+                name: 'Ch8 磁盘调度',
+                questions: [
+                    { q: 'SCAN 磁盘调度算法的特点是？', opts: ['按顺序处理', '磁头往返扫描', '最短寻道', '随机处理'], ans: 1 },
+                    { q: 'CSCAN 相比 SCAN 的优势是？', opts: ['更快', '更公平，避免饥饿', '更简单', '内存占用少'], ans: 1 },
+                    { q: 'SSTF 调度可能导致？', opts: ['缓冲区溢出', '长寻道时间', '饥饿', '中断丢失'], ans: 2 },
+                    { q: '磁盘 I/O 优化的首要目标是？', opts: ['减少转动延迟', '减少寻道时间', '增加吞吐量', '降低功耗'], ans: 1 },
+                    { q: '预读技术用于？', opts: ['加快磁盘速度', '利用时间局部性预加载数据', '减少磁盘写入', '压缩数据'], ans: 1 }
+                ]
+            }
+        };
+
+        let answers = {};
+        let startTime = Date.now();
+        let timerInterval;
+
+        function initTest() {
+            // 生成章节按钮
+            const chaptersDiv = document.getElementById('chapters');
+            Object.keys(chapters).forEach(key => {
+                const btn = document.createElement('button');
+                btn.className = 'chapter-btn active';
+                btn.textContent = chapters[key].name;
+                btn.onclick = () => switchChapter(key);
+                btn.id = 'btn-' + key;
+                chaptersDiv.appendChild(btn);
+            });
+
+            // 生成问题
+            renderQuestions();
+
+            // 启动计时器
+            startTimer();
+        }
+
+        function switchChapter(chapterKey) {
+            document.querySelectorAll('.chapter-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('btn-' + chapterKey).classList.add('active');
+            renderQuestions(chapterKey);
+        }
+
+        function renderQuestions(filterChapter = null) {
+            const container = document.getElementById('questions-container');
+            container.innerHTML = '';
+
+            Object.keys(chapters).forEach(chKey => {
+                if (filterChapter && chKey !== filterChapter) return;
+
+                const chapter = chapters[chKey];
+                chapter.questions.forEach((q, idx) => {
+                    const qId = chKey + '-' + idx;
+                    const div = document.createElement('div');
+                    div.className = 'question-block';
+                    div.innerHTML = `
+                        <div class="question-number">${chKey.toUpperCase()} - 题目 ${idx + 1}</div>
+                        <div class="question-text">${q.q}</div>
+                        <div class="options">
+                            ${q.opts.map((opt, optIdx) => `
+                                <div class="option">
+                                    <input type="radio" name="${qId}" value="${optIdx}" id="${qId}-${optIdx}"
+                                        onchange="answers['${qId}'] = ${optIdx}">
+                                    <label for="${qId}-${optIdx}">${String.fromCharCode(65 + optIdx)}. ${opt}</label>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            });
+        }
+
+        function startTimer() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                const elapsed = Math.floor((Date.now() - startTime) / 1000);
+                const remaining = Math.max(0, 900 - elapsed);
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                document.getElementById('timer').textContent = `⏱️ ${mins}:${secs.toString().padStart(2, '0')}`;
+
+                if (remaining === 0) {
+                    clearInterval(timerInterval);
+                    submitTest();
+                }
+            }, 1000);
+        }
+
+        function submitTest() {
+            clearInterval(timerInterval);
+            const results = {};
+            let totalScore = 0;
+
+            Object.keys(chapters).forEach(chKey => {
+                results[chKey] = { correct: 0, total: 0 };
+                chapters[chKey].questions.forEach((q, idx) => {
+                    const qId = chKey + '-' + idx;
+                    results[chKey].total++;
+                    if (answers[qId] === q.ans) {
+                        results[chKey].correct++;
+                        totalScore += 5;
+                    }
+                });
+            });
+
+            displayResults(totalScore, results);
+        }
+
+        function displayResults(score, results) {
+            document.getElementById('total-score').textContent = score;
+
+            const chapterScoresDiv = document.getElementById('chapter-scores');
+            chapterScoresDiv.innerHTML = '';
+
+            Object.keys(results).forEach(chKey => {
+                const ch = chapters[chKey];
+                const r = results[chKey];
+                const percent = Math.round((r.correct / r.total) * 100);
+                let className = 'score-card ';
+                if (percent >= 70) className += 'pass';
+                else if (percent >= 50) className += 'warning';
+                else className += 'fail';
+
+                const card = document.createElement('div');
+                card.className = className;
+                card.innerHTML = `
+                    <div class="score-card-label">${ch.name}</div>
+                    <div class="score-card-value">${percent}%</div>
+                    <div style="font-size: 0.9em; color: #666;">${r.correct}/${r.total} 题</div>
+                `;
+                chapterScoresDiv.appendChild(card);
+            });
+
+            const feedback = document.getElementById('feedback');
+            let feedbackHTML = '<strong>📊 诊断分析：</strong><br>';
+
+            const weakChapters = Object.keys(results)
+                .filter(chKey => {
+                    const percent = Math.round((results[chKey].correct / results[chKey].total) * 100);
+                    return percent < 70;
+                })
+                .map(chKey => chapters[chKey].name);
+
+            if (score >= 85) {
+                feedbackHTML += '✅ 你的基础很扎实！建议重点做计算题训练。';
+            } else if (score >= 70) {
+                feedbackHTML += '⚠️ 中等水平。需要重点强化这些章节：<br>';
+                weakChapters.forEach(ch => {
+                    feedbackHTML += `• ${ch}<br>`;
+                });
+            } else {
+                feedbackHTML += '❌ 基础较薄弱。建议从头梳理以下章节：<br>';
+                weakChapters.forEach(ch => {
+                    feedbackHTML += `• ${ch}<br>`;
+                });
+            }
+
+            feedbackHTML += '<br><strong>下一步：</strong><br>';
+            feedbackHTML += '1. 记住你的薄弱点<br>';
+            feedbackHTML += '2. 根据 EXAM-PREP-PLAN.md 的第二阶段进行强化<br>';
+            feedbackHTML += '3. 2-3 天后再做一遍诊断测试，对比进度';
+
+            feedback.innerHTML = feedbackHTML;
+            document.getElementById('result-box').classList.add('show');
+        }
+
+        function resetTest() {
+            answers = {};
+            document.querySelectorAll('input[type="radio"]').forEach(input => input.checked = false);
+            document.getElementById('result-box').classList.remove('show');
+            startTime = Date.now();
+            startTimer();
+        }
+
+        // 初始化
+        window.onload = initTest;
+    </script>
+</body>
+</html>

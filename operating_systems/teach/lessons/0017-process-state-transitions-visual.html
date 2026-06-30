@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 17 课 · 进程状态转换（可视化）· 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e;
+    --okbg:#f1f9f4; --badbg:#fdf0ef;
+    --ready:#3a7bd5; --run:#1f6f43; --block:#a85d00;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:40px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center}
+  th{background:#eaf1f6; font-weight:600}
+
+  /* ---- 状态机舞台 ---- */
+  .machine{position:relative; width:100%; max-width:760px; margin:10px auto 0; aspect-ratio:1000/520;
+    border:1px solid var(--line); border-radius:14px; background:#fff; overflow:hidden}
+  .machine svg{position:absolute; inset:0; width:100%; height:100%}
+  .node{position:absolute; transform:translate(-50%,-50%); width:130px; text-align:center;
+    border-radius:14px; padding:12px 8px; border:3px solid #ccc; background:#fafafa; transition:.25s; z-index:2}
+  .node .nm{font-weight:800; font-size:17px}
+  .node .en{font-size:11px; color:var(--muted)}
+  #nReady{left:18%; top:62%; border-color:var(--ready)}
+  #nRun{left:50%; top:24%; border-color:var(--run)}
+  #nBlock{left:82%; top:62%; border-color:var(--block)}
+  .node.here{box-shadow:0 0 0 5px rgba(31,93,138,.18); transform:translate(-50%,-50%) scale(1.06)}
+  #nReady.here{background:#eaf2fc} #nRun.here{background:var(--okbg)} #nBlock.here{background:#fff5e8}
+  .token{position:absolute; transform:translate(-50%,-50%); z-index:3; font-size:30px;
+    transition:left .6s cubic-bezier(.5,.05,.3,1), top .6s cubic-bezier(.5,.05,.3,1);
+    filter:drop-shadow(0 2px 3px rgba(0,0,0,.25))}
+  .edge{stroke:#9bb4c4; stroke-width:4; fill:none; marker-end:url(#arrow)}
+  .edge.lit{stroke:var(--accent); stroke-width:7; marker-end:url(#arrowLit)}
+  .edge.imposs{stroke:#e3a9a4; stroke-width:3; stroke-dasharray:9 7; marker-end:url(#arrowBad)}
+  .edge.imposs.lit{stroke:var(--bad); stroke-width:5}
+  .elabel{font-size:20px; fill:#5a7488; font-weight:600}
+  .elabel.bad{fill:#c98b85}
+
+  .controls{display:flex; flex-wrap:wrap; gap:9px; margin:18px 0 4px; justify-content:center}
+  button.btn{font-family:inherit; font-size:14px; font-weight:600; padding:9px 14px; border-radius:8px;
+    border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; transition:.15s}
+  button.btn:hover{filter:brightness(1.08)}
+  button.btn.danger{background:#fff; color:var(--bad); border-color:var(--bad)}
+  button.btn.ghost{background:#fff; color:var(--accent)}
+  .logbox{margin:14px auto 0; max-width:760px; background:#0f2230; color:#cfe6f5; border-radius:8px;
+    padding:12px 14px; font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.7; min-height:46px}
+  .logbox .g{color:#7fd99a} .logbox .y{color:#ffd87a} .logbox .r{color:#ff9a90}
+
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+  .legend{font-size:13px; color:var(--muted); text-align:center; margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 进程管理 · Ch2</div>
+  <h1>第 17 课 · 进程的三种状态与转换 <span style="font-size:16px;color:var(--muted)">（动手版）</span></h1>
+  <div class="sub">三个厨师抢一个灶台（CPU）。亲手点事件，看“进程小盘子”怎么在 就绪 / 运行 / 阻塞 之间跳。约 12 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>一句话先记：</b> <b style="color:var(--run)">运行</b>＝正占着 CPU 炒菜；<b style="color:var(--ready)">就绪</b>＝料备好了只差灶台；<b style="color:var(--block)">阻塞</b>＝缺酱油在等送货，<b>给灶台也没用</b>。
+</div>
+
+<h2>一、动手玩：进程状态机 🍳</h2>
+<p>下面的 🍽 就是一个进程。点蓝色按钮触发“合法事件”，点红色按钮试试“课本说不可能的转换”。看它走到哪、哪条箭头亮。</p>
+
+<div class="machine" id="machine">
+  <svg viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet">
+    <defs>
+      <marker id="arrow" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9bb4c4"/></marker>
+      <marker id="arrowLit" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#1f5d8a"/></marker>
+      <marker id="arrowBad" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#c98b85"/></marker>
+    </defs>
+    <!-- 就绪(180,322) 运行(500,125) 阻塞(820,322) -->
+    <!-- 就绪 -> 运行 (调度) 上侧线 -->
+    <path id="e_r2run" class="edge" d="M250,300 Q360,180 445,150"/>
+    <text class="elabel" x="300" y="205">调度①</text>
+    <!-- 运行 -> 就绪 (时间片) 下侧线 -->
+    <path id="e_run2r" class="edge" d="M455,175 Q330,250 250,345"/>
+    <text class="elabel" x="345" y="295">时间片②</text>
+    <!-- 运行 -> 阻塞 (I/O请求) -->
+    <path id="e_run2b" class="edge" d="M555,150 Q640,180 750,300"/>
+    <text class="elabel" x="640" y="200">I/O请求③</text>
+    <!-- 阻塞 -> 就绪 (I/O完成) 底部 -->
+    <path id="e_b2r" class="edge" d="M745,345 Q500,440 255,345"/>
+    <text class="elabel" x="470" y="430">I/O完成④</text>
+    <!-- 不可能: 阻塞 -> 运行 -->
+    <path id="e_b2run" class="edge imposs" d="M760,295 Q700,210 560,160"/>
+    <text class="elabel bad" x="690" y="250">✗阻塞→运行</text>
+    <!-- 不可能: 就绪 -> 阻塞 -->
+    <path id="e_r2b" class="edge imposs" d="M255,355 Q500,470 745,355"/>
+    <text class="elabel bad" x="430" y="468">✗就绪→阻塞</text>
+  </svg>
+  <div class="node" id="nReady"><div class="nm" style="color:var(--ready)">就绪</div><div class="en">Ready · 只差CPU</div></div>
+  <div class="node" id="nRun"><div class="nm" style="color:var(--run)">运行</div><div class="en">Running · 占着CPU</div></div>
+  <div class="node" id="nBlock"><div class="nm" style="color:var(--block)">阻塞</div><div class="en">Blocked · 等事件</div></div>
+  <div class="token" id="token">🍽️</div>
+</div>
+<div class="legend">实线 = 合法转换（4 条） · 红虚线 = 课本说“不可能”的转换（2 条）</div>
+
+<div class="controls">
+  <button class="btn" data-ev="r2run">① 调度：分配CPU</button>
+  <button class="btn" data-ev="run2r">② 时间片用完</button>
+  <button class="btn" data-ev="run2b">③ 发起I/O请求</button>
+  <button class="btn" data-ev="b2r">④ I/O完成</button>
+  <button class="btn danger" data-ev="b2run">试试：阻塞→运行</button>
+  <button class="btn danger" data-ev="r2b">试试：就绪→阻塞</button>
+  <button class="btn ghost" id="reset">↺ 回到就绪</button>
+</div>
+<div class="logbox" id="log">进程现在在 <b>就绪</b> 态（料备好了，就等灶台）。点“① 调度”让它上 CPU。</div>
+
+<h2>二、四条合法转换（课本原因）</h2>
+<table>
+  <tr><th>转换</th><th>触发原因</th><th>灶台画面</th></tr>
+  <tr><td><b>就绪→运行</b></td><td>调度程序把 CPU 分给它</td><td>灶台空了，轮到你上</td></tr>
+  <tr><td><b>运行→就绪</b></td><td>时间片用完 / 被抢占</td><td>到点被赶下灶台，回去排队（料还在）</td></tr>
+  <tr><td><b>运行→阻塞</b></td><td>运行中要等事件（如发 I/O）</td><td>炒一半缺酱油，主动让出灶台去等</td></tr>
+  <tr><td><b>阻塞→就绪</b></td><td>等的事件发生了（I/O 完成）</td><td>酱油到了，先回去排队（灶台可能有人）</td></tr>
+</table>
+
+<h2>三、两条“绝不可能”——考试必考</h2>
+<div class="callout bad">
+  <p><b>① 阻塞 → 运行：不可能。</b> 酱油刚到，你不能直接跳上灶台——灶台可能正被别人占着，必须先回<b>就绪队列排队</b>。<br>
+  <span style="color:var(--muted)">本质：得到资源 ≠ 得到 CPU，所以阻塞解除后只能进“就绪”，要 CPU 还得再被调度。</span></p>
+  <p><b>② 就绪 → 阻塞：不可能。</b> 就绪态没在运行，它<b>发不出 I/O 请求</b>，不缺任何“事件”，只缺 CPU，自然不会进入“等事件”的阻塞。<br>
+  <span style="color:var(--muted)">本质：没运行就不会主动去等事件。</span></p>
+</div>
+
+<h2>四、轮到你了</h2>
+<div class="quiz" id="q1"><div class="qq">Q1. 下列转换中，<b>不可能</b>发生的是？</div>
+  <button class="opt" data-ok="0">运行 → 就绪</button>
+  <button class="opt" data-ok="1">阻塞 → 运行</button>
+  <button class="opt" data-ok="0">就绪 → 运行</button>
+  <button class="opt" data-ok="0">运行 → 阻塞</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q2"><div class="qq">Q2. 一个进程 I/O 完成、等待的事件发生了，它会进入哪个状态？</div>
+  <button class="opt" data-ok="1">就绪态（要回队列等 CPU）</button>
+  <button class="opt" data-ok="0">直接进运行态</button>
+  <button class="opt" data-ok="0">还留在阻塞态</button>
+  <button class="opt" data-ok="0">被撤销</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q3"><div class="qq">Q3. “给它 CPU 也没用、必须等某事件”说的是哪个状态？</div>
+  <button class="opt" data-ok="0">就绪态</button>
+  <button class="opt" data-ok="0">运行态</button>
+  <button class="opt" data-ok="1">阻塞态</button>
+  <button class="opt" data-ok="0">终止态</button>
+  <div class="fb"></div></div>
+
+<h2>五、通关条件</h2>
+<div class="callout ok">
+  用你自己的话回答：<br>
+  ① 就绪 和 阻塞 都“没在运行”，它们最根本的区别是什么？<br>
+  ② 为什么“阻塞→运行”不可能，只能“阻塞→就绪”？<br>
+  ③ 哪两条转换是不可能的？
+</div>
+
+<footer>
+  <p>📌 有些教材是“五态”：再加 <b>新建</b>（刚创建还没进就绪）和 <b>终止</b>（运行完/被撤销）。三态是核心，五态只是首尾各加一个。</p>
+  <p>来源：汤小丹《计算机操作系统》第四版 · 课件 <code>2_进程管理/ppt文本.md（进程的三种基本状态及转换）</code>。</p>
+</footer>
+
+</div>
+<script>
+// 节点中心（SVG 坐标，对应 viewBox 1000x520）→ 百分比定位 token
+var POS = {
+  ready:  {x:18, y:62},
+  running:{x:50, y:24},
+  blocked:{x:82, y:62}
+};
+var NODE = {ready:"nReady", running:"nRun", blocked:"nBlock"};
+// 合法转换表：事件 -> {from, to, edge, log}
+var TRANS = {
+  r2run: {from:"ready",   to:"running", edge:"e_r2run", msg:'<span class="g">就绪 → 运行</span>：调度程序把 CPU 分给它，上灶台炒菜！'},
+  run2r: {from:"running", to:"ready",   edge:"e_run2r", msg:'<span class="g">运行 → 就绪</span>：时间片用完，被赶下灶台回去排队（料还在，随时能再上）。'},
+  run2b: {from:"running", to:"blocked", edge:"e_run2b", msg:'<span class="g">运行 → 阻塞</span>：炒一半缺酱油（发起 I/O），主动让出灶台去等。'},
+  b2r:   {from:"blocked", to:"ready",   edge:"e_b2r",   msg:'<span class="g">阻塞 → 就绪</span>：酱油到了（I/O 完成），先回就绪队列排队——<b>不是</b>直接上灶台。'}
+};
+var IMPOSS = {
+  b2run: {edge:"e_b2run", msg:'<span class="r">✗ 阻塞 → 运行：不可能！</span> 事件等到了也不能直接跳上 CPU——灶台可能有人，必须先回<b>就绪</b>排队。'},
+  r2b:   {edge:"e_r2b",   msg:'<span class="r">✗ 就绪 → 阻塞：不可能！</span> 就绪态没在运行，发不出 I/O 请求，不缺任何事件，只缺 CPU，不会进入阻塞。'}
+};
+var cur = "ready";
+var token = document.getElementById("token");
+var logEl = document.getElementById("log");
+var CN = {ready:"就绪", running:"运行", blocked:"阻塞"};
+
+function placeToken(){
+  token.style.left = POS[cur].x + "%";
+  token.style.top  = POS[cur].y + "%";
+  Object.keys(NODE).forEach(function(s){
+    document.getElementById(NODE[s]).classList.toggle("here", s===cur);
+  });
+}
+function litEdge(id){
+  var e = document.getElementById(id);
+  e.classList.add("lit");
+  setTimeout(function(){ e.classList.remove("lit"); }, 700);
+}
+function log(html){ logEl.innerHTML = html; }
+
+document.querySelectorAll("[data-ev]").forEach(function(b){
+  b.addEventListener("click", function(){
+    var ev = b.dataset.ev;
+    if(IMPOSS[ev]){ litEdge(IMPOSS[ev].edge); log(IMPOSS[ev].msg); return; }
+    var t = TRANS[ev];
+    if(cur !== t.from){
+      log('<span class="y">现在做不了。</span>“'+b.textContent.trim()+'”要从 <b>'+CN[t.from]+'</b> 态出发，可它现在在 <b>'+CN[cur]+'</b> 态。');
+      return;
+    }
+    cur = t.to; placeToken(); litEdge(t.edge); log(t.msg);
+  });
+});
+document.getElementById("reset").addEventListener("click", function(){
+  cur="ready"; placeToken(); log('已回到 <b>就绪</b> 态。');
+});
+placeToken();
+
+// 自测批改
+var FB={
+  q1:{good:'对！阻塞解除后只能回“就绪”排队，不能直接“运行”。',bad:'答案是“阻塞→运行”：得到资源≠得到CPU，必须先回就绪。'},
+  q2:{good:'对！事件发生 → 阻塞→就绪，回队列等 CPU，而不是直接运行。',bad:'是“就绪态”：阻塞→就绪，要重新排队等 CPU，不能直接上运行。'},
+  q3:{good:'对！阻塞态＝在等事件，给 CPU 也没用。',bad:'是“阻塞态”：它在等某个事件，即使分给它 CPU 也无法运行。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      if(ok)q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

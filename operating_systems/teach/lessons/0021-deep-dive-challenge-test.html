@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 21 课 · 深挖挑战卷 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e;
+    --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:860px; margin:0 auto; padding:40px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  p{margin:10px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:center}
+  th{background:#eaf1f6; font-weight:600}
+  .scorebar{position:sticky; top:0; background:rgba(250,250,247,.96); backdrop-filter:blur(4px);
+    border-bottom:1px solid var(--line); padding:10px 0; margin:0 0 8px; font-weight:700; z-index:10}
+  .scorebar .num{color:var(--accent); font-size:18px}
+
+  .q{background:#fff; border:1px solid var(--line); border-radius:9px; padding:15px 17px; margin:14px 0}
+  .q .tag{font-size:11px; font-weight:700; padding:1px 8px; border-radius:20px; margin-left:8px; vertical-align:middle}
+  .tag.hard{background:#fdefe9; color:var(--bad); border:1px solid #e7b3a7}
+  .tag.calc{background:#fff7e6; color:var(--warn); border:1px solid #e8cf95}
+  .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:9px 13px; margin:6px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:13.5px; line-height:1.7}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .fb b.dig{color:var(--accent)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px;
+    border:1px dashed var(--accent); border-radius:6px; padding:6px 12px; display:inline-block; margin-top:6px}
+  .ans{display:none; margin-top:12px; padding:12px 15px; background:#f7faf8; border:1px solid var(--line); border-radius:8px; font-size:14px}
+  .ans.show{display:block}
+  .ans h4{margin:2px 0 8px; color:var(--ok)}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 综合深挖 · Ch2–Ch5</div>
+  <h1>第 21 课 · 深挖挑战卷</h1>
+  <div class="sub">10 选择 + 5 判断（点完即时讲解）· 3 计算 + 4 简答（给参考答案）。专挑陷阱与“为什么”。</div>
+</header>
+
+<div class="scorebar">客观题得分：<span class="num"><span id="score">0</span> / 15</span> ·（每题答对 +1，错了不扣，可改）</div>
+
+<h2>一、选择题（10 题，每题专挑一个易错点）</h2>
+
+<div class="q" data-obj><div class="qq">1. 系统进入“不安全状态”后，是否一定发生死锁？<span class="tag hard">陷阱</span></div>
+  <button class="opt" data-ok="0">一定会立刻死锁</button>
+  <button class="opt" data-ok="1">不一定，不安全只是“可能”导致死锁的风险区</button>
+  <button class="opt" data-ok="0">安全状态才会死锁</button>
+  <button class="opt" data-ok="0">不安全状态 = 死锁状态</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">2. 下列页面置换算法中，<b>可能出现 Belady 异常</b>的是？<span class="tag hard">陷阱</span></div>
+  <button class="opt" data-ok="0">LRU</button>
+  <button class="opt" data-ok="0">OPT（最佳）</button>
+  <button class="opt" data-ok="1">FIFO</button>
+  <button class="opt" data-ok="0">LRU 和 OPT</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">3. 一个处于<b>阻塞态</b>的进程，其等待的事件发生（被唤醒）后，将变为？</div>
+  <button class="opt" data-ok="0">运行态</button>
+  <button class="opt" data-ok="1">就绪态</button>
+  <button class="opt" data-ok="0">仍是阻塞态</button>
+  <button class="opt" data-ok="0">新建态</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">4. 同一进程的两个线程之间，下列哪一项是各线程<b>私有</b>的？<span class="tag hard">陷阱</span></div>
+  <button class="opt" data-ok="0">全局变量</button>
+  <button class="opt" data-ok="0">已打开的文件</button>
+  <button class="opt" data-ok="1">栈和程序计数器 PC</button>
+  <button class="opt" data-ok="0">代码段</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">5. DMA 方式下，在<b>一个数据块</b>的传输期间，CPU 的参与情况是？</div>
+  <button class="opt" data-ok="0">全程逐字节搬运</button>
+  <button class="opt" data-ok="1">仅在数据块传输的开始和结束时干预</button>
+  <button class="opt" data-ok="0">整个过程完全不参与（连启动都不用）</button>
+  <button class="opt" data-ok="0">处于忙等状态</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">6. 段页式存储管理中，访问一个内存数据（<b>无快表</b>）通常需访问内存几次？<span class="tag hard">陷阱</span></div>
+  <button class="opt" data-ok="0">1 次</button>
+  <button class="opt" data-ok="0">2 次</button>
+  <button class="opt" data-ok="1">3 次（查段表 + 查页表 + 取数据）</button>
+  <button class="opt" data-ok="0">4 次</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">7. 抖动（thrashing）的根本原因是？</div>
+  <button class="opt" data-ok="0">CPU 主频太低</button>
+  <button class="opt" data-ok="1">分配给进程的页框太少，装不下它的工作集</button>
+  <button class="opt" data-ok="0">磁盘容量不足</button>
+  <button class="opt" data-ok="0">页面尺寸过大</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">8. 某信号量 S 的当前值为 <b>−3</b>，它表示？<span class="tag hard">陷阱</span></div>
+  <button class="opt" data-ok="0">还有 3 个该类资源可用</button>
+  <button class="opt" data-ok="1">有 3 个进程在该信号量的队列上等待</button>
+  <button class="opt" data-ok="0">有 3 个进程正在运行</button>
+  <button class="opt" data-ok="0">临界区里有 3 个进程</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">9. 下列做法中，属于“破坏<b>环路等待</b>条件”来预防死锁的是？<span class="tag hard">陷阱</span></div>
+  <button class="opt" data-ok="0">一次性把所需资源全部分配</button>
+  <button class="opt" data-ok="0">申请不到就释放已占有的资源</button>
+  <button class="opt" data-ok="1">对资源编号，要求按编号递增顺序申请</button>
+  <button class="opt" data-ok="0">用银行家算法判断安全性</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">10. 请求分页页表项中“<b>修改位 M</b>”的主要作用是？</div>
+  <button class="opt" data-ok="0">指示该页是否在内存</button>
+  <button class="opt" data-ok="1">决定该页换出时是否需要写回外存</button>
+  <button class="opt" data-ok="0">记录该页被访问的次数</button>
+  <button class="opt" data-ok="0">记录该页在外存的地址</button>
+  <div class="fb"></div></div>
+
+<h2>二、判断题（5 题）</h2>
+
+<div class="q" data-obj><div class="qq">11. 系统若处于安全状态，则一定不会发生死锁。</div>
+  <button class="opt" data-ok="1">正确</button>
+  <button class="opt" data-ok="0">错误</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">12. 给进程增加内存页框数，缺页次数一定减少。<span class="tag hard">陷阱</span></div>
+  <button class="opt" data-ok="0">正确</button>
+  <button class="opt" data-ok="1">错误</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">13. 线程是系统进行资源分配的基本单位。<span class="tag hard">陷阱</span></div>
+  <button class="opt" data-ok="0">正确</button>
+  <button class="opt" data-ok="1">错误</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">14. DMA 方式以“数据块”为传输单位，中断驱动方式以“字（字节）”为单位。</div>
+  <button class="opt" data-ok="1">正确</button>
+  <button class="opt" data-ok="0">错误</button>
+  <div class="fb"></div></div>
+
+<div class="q" data-obj><div class="qq">15. SPOOLing 技术能把独占设备改造成可共享的虚拟设备。</div>
+  <button class="opt" data-ok="1">正确</button>
+  <button class="opt" data-ok="0">错误</button>
+  <div class="fb"></div></div>
+
+<h2>三、计算大题（3 题，先自己做，再看参考答案）</h2>
+
+<div class="q"><div class="qq">16. 银行家算法 <span class="tag calc">计算</span></div>
+  <p>系统有 A、B、C 三类资源，总量为 (10, 5, 7)。T0 时刻各进程情况如下：</p>
+  <table>
+    <tr><th>进程</th><th colspan="3">Allocation</th><th colspan="3">Max</th></tr>
+    <tr><th></th><th>A</th><th>B</th><th>C</th><th>A</th><th>B</th><th>C</th></tr>
+    <tr><td>P0</td><td>0</td><td>1</td><td>0</td><td>7</td><td>5</td><td>3</td></tr>
+    <tr><td>P1</td><td>2</td><td>0</td><td>0</td><td>3</td><td>2</td><td>2</td></tr>
+    <tr><td>P2</td><td>3</td><td>0</td><td>2</td><td>9</td><td>0</td><td>2</td></tr>
+    <tr><td>P3</td><td>2</td><td>1</td><td>1</td><td>2</td><td>2</td><td>2</td></tr>
+    <tr><td>P4</td><td>0</td><td>0</td><td>2</td><td>4</td><td>3</td><td>3</td></tr>
+  </table>
+  <p>(1) 求 Available 和各进程 Need；(2) 系统是否安全？给出一个安全序列；(3) 若 P1 发出请求 Request₁=(1,0,2)，能否分配？为什么？</p>
+  <span class="reveal" onclick="tog('a16')">▸ 显示参考答案</span>
+  <div class="ans" id="a16">
+    <h4>参考答案</h4>
+    <p><b>(1)</b> 已分配合计 = (7,2,5)，故 <b>Available = (10,5,7) − (7,2,5) = (3,3,2)</b>。<br>
+    Need = Max − Allocation：P0(7,4,3)、P1(1,2,2)、P2(6,0,0)、P3(0,1,1)、P4(4,3,1)。</p>
+    <p><b>(2) 安全。</b> 跑安全性算法（Work 从 (3,3,2) 起）：<br>
+    P1 Need(1,2,2)≤(3,3,2) ✅ → Work=(3,3,2)+(2,0,0)=<b>(5,3,2)</b><br>
+    P3 Need(0,1,1)≤(5,3,2) ✅ → +(2,1,1)=<b>(7,4,3)</b><br>
+    P4 Need(4,3,1)≤(7,4,3) ✅ → +(0,0,2)=<b>(7,4,5)</b><br>
+    P0 Need(7,4,3)≤(7,4,5) ✅ → +(0,1,0)=<b>(7,5,5)</b><br>
+    P2 Need(6,0,0)≤(7,5,5) ✅ → +(3,0,2)=<b>(10,5,7)</b><br>
+    全部完成 → 安全序列 <b>&lt;P1, P3, P4, P0, P2&gt;</b>（不唯一）。</p>
+    <p><b>(3) 能分配。</b> ① Request₁(1,0,2) ≤ Need₁(1,2,2) ✅；② ≤ Available(3,3,2) ✅。试探分配后：Available=(2,3,0)，Alloc₁=(3,0,2)，Need₁=(0,2,0)。再跑安全性算法仍能找到安全序列（如 &lt;P1,P3,P4,P0,P2&gt;）→ 安全 → <b>可以分配</b>。</p>
+    <p><b class="dig">深挖：</b> 第 (3) 问必须“试探分配 + 重跑安全性检查”，不能只看 Request≤Available 就给——那只是必要条件，不是充分条件。</p>
+  </div>
+</div>
+
+<div class="q"><div class="qq">17. 页面置换：FIFO vs LRU <span class="tag calc">计算</span></div>
+  <p>分配 <b>3 个</b>物理块，页面访问串为：<code>7 0 1 2 0 3 0 4 2 3 0 3 2</code>（开始物理块为空，每次调入算一次缺页）。<br>分别用 <b>FIFO</b> 和 <b>LRU</b>，求缺页次数。</p>
+  <span class="reveal" onclick="tog('a17')">▸ 显示参考答案</span>
+  <div class="ans" id="a17">
+    <h4>参考答案</h4>
+    <p><b>FIFO = 10 次缺页。</b> 命中的只有第 5 个(0)、第 12 个(3)、第 13 个(2) 三次，其余 10 次均缺页。<br>
+    淘汰永远赶走“最早进来”的页：…到第 11 个访问 0 时，把 4 换出得 {2,3,0}，最后 3、2 命中。</p>
+    <p><b>LRU = 9 次缺页。</b> 淘汰“最久未被访问”的页。关键差异在序列后段：LRU 因为 0 被反复访问而把它保住，比 FIFO 少缺一次。</p>
+    <p><b class="dig">深挖：</b> 同一串、同样 3 块，<b>LRU(9) 比 FIFO(10) 少</b>——印证 LRU 利用了“最近用过的很可能再用”（局部性），通常优于 FIFO。但注意：这并不是绝对的，关键看访问串。</p>
+  </div>
+</div>
+
+<div class="q"><div class="qq">18. 混合索引：文件最大长度 <span class="tag calc">计算</span></div>
+  <p>某文件系统 inode 含 <b>10 个直接块</b>、<b>1 个一级间接</b>、<b>1 个二级间接</b>、<b>1 个三级间接</b>。盘块大小 <b>1KB</b>，每个盘块号占 <b>4 字节</b>。求单个文件最大可寻址的块数与大小。</p>
+  <span class="reveal" onclick="tog('a18')">▸ 显示参考答案</span>
+  <div class="ans" id="a18">
+    <h4>参考答案</h4>
+    <p>每块能放 1KB ÷ 4B = <b>256</b> 个块号。</p>
+    <ul>
+      <li>直接：10 块</li>
+      <li>一级间接：256 块</li>
+      <li>二级间接：256 × 256 = 65 536 块</li>
+      <li>三级间接：256 × 256 × 256 = 16 777 216 块</li>
+    </ul>
+    <p>合计 ≈ 10 + 256 + 65 536 + 16 777 216 = <b>16 843 018 块</b>，每块 1KB → 最大文件 ≈ <b>16 843 018 KB ≈ 16 GB</b>。</p>
+    <p><b class="dig">深挖：</b> 容量几乎全部来自三级间接（≈16GB），直接块只占 10KB。混合索引的精妙：<b>小文件用直接块（一跳就到，快）；大文件靠多级间接（慢一点但能寻址巨大空间）</b>——兼顾两端。</p>
+  </div>
+</div>
+
+<h2>四、简答深挖（4 题，写出“为什么”）</h2>
+
+<div class="q"><div class="qq">19. 为什么进程“阻塞→运行”不可能，只能“阻塞→就绪”？</div>
+  <span class="reveal" onclick="tog('a19')">▸ 显示参考答案</span>
+  <div class="ans" id="a19"><h4>参考答案</h4>
+  <p>阻塞解除只意味着进程<b>等待的事件发生了（重新具备运行条件）</b>，但它<b>还没拿到 CPU</b>。CPU 此刻可能正被别的进程占用，是否分配 CPU 由<b>进程调度程序</b>决定。所以被唤醒的进程只能先进入<b>就绪队列</b>排队，等到被调度才转入运行。<br>
+  <b class="dig">一句话：得到资源 ≠ 得到 CPU，必须经“就绪”中转。</b></p></div>
+</div>
+
+<div class="q"><div class="qq">20. 银行家算法为什么属于“避免”而不是“预防”？二者根本区别是什么？</div>
+  <span class="reveal" onclick="tog('a20')">▸ 显示参考答案</span>
+  <div class="ans" id="a20"><h4>参考答案</h4>
+  <p><b>预防</b>：事先<b>破坏</b>四个必要条件之一（如一次性分配全部资源、按序申请），从规则上断绝死锁可能，但代价是资源利用率低。<br>
+  <b>避免</b>：<b>不破坏任何必要条件</b>，资源仍可动态申请；只是在每次分配前用银行家算法<b>预演</b>，判断分配后是否进入<b>不安全状态</b>，安全才分配。<br>
+  <b class="dig">根本区别：预防＝改规则断根；避免＝规则不变、每步预演绕开死路。银行家算法是后者。</b></p></div>
+</div>
+
+<div class="q"><div class="qq">21. 为什么 DMA 方式比中断驱动方式能“成百倍”减少 CPU 干预？</div>
+  <span class="reveal" onclick="tog('a21')">▸ 显示参考答案</span>
+  <div class="ans" id="a21"><h4>参考答案</h4>
+  <p>中断驱动方式下，每传输<b>一个字（字节）</b>设备就中断 CPU 一次，由 CPU 把这个字从控制器搬到内存——传一个数据块要中断成百上千次。<br>
+  DMA 方式下，数据<b>由 DMA 控制器直接在设备与内存之间成块传送</b>，CPU <b>只在一个数据块的开始（启动）和结束（收尾中断）时</b>各干预一次。于是一个块只打扰 CPU 1～2 次，而不是几百上千次。<br>
+  <b class="dig">关键：干预的“单位”从“字”升级到“块”，且数据通路绕开了 CPU。</b></p></div>
+</div>
+
+<div class="q"><div class="qq">22. Belady 异常说明了什么？为什么 LRU、OPT 不会出现？</div>
+  <span class="reveal" onclick="tog('a22')">▸ 显示参考答案</span>
+  <div class="ans" id="a22"><h4>参考答案</h4>
+  <p>Belady 异常说明：<b>“分配更多内存（页框）”并不总能减少缺页</b>——在 FIFO 下，增加页框反而可能使缺页率升高。这打破了“内存越大越好”的直觉。<br>
+  原因：FIFO 只按“进入时间”淘汰，与“是否还要用”无关，缺乏单调性。而 LRU、OPT 属于<b>栈式算法</b>：满足“堆栈性质”——<b>n+1 个页框时驻留的页集合，必然包含 n 个页框时的页集合</b>，所以增加页框只会让缺页不增（单调），不会出现异常。<br>
+  <b class="dig">一句话：FIFO 无单调性会反常；栈式算法（LRU/OPT）有单调性，绝不会 Belady。</b></p></div>
+</div>
+
+<div class="callout" id="finalNote" style="display:none">
+  <b>🎯 客观题成绩出来了（见顶部）。</b> 全部做完后，把<b>计算题和简答题</b>也展开对答案。错的题别只看答案——回到对应可视化课程（0016~0020）重玩一遍那一节，然后回来告诉我你的错因，我帮你补最后这块短板。
+</div>
+
+<footer>
+  <p>覆盖：死锁/银行家、进程状态、进程vs线程、虚拟内存(Belady/抖动)、分页vs分段/段页式、I/O控制方式/缓冲/SPOOLing、页面置换、混合索引。</p>
+  <p>难度定位：贴近学校自命题的“拔高 + 易错点”，非 408 偏题。来源：汤小丹《计算机操作系统》第四版相关章节。</p>
+</footer>
+
+</div>
+<script>
+function tog(id){ document.getElementById(id).classList.toggle('show'); }
+
+var FB={
+ 1:{good:'对！死锁一定是不安全状态，但不安全状态≠死锁——它只是“有可能”走向死锁的风险区，若后续按安全方式分配仍可能安然脱险。',
+    bad:'不安全状态≠死锁。死锁⊂不安全状态：所有死锁都处于不安全态，但不安全态不一定死锁（只是风险）。'},
+ 2:{good:'对！只有 FIFO 会出现 Belady 异常；LRU、OPT 是栈式算法，有单调性，绝不会。',
+    bad:'答案是 FIFO。Belady 异常仅出现在 FIFO；LRU/OPT（栈式算法）增加页框缺页只减不增。'},
+ 3:{good:'对！被唤醒只是“具备运行条件”，还没拿到 CPU，必须先回就绪队列排队。',
+    bad:'是“就绪态”。得到资源≠得到CPU，被唤醒只能进就绪，等调度才运行。'},
+ 4:{good:'对！同进程线程共享代码段/全局变量/打开的文件，私有的是栈、PC、寄存器。',
+    bad:'私有的是“栈和PC”。代码段、全局变量、打开的文件都是同进程线程共享的。'},
+ 5:{good:'对！DMA 只在数据块的开始（启动）和结束（中断收尾）干预，块内传输不需 CPU。',
+    bad:'是“仅在块的开始和结束干预”。注意启动仍需 CPU，不是“完全不参与”。'},
+ 6:{good:'对！查段表→查页表→取数据，共 3 次访存，所以才要用快表加速。',
+    bad:'是 3 次：段表 1 次 + 页表 1 次 + 取数据 1 次。无快表时段页式访存开销大。'},
+ 7:{good:'对！页框太少装不下工作集，刚换出的页马上又要用，反复换页 → 抖动。',
+    bad:'根本原因是“页框太少、装不下工作集”，导致页面频繁换入换出。'},
+ 8:{good:'对！S<0 时，|S| = 在该信号量队列上等待的进程数；这里 −3 即 3 个进程在等。',
+    bad:'S=−3 表示有 3 个进程在等待。规则：S>0 时其值=可用资源数；S<0 时 |S|=等待进程数。'},
+ 9:{good:'对！“按编号递增顺序申请”破坏的是环路等待条件。',
+    bad:'是“按编号顺序申请”。一次性全分配=破请求保持；得不到就释放=破不剥夺；银行家=避免（不破坏条件）。'},
+ 10:{good:'对！M=1 说明该页被改过，换出时要写回外存；M=0 可直接丢弃，省一次写盘。',
+    bad:'修改位 M 决定换出时是否需写回外存。在不在内存看状态位 P，访问次数看 A。'},
+ 11:{good:'对！安全状态存在安全序列，一定能让所有进程完成，不会死锁。',
+    bad:'正确。安全状态⇒存在安全序列⇒不会死锁。（反之不安全不一定死锁）'},
+ 12:{good:'对！这正是 Belady 异常：FIFO 下增加页框缺页反而可能增多。',
+    bad:'错误。FIFO 存在 Belady 异常，增加页框缺页可能不减反增。'},
+ 13:{good:'对！进程才是资源分配的基本单位，线程是 CPU 调度/执行的基本单位。',
+    bad:'错误。资源分配单位是“进程”，线程是“调度/执行”单位。'},
+ 14:{good:'对！DMA 以块为单位、中断以字为单位，这是两者的关键分界。',
+    bad:'正确无误：DMA=块，中断驱动=字。'},
+ 15:{good:'对！SPOOLing 用磁盘输出井排队，把独占的打印机变成共享的虚拟设备。',
+    bad:'正确。SPOOLing 把独占设备改造成可共享的虚拟设备。'}
+};
+var answered={}, score=0;
+document.querySelectorAll('.q[data-obj]').forEach(function(q,idx){
+  var n=idx+1; var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.innerHTML=ok?FB[n].good:FB[n].bad;
+      if(!answered[n] && ok){ score++; }
+      if(answered[n]==='ok' && !ok){ score--; }
+      answered[n]= ok?'ok':'no';
+      document.getElementById('score').textContent=score;
+      if(Object.keys(answered).length>=15) document.getElementById('finalNote').style.display='block';
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>操作系统期末考 · 逐题精讲</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 40px 20px;
+        color: #2b2b2b;
+    }
+
+    .container {
+        max-width: 980px;
+        margin: 0 auto;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        padding: 40px;
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+        border-bottom: 3px solid #667eea;
+        padding-bottom: 20px;
+    }
+    .header h1 { font-size: 2em; color: #333; margin-bottom: 10px; }
+    .header p { font-size: 1.05em; color: #666; margin: 5px 0; }
+
+    /* 全局地图 */
+    .map {
+        background: #f0f4ff;
+        border: 2px solid #667eea;
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin-bottom: 30px;
+        line-height: 1.8;
+    }
+    .map h2 { color: #667eea; font-size: 1.2em; margin-bottom: 10px; }
+    .map .pillars {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-top: 12px;
+    }
+    .pillar {
+        background: white;
+        border-radius: 8px;
+        padding: 12px 14px;
+        border-left: 4px solid #764ba2;
+    }
+    .pillar b { color: #764ba2; }
+
+    /* 章节导航 */
+    .chapter-selector {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 10px;
+        margin-bottom: 30px;
+        padding: 18px;
+        background: #f5f5f5;
+        border-radius: 8px;
+        position: sticky;
+        top: 10px;
+        z-index: 10;
+    }
+    .chapter-btn {
+        padding: 10px 12px;
+        border: 2px solid #ddd;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.2s;
+        font-size: 0.9em;
+    }
+    .chapter-btn:hover { border-color: #667eea; background: #f0f4ff; }
+    .chapter-btn.active { background: #667eea; color: white; border-color: #667eea; }
+
+    .chapter-title {
+        font-size: 1.5em;
+        color: #764ba2;
+        margin: 30px 0 6px;
+        padding-bottom: 8px;
+        border-bottom: 2px dashed #ccc;
+    }
+    .chapter-intro {
+        background: #fff8e1;
+        border-left: 4px solid #ffb300;
+        padding: 12px 16px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        line-height: 1.7;
+        color: #5d4037;
+    }
+
+    .question-block {
+        margin-bottom: 22px;
+        padding: 20px;
+        background: #f9f9f9;
+        border-left: 4px solid #667eea;
+        border-radius: 6px;
+    }
+    .question-number {
+        font-weight: bold;
+        color: #667eea;
+        font-size: 0.95em;
+        margin-bottom: 8px;
+    }
+    .question-text {
+        font-size: 1.08em;
+        color: #222;
+        margin-bottom: 14px;
+        line-height: 1.6;
+        font-weight: 600;
+    }
+    .opt {
+        padding: 7px 12px;
+        margin: 5px 0;
+        border-radius: 6px;
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        line-height: 1.5;
+    }
+    .opt.correct {
+        background: #e8f5e9;
+        border-color: #4caf50;
+        font-weight: 600;
+    }
+    .opt .badge {
+        display: inline-block;
+        font-size: 0.75em;
+        background: #4caf50;
+        color: white;
+        padding: 1px 8px;
+        border-radius: 10px;
+        margin-left: 8px;
+        vertical-align: middle;
+    }
+    .opt .letter { font-weight: bold; color: #667eea; margin-right: 6px; }
+    .opt.correct .letter { color: #2e7d32; }
+
+    .explain {
+        margin-top: 14px;
+        padding: 14px 16px;
+        background: #fff;
+        border-radius: 6px;
+        border: 1px solid #d6def7;
+        line-height: 1.75;
+    }
+    .explain .why-label {
+        font-weight: bold;
+        color: #764ba2;
+        display: block;
+        margin-bottom: 6px;
+    }
+    .explain code {
+        background: #eef1fb;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-family: "SF Mono", Monaco, Consolas, monospace;
+        font-size: 0.9em;
+        color: #c2185b;
+    }
+    .tag {
+        display: inline-block;
+        font-size: 0.78em;
+        background: #ede7f6;
+        color: #5e35b1;
+        padding: 2px 10px;
+        border-radius: 12px;
+        margin-top: 10px;
+        font-weight: bold;
+    }
+    .mnemonic {
+        margin-top: 10px;
+        font-size: 0.92em;
+        color: #00695c;
+        background: #e0f2f1;
+        padding: 8px 12px;
+        border-radius: 6px;
+    }
+    .mnemonic b { color: #004d40; }
+
+    .footer-note {
+        margin-top: 40px;
+        padding: 20px;
+        background: #f0f4ff;
+        border-radius: 8px;
+        text-align: center;
+        color: #555;
+        line-height: 1.8;
+    }
+    .footer-note a { color: #667eea; font-weight: bold; }
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>操作系统期末考 · 逐题精讲</h1>
+        <p>把诊断测试的每一道题，拆成「为什么」与「考点」</p>
+        <p style="font-size:0.95em;color:#999;">配套文件：DIAGNOSTIC-TEST.html（先做题，再回这里对照）</p>
+    </div>
+
+    <div class="map">
+        <h2>🗺️ 先建地图：操作系统就在管三样东西</h2>
+        操作系统的本质是<b>资源管理者</b>——它在硬件与应用之间，替你分配三类稀缺资源。
+        几乎每一道题，都能挂回到下面某一根柱子上。先记住这张地图，再看题，你会发现知识点不再零散。
+        <div class="pillars">
+            <div class="pillar"><b>CPU（时间）</b><br>谁来运行、运行多久、怎么协调 → 进程、同步、调度、死锁（Ch1-3）</div>
+            <div class="pillar"><b>内存（空间）</b><br>程序放哪、不够怎么办 → 分页/分段、虚拟存储、页面置换（Ch4-5）</div>
+            <div class="pillar"><b>磁盘（持久化）</b><br>文件怎么存、磁头怎么动 → 文件结构、磁盘调度（Ch6, Ch8）</div>
+        </div>
+    </div>
+
+    <div class="chapter-selector" id="chapters"></div>
+    <div id="content"></div>
+
+    <div class="footer-note">
+        每道题都标了 <span class="tag">考点</span>，那是考试真正想考你的那一句。<br>
+        先盖住答案自己想，再看绿色正确项与「为什么」。<br>
+        反复三遍，概念就从「背」变成「懂」。
+    </div>
+</div>
+
+<script>
+// 每题：q 题干, opts 选项, ans 正确下标, why 解析(HTML), tag 考点, mn 记忆法(可选)
+const chapters = {
+ch1: {
+    name: 'Ch1 引论',
+    intro: '本章是「定义与分类」之战。考试爱用相似术语设陷阱（网络OS vs 分布式OS、并发 vs 并行）。诀窍：抓住每类系统「最关心什么指标」。',
+    questions: [
+        { q: '操作系统是下列哪一类软件？', opts:['系统软件','应用软件','工具软件','语言处理程序'], ans:0,
+          why:'OS 直接管理硬件、向上为所有其他程序提供运行环境，是最底层的<b>系统软件</b>。应用软件（如微信）跑在它之上，编译器属于语言处理程序——它们都依赖 OS 才能运行。',
+          tag:'OS 的定位：硬件之上、应用之下', mn:'谁离硬件最近，谁就是系统软件。'},
+        { q:'操作系统的四大基本特征（口诀「并共异虚」）是？', opts:['并发、共享、虚拟、异步','并发、分时、实时、网络','批处理、分时、实时、网络','单道、多道、分时、实时'], ans:0,
+          why:'<b>并发</b>（多个程序宏观同时推进）、<b>共享</b>（资源被多个进程共用）、<b>虚拟</b>（一个物理资源变成多个逻辑资源，如时分复用CPU）、<b>异步</b>（进程走走停停、速度不可预测）。其中<b>并发与共享是两个最基本的特征，互为存在前提</b>。其余选项里的「分时/实时/批处理」是 OS 的<i>类型</i>，不是<i>特征</i>，别混。',
+          tag:'四大特征 = 并、共、虚、异', mn:'口诀「并共异虚」——并发共享是根，虚拟异步是果。'},
+        { q:'区分程序和进程最关键的 OS 特征是？', opts:['并发性','开放性','可移植性','安全性'], ans:0,
+          why:'程序是<b>静态</b>的代码文件（躺在磁盘上）；进程是程序的一次<b>动态执行</b>。正因为有「并发」，同一个程序可以同时存在多个进程（你开两个记事本），所以是<b>并发性</b>把「程序」和「进程」区分开。',
+          tag:'程序=静态，进程=动态执行的实例'},
+        { q:'以下哪种资源属于 CPU 管理的范畴？', opts:['进程调度','内存分配','磁盘读写','打印机使用'], ans:0,
+          why:'CPU 管理的核心就是<b>决定谁占用 CPU</b>——这正是「进程调度」。内存分配属于存储管理，磁盘读写/打印机属于设备（I/O）管理。对应地图里的三根柱子。',
+          tag:'四大管理：CPU/进程、存储、设备、文件'},
+        { q:'设计分时操作系统时，首先要考虑的是？', opts:['灵活性和可适应性','交互性和响应时间','周转时间和系统吞吐量','实时性和可靠性'], ans:1,
+          why:'分时系统多个用户在终端上轮流操作，最怕「我敲了键它半天不理我」。所以首要目标是<b>交互性与响应时间</b>——让每个用户感觉机器在专门服务自己。',
+          tag:'分时 → 响应时间'},
+        { q:'设计批处理系统时，首先要考虑的是？', opts:['灵活性和可适应性','交互性和响应时间','周转时间和系统吞吐量','实时性和可靠性'], ans:2,
+          why:'批处理把作业攒成一批一次跑完，没人盯着屏幕等，所以不在乎单次响应，而在乎<b>整体效率</b>——单位时间处理多少作业（吞吐量）、作业从提交到完成多久（周转时间）。',
+          tag:'批处理 → 吞吐量/周转时间'},
+        { q:'设计实时操作系统时，首先要考虑的是？', opts:['灵活性和可适应性','交互性和响应时间','周转时间和系统吞吐量','实时性和可靠性'], ans:3,
+          why:'实时系统（导弹制导、工业控制）要求在<b>规定的截止时间内</b>必须完成，错过就是事故。所以首要是<b>实时性与可靠性</b>——「按时」比「快」更重要。',
+          tag:'实时 → 截止时间/可靠性',
+          mn:'三类系统三个关键词：分时看「响应」、批处理看「吞吐」、实时看「按时」。'},
+        { q:'多个用户在终端设备上交互输入、排错和控制程序运行，是哪一种 OS？', opts:['批处理 OS','分时 OS','实时 OS','网络 OS'], ans:1,
+          why:'关键词是「交互输入、排错、控制运行」——用户实时地敲命令、看反馈，这正是<b>分时 OS</b>的工作方式（每人分一个时间片轮流用 CPU）。',
+          tag:'交互+终端 = 分时'},
+        { q:'把一个程序划分成若干个同时执行的程序模块的设计方法是？', opts:['多重程序设计','多道程序设计','并发程序设计','分布式系统'], ans:2,
+          why:'注意问的是「把<b>一个</b>程序拆成同时执行的模块」——这是<b>并发程序设计</b>。区别于「多道程序设计」：后者指内存里同时放<b>多个不同作业</b>让 CPU 轮流跑。一个是程序内部并发，一个是程序之间并发。',
+          tag:'并发程序设计 vs 多道程序设计'},
+        { q:'由多个计算机组成、互相通信、共享资源、无主次之分的系统，对应的 OS 是？', opts:['网络 OS','分布式 OS','分时 OS','批处理 OS'], ans:1,
+          why:'最致命的陷阱题。区别在「<b>无主次之分</b>」：分布式 OS 各节点平等协作，对用户像一台机器；网络 OS 则有明确的主从（客户端/服务器），用户能感知到「这台机器」和「那台机器」的区别。',
+          tag:'分布式=平等/透明，网络=主从/可感知',
+          mn:'「透明、无主次」→ 分布式；「能看出谁是服务器」→ 网络。'},
+        { q:'系统调用是用户程序请求 OS 服务的接口，调用时会发生？', opts:['用户态 → 核心态 切换','核心态 → 用户态 切换','用户态内部切换','核心态内部切换'], ans:0,
+          why:'普通程序跑在<b>用户态</b>（权限受限，不能直接碰硬件）。当它需要 OS 帮忙（读文件、申请内存）时，通过系统调用触发一次「陷入」，CPU 从<b>用户态切到核心态</b>，由 OS 内核执行特权操作，完事再切回用户态。',
+          tag:'系统调用 = 用户态→核心态（陷入 trap）',
+          mn:'求 OS 办事 = 进核心态；办完 = 退回用户态。'},
+        { q:'微内核 OS 结构的主要缺点是？', opts:['灵活性低','性能开销大','可移植性差','不支持多线程'], ans:1,
+          why:'微内核把大部分服务（文件、驱动）从内核挪到用户态，内核只留最核心功能。好处是模块清晰、可靠、易扩展；代价是各服务之间要靠<b>消息传递 + 频繁的态切换</b>来通信，<b>性能开销大</b>。这是典型的「灵活性 vs 性能」权衡。',
+          tag:'微内核：可靠灵活，但消息传递慢'}
+    ]
+},
+ch2: {
+    name:'Ch2 进程同步',
+    intro:'本章只讲一件事：多个进程抢同一资源时如何「排队不打架」。核心工具是信号量(semaphore)与 PV 操作。把 P 理解成「拿/等」、V 理解成「放/通知」，全章贯通。',
+    questions:[
+        { q:'在多进程环境中，对共享资源的访问需要通过什么机制来保证？', opts:['中断','临界区保护','页面置换','文件锁'], ans:1,
+          why:'多个进程同时改同一份数据会产生「竞态」（race condition），结果不可预测。解决办法是把访问共享资源的那段代码圈成<b>临界区</b>，保证「同一时刻只有一个进程在里面」——这就是临界区保护。',
+          tag:'共享资源 → 临界区互斥'},
+        { q:'PV 操作中，P 操作的作用是？', opts:['信号量加 1','信号量减 1，如果为负则等待','进程创建','进程销毁'], ans:1,
+          why:'<code>P(S)</code>：先把信号量 <code>S</code> 减 1（表示「我要占用一个资源」），若结果 <code>&lt;0</code> 说明没资源了，进程<b>阻塞等待</b>。对应的 <code>V(S)</code> 把 <code>S</code> 加 1（释放资源），若有人在等就唤醒一个。',
+          tag:'P=申请(−1,可能等)，V=释放(+1,可能唤醒)',
+          mn:'P=Pass(想通过先减)，V=Verhoog(荷兰语"增加")。'},
+        { q:'信号量的初值应该是？', opts:['总是 0','可用资源的数量','进程数量','随意设置'], ans:1,
+          why:'信号量的物理意义就是「<b>当前可用资源的数量</b>」。比如有 3 台打印机，信号量初值设 3；用于互斥（只准一个进入临界区）时，初值设 1。初值绝不能随便填。',
+          tag:'信号量初值 = 可用资源数（互斥用 1）'},
+        { q:'生产者-消费者问题中，缓冲区满时生产者应该执行？', opts:['V(empty)','P(full)','P(empty)','V(full)'], ans:2,
+          why:'设两个信号量：<code>empty</code>=空槽数（初值=缓冲区大小），<code>full</code>=已填数（初值=0）。生产者每次放数据前要先<code>P(empty)</code>——申请一个空槽；若缓冲区满，<code>empty=0</code>，<code>P(empty)</code> 会让它阻塞等待。放完后再 <code>V(full)</code> 通知消费者。',
+          tag:'生产者：P(empty)…放…V(full)；消费者反过来',
+          mn:'生产者「消耗空、产生满」：P(empty)→V(full)。消费者镜像：P(full)→V(empty)。'},
+        { q:'哲学家进餐问题的关键在于避免？', opts:['等待太久','死锁','资源浪费','优先级倒置'], ans:1,
+          why:'5 个哲学家围桌、每人要拿左右两根筷子才能吃。若所有人同时拿起左手筷子再等右手——谁也等不到，全体卡死。这就是经典<b>死锁</b>场景。解法：限制同时进餐人数、或规定拿筷顺序（破坏循环等待）。',
+          tag:'哲学家进餐 = 演示死锁的经典模型'}
+    ]
+},
+ch3: {
+    name:'Ch3 调度死锁',
+    intro:'两个主题：①CPU 调度算法（谁先跑）；②死锁（互相等待、集体卡死）。死锁的「四个必要条件」是必背点，记住「缺一不可」——破坏任意一个就能预防死锁。',
+    questions:[
+        { q:'FCFS 调度算法的特点是？', opts:['最优的','非抢占式','响应时间短','自适应'], ans:1,
+          why:'FCFS（先来先服务）= 按到达顺序排队，一旦开始执行就一直跑到完，中途<b>不会被抢占</b>。它简单公平，但绝不「最优」：一个长作业排前面，后面短作业全得干等（护航效应）。',
+          tag:'FCFS = 非抢占、公平但可能护航'},
+        { q:'死锁产生的必要条件包括互斥、持有和等待、不可剥夺和？', opts:['优先级','循环等待','资源有限','进程多'], ans:1,
+          why:'死锁四大必要条件：<b>互斥</b>（资源不能共享）、<b>持有并等待</b>（占着A还要等B）、<b>不可剥夺</b>（不能强抢别人的）、<b>循环等待</b>（A等B、B等C、C等A形成环）。四个同时成立才会死锁，所以破坏任意一个即可预防。',
+          tag:'死锁四条件：互斥/持有等待/不可剥夺/循环等待',
+          mn:'记成「互、持、不、环」，破坏「环」最常用。'},
+        { q:'银行家算法属于以下哪种死锁处理方式？', opts:['预防','避免','检测','恢复'], ans:1,
+          why:'死锁处理四策略：预防（破坏必要条件，太死板）、<b>避免</b>（运行时判断「这次分配后系统是否仍安全」，安全才给）、检测（先让它死，再发现）、恢复（杀进程/回滚）。银行家算法每次分配前算「安全序列」，属于<b>避免</b>。',
+          tag:'银行家算法 = 死锁「避免」(找安全序列)'},
+        { q:'优先级反转问题可能发生在？', opts:['FCFS 调度','时间片轮转','优先级抢占式调度','任何调度方式'], ans:2,
+          why:'优先级反转：高优先级进程要的资源，被一个低优先级进程占着，而低优先级又被中等优先级抢占迟迟跑不完——结果高优先级被「间接」拖死。它只在<b>按优先级抢占</b>的调度里出现。解法：优先级继承。',
+          tag:'优先级反转 ⊂ 优先级抢占调度'},
+        { q:'短作业优先调度可能导致？', opts:['死锁','长作业饥饿','高 CPU 利用率','响应时间长'], ans:1,
+          why:'SJF（短作业优先）总让最短的先跑，平均周转时间最优。但如果短作业源源不断地来，长作业永远排不到——<b>饥饿（starvation）</b>。这是「最优」的代价。',
+          tag:'SJF：周转最优，但长作业饥饿',
+          mn:'饥饿≠死锁：饥饿是「一直轮不到」，死锁是「互相卡死」。'}
+    ]
+},
+ch4: {
+    name:'Ch4 存储管理',
+    intro:'本章解决「程序放进内存」的问题。核心是地址转换：CPU 用逻辑地址，内存用物理地址，靠页表/段表翻译。分页解决碎片，分段贴合程序逻辑结构。',
+    questions:[
+        { q:'分页存储中，逻辑地址转换为物理地址需要？', opts:['中断','页表查询','磁盘访问','重新编译'], ans:1,
+          why:'分页把逻辑地址拆成「页号 + 页内偏移」。用页号去<b>页表</b>查到对应的物理块号，再拼上偏移，就得到物理地址。整个过程由硬件 MMU 完成，无需中断或重编译。',
+          tag:'逻辑地址→(查页表)→物理地址',
+          mn:'页号是「查哪一行」，偏移是「行内第几个字节」。'},
+        { q:'页面的大小通常是？', opts:['1KB','4KB','1MB','随意大小'], ans:1,
+          why:'主流系统页面大小是 <b>4KB</b>（2¹²字节）。太小则页表项太多、开销大；太大则页内碎片浪费严重。4KB 是工程上的经典折中。',
+          tag:'典型页面大小 4KB'},
+        { q:'分段存储的优点包括？', opts:['物理地址连续','便于保护和共享','浪费内存少','寻址速度快'], ans:1,
+          why:'分段按程序的<b>逻辑结构</b>划分（代码段、数据段、栈段）。因为每段是一个有意义的逻辑单位，所以天然<b>便于按段设置权限（保护）、便于多进程共享同一个段</b>（如共享库）。代价是会产生外部碎片。',
+          tag:'分段：贴合逻辑、易保护与共享',
+          mn:'分页为了「省空间」，分段为了「合逻辑」。'},
+        { q:'虚拟存储技术基于什么原理？', opts:['时间局部性','空间局部性','程序局部性','以上都是'], ans:2,
+          why:'<b>程序局部性原理</b>是总称，包含两个方面：时间局部性（刚访问的东西很快会再访问，如循环）和空间局部性（访问了某地址，附近地址也快被访问，如数组）。正因程序只在「局部」活动，才能只把当前用到的页放内存、其余留磁盘——这就是虚拟存储的根基。',
+          tag:'虚存根基 = 程序局部性（时间+空间）',
+          mn:'本题选「程序局部性」是因为它是涵盖时间/空间两者的总原理。'},
+        { q:'缺页异常发生时，OS 需要？', opts:['中止程序','从磁盘加载页面','增加内存','重启系统'], ans:1,
+          why:'缺页（page fault）= CPU 要访问的页当前不在内存。OS 捕获这个异常后，<b>从磁盘把该页调入内存</b>（必要时先置换出一页腾位置），更新页表，再让指令重新执行。它是虚拟存储正常工作的一部分，不是错误。',
+          tag:'缺页 = 正常机制，触发磁盘调页'}
+    ]
+},
+ch5: {
+    name:'Ch5 虚拟存储',
+    intro:'接着 Ch4：内存装不下所有页时，该把谁换出去？这就是页面置换算法。记住排序：OPT（理论最优，不可实现）> LRU（看历史，近似最优）> FIFO（最简单，会犯傻）。',
+    questions:[
+        { q:'LRU 页面置换算法的原理是？', opts:['最早进入的页置换','最近最少使用的页置换','随意置换','最优的置换'], ans:1,
+          why:'LRU = Least Recently Used，置换<b>最久没被使用</b>的页。它依据局部性：最近没用的，将来大概也用不到。效果接近最优，但需记录每页最后访问时间，硬件成本高。注意别和「最早进入」（那是 FIFO）混。',
+          tag:'LRU = 淘汰最久未用（看过去）',
+          mn:'LRU 看「上次用是多久以前」，OPT 看「下次用是多久以后」。'},
+        { q:'OPT 算法是？', opts:['最差的算法','最优的算法','最实用的算法','最快的算法'], ans:1,
+          why:'OPT（最优置换）= 淘汰「未来最久才会被用到」的页，缺页率理论最低。但它需要<b>预知未来</b>的访问序列，现实中无法实现，只能作为评价其他算法好坏的<b>理论标尺</b>。',
+          tag:'OPT = 理论最优、不可实现的基准'},
+        { q:'Belady 异常发生在？', opts:['OPT','LRU','FIFO','SCAN'], ans:2,
+          why:'Belady 异常 = 分配的物理页框「增多」，缺页次数反而「增多」的反常现象。它只发生在 <b>FIFO</b> 上（因为 FIFO 不考虑使用频率，只看进入先后）。LRU、OPT 属于「栈算法」，天生免疫此异常。',
+          tag:'Belady 异常 ⊂ FIFO',
+          mn:'FIFO 太死板才会犯傻；越聪明的算法越不会出 Belady。'},
+        { q:'工作集概念用于？', opts:['加快磁盘速度','预测进程需要的页集合','增加 CPU 速度','减少进程数'], ans:1,
+          why:'工作集 = 进程在最近一段时间窗口内实际访问过的页面集合，用来<b>估计它当下真正需要多少页</b>。OS 据此给进程分配足够页框，避免抖动（thrashing）。',
+          tag:'工作集 = 进程近期所需页集合'},
+        { q:'缺页率高的原因通常是？', opts:['CPU 太慢','工作集与物理内存不匹配','磁盘满','进程太多'], ans:1,
+          why:'缺页率飙高的典型原因是：分给进程的物理页框装不下它的工作集，于是刚换出的页马上又要用、反复换入换出——这就是<b>抖动</b>。根因是<b>工作集与可用物理内存不匹配</b>。',
+          tag:'缺页率高的根因 = 工作集 > 物理内存（抖动）'}
+    ]
+},
+ch6: {
+    name:'Ch6 文件管理',
+    intro:'文件有「逻辑结构」（用户怎么看：流式/记录式）和「物理结构」（磁盘怎么存：连续/链接/索引）。UNIX 的混合索引(inode)是计算题高发点，务必会算最大文件大小。',
+    questions:[
+        { q:'文件的物理结构通常采用？', opts:['连续分配','链接分配','混合索引','以上都可以'], ans:3,
+          why:'三种物理结构各有用武之地：<b>连续分配</b>（顺序读快、但有碎片、难增长）、<b>链接分配</b>（无碎片、但随机访问慢）、<b>索引/混合索引</b>（兼顾随机访问与大文件，UNIX 采用）。所以「以上都可以」——视场景而定。',
+          tag:'物理结构三选项各有取舍'},
+        { q:'成组链接法的优点是？', opts:['简单快速','内存中只需保存当前组','不会碎片化','无需目录'], ans:1,
+          why:'成组链接法管理空闲块：把空闲块分组，每组的「组长块」记录下一组的地址。系统<b>内存里只需保留当前这一组的信息</b>，用完再读下一组进来，极大节省内存——这是它相对「空闲块全用链表串起来」的关键优势。',
+          tag:'成组链接：内存只驻留当前组'},
+        { q:'UNIX inode 包含几个直接指针？', opts:['10','12','13','15'], ans:0,
+          why:'经典 UNIX inode 有 <b>13</b> 个地址指针：前 <b>10</b> 个是<b>直接指针</b>（直接指向数据块），第 11 个一次间接、第 12 个二次间接、第 13 个三次间接。本题问「直接指针」个数，答案是 <b>10</b>。',
+          tag:'经典 UNIX：10 直接 + 1+1+1 间接 = 13 指针',
+          mn:'10 直接、3 间接（一/二/三次），共 13 项。'},
+        { q:'混合索引支持多大的文件大小（假设 block=1KB，指针=4B）？', opts:['10KB','1MB','约 16GB','无限制'], ans:2,
+          why:'每块 1KB、每指针 4B，故一块能装 <code>1024/4 = 256</code> 个指针。<br>• 直接：10 块 = 10KB<br>• 一次间接：256 块<br>• 二次间接：256² 块<br>• 三次间接：256³ ≈ 1677万块 × 1KB ≈ <b>16GB</b><br>三次间接项一项独大，总容量约 <b>16GB</b>。',
+          tag:'计算题：256³×1KB ≈ 16GB',
+          mn:'瓶颈在最高级间接：算到三次间接基本就是答案。'},
+        { q:'文件的逻辑结构包括？', opts:['有序文件和无序文件','流式文件','记录式文件','以上都是'], ans:3,
+          why:'逻辑结构是「用户眼中文件长什么样」。<b>流式文件</b>（无结构字节流，如 .txt）和<b>记录式文件</b>（由记录组成，可再分有序/无序）都是逻辑结构的分类，所以「以上都是」。注意它和物理结构（磁盘怎么放）是两回事。',
+          tag:'逻辑结构：流式 / 记录式（≠物理结构）'}
+    ]
+},
+ch8: {
+    name:'Ch8 磁盘调度',
+    intro:'磁盘最慢的动作是「磁头寻道」。所有磁盘调度算法都在优化磁头移动顺序以缩短寻道时间。记住四个：FCFS、SSTF、SCAN(电梯)、CSCAN(单向电梯)。',
+    questions:[
+        { q:'SCAN 磁盘调度算法的特点是？', opts:['按顺序处理','磁头往返扫描','最短寻道','随机处理'], ans:1,
+          why:'SCAN 又叫<b>电梯算法</b>：磁头朝一个方向移动、沿途顺路处理请求，到头再掉头往回扫，如此<b>往返扫描</b>。它避免了 SSTF 的饥饿问题，又比 FCFS 高效。',
+          tag:'SCAN = 电梯式往返扫描'},
+        { q:'CSCAN 相比 SCAN 的优势是？', opts:['更快','更公平，避免饥饿','更简单','内存占用少'], ans:1,
+          why:'SCAN 往返扫描时，刚被处理过的一端要等磁头折返回来才再被服务，两端等待不均。CSCAN（循环 SCAN）只朝<b>一个方向</b>扫，到头直接快速返回起点重新开始，让各磁道等待时间更<b>均匀公平</b>。',
+          tag:'CSCAN = 单向循环，更公平',
+          mn:'SCAN 像普通电梯（上下都停），CSCAN 像扶梯（只一个方向有效）。'},
+        { q:'SSTF 调度可能导致？', opts:['缓冲区溢出','长寻道时间','饥饿','中断丢失'], ans:2,
+          why:'SSTF（最短寻道时间优先）总挑离当前磁头最近的请求。若近处请求不断涌来，远处的请求会被一直「插队」，永远轮不到——<b>饥饿</b>。这与 SJF 导致长作业饥饿是同一类问题。',
+          tag:'SSTF：寻道短，但远处请求饥饿'},
+        { q:'磁盘 I/O 优化的首要目标是？', opts:['减少转动延迟','减少寻道时间','增加吞吐量','降低功耗'], ans:1,
+          why:'一次磁盘访问时间 = <b>寻道时间</b>（磁头移到目标磁道）+ 旋转延迟（盘片转到目标扇区）+ 传输时间。其中<b>寻道时间最长</b>，是机械臂的物理移动。所以磁盘调度的首要目标就是<b>减少寻道时间</b>。',
+          tag:'寻道时间是大头 → 首要优化目标'},
+        { q:'预读技术用于？', opts:['加快磁盘速度','利用时间局部性预加载数据','减少磁盘写入','压缩数据'], ans:1,
+          why:'预读（read-ahead）：在读某块时，<b>顺带把后面相邻的块也提前读进缓存</b>。它赌的是局部性——程序往往会顺序往下读。注意：预读主要依赖<b>空间局部性</b>（相邻数据），题目选项写「时间局部性」属于课程口径，关键是理解「提前加载、命中缓存」这件事。',
+          tag:'预读 = 用局部性提前缓存数据'}
+    ]
+}
+};
+
+const order = ['ch1','ch2','ch3','ch4','ch5','ch6','ch8'];
+
+function render(filter){
+    const content = document.getElementById('content');
+    content.innerHTML = '';
+    order.forEach(key=>{
+        if(filter && key!==filter) return;
+        const ch = chapters[key];
+        const title = document.createElement('div');
+        title.className='chapter-title';
+        title.textContent = ch.name;
+        content.appendChild(title);
+
+        const intro = document.createElement('div');
+        intro.className='chapter-intro';
+        intro.innerHTML = '💡 '+ch.intro;
+        content.appendChild(intro);
+
+        ch.questions.forEach((q,i)=>{
+            const block = document.createElement('div');
+            block.className='question-block';
+            const optsHtml = q.opts.map((o,oi)=>{
+                const isC = oi===q.ans;
+                return `<div class="opt ${isC?'correct':''}">
+                    <span class="letter">${String.fromCharCode(65+oi)}.</span>${o}
+                    ${isC?'<span class="badge">✓ 正确</span>':''}
+                </div>`;
+            }).join('');
+            block.innerHTML = `
+                <div class="question-number">${key.toUpperCase()} · 第 ${i+1} 题</div>
+                <div class="question-text">${q.q}</div>
+                ${optsHtml}
+                <div class="explain">
+                    <span class="why-label">🔍 为什么</span>
+                    ${q.why}
+                    <div class="tag">考点：${q.tag}</div>
+                    ${q.mn?`<div class="mnemonic"><b>🧠 记忆法：</b>${q.mn}</div>`:''}
+                </div>
+            `;
+            content.appendChild(block);
+        });
+    });
+    window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function buildNav(){
+    const nav = document.getElementById('chapters');
+    const all = document.createElement('button');
+    all.className='chapter-btn active';
+    all.textContent='全部';
+    all.onclick=()=>{setActive(all);render(null);};
+    nav.appendChild(all);
+    order.forEach(key=>{
+        const b=document.createElement('button');
+        b.className='chapter-btn';
+        b.textContent=chapters[key].name;
+        b.onclick=()=>{setActive(b);render(key);};
+        nav.appendChild(b);
+    });
+}
+function setActive(btn){
+    document.querySelectorAll('.chapter-btn').forEach(x=>x.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+buildNav();
+render(null);
+</script>
+</body>
+</html>

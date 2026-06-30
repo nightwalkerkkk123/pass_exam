@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>巩固练习① · 磁盘调度 + 页面置换 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:18px; margin:32px 0 10px; border-left:4px solid var(--accent); padding-left:10px}
+  .tag{display:inline-block; font-size:12px; padding:1px 8px; border-radius:10px; margin-left:8px; vertical-align:middle}
+  .tag.disk{background:#e7eefc; color:#234e9c}
+  .tag.page{background:#fdeede; color:#9c5a23}
+  .tag.trap{background:#fde7ea; color:#9c2330}
+  p{margin:10px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:6px 8px; text-align:center}
+  th{background:#eaf1f6}
+  .trace td,.trace th{font-family:"SF Mono",Menlo,monospace}
+  .trace .ref{font-weight:700; background:#f0f4f7}
+  .fault{background:#fdecea; color:var(--bad); font-weight:700}
+  .hit{background:#eaf6ee; color:var(--ok); font-weight:700}
+  .ev{color:var(--bad); font-weight:700}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:16px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:9px 13px; margin:6px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  .score{position:sticky; top:0; background:var(--ink); color:#fff; padding:10px 16px; border-radius:0 0 8px 8px;
+    font-size:15px; z-index:5; text-align:center}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="score" id="score">已答 0 / 7 · 正确 0</div>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 阶段巩固</div>
+  <h1>巩固练习 ①:磁盘调度 + 页面置换(混合)</h1>
+  <div class="sub">两个题型打散混在一起,先判断"该用哪招",再算。🔴 标记的是你以前踩过的坑,小心。</div>
+</header>
+
+<h2>第 1 题<span class="tag disk">磁盘 · FCFS</span></h2>
+<div class="quiz" id="q1">
+  <div class="qq">磁头在 <b>60</b>,请求到达顺序 <code>80, 30, 90, 50</code>,用 FCFS。总移动距离 = ?</div>
+  <button class="opt" data-ok="0">60</button>
+  <button class="opt" data-ok="1">170</button>
+  <button class="opt" data-ok="0">130</button>
+  <button class="opt" data-ok="0">200</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="tog('s1')">▸ 步骤</span>
+  <div id="s1" class="hidden"><p>60→80→30→90→50:20+50+60+40 = <b>170</b>。(按到达顺序,逐段 |差| 相加)</p></div>
+</div>
+
+<h2>第 2 题<span class="tag disk">磁盘 · SCAN</span></h2>
+<div class="quiz" id="q2">
+  <div class="qq">磁头在 <b>50</b>,请求 <code>20, 40, 70, 90</code>,先向<b>高</b>方向,用 SCAN(教材口径:到最后请求掉头)。总移动 = ?</div>
+  <button class="opt" data-ok="0">90</button>
+  <button class="opt" data-ok="1">110</button>
+  <button class="opt" data-ok="0">130</button>
+  <button class="opt" data-ok="0">160</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="tog('s2')">▸ 步骤</span>
+  <div id="s2" class="hidden"><p>向高:50→70→90(最后请求,掉头)→40→20。20+20+50+20 = <b>110</b>。</p></div>
+</div>
+
+<h2>第 3 题<span class="tag disk">磁盘 · CSCAN</span><span class="tag trap">🔴 你的坑:跳回要算</span></h2>
+<div class="quiz" id="q3">
+  <div class="qq">同上(磁头 50,请求 <code>20,40,70,90</code>,向高),改用 <b>CSCAN</b>。总移动 = ?</div>
+  <button class="opt" data-ok="0">60(漏算了跳回那一段)</button>
+  <button class="opt" data-ok="1">130</button>
+  <button class="opt" data-ok="0">110</button>
+  <button class="opt" data-ok="0">90</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="tog('s3')">▸ 步骤</span>
+  <div id="s3" class="hidden"><p>向高:50→70→90(最后),<b style="color:var(--bad)">跳回最低请求 20(这段 70 要算!)</b>→40。20+20+<b>70</b>+20 = <b>130</b>。</p></div>
+</div>
+
+<h2>第 4 题<span class="tag disk">磁盘 · 概念</span></h2>
+<div class="quiz" id="q4">
+  <div class="qq">下面哪个算法可能导致两端请求"饥饿"(一直被插队,得不到服务)?</div>
+  <button class="opt" data-ok="0">FCFS</button>
+  <button class="opt" data-ok="1">SSTF</button>
+  <button class="opt" data-ok="0">SCAN</button>
+  <button class="opt" data-ok="0">CSCAN</button>
+  <div class="fb"></div>
+</div>
+
+<h2>第 5 题<span class="tag page">页面 · FIFO</span></h2>
+<div class="quiz" id="q5">
+  <div class="qq">物理块 <b>3</b> 个,访问串 <code>1 2 3 1 4 5 1</code>,用 <b>FIFO</b>。缺页几次?</div>
+  <button class="opt" data-ok="0">4</button>
+  <button class="opt" data-ok="0">5</button>
+  <button class="opt" data-ok="1">6</button>
+  <button class="opt" data-ok="0">7</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="tog('s5')">▸ 步骤</span>
+  <div id="s5" class="hidden">
+    <table class="trace">
+      <tr><th>访问</th><td class="ref">1</td><td class="ref">2</td><td class="ref">3</td><td class="ref">1</td><td class="ref">4</td><td class="ref">5</td><td class="ref">1</td></tr>
+      <tr><th>块1</th><td>1</td><td>1</td><td>1</td><td>1</td><td><span class="ev">4</span></td><td>4</td><td>4</td></tr>
+      <tr><th>块2</th><td></td><td>2</td><td>2</td><td>2</td><td>2</td><td><span class="ev">5</span></td><td>5</td></tr>
+      <tr><th>块3</th><td></td><td></td><td>3</td><td>3</td><td>3</td><td>3</td><td><span class="ev">1</span></td></tr>
+      <tr><th>结果</th><td class="fault">缺</td><td class="fault">缺</td><td class="fault">缺</td><td class="hit">中</td><td class="fault">缺</td><td class="fault">缺</td><td class="fault">缺</td></tr>
+    </table>
+    <p>缺页 6 次。注意最后访问 1:FIFO 早把 1 当"最老"踢了(块3在第7次踢的是1),所以缺页。</p>
+  </div>
+</div>
+
+<h2>第 6 题<span class="tag page">页面 · LRU</span><span class="tag trap">🔴 命中续命</span></h2>
+<div class="quiz" id="q6">
+  <div class="qq">同一串 <code>1 2 3 1 4 5 1</code>,3 个物理块,改用 <b>LRU</b>。缺页几次?(和 FIFO 比一比)</div>
+  <button class="opt" data-ok="0">6(和 FIFO 一样)</button>
+  <button class="opt" data-ok="1">5</button>
+  <button class="opt" data-ok="0">4</button>
+  <button class="opt" data-ok="0">7</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="tog('s6')">▸ 步骤</span>
+  <div id="s6" class="hidden">
+    <table class="trace">
+      <tr><th>访问</th><td class="ref">1</td><td class="ref">2</td><td class="ref">3</td><td class="ref">1</td><td class="ref">4</td><td class="ref">5</td><td class="ref">1</td></tr>
+      <tr><th>块1</th><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+      <tr><th>块2</th><td></td><td>2</td><td>2</td><td>2</td><td><span class="ev">4</span></td><td>4</td><td>4</td></tr>
+      <tr><th>块3</th><td></td><td></td><td>3</td><td>3</td><td>3</td><td><span class="ev">5</span></td><td>5</td></tr>
+      <tr><th>结果</th><td class="fault">缺</td><td class="fault">缺</td><td class="fault">缺</td><td class="hit">中</td><td class="fault">缺</td><td class="fault">缺</td><td class="hit">中</td></tr>
+    </table>
+    <p>缺页 5 次。第 4 次访问 1 给它<b>续了命</b> → 第 5 次踢的是最久没碰的 2,1 一直留着 → <b>第 7 次访问 1 命中</b>(对比 FIFO 是缺页)。这就是 LRU 省一次的地方。</p>
+  </div>
+</div>
+
+<h2>第 7 题<span class="tag page">页面 · 判据</span><span class="tag trap">🔴 你说反过的</span></h2>
+<div class="quiz" id="q7">
+  <div class="qq">内存现有三页:X(最先进入,但刚被访问过)、Y(第二个进入,最久没被访问)、Z(最后进入)。现在要淘汰一页——<b>FIFO 和 LRU 分别踢谁?</b></div>
+  <button class="opt" data-ok="1">FIFO 踢 X(进入最早),LRU 踢 Y(最久没访问)</button>
+  <button class="opt" data-ok="0">FIFO 踢 Y,LRU 踢 X</button>
+  <button class="opt" data-ok="0">两个都踢 X</button>
+  <button class="opt" data-ok="0">两个都踢 Y</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="tog('s7')">▸ 提示</span>
+  <div id="s7" class="hidden"><p>口诀:<b>FIFO 看出生顺序</b>(X 最早进 → 踢 X);<b>LRU 看上次露面</b>(Y 最久没露面 → 踢 Y)。两把尺子,两个答案。</p></div>
+</div>
+
+<footer>
+  <p>📌 巩固完这 7 题,磁盘调度 + 页面置换就真稳了。想继续时,告诉我攻 <b>混合索引</b>(纯算术,快)还是 <b>PV 操作</b>(最难但分最高)。</p>
+  <p>📖 速查:<a href="../reference/0001-disk-scheduling-cheatsheet.html">磁盘调度速查卡</a> · 有不懂<b>直接问我</b>。</p>
+  <p>来源:汤小丹《计算机操作系统》第四版 ch05/ch08。</p>
+</footer>
+
+</div>
+<script>
+function tog(id){document.getElementById(id).classList.toggle('hidden');}
+var answered={}, correct=0;
+var FB={
+  q1:{good:'对!170。',bad:'按到达顺序逐段加:20+50+60+40=170。'},
+  q2:{good:'对!110。到最后请求 90 掉头,再扫回低端。',bad:'50→70→90(掉头)→40→20 = 110。'},
+  q3:{good:'对!130。你没漏掉"跳回"那 70——这正是你以前的坑,现在防住了!',bad:'CSCAN 跳回那段(90→20=70)必须算!20+20+70+20=130。选 60 就是漏了跳回。'},
+  q4:{good:'对!SSTF 老挑最近的,两端请求可能一直被插队 → 饥饿。',bad:'是 SSTF。它每次挑最近的,两端远处的请求可能长期得不到服务(饥饿)。SCAN/CSCAN 反而避免饥饿。'},
+  q5:{good:'对!FIFO 缺页 6 次。',bad:'FIFO=6 次。最后访问 1 缺页,因为 1 早被当"最老"踢了。'},
+  q6:{good:'对!LRU 只缺 5 次,比 FIFO 少 1。少的就是第 7 次访问 1——LRU 给它续了命。',bad:'LRU=5 次。关键在第 7 次:LRU 因为 1 在第 4 次用过而留着它,命中;FIFO 则缺页。'},
+  q7:{good:'完美!FIFO 看出生(踢 X),LRU 看露面(踢 Y),两个不同。你彻底分清了!',bad:'FIFO 看"进入顺序"→踢最早的 X;LRU 看"上次访问"→踢最久没碰的 Y。不是同一页!'}
+};
+function updateScore(){
+  var n=Object.keys(answered).length;
+  document.getElementById('score').textContent='已答 '+n+' / 7 · 正确 '+correct+(n===7?(correct===7?' 🎉 全对!稳了':' · 看红框订正'):'');
+}
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+      if(!(q.id in answered)){answered[q.id]=ok; if(ok)correct++;}
+      else if(answered[q.id]!==ok){if(ok)correct++;else correct--;answered[q.id]=ok;}
+      updateScore();
+    });
+  });
+});
+</script>
+</body>
+</html>

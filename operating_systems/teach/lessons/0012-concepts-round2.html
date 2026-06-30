@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>概念扫雷② · 分页/分段/段页式/虚存/快表 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:19px; margin:34px 0 10px; border-left:4px solid var(--accent); padding-left:10px}
+  p{margin:10px 0}
+  ul{padding-left:22px} li{margin:5px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600; text-align:center}
+  .card{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:10px 14px; border-radius:4px; margin:12px 0}
+  .card .t{font-weight:700; color:var(--accent); margin-bottom:4px}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:14px 16px; margin:14px 0}
+  .quiz .qq{font-weight:600; margin-bottom:8px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:9px 13px; margin:6px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:9px; padding:9px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .score{position:sticky; top:0; background:var(--ink); color:#fff; padding:10px 16px; text-align:center; font-size:15px; z-index:5; border-radius:0 0 8px 8px}
+  footer{margin-top:46px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="score" id="score">已答 0 / 11 · 正确 0</div>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 概念扫雷 · 第 2 轮</div>
+  <h1>概念扫雷②:分页 / 分段 / 段页式 / 虚存 / 快表</h1>
+  <div class="sub">存储管理的选择填空高频区。先看速记卡再做题。约 15 分钟。</div>
+</header>
+
+<h2>簇 ① 分页 vs 分段(最爱考、最易混)</h2>
+<div class="card">
+  <div class="t">速记卡</div>
+  <table>
+    <tr><th>维度</th><th>分页</th><th>分段</th></tr>
+    <tr><td>划分角度</td><td><b>物理</b>单位(系统管理需要)</td><td><b>逻辑</b>单位(用户编程需要)</td></tr>
+    <tr><td>大小</td><td><b>固定</b>,系统决定</td><td><b>不定</b>,由段内容/用户决定</td></tr>
+    <tr><td>地址</td><td><b>一维</b>(一个地址搞定)</td><td><b>二维</b>(段号+段内偏移)</td></tr>
+    <tr><td>碎片</td><td>有<b>内部</b>碎片,无外部</td><td>有<b>外部</b>碎片,无内部</td></tr>
+    <tr><td>共享保护</td><td>不方便</td><td><b>方便</b>(段级共享/保护)</td></tr>
+  </table>
+  <p style="margin:4px 0">口诀:<b class="hl">页固定·一维·内碎片;段可变·二维·外碎片·好共享。</b></p>
+</div>
+<div class="quiz" id="q1"><div class="qq">1. 分页系统的逻辑地址是几维的?</div>
+  <button class="opt" data-ok="1">一维</button><button class="opt" data-ok="0">二维</button><button class="opt" data-ok="0">三维</button><div class="fb"></div></div>
+<div class="quiz" id="q2"><div class="qq">2. 分段系统的逻辑地址由哪两部分组成?</div>
+  <button class="opt" data-ok="0">页号 + 页内偏移</button><button class="opt" data-ok="1">段号 + 段内偏移</button><button class="opt" data-ok="0">段号 + 页号</button><div class="fb"></div></div>
+<div class="quiz" id="q3"><div class="qq">3. 段的长度由什么决定?</div>
+  <button class="opt" data-ok="0">系统统一固定</button><button class="opt" data-ok="1">段的实际内容(用户/逻辑需要)</button><button class="opt" data-ok="0">磁盘块大小</button><div class="fb"></div></div>
+<div class="quiz" id="q4"><div class="qq">4. 分页会产生哪种碎片?</div>
+  <button class="opt" data-ok="0">外部碎片</button><button class="opt" data-ok="1">内部碎片(无外部碎片)</button><button class="opt" data-ok="0">既无内部也无外部</button><div class="fb"></div></div>
+<div class="quiz" id="q5"><div class="qq">5. 更便于实现"信息共享和保护"的是?</div>
+  <button class="opt" data-ok="0">分页</button><button class="opt" data-ok="1">分段(按逻辑模块,便于段级共享保护)</button><button class="opt" data-ok="0">两者一样</button><div class="fb"></div></div>
+
+<h2>簇 ② 段页式</h2>
+<div class="card">
+  <div class="t">速记卡</div>
+  <p style="margin:4px 0"><b>先分段,再把每段分页</b>。结合两者优点:逻辑清晰便于共享(段)+ 无外部碎片利用率高(页)。</p>
+  <p style="margin:4px 0">逻辑地址<b>三部分</b>:<code>段号 + 页号 + 页内偏移</code>。每进程一个<b>段表</b>,每段一个<b>页表</b>。</p>
+</div>
+<div class="quiz" id="q6"><div class="qq">6. 段页式的逻辑地址结构是?</div>
+  <button class="opt" data-ok="0">段号 + 段内偏移</button>
+  <button class="opt" data-ok="1">段号 + 页号 + 页内偏移</button>
+  <button class="opt" data-ok="0">页号 + 页内偏移</button>
+  <button class="opt" data-ok="0">段号 + 页号</button><div class="fb"></div></div>
+
+<h2>簇 ③ 虚拟存储 + 局部性 + 快表</h2>
+<div class="card">
+  <div class="t">速记卡</div>
+  <ul style="margin:4px 0">
+    <li><b>虚拟存储</b>:让程序"感觉"内存很大,实际靠<b>内存↔磁盘换页</b>(请求调页 + 页面置换)。理论基础 = <b>局部性原理</b>。</li>
+    <li><b>时间局部性</b>:刚访问的,不久会<b>再次</b>访问(循环)。<b>空间局部性</b>:访问某单元后,<b>附近</b>单元也可能被访问(数组/顺序执行)。</li>
+    <li><b>快表 TLB</b>:CPU 里缓存"最近用过的页表项"。命中就<b>不用再去内存查页表</b>,加速地址变换。它<b>不增大内存</b>,只加速。</li>
+  </ul>
+</div>
+<div class="quiz" id="q7"><div class="qq">7. 虚拟存储技术的理论基础是?</div>
+  <button class="opt" data-ok="1">程序的局部性原理</button>
+  <button class="opt" data-ok="0">摩尔定律</button>
+  <button class="opt" data-ok="0">分段机制</button>
+  <button class="opt" data-ok="0">磁盘调度</button><div class="fb"></div></div>
+<div class="quiz" id="q8"><div class="qq">8. "刚被访问的指令,不久后很可能再次被访问"——这是?</div>
+  <button class="opt" data-ok="1">时间局部性</button>
+  <button class="opt" data-ok="0">空间局部性</button>
+  <button class="opt" data-ok="0">随机性</button><div class="fb"></div></div>
+<div class="quiz" id="q9"><div class="qq">9. "访问了某单元后,其附近单元也可能被访问"——这是?</div>
+  <button class="opt" data-ok="0">时间局部性</button>
+  <button class="opt" data-ok="1">空间局部性</button>
+  <button class="opt" data-ok="0">周期性</button><div class="fb"></div></div>
+<div class="quiz" id="q10"><div class="qq">10. 快表(TLB)的作用是?</div>
+  <button class="opt" data-ok="0">增大物理内存容量</button>
+  <button class="opt" data-ok="1">缓存页表项,加速"逻辑地址→物理地址"的变换</button>
+  <button class="opt" data-ok="0">存放用户数据</button>
+  <button class="opt" data-ok="0">替代磁盘</button><div class="fb"></div></div>
+<div class="quiz" id="q11"><div class="qq">11. 没有快表时,分页每访问一次数据要访存几次?(查页表 + 取数据)</div>
+  <button class="opt" data-ok="0">1 次</button>
+  <button class="opt" data-ok="1">2 次(先查页表,再访问数据)</button>
+  <button class="opt" data-ok="0">3 次</button><div class="fb"></div></div>
+
+<footer>
+  <p>📌 这轮过了告诉我,开 <b>第 3 轮</b>:调度算法特点(FCFS/SJF/RR/优先级/HRRN 谁抢占、谁饥饿、谁公平)+ 周转时间计算。</p>
+  <p>📖 口径来自 ch04/ch05。有疑问<b>直接问我</b>。</p>
+</footer>
+
+</div>
+<script>
+var answered={}, correct=0;
+var FB={
+  q1:{good:'对!分页一维——一个逻辑地址自动拆成页号+偏移,你只给一个数。',bad:'分页是"一维"。一个地址即可,系统自动拆页号+页内偏移。二维是分段。'},
+  q2:{good:'对!段号+段内偏移,二维。',bad:'分段=段号+段内偏移(二维)。页号+页内偏移是分页。'},
+  q3:{good:'对!段长由段的实际内容/逻辑需要决定,不固定。',bad:'段长不固定,由段的实际内容(用户逻辑)决定。固定大小是分页。'},
+  q4:{good:'对!分页有内部碎片(最后一页可能没装满),无外部碎片。',bad:'分页=内部碎片(无外部);分段=外部碎片(无内部)。别记反。'},
+  q5:{good:'对!分段按逻辑模块划分,便于段级共享和保护。',bad:'是分段。它按逻辑意义分段,便于以模块为单位共享和保护。'},
+  q6:{good:'对!段页式=段号+页号+页内偏移,三部分。',bad:'段页式三部分:段号+页号+页内偏移(先分段,每段再分页)。'},
+  q7:{good:'对!局部性原理是虚存(和Cache)的理论基础。',bad:'是"程序的局部性原理"——正因为程序访问有局部性,才能只把部分页放内存。'},
+  q8:{good:'对!时间局部性=同一处不久会再被访问(循环)。',bad:'这是时间局部性(同一单元短期内重复访问,如循环)。'},
+  q9:{good:'对!空间局部性=附近单元也会被访问(数组/顺序)。',bad:'这是空间局部性(附近单元也被访问,如数组遍历)。'},
+  q10:{good:'对!快表加速地址变换,命中就省去查内存页表那一次。它不增大内存。',bad:'快表=缓存页表项、加速地址变换。它不增大内存、不替代磁盘。'},
+  q11:{good:'对!2 次:第1次查内存里的页表拿块号,第2次才访问数据。快表就是来省第1次的。',bad:'2 次:先查页表(1)、再访问数据(1)。快表命中可省掉查页表那次。'}
+};
+function upd(){var n=Object.keys(answered).length;document.getElementById('score').textContent='已答 '+n+' / 11 · 正确 '+correct+(n===11?(correct>=10?' 🎉 这轮稳了':' · 看红框订正'):'');}
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      if(ok)q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+      if(!(q.id in answered)){answered[q.id]=ok;if(ok)correct++;}
+      else if(answered[q.id]!==ok){if(ok)correct++;else correct--;answered[q.id]=ok;}
+      upd();
+    });
+  });
+});
+</script>
+</body>
+</html>

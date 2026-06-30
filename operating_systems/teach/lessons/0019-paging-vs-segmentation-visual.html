@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 19 课 · 分页 vs 分段 vs 段页式（可视化）· 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e;
+    --okbg:#f1f9f4; --badbg:#fdf0ef;
+    --s0:#3a7bd5; --s1:#1f6f43; --s2:#a85d00; --s3:#8e44ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:40px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center}
+  th{background:#eaf1f6; font-weight:600}
+  .stage{border:1px solid var(--line); border-radius:12px; background:#fff; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(0,0,0,.04)}
+
+  /* 两种撕法并排 */
+  .cut{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; align-items:start}
+  @media(max-width:660px){ .cut{grid-template-columns:1fr} }
+  .col h4{margin:0 0 8px; font-size:15px; text-align:center}
+  .prog{display:flex; flex-direction:column; width:100%; border:2px solid #bbb; border-radius:8px; overflow:hidden}
+  .seg{display:flex; align-items:center; justify-content:center; color:#fff; font-size:12.5px; font-weight:700; text-align:center; padding:2px}
+  .seg.s0{background:var(--s0)} .seg.s1{background:var(--s1)} .seg.s2{background:var(--s2)} .seg.s3{background:var(--s3)}
+  .pagecut{position:relative}
+  .pageline{position:absolute; left:-4px; right:-4px; border-top:2px dashed #b3261e; z-index:3}
+  .pagetag{position:absolute; right:-2px; transform:translateY(-50%); font-size:10px; color:var(--bad); background:#fff; padding:0 3px}
+  .legend{font-size:12.5px; color:var(--muted); margin-top:8px}
+
+  /* 地址变换 */
+  .addrbox{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:8px 0}
+  select,input[type=number]{font-family:inherit; font-size:15px; padding:7px 9px; border:1px solid var(--line); border-radius:7px}
+  button.btn{font-family:inherit; font-size:14px; font-weight:600; padding:9px 15px; border-radius:8px;
+    border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer}
+  button.btn:hover{filter:brightness(1.08)}
+  .result{margin-top:12px; padding:11px 14px; border-radius:8px; font-size:14.5px; display:none}
+  .result.show{display:block}
+  .result.ok{background:var(--okbg); border:1px solid var(--ok)}
+  .result.err{background:var(--badbg); border:1px solid var(--bad); color:var(--bad)}
+  .segtable td.base{font-family:monospace}
+
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 存储器管理 · Ch4</div>
+  <h1>第 19 课 · 分页 vs 分段 vs 段页式 <span style="font-size:16px;color:var(--muted)">（可视化）</span></h1>
+  <div class="sub">同一个程序，两种“撕法”。亲手做分段地址变换，体会“一维 vs 二维”。约 15 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>一句话先记：</b> <b>页</b>是<b>物理</b>单位（系统切的、等长、地址一维）；<b>段</b>是<b>逻辑</b>单位（用户分的、不等长、地址二维）。<b>段页式</b> = 先按逻辑分段，每段再分页。
+</div>
+
+<h2>一、同一个程序，两种撕法 📚</h2>
+<p>下面这个程序由 4 个<b>逻辑段</b>组成（主程序/数据/堆栈/子程序），长度各不相同。看它被两种方式切开：</p>
+<div class="stage">
+  <div class="cut">
+    <div class="col">
+      <h4>原程序（按逻辑）</h4>
+      <div class="prog" id="progOrig"></div>
+      <div class="legend">4 个有意义的逻辑段，长度不一。</div>
+    </div>
+    <div class="col">
+      <h4>🟥 分页：机械等长切</h4>
+      <div class="prog pagecut" id="progPage"></div>
+      <div class="legend">每页等长（红虚线），<b>不管逻辑边界</b>——数据段被从页中间切断了！页是<b>物理</b>单位。</div>
+    </div>
+    <div class="col">
+      <h4>🟩 分段：按逻辑整段</h4>
+      <div class="prog" id="progSeg"></div>
+      <div class="legend">每段<b>完整保留</b>，长度不一。想共享/保护“子程序段”，整段处理即可。段是<b>逻辑</b>单位。</div>
+    </div>
+  </div>
+</div>
+<div class="callout ok">
+  <b>看出关键差别了吗？</b> 分页是<b>系统</b>为了好管理而机械等分（可能切断逻辑）；分段是<b>用户</b>按有意义的模块划分（每段完整）。这就是“页=物理单位 / 段=逻辑单位”的由来。
+</div>
+
+<h2>二、一维 vs 二维：亲手做地址变换</h2>
+
+<h3>分页：你只给“一个数”（一维）</h3>
+<div class="stage">
+  <p style="margin-top:0">页大小 = <b>1024</b> 字节。你只输一个逻辑地址，<b>页号和页内偏移由系统自动切</b>——程序员根本不用管“第几页”。</p>
+  <div class="addrbox">
+    逻辑地址 = <input type="number" id="pageAddr" value="2500" min="0" style="width:120px">
+    <button class="btn" id="pageGo">自动切分</button>
+  </div>
+  <div class="result" id="pageRes"></div>
+</div>
+
+<h3>分段：你必须给“(段号, 段内地址)”一对数（二维）</h3>
+<div class="stage">
+  <p style="margin-top:0">系统按下面这张<b>段表</b>定位。段表每项 = 段长 + 基址（内存起始地址）。</p>
+  <table class="segtable">
+    <tr><th>段号</th><th>段长</th><th>基址（内存起始）</th></tr>
+    <tr><td>0 主程序段</td><td>600</td><td class="base">1000</td></tr>
+    <tr><td>1 数据段</td><td>200</td><td class="base">4000</td></tr>
+    <tr><td>2 堆栈段</td><td>900</td><td class="base">3000</td></tr>
+    <tr><td>3 子程序段</td><td>400</td><td class="base">5000</td></tr>
+  </table>
+  <div class="addrbox">
+    段号 =
+    <select id="segNo"><option>0</option><option>1</option><option selected>2</option><option>3</option></select>
+    段内地址 = <input type="number" id="segOff" value="895" min="0" style="width:120px">
+    <button class="btn" id="segGo">查段表 → 算物理地址</button>
+  </div>
+  <div class="result" id="segRes"></div>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:0">💡 试试越界：段 2 段长 900，输个 950 看看会怎样。</p>
+</div>
+<div class="callout warn">
+  <b>越界检查（简答常考）：</b> ① 段号 ≥ 段表长度 → 越界中断；② 段内地址 ≥ 该段段长 → 越界中断。两关都过，才 <code>物理地址 = 基址 + 段内地址</code>。
+</div>
+
+<h2>三、课本必背：分页和分段的主要区别</h2>
+<table>
+  <tr><th></th><th>分页</th><th>分段</th></tr>
+  <tr><td>本质</td><td>信息的<b>物理</b>单位（满足系统管理）</td><td>信息的<b>逻辑</b>单位（满足用户需要）</td></tr>
+  <tr><td>大小</td><td><b>固定</b>（由系统决定）</td><td><b>不固定</b>（由用户决定）</td></tr>
+  <tr><td>地址</td><td><b>一维</b>（一个数）</td><td><b>二维</b>（段号 + 段内地址）</td></tr>
+  <tr><td>优点</td><td>无外部碎片，内存利用率高</td><td>便于<b>共享、保护</b>、动态增长/链接</td></tr>
+</table>
+
+<h2>四、段页式 = 两者结合</h2>
+<div class="callout">
+  <b>动机：</b> 想要分段的<b>逻辑共享/保护</b> ＋ 分页的<b>内存管理（无外部碎片）</b>。<br>
+  <b>做法：</b> 先把程序<b>按逻辑分段</b>，再把<b>每段分页</b>。<br>
+  <b>地址结构（三段）：</b> <code>段号 | 段内页号 | 页内偏移</code>。<br>
+  <b>查找：</b> 先查段表找到该段的<b>页表</b>起址，再查页表找到物理块号，最后拼上页内偏移。（一次访存要查段表+页表，故常配快表）
+</div>
+
+<h2>五、轮到你了</h2>
+<div class="quiz" id="q1"><div class="qq">Q1. “页大小由系统决定且固定，段大小由用户决定且可变”——这反映了？</div>
+  <button class="opt" data-ok="0">两者都是物理单位</button>
+  <button class="opt" data-ok="1">页是物理单位（系统管理需要），段是逻辑单位（用户需要）</button>
+  <button class="opt" data-ok="0">两者都是逻辑单位</button>
+  <button class="opt" data-ok="0">段比页更省内存</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q2"><div class="qq">Q2. 为什么说分段地址是“二维”的？</div>
+  <button class="opt" data-ok="1">必须用 (段号, 段内地址) 一对数才能定位</button>
+  <button class="opt" data-ok="0">因为段有长和宽两个尺寸</button>
+  <button class="opt" data-ok="0">因为要查两次内存</button>
+  <button class="opt" data-ok="0">因为段表有两列</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q3"><div class="qq">Q3. 段页式存储管理的逻辑地址结构是？</div>
+  <button class="opt" data-ok="0">段号 + 段内地址</button>
+  <button class="opt" data-ok="0">页号 + 页内偏移</button>
+  <button class="opt" data-ok="1">段号 + 段内页号 + 页内偏移</button>
+  <button class="opt" data-ok="0">基址 + 段长</button>
+  <div class="fb"></div></div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  用你自己的话回答：<br>
+  ① 分页和分段最主要的三点区别？（物理/逻辑、固定/不固定、一维/二维）<br>
+  ② 为什么分段便于“信息共享和保护”，分页不方便？<br>
+  ③ 段页式为什么要把分段和分页结合起来？
+</div>
+
+<footer>
+  <p>来源：汤小丹《计算机操作系统》第四版 · 课件 <code>4_存储器管理/ppt文本.md §4.4 基本分段存储管理方式 / §4.4.4 段页式</code>（含“分页和分段的主要区别”原文）。</p>
+  <p>配套计算练习见 <code>exams/ch04-test.html</code>；有不懂 <b>直接问我</b>。</p>
+</footer>
+
+</div>
+<script>
+// 段：[名称, 长度(相对), 颜色类]
+var SEGS=[["主程序段",600,"s0"],["数据段",200,"s1"],["堆栈段",900,"s2"],["子程序段",400,"s3"]];
+var TOTAL=SEGS.reduce(function(a,s){return a+s[1];},0);
+var H=320; // 像素高度
+function buildProg(elId, withPageLines){
+  var el=document.getElementById(elId); el.innerHTML=""; el.style.height=H+"px";
+  SEGS.forEach(function(s){
+    var d=document.createElement("div");
+    d.className="seg "+s[2];
+    d.style.height=(s[1]/TOTAL*H)+"px";
+    d.textContent=s[0];
+    el.appendChild(d);
+  });
+  if(withPageLines){
+    // 等长页：把总高度按 6 页划分，画红虚线（机械等分，无视段边界）
+    var pages=6;
+    for(var i=1;i<pages;i++){
+      var line=document.createElement("div");
+      line.className="pageline"; line.style.top=(i/pages*H)+"px";
+      var tag=document.createElement("div");
+      tag.className="pagetag"; tag.style.top=(i/pages*H)+"px"; tag.textContent="页"+i+"／"+(i+1);
+      el.appendChild(line); el.appendChild(tag);
+    }
+  }
+}
+buildProg("progOrig",false);
+buildProg("progPage",true);
+buildProg("progSeg",false);
+
+// 分页地址变换（一维）
+var PAGE=1024;
+document.getElementById("pageGo").addEventListener("click",function(){
+  var a=+document.getElementById("pageAddr").value;
+  var pno=Math.floor(a/PAGE), off=a%PAGE;
+  var r=document.getElementById("pageRes"); r.className="result show ok";
+  r.innerHTML='你只给了 <b>一个数</b> '+a+'。系统自动切：<br>页号 = '+a+' ÷ '+PAGE+' = <b>'+pno+'</b>，页内偏移 = '+a+' mod '+PAGE+' = <b>'+off+'</b>。<br><span style="color:var(--muted)">→ 这就是“一维”：程序员眼里只有一个连续地址。</span>';
+});
+
+// 分段地址变换（二维）
+var SEGTAB=[{len:600,base:1000},{len:200,base:4000},{len:900,base:3000},{len:400,base:5000}];
+document.getElementById("segGo").addEventListener("click",function(){
+  var sn=+document.getElementById("segNo").value, off=+document.getElementById("segOff").value;
+  var r=document.getElementById("segRes");
+  var seg=SEGTAB[sn];
+  if(off>=seg.len){
+    r.className="result show err";
+    r.innerHTML='⚠ <b>越界中断！</b> 段内地址 '+off+' ≥ 段 '+sn+' 的段长 '+seg.len+'。访问被拒绝。<br><span>这正是分段的“保护”作用：越过本段就报错。</span>';
+    return;
+  }
+  r.className="result show ok";
+  r.innerHTML='你给了 <b>一对数</b> ('+sn+', '+off+')：<br>① 段 '+sn+' 段长 '+seg.len+'，'+off+' < '+seg.len+' ✅ 没越界。<br>② 物理地址 = 基址 + 段内地址 = '+seg.base+' + '+off+' = <b>'+(seg.base+off)+'</b>。<br><span style="color:var(--muted)">→ 这就是“二维”：必须 (段号, 段内地址) 两个量。</span>';
+});
+
+// 自测
+var FB={
+  q1:{good:'对！页=物理单位（系统决定、固定），段=逻辑单位（用户决定、可变）。',bad:'页是物理单位（满足系统管理），段是逻辑单位（满足用户需要）。'},
+  q2:{good:'对！分段必须 (段号, 段内地址) 一对数定位，所以是二维。',bad:'二维=必须用(段号,段内地址)一对数定位；分页只给一个数(一维)。'},
+  q3:{good:'对！段页式地址 = 段号 + 段内页号 + 页内偏移。',bad:'段页式是三段：段号 + 段内页号 + 页内偏移。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      if(ok)q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Hooks 全解 · 用例子吃透 30 个钩子</title>
+<style>
+  :root{
+    --bg:#0d1117; --bg2:#161b22; --bg3:#1c2333; --line:#2a3344;
+    --fg:#e6edf3; --mut:#8b98a9; --dim:#5c6b7e;
+    --acc:#7ee787; --acc2:#79c0ff; --warn:#f0a868; --danger:#ff7b72; --purple:#d2a8ff;
+    --mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+    --sans:-apple-system,'PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.7;font-size:16px}
+  .layout{display:grid;grid-template-columns:248px 1fr;max-width:1320px;margin:0 auto}
+  /* sidebar */
+  nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 16px;border-right:1px solid var(--line);background:var(--bg)}
+  nav.side h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);margin:18px 0 8px}
+  nav.side a{display:block;color:var(--mut);text-decoration:none;font-size:13.5px;padding:4px 10px;border-radius:6px;transition:.15s}
+  nav.side a:hover{color:var(--fg);background:var(--bg2)}
+  nav.side .brand{font-weight:700;font-size:16px;color:var(--fg);margin-bottom:4px;line-height:1.3}
+  nav.side .brand span{color:var(--acc)}
+  /* main */
+  main{padding:40px 48px 120px;min-width:0}
+  section{margin-bottom:64px;scroll-margin-top:20px}
+  h1{font-size:34px;line-height:1.2;letter-spacing:-.02em;margin-bottom:14px}
+  h1 .sub{display:block;font-size:16px;color:var(--mut);font-weight:400;margin-top:10px}
+  h2.sec{font-size:24px;border-left:4px solid var(--acc);padding-left:14px;margin-bottom:8px}
+  h2.sec .cn{color:var(--mut);font-size:15px;font-weight:400;margin-left:8px}
+  .lead{color:var(--mut);max-width:760px;margin-bottom:24px}
+  p{margin-bottom:14px;max-width:820px}
+  code{font-family:var(--mono);background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:.88em;color:var(--acc2)}
+  pre{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:16px 18px;overflow-x:auto;margin:14px 0;font-family:var(--mono);font-size:13.5px;line-height:1.6}
+  pre code{background:none;padding:0;color:#c9d1d9}
+  a.link{color:var(--acc2)}
+  .k{color:var(--purple)} .s{color:var(--acc)} .c{color:var(--dim);font-style:italic} .n{color:var(--warn)}
+  /* hero */
+  .hero{background:linear-gradient(135deg,#161b22,#10141c);border:1px solid var(--line);border-radius:16px;padding:32px 36px;margin-bottom:40px}
+  /* mental model boxes */
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:20px 0}
+  .mbox{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .mbox h3{font-size:15px;color:var(--acc2);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .mbox p{font-size:14px;color:var(--mut);margin:0}
+  .mbox .big{font-size:26px;font-family:var(--mono);color:var(--acc);display:block;margin-bottom:6px}
+  /* flow diagram */
+  .flow{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:24px;margin:20px 0;font-family:var(--mono);font-size:13px;overflow-x:auto;white-space:pre;color:var(--mut)}
+  .flow b{color:var(--acc)} .flow em{color:var(--acc2);font-style:normal} .flow u{color:var(--warn);text-decoration:none}
+  /* exit code table */
+  table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:9px 13px;text-align:left;vertical-align:top}
+  th{background:var(--bg3);color:var(--acc2);font-weight:600}
+  td code{font-size:.85em}
+  tbody tr:nth-child(even){background:var(--bg2)}
+  /* controls */
+  .controls{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 0;border-bottom:1px solid var(--line);margin-bottom:24px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .controls input{flex:1;min-width:180px;background:var(--bg2);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:9px 13px;font-size:14px;font-family:var(--sans)}
+  .controls input:focus{outline:none;border-color:var(--acc2)}
+  .chip{background:var(--bg2);border:1px solid var(--line);color:var(--mut);border-radius:999px;padding:6px 14px;font-size:13px;cursor:pointer;user-select:none;transition:.15s}
+  .chip:hover{color:var(--fg)}
+  .chip.on{background:var(--acc);color:#0d1117;border-color:var(--acc);font-weight:600}
+  .count{color:var(--dim);font-size:13px;margin-left:auto}
+  /* hook card */
+  .card{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-bottom:18px;scroll-margin-top:80px}
+  .card.hide{display:none}
+  .card .top{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  .card .name{font-family:var(--mono);font-size:19px;color:var(--fg);font-weight:600}
+  .card .num{font-family:var(--mono);color:var(--dim);font-size:13px}
+  .badges{display:flex;gap:7px;flex-wrap:wrap;margin:10px 0 14px}
+  .badge{font-size:11.5px;font-family:var(--mono);padding:3px 9px;border-radius:6px;border:1px solid transparent;letter-spacing:.02em}
+  .b-block{background:rgba(255,123,114,.13);color:var(--danger);border-color:rgba(255,123,114,.3)}
+  .b-noblock{background:rgba(139,152,169,.12);color:var(--mut);border-color:var(--line)}
+  .b-match{background:rgba(121,192,255,.13);color:var(--acc2);border-color:rgba(121,192,255,.3)}
+  .b-nomatch{background:rgba(139,152,169,.1);color:var(--dim);border-color:var(--line)}
+  .b-unsure{background:rgba(240,168,104,.13);color:var(--warn);border-color:rgba(240,168,104,.3)}
+  .fires{color:var(--fg);font-size:15px;margin-bottom:14px}
+  .fires::before{content:"⚡ ";color:var(--warn)}
+  .io{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:6px}
+  .io .col h4{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);margin-bottom:6px}
+  .io ul{list-style:none;font-size:13.5px}
+  .io li{padding:2px 0;color:var(--mut)}
+  .io li code{font-size:.82em;background:var(--bg3)}
+  .io li .desc{color:var(--dim);font-size:.92em}
+  .ex{margin-top:14px}
+  .ex .lbl{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+  .note{background:rgba(240,168,104,.08);border-left:3px solid var(--warn);padding:8px 14px;border-radius:0 8px 8px 0;font-size:13px;color:var(--warn);margin-top:12px}
+  .note::before{content:"⚠ 注意 · ";font-weight:600}
+  /* callout */
+  .callout{background:rgba(126,231,135,.07);border:1px solid rgba(126,231,135,.25);border-radius:12px;padding:18px 22px;margin:20px 0}
+  .callout.q{background:rgba(121,192,255,.07);border-color:rgba(121,192,255,.25)}
+  .callout h3{font-size:16px;margin-bottom:8px;color:var(--acc)}
+  .callout.q h3{color:var(--acc2)}
+  .insight{border:1px dashed var(--acc);border-radius:12px;padding:16px 20px;margin:20px 0;background:rgba(126,231,135,.04)}
+  .insight h3{color:var(--acc);font-size:14px;margin-bottom:8px;letter-spacing:.04em}
+  .insight ul{padding-left:18px;font-size:14px;color:var(--mut)}
+  .insight li{margin-bottom:6px}
+  /* matrix */
+  .matrix-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  .matrix{font-size:12.5px;min-width:680px}
+  .matrix th{position:sticky;top:0}
+  .matrix td.y{color:var(--acc);text-align:center;font-weight:700}
+  .matrix td.n{color:var(--dim);text-align:center}
+  .matrix td.u{color:var(--warn);text-align:center}
+  .matrix td:first-child{font-family:var(--mono);color:var(--fg);white-space:nowrap}
+  .foot{border-top:1px solid var(--line);padding-top:24px;color:var(--dim);font-size:14px}
+  .foot em{color:var(--mut);font-style:italic}
+  @media(max-width:880px){.layout{grid-template-columns:1fr}nav.side{display:none}main{padding:28px 20px 80px}.io{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ============ SIDEBAR ============ -->
+<nav class="side">
+  <div class="brand">Claude Code <span>Hooks</span></div>
+  <div style="color:var(--dim);font-size:12px;margin-bottom:8px">30 个钩子 · 用例子吃透</div>
+  <h2>核心机制</h2>
+  <a href="#model">心智模型</a>
+  <a href="#protocol">通用协议</a>
+  <a href="#config">配置结构</a>
+  <a href="#lifecycle">生命周期顺序</a>
+  <h2>逐个精读</h2>
+  <a href="#g-session">会话生命周期 (3)</a>
+  <a href="#g-turn">提示与回合 (4)</a>
+  <a href="#g-tool">工具调用 (6)</a>
+  <a href="#g-notify">通知与显示 (2)</a>
+  <a href="#g-agent">子代理 · 任务 · 团队 (5)</a>
+  <a href="#g-env">环境与文件 (4)</a>
+  <a href="#g-worktree">Worktree (2)</a>
+  <a href="#g-compact">上下文压缩 (2)</a>
+  <a href="#g-mcp">MCP 诱导 (2)</a>
+  <h2>速查</h2>
+  <a href="#matrix">能力总表</a>
+  <a href="#recipes">实战配方</a>
+</nav>
+
+<!-- ============ MAIN ============ -->
+<main>
+
+<h1>Claude Code Hooks 全解
+  <span class="sub">钩子 = 在 Agent 生命周期的 30 个固定切点，把控制权交给你的脚本。一套协议，30 个触发时机。本页用例子带你逐个吃透。</span>
+</h1>
+
+<div class="hero" id="model">
+  <h2 class="sec" style="border:none;padding:0;margin-bottom:6px">先建立心智模型 <span class="cn">The Mental Model</span></h2>
+  <p style="color:var(--mut)">不要把这 30 个 hook 当 30 个独立知识点去背。它们是<b style="color:var(--fg)">同一套"控制反转"机制</b>在不同时机的复现：Claude Code 跑到某个切点时<b style="color:var(--fg)">暂停自己</b>，运行你配置的外部脚本，然后根据脚本的<b style="color:var(--fg)">退出码 + stdout</b> 决定下一步。理解了这个回路，30 个 hook 只是"在哪一刻暂停"的区别。</p>
+  <div class="grid3">
+    <div class="mbox"><h3>① 切点触发</h3><p>到达生命周期某一刻（如"工具执行前"），Claude Code 暂停，把一段 JSON 写到你脚本的 <code>stdin</code>。</p></div>
+    <div class="mbox"><h3>② 你的脚本回话</h3><p>脚本读 JSON，做判断，用<b style="color:var(--acc)">退出码</b>和<b style="color:var(--acc)">stdout JSON</b> 表态：放行 / 阻断 / 注入上下文。</p></div>
+    <div class="mbox"><h3>③ Claude Code 据此行动</h3><p>放行就继续；阻断就停下并把你的理由喂回模型；注入就把上下文塞进对话。</p></div>
+  </div>
+  <div class="insight">
+    <h3>★ 关键洞察 ─────────────</h3>
+    <ul>
+      <li><b>分水岭是"能不能拦"</b>：<code>PreToolUse</code>/<code>UserPromptSubmit</code>/<code>Stop</code> 能真正改写或阻断控制流；而 <code>SessionEnd</code>/<code>StopFailure</code> 的返回值被<b>直接忽略</b>，它们只是"事后通知"。按这个维度分类，比按字母背诵有用得多。</li>
+      <li><b>"Pre" 能拦，"Post" 不能</b>：动作发生<u style="color:var(--warn)">之前</u>的 hook（Pre*）才有否决权；动作发生<u style="color:var(--warn)">之后</u>的 hook（Post*）木已成舟，只能观测或追加上下文，无法撤销。</li>
+      <li><b>hook 不是 Claude 在跑</b>：它是<b>外部进程</b>（shell 命令 / HTTP / MCP）。所以"自动化行为"必须用 hook，而非靠提示词——脚本由 harness 执行，确定性地发生，不受模型即兴发挥影响。</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ PROTOCOL ============ -->
+<section id="protocol">
+  <h2 class="sec">通用协议 <span class="cn">所有 hook 共享的输入 / 输出契约</span></h2>
+  <p class="lead">先把这套协议吃透，后面 30 张卡片就只剩"专属字段"的差异了。</p>
+
+  <h3 style="color:var(--acc2);margin:18px 0 6px">① 输入：stdin 收到的 JSON</h3>
+  <p>每次 hook 触发，Claude Code 都会把一段 JSON 写进你脚本的标准输入。<b>所有事件都带的公共字段</b>：</p>
+  <pre><code>{
+  <span class="k">"session_id"</span>: <span class="s">"2b4e26a2-..."</span>,        <span class="c">// 当前会话 ID</span>
+  <span class="k">"transcript_path"</span>: <span class="s">"/path/to.jsonl"</span>, <span class="c">// 完整对话记录文件</span>
+  <span class="k">"cwd"</span>: <span class="s">"/Users/you/project"</span>,        <span class="c">// 当前工作目录</span>
+  <span class="k">"hook_event_name"</span>: <span class="s">"PreToolUse"</span>,     <span class="c">// 哪个事件触发了你</span>
+  <span class="k">"permission_mode"</span>: <span class="s">"default"</span>         <span class="c">// default|plan|acceptEdits|bypassPermissions...</span>
+}</code></pre>
+  <p>每个事件再追加自己的专属字段——例如 <code>PreToolUse</code> 多出 <code>tool_name</code> 和 <code>tool_input</code>，<code>UserPromptSubmit</code> 多出 <code>prompt</code>。这些在下面每张卡片里列出。</p>
+
+  <h3 style="color:var(--acc2);margin:24px 0 6px">② 输出（廉价版）：退出码</h3>
+  <p>最简单的 hook 什么都不打印，只用<b>退出码</b>表态。这是三态信号：</p>
+  <table>
+    <thead><tr><th style="width:90px">退出码</th><th>含义</th><th>行为</th></tr></thead>
+    <tbody>
+      <tr><td><code style="color:var(--acc)">0</code></td><td>成功</td><td>放行。如果该事件支持，<b>解析 stdout 里的 JSON</b>。stdout 内容（非 JSON 时）可作为上下文。</td></tr>
+      <tr><td><code style="color:var(--danger)">2</code></td><td>阻断</td><td><b>否决这个动作</b>。<code>stderr</code> 的内容会按事件不同<b>喂回给 Claude</b>（让它换个做法）或显示给用户。</td></tr>
+      <tr><td><code style="color:var(--mut)">其他</code></td><td>非阻断错误</td><td>不阻断，但把 <code>stderr</code> 显示出来（脚本自身报错）。流程照常继续。</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="color:var(--acc2);margin:24px 0 6px">③ 输出（精细版）：stdout 的 JSON</h3>
+  <p>需要更精细控制时，<b>exit 0 + 打印一段 JSON 到 stdout</b>。常用字段（不同事件支持子集，单字段上限约 1 万字符）：</p>
+  <pre><code>{
+  <span class="k">"continue"</span>: <span class="n">false</span>,          <span class="c">// 是否让 Claude 继续；false = 整轮停止</span>
+  <span class="k">"stopReason"</span>: <span class="s">"..."</span>,       <span class="c">// continue=false 时给用户看的原因</span>
+  <span class="k">"suppressOutput"</span>: <span class="n">true</span>,    <span class="c">// 不把本 hook 的 stdout 写进 transcript</span>
+  <span class="k">"systemMessage"</span>: <span class="s">"..."</span>,    <span class="c">// 给用户的一条提示信息</span>
+  <span class="k">"decision"</span>: <span class="s">"block"</span>,        <span class="c">// 部分事件用：block 阻断 / approve 放行</span>
+  <span class="k">"reason"</span>: <span class="s">"..."</span>,           <span class="c">// decision 的理由（喂给 Claude）</span>
+  <span class="k">"hookSpecificOutput"</span>: {        <span class="c">// 事件专属返回的容器</span>
+    <span class="k">"hookEventName"</span>: <span class="s">"PreToolUse"</span>,
+    <span class="k">"permissionDecision"</span>: <span class="s">"deny"</span>,        <span class="c">// PreToolUse 专属：allow|deny|ask</span>
+    <span class="k">"permissionDecisionReason"</span>: <span class="s">"..."</span>,
+    <span class="k">"additionalContext"</span>: <span class="s">"..."</span>         <span class="c">// 注入到对话里的额外上下文</span>
+  }
+}</code></pre>
+  <div class="note">"廉价版" exit 2 与 "精细版" JSON 往往二选一即可达到阻断效果。比如阻止一个工具：要么 <code>exit 2</code> + stderr 写理由，要么 <code>exit 0</code> + <code>permissionDecision:"deny"</code>。JSON 版能携带更结构化的信息（如修改后的输入 <code>updatedInput</code>）。</div>
+</section>
+
+<!-- ============ CONFIG ============ -->
+<section id="config">
+  <h2 class="sec">配置结构 <span class="cn">hook 写在 settings.json 里</span></h2>
+  <p class="lead">hook 不写代码——你在 <code>settings.json</code> 的 <code>hooks</code> 块里声明"哪个事件 → 匹配什么 → 跑什么命令"。</p>
+  <pre><code>{
+  <span class="k">"hooks"</span>: {
+    <span class="k">"PreToolUse"</span>: [                         <span class="c">// ← 事件名作为 key</span>
+      {
+        <span class="k">"matcher"</span>: <span class="s">"Bash"</span>,                 <span class="c">// ← 只对 Bash 工具触发（支持正则/竖线）</span>
+        <span class="k">"hooks"</span>: [
+          {
+            <span class="k">"type"</span>: <span class="s">"command"</span>,           <span class="c">// command | http | mcp_tool | prompt | agent</span>
+            <span class="k">"command"</span>: <span class="s">"bash ~/.claude/guard.sh"</span>,
+            <span class="k">"timeout"</span>: <span class="n">10</span>                 <span class="c">// 秒；超时按非阻断错误处理</span>
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+  <div class="insight">
+    <h3>★ 关于 matcher ─────────────</h3>
+    <ul>
+      <li><b>不是所有事件都有 matcher</b>（约一半有）。有 matcher 的事件，匹配维度各不相同：<code>PreToolUse</code> 匹配<b>工具名</b>，<code>FileChanged</code> 匹配<b>文件名</b>，<code>SubagentStart</code> 匹配<b>子代理类型</b>，<code>SessionStart</code> 匹配<b>来源</b>(startup/resume/clear/compact)。</li>
+      <li><b>matcher 的字符串规则</b>：字母、数字、下划线、空格、<code>|</code>、<code>,</code> 当字面量；其余字符按 JavaScript 正则解释。所以 <code>Edit|Write</code> 匹配两个工具，<code>^mcp__memory__.*</code> 匹配某 MCP server 的所有工具。</li>
+      <li><b>配置有优先级链</b>：用户全局 <code>~/.claude/settings.json</code> → 项目 <code>.claude/settings.json</code> → 项目本地 <code>.local.json</code> → 组织策略 → 插件 → Skill/Agent 元信息。同一事件多处配置会<b>叠加</b>触发。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ LIFECYCLE ============ -->
+<section id="lifecycle">
+  <h2 class="sec">生命周期顺序 <span class="cn">一次典型会话里，hook 何时依次开火</span></h2>
+  <p class="lead">把时间轴在脑子里跑一遍，就知道每个 hook 处在什么位置、能看到什么、能改什么。</p>
+  <div class="flow"><b>会话开始</b>
+  └─ <em>SessionStart</em> (注入项目上下文)  ←─ 也可在 --init 时跑 <em>Setup</em>
+        │
+        ▼ <b>用户敲下一段话 / 一个 /命令</b>
+  ┌── <em>UserPromptExpansion</em> (若是 /命令，展开前)
+  ├── <em>UserPromptSubmit</em> (提交后、模型看到前，可注入/可拦)
+  │       │
+  │       ▼ <b>模型决定调用工具</b>
+  │   ┌── <em>PreToolUse</em>  ←── 唯一能"否决工具"的关口 ⛔
+  │   ├── <em>PermissionRequest</em> (若弹权限框) → 用户拒 → <em>PermissionDenied</em>
+  │   │       ▼ <b>工具真正执行</b>
+  │   ├── <em>PostToolUse</em> (成功) / <em>PostToolUseFailure</em> (失败)
+  │   └── <em>PostToolBatch</em> (一批并行工具全部结束后)
+  │       │  …模型可能再调更多工具，循环…
+  │       ▼
+  └── <em>Stop</em> (模型说完一轮，可强制它"别停，继续干")
+          │   若本轮因 API 错误中断 → <em>StopFailure</em> (返回值被忽略)
+          ▼
+  <u>贯穿全程的"观测型" hook</u>：FileChanged · CwdChanged · ConfigChange ·
+  InstructionsLoaded · MessageDisplay · Notification · SubagentStart/Stop · Task*
+          │
+          ▼ <b>上下文太长 →</b> <em>PreCompact</em> → 压缩 → <em>PostCompact</em>
+          ▼ <b>会话结束 →</b> <em>SessionEnd</em></div>
+</section>
+
+<!-- ============ THE 30 CARDS ============ -->
+<section>
+  <h2 class="sec">逐个精读 · 30 个 Hook <span class="cn">每张卡片：触发时机 · 输入字段 · 输出能力 · 例子</span></h2>
+  <p class="lead">用下面的筛选器横向比较：只看"能阻断"的，或只看"支持 matcher"的，或搜事件名。</p>
+  <div class="controls">
+    <input id="search" type="text" placeholder="🔍 搜事件名或关键词，如 tool / worktree / 压缩 ...">
+    <span class="chip" data-f="block">⛔ 仅能阻断</span>
+    <span class="chip" data-f="matcher">🎯 仅支持 matcher</span>
+    <span class="chip" data-f="all">全部</span>
+    <span class="count" id="count"></span>
+  </div>
+  <div id="cards"></div>
+</section>
+
+<!-- ============ MATRIX ============ -->
+<section id="matrix">
+  <h2 class="sec">能力总表 <span class="cn">一屏看清谁能拦、谁有 matcher、几时开火</span></h2>
+  <div class="matrix-wrap">
+    <table class="matrix">
+      <thead><tr><th>事件</th><th>分类</th><th>能阻断?</th><th>matcher?</th><th>触发时机（一句话）</th></tr></thead>
+      <tbody id="matrixBody"></tbody>
+    </table>
+  </div>
+  <div class="note">表中标 <span style="color:var(--warn)">?</span> 的为官方文档未明确、或处于较新/高级特性、行为可能变动的项——以你当前 Claude Code 版本的实际行为为准，不要当成确定契约。</div>
+</section>
+
+<!-- ============ RECIPES ============ -->
+<section id="recipes">
+  <h2 class="sec">实战配方 <span class="cn">4 个最常用的真实用法</span></h2>
+
+  <div class="callout">
+    <h3>① PreToolUse — 拦住危险命令</h3>
+    <p style="color:var(--mut);margin-bottom:8px">最经典用途：在 <code>Bash</code> 执行前扫一眼，发现 <code>rm -rf</code> 之类就否决。</p>
+  </div>
+  <pre><code><span class="c"># ~/.claude/settings.json</span>
+{ <span class="k">"hooks"</span>: { <span class="k">"PreToolUse"</span>: [{ <span class="k">"matcher"</span>: <span class="s">"Bash"</span>,
+    <span class="k">"hooks"</span>: [{ <span class="k">"type"</span>: <span class="s">"command"</span>, <span class="k">"command"</span>: <span class="s">"~/.claude/guard.sh"</span> }] }] } }
+
+<span class="c"># guard.sh — 读 stdin 的 tool_input.command，命中就 deny</span>
+<span class="k">#!/bin/bash</span>
+cmd=$(jq -r <span class="s">'.tool_input.command'</span>)
+<span class="k">if</span> echo <span class="s">"$cmd"</span> | grep -qE <span class="s">'rm -rf|:&gt;|mkfs'</span>; <span class="k">then</span>
+  echo <span class="s">'{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"检测到破坏性命令，已拦截"}}'</span>
+  <span class="k">exit</span> 0   <span class="c"># 或者干脆 exit 2，把理由写到 stderr</span>
+<span class="k">fi</span></code></pre>
+
+  <div class="callout">
+    <h3>② UserPromptSubmit — 每次提问自动注入项目上下文</h3>
+    <p style="color:var(--mut)">在模型看到你的话之前，悄悄附上"当前分支 / 改了几个文件"等动态信息。</p>
+  </div>
+  <pre><code><span class="k">#!/bin/bash</span>
+branch=$(git branch --show-current 2&gt;/dev/null)
+dirty=$(git status --porcelain 2&gt;/dev/null | wc -l | tr -d <span class="s">' '</span>)
+echo <span class="s">"{\"hookSpecificOutput\":{\"hookEventName\":\"UserPromptSubmit\",\"additionalContext\":\"当前分支 $branch，有 $dirty 个改动文件\"}}"</span>
+<span class="c"># 配在 "UserPromptSubmit"（无 matcher）。也可直接 echo 纯文本 + exit 0，文本即上下文。</span></code></pre>
+
+  <div class="callout">
+    <h3>③ PostToolUse — 文件写完自动跑格式化 / lint</h3>
+    <p style="color:var(--mut)">动作已发生（拦不住），但可以做<b>善后</b>：每次 <code>Edit</code>/<code>Write</code> 后自动 <code>prettier</code>，并把结果作为上下文反馈。</p>
+  </div>
+  <pre><code>{ <span class="k">"hooks"</span>: { <span class="k">"PostToolUse"</span>: [{ <span class="k">"matcher"</span>: <span class="s">"Edit|Write"</span>,
+    <span class="k">"hooks"</span>: [{ <span class="k">"type"</span>: <span class="s">"command"</span>,
+      <span class="k">"command"</span>: <span class="s">"jq -r '.tool_input.file_path' | xargs -r prettier --write"</span> }] }] } }</code></pre>
+
+  <div class="callout">
+    <h3>④ Stop — 不让 Claude 偷懒收工</h3>
+    <p style="color:var(--mut)">模型想结束本轮时，检查测试是否还红；红就 <code>decision:"block"</code> 把它拽回来继续修。</p>
+  </div>
+  <pre><code><span class="k">#!/bin/bash</span>
+<span class="k">if</span> ! npm test --silent &gt;/dev/null 2&gt;&1; <span class="k">then</span>
+  echo <span class="s">'{"decision":"block","reason":"测试仍未通过，请继续修复后再结束。"}'</span>
+<span class="k">fi</span>
+<span class="c"># 注意防死循环：stdin 里有 stop_hook_active=true 时应放行，否则会无限重入。</span></code></pre>
+  <div class="note">配 <code>Stop</code> 这类"逼模型继续"的 hook 时，务必检查输入里的 <code>stop_hook_active</code> 标志位——它为 true 说明本轮已是被 hook 拉回来的，再 block 就会无限循环。</div>
+</section>
+
+<div class="foot">
+  <p><b>口径与边界</b>：本页"触发时机"以 Claude Code 官方事件描述为准；字段与行为细节由权威文档整理。部分较新/高级事件（如 <code>PostToolBatch</code>、<code>TeammateIdle</code>、<code>ConfigChange</code>、<code>Elicitation*</code>）官方文档信息较少，凡标 <span style="color:var(--warn)">"文档未明确"</span> 或 <span style="color:var(--warn)">?</span> 处，请以你本机 Claude Code 版本（本会话为 <code>2.1.191</code>）实际行为为准验证，不要当成铁律。</p>
+  <p><em>"凡不能毁灭我的，使我更强大。" —— 尼采《偶像的黄昏》</em></p>
+</div>
+
+</main>
+</div>
+
+<script>
+/* ============ HOOK DATA (30 events) ============ */
+const HOOKS = [
+ // ---- Session lifecycle ----
+ {n:"SessionStart",cat:"会话生命周期",g:"g-session",block:false,matcher:"来源：startup|resume|clear|compact",
+  fires:"一次会话开始或恢复(resume)时。也是给 Claude 注入「项目须知/最近进展」的最佳时机。",
+  in:[["source","startup｜resume｜clear｜compact"],["model","当前模型名"],["公共字段","session_id / cwd ..."]],
+  out:[["additionalContext","注入到会话起点的上下文"],["sessionTitle","设定会话标题"],["watchPaths / reloadSkills","监听路径 / 重载技能"]],
+  ex:`{ "hooks": { "SessionStart": [{
+  "hooks": [{ "type":"command",
+    "command":"git log --oneline -5" }] }] } }
+// stdout 会作为 additionalContext 注入，让 Claude 一上来就知道最近 5 次提交`},
+
+ {n:"Setup",cat:"会话生命周期",g:"g-session",block:true,matcher:"init｜maintenance",
+  fires:"以 --init-only 启动，或在 -p（非交互/脚本）模式下带 --init / --maintenance 时。用于 CI/脚本里的一次性准备。",
+  in:[["matcher 区分","init（初始化）｜maintenance（维护）"]],
+  out:[["exit 2","可让准备步骤失败、中断流程"]],
+  ex:`{ "hooks": { "Setup": [{ "matcher":"init",
+  "hooks": [{ "type":"command",
+    "command":"npm ci && npm run build" }] }] } }
+// CI 里一次性装依赖、预构建`},
+
+ {n:"SessionEnd",cat:"会话生命周期",g:"g-session",block:false,matcher:"退出原因：clear｜logout｜other",
+  fires:"会话终止时。适合做清理、归档 transcript、上报用量。返回值被忽略——纯善后。",
+  in:[["exit_reason","clear｜logout｜other"],["session_summary","会话摘要（可选）"]],
+  out:[["（被忽略）","无法阻止会话结束"]],
+  ex:`{ "hooks": { "SessionEnd": [{
+  "hooks": [{ "type":"command",
+    "command":"cp \\"$transcript_path\\" ~/archive/" }] }] } }
+// 退出时把对话记录归档`},
+
+ // ---- Prompt / Turn ----
+ {n:"UserPromptSubmit",cat:"提示与回合",g:"g-turn",block:true,matcher:null,
+  fires:"你提交一段提示词后、Claude 处理它之前。可注入上下文，也可整段拦下。",
+  in:[["prompt","用户刚提交的原文"],["公共字段","transcript_path ..."]],
+  out:[["additionalContext","附加到提示词旁的上下文"],["decision:\"block\" / exit 2","拦掉这次提交并清除"]],
+  ex:`#!/bin/bash
+# 拦截含密钥的提问
+if grep -qE 'sk-[A-Za-z0-9]{20}'; then
+  echo '{"decision":"block","reason":"检测到疑似密钥，已阻止发送"}'
+fi`},
+
+ {n:"UserPromptExpansion",cat:"提示与回合",g:"g-turn",block:true,matcher:"命令名，如 /foo、/bar-baz",
+  fires:"当你输入的 /命令 即将展开成一段提示词、送达 Claude 之前。可阻止该展开。",
+  in:[["command_name","被触发的命令名"]],
+  out:[["additionalContext","展开时附加内容"],["exit 2","阻止该命令展开"]],
+  ex:`{ "hooks": { "UserPromptExpansion": [{
+  "matcher":"deploy",
+  "hooks":[{ "type":"command",
+    "command":"~/.claude/confirm-deploy.sh" }] }] } }
+// 给 /deploy 这类敏感命令加一道展开前确认`},
+
+ {n:"Stop",cat:"提示与回合",g:"g-turn",block:true,matcher:null,
+  fires:"Claude 结束一轮回复时。可用 decision:\"block\" 强制它「别停，继续做」。",
+  in:[["stop_hook_active","布尔：本轮是否已被 hook 拉回过（防死循环用）"]],
+  out:[["decision:\"block\"","阻止结束，对话继续"],["reason","继续的理由（喂给模型）"]],
+  ex:`#!/bin/bash
+[ "$(jq -r .stop_hook_active)" = "true" ] && exit 0
+npm test >/dev/null 2>&1 || \\
+  echo '{"decision":"block","reason":"测试未过，请继续修复"}'`},
+
+ {n:"StopFailure",cat:"提示与回合",g:"g-turn",block:false,matcher:"错误类型，如 rate_limit｜authentication_failed",
+  fires:"本轮因 API 错误（限流、认证失败等）异常结束时。注意：输出与退出码都被忽略——只能用来记录/告警。",
+  in:[["error_type","错误类型"],["error_message","错误信息"]],
+  out:[["（被忽略）","无法阻止或重试，仅作通知"]],
+  ex:`{ "hooks": { "StopFailure": [{ "matcher":"rate_limit",
+  "hooks":[{ "type":"command",
+    "command":"osascript -e 'display notification \\"被限流了\\"'" }] }] } }`},
+
+ // ---- Tool use ----
+ {n:"PreToolUse",cat:"工具调用",g:"g-tool",block:true,matcher:"工具名：Bash｜Edit｜mcp__server__tool ...",
+  fires:"任一工具真正执行之前。整个 hook 体系里最有权力的关口——唯一能「否决一次工具调用」的地方。",
+  in:[["tool_name","将要调用的工具"],["tool_input","该工具的入参对象"]],
+  out:[["permissionDecision","allow｜deny｜ask"],["reason","决定理由"],["updatedInput","改写工具入参后放行"],["exit 2","等效于 deny"]],
+  ex:`#!/bin/bash
+# 禁止编辑 .env 文件
+f=$(jq -r '.tool_input.file_path')
+[[ "$f" == *.env ]] && echo \\
+'{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":".env 受保护"}}'`},
+
+ {n:"PermissionRequest",cat:"工具调用",g:"g-tool",block:true,matcher:null,
+  fires:"权限对话框弹出时。可程序化地替用户做决定（允许/拒绝/仍然询问），实现自定义授权策略。",
+  in:[["tool_name","触发权限的工具"],["permission_rule","对应的权限规则"]],
+  out:[["decision.behavior","allow｜deny｜ask"],["updatedInput","批准时改写入参"]],
+  ex:`// 自动允许对 docs/ 目录的写入，其余照常弹框
+// 配在 "PermissionRequest"，脚本检查 tool_input 路径后返回 allow`},
+
+ {n:"PermissionDenied",cat:"工具调用",g:"g-tool",block:false,matcher:null,
+  fires:"一次工具调用被自动模式分类器拒绝时。返回 {retry:true} 可告诉模型「它可以重试这次被拒的调用」。",
+  in:[["tool_name","被拒的工具"],["permission_rule","触发拒绝的规则"]],
+  out:[["retry: true","允许模型重试该调用"]],
+  ex:`{ "hooks": { "PermissionDenied": [{
+  "hooks":[{ "type":"command",
+    "command":"echo '{\\"retry\\": true}'" }] }] } }
+// 拒绝后给模型一次重试机会`,
+  note:"原始事件描述确认 {retry:true} 语义；更细字段官方文档未充分展开。"},
+
+ {n:"PostToolUse",cat:"工具调用",g:"g-tool",block:false,matcher:"工具名",
+  fires:"一次工具调用成功之后。木已成舟、拦不住，但可做善后（格式化、校验输出）并把结果反馈给模型。",
+  in:[["tool_name","刚执行的工具"],["tool_input","入参"],["tool_response / tool_output","工具返回"]],
+  out:[["additionalContext","把善后结果反馈给模型"],["decision:\"block\"","可提示模型该结果有问题、需重做"]],
+  ex:`{ "hooks": { "PostToolUse": [{ "matcher":"Edit|Write",
+  "hooks":[{ "type":"command",
+    "command":"jq -r .tool_input.file_path | xargs -r eslint" }] }] } }`},
+
+ {n:"PostToolUseFailure",cat:"工具调用",g:"g-tool",block:false,matcher:"工具名",
+  fires:"一次工具调用失败之后。适合把失败归因/排障线索喂回给模型，或触发告警。",
+  in:[["tool_name","失败的工具"],["error_message","错误信息"]],
+  out:[["additionalContext","给模型的排障提示"]],
+  ex:`{ "hooks": { "PostToolUseFailure": [{ "matcher":"Bash",
+  "hooks":[{ "type":"command",
+    "command":"~/.claude/suggest-fix.sh" }] }] } }
+// Bash 失败时自动附上常见修复建议`},
+
+ {n:"PostToolBatch",cat:"工具调用",g:"g-tool",block:false,matcher:null,
+  fires:"一整批并行工具调用全部结束后、下一次模型调用之前。适合做「批量结束后」的聚合处理。",
+  in:[["（批次结果）","本批所有工具的结果，文档未充分展开"]],
+  out:[["additionalContext","聚合反馈（视支持情况）"]],
+  ex:`// 一批文件并行写完后，统一跑一次全量构建检查
+// 配在 "PostToolBatch"（无 matcher）`,
+  note:"较新事件，官方文档字段信息较少，以本机实际行为为准。"},
+
+ // ---- Notify / Display ----
+ {n:"Notification",cat:"通知与显示",g:"g-notify",block:false,matcher:"通知类型，如 permission_prompt｜auth_success",
+  fires:"Claude Code 发出一条通知时（等待权限、空闲提醒等）。常用于接到桌面/IM 推送。",
+  in:[["notification_type / message","通知类型与内容"]],
+  out:[["（不阻断）","只观测"]],
+  ex:`{ "hooks": { "Notification": [{
+  "hooks":[{ "type":"command",
+    "command":"terminal-notifier -message \\"$message\\"" }] }] } }
+// 把 Claude 的通知转成 macOS 桌面提醒`},
+
+ {n:"MessageDisplay",cat:"通知与显示",g:"g-notify",block:false,matcher:null,
+  fires:"助手消息文本正在显示到 UI 期间。可用于镜像/转发输出到别处。",
+  in:[["message / message_type","消息内容与类型"]],
+  out:[["（不阻断）","只观测"]],
+  ex:`// 把每条助手消息同步到日志文件或 IM
+// 配在 "MessageDisplay"（无 matcher）`},
+
+ // ---- Subagent / Task / Team ----
+ {n:"SubagentStart",cat:"子代理·任务·团队",g:"g-agent",block:false,matcher:"子代理类型：Explore｜Plan｜自定义",
+  fires:"一个子代理被派生时。可按类型给子代理注入专属上下文或记录其启动。",
+  in:[["agent_type / agent_id","子代理类型与 ID"]],
+  out:[["（一般不阻断）","观测/记录为主"]],
+  ex:`{ "hooks": { "SubagentStart": [{ "matcher":"Explore",
+  "hooks":[{ "type":"command",
+    "command":"echo \\"$(date) 派生 Explore 代理\\" >> ~/agents.log" }] }] } }`},
+
+ {n:"SubagentStop",cat:"子代理·任务·团队",g:"g-agent",block:true,matcher:"子代理类型",
+  fires:"一个子代理结束时。语义类似 Stop，可对子代理「逼其继续」或校验其产出。",
+  in:[["agent_type / agent_id","子代理类型与 ID"],["exit_reason","结束原因"]],
+  out:[["decision:\"block\" / exit 2","可阻止子代理收工"]],
+  ex:`// 子代理声称完成 Explore，但没产出结构化结果 → block 让它补全
+// 配在 "SubagentStop"，matcher: "Explore"`},
+
+ {n:"TaskCreated",cat:"子代理·任务·团队",g:"g-agent",block:true,matcher:null,
+  fires:"通过 TaskCreate 创建一个任务时。可校验/记录任务，必要时阻断创建。",
+  in:[["task_id / task_name","任务 ID 与名称"]],
+  out:[["exit 2","可阻断任务创建"]],
+  ex:`// 记录所有新建任务到外部看板
+// 配在 "TaskCreated"（无 matcher）`},
+
+ {n:"TaskCompleted",cat:"子代理·任务·团队",g:"g-agent",block:true,matcher:null,
+  fires:"一个任务被标记完成时。可校验「完成」是否名副其实，不合格则阻断。",
+  in:[["task_id / task_result","任务 ID 与结果"]],
+  out:[["exit 2","可阻断标记完成"]],
+  ex:`// 任务标完成前先跑验收脚本，不过就 exit 2
+// 配在 "TaskCompleted"（无 matcher）`},
+
+ {n:"TeammateIdle",cat:"子代理·任务·团队",g:"g-agent",block:true,matcher:null,
+  fires:"agent 团队中的某个 teammate 即将进入空闲时。可在其闲下来前派活或干预。",
+  in:[["（teammate 信息）","文档未充分展开"]],
+  out:[["exit 2","可干预其进入空闲（视支持情况）"]],
+  ex:`// teammate 空闲前，自动检查待办队列并派发
+// 配在 "TeammateIdle"（多人协作场景）`,
+  note:"多 agent 团队特性，较新，字段以本机实际为准。"},
+
+ // ---- Env / File ----
+ {n:"InstructionsLoaded",cat:"环境与文件",g:"g-env",block:false,matcher:"加载原因：session_start｜nested_traversal｜path_glob_match",
+  fires:"CLAUDE.md 或 .claude/rules/*.md 被载入上下文时。会话开始和会话中懒加载都会触发。",
+  in:[["instruction_path / load_reason","被加载的指令文件路径与原因"]],
+  out:[["（一般不阻断）","观测/审计为主"]],
+  ex:`// 审计：记录哪些 CLAUDE.md / rules 被加载进了上下文
+// 配在 "InstructionsLoaded"`},
+
+ {n:"ConfigChange",cat:"环境与文件",g:"g-env",block:true,matcher:"来源：user_settings｜policy_settings ...",
+  fires:"会话进行中某个配置文件发生变化时。可校验改动、必要时阻断。",
+  in:[["config_source / changes","变化来源与内容"]],
+  out:[["exit 2","可阻断不合规的配置变更（视支持情况）"]],
+  ex:`// 监控到 settings.json 被改 → 告警 / 记录
+// 配在 "ConfigChange"`,
+  note:"较新事件，changes 字段官方文档未充分展开。"},
+
+ {n:"CwdChanged",cat:"环境与文件",g:"g-env",block:false,matcher:null,
+  fires:"工作目录改变时（如 Claude 执行了 cd）。配合 direnv 这类工具做响应式环境管理很合适。",
+  in:[["old_cwd / new_cwd","旧目录与新目录"]],
+  out:[["（不阻断）","观测/触发环境切换"]],
+  ex:`{ "hooks": { "CwdChanged": [{
+  "hooks":[{ "type":"command",
+    "command":"direnv export bash" }] }] } }
+// 切目录时自动加载该目录的 .envrc`},
+
+ {n:"FileChanged",cat:"环境与文件",g:"g-env",block:false,matcher:"文件名：.env｜.envrc｜*.py ...",
+  fires:"被监听的文件在磁盘上变化时。matcher 字段指定要盯哪些文件名。",
+  in:[["file_path / change_type","路径与变化类型 create｜modify｜delete"]],
+  out:[["（不阻断）","观测/触发重建"]],
+  ex:`{ "hooks": { "FileChanged": [{ "matcher":"*.proto",
+  "hooks":[{ "type":"command",
+    "command":"make gen-proto" }] }] } }
+// .proto 一改就自动重新生成代码`},
+
+ // ---- Worktree ----
+ {n:"WorktreeCreate",cat:"Worktree",g:"g-worktree",block:true,matcher:null,
+  fires:"通过 --worktree 或 isolation:\"worktree\" 创建 git worktree 时。会替代默认的 git 行为——由你的脚本负责「造出」工作树。",
+  in:[["branch_name / target_directory","分支名与目标目录"]],
+  out:[["（command）打印路径","stdout 输出 worktree 路径"],["非 0 退出","创建失败"]],
+  ex:`{ "hooks": { "WorktreeCreate": [{
+  "hooks":[{ "type":"command",
+    "command":"~/.claude/custom-worktree.sh" }] }] } }
+// 用自定义逻辑建工作树（如基于 overlayfs / 容器）`},
+
+ {n:"WorktreeRemove",cat:"Worktree",g:"g-worktree",block:false,matcher:null,
+  fires:"worktree 被移除时（会话退出或子代理结束）。用于清理自定义工作树留下的资源。",
+  in:[["worktree_path / branch_name","工作树路径与分支"]],
+  out:[["（善后）","清理资源"]],
+  ex:`{ "hooks": { "WorktreeRemove": [{
+  "hooks":[{ "type":"command",
+    "command":"docker rm -f \\"wt-$branch_name\\"" }] }] } }`},
+
+ // ---- Compaction ----
+ {n:"PreCompact",cat:"上下文压缩",g:"g-compact",block:true,matcher:null,
+  fires:"上下文压缩（总结旧对话以腾空间）发生之前。可注入「压缩时务必保留 X」的自定义指示。",
+  in:[["trigger","manual｜auto"],["custom_instructions","压缩自定义指示"]],
+  out:[["exit 2","可阻止本次压缩"]],
+  ex:`// 压缩前先把当前 transcript 存盘备份，避免信息丢失
+// 配在 "PreCompact"（无 matcher）`},
+
+ {n:"PostCompact",cat:"上下文压缩",g:"g-compact",block:false,matcher:null,
+  fires:"上下文压缩完成之后。可在精简后的上下文里补回关键信息。",
+  in:[["（压缩结果）","文档未充分展开"]],
+  out:[["additionalContext","压缩后补回关键上下文（视支持情况）"]],
+  ex:`// 压缩后重新注入"当前任务清单"，防止被总结掉
+// 配在 "PostCompact"`,
+  note:"较新事件，字段以本机实际为准。"},
+
+ // ---- MCP elicitation ----
+ {n:"Elicitation",cat:"MCP 诱导",g:"g-mcp",block:true,matcher:"MCP server 名",
+  fires:"某个 MCP server 在工具调用中请求用户输入（elicitation）时。可拦截或自动应答。",
+  in:[["server_name / elicitation_params","发起的 server 与请求参数"]],
+  out:[["exit 2","可阻断该次诱导"]],
+  ex:`// 对受信任的 MCP server 自动应答其输入请求
+// 配在 "Elicitation"，matcher: server 名`,
+  note:"MCP 高级特性，字段以本机实际为准。"},
+
+ {n:"ElicitationResult",cat:"MCP 诱导",g:"g-mcp",block:false,matcher:"MCP server 名",
+  fires:"用户回应了 MCP 的输入请求、答案送回 server 之前。可观测/记录该结果。",
+  in:[["server_name / result","server 与用户的回应"]],
+  out:[["（不阻断）","观测/记录"]],
+  ex:`// 记录所有 MCP 交互应答，供审计
+// 配在 "ElicitationResult"`,
+  note:"MCP 高级特性，字段以本机实际为准。"},
+];
+
+/* ============ RENDER CARDS ============ */
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const cardsEl = document.getElementById('cards');
+let lastGroup = '';
+const groupTitles = {
+ 'g-session':'会话生命周期','g-turn':'提示与回合','g-tool':'工具调用',
+ 'g-notify':'通知与显示','g-agent':'子代理 · 任务 · 团队','g-env':'环境与文件',
+ 'g-worktree':'Worktree','g-compact':'上下文压缩','g-mcp':'MCP 诱导'
+};
+let html = '', n = 0;
+HOOKS.forEach(h => {
+  n++;
+  if (h.g !== lastGroup){
+    html += `<h3 id="${h.g}" style="font-size:18px;color:var(--purple);margin:30px 0 12px;scroll-margin-top:80px">▸ ${groupTitles[h.g]}</h3>`;
+    lastGroup = h.g;
+  }
+  const inLi = h.in.map(x=>`<li><code>${x[0]}</code> <span class="desc">${x[1]}</span></li>`).join('');
+  const outLi = h.out.map(x=>`<li><code>${x[0]}</code> <span class="desc">${x[1]}</span></li>`).join('');
+  const blockBadge = h.block
+    ? `<span class="badge b-block">⛔ 能阻断</span>`
+    : `<span class="badge b-noblock">○ 不阻断/仅观测</span>`;
+  const matchBadge = h.matcher
+    ? `<span class="badge b-match">🎯 ${esc(h.matcher)}</span>`
+    : `<span class="badge b-nomatch">无 matcher</span>`;
+  const noteHtml = h.note ? `<div class="note">${esc(h.note)}</div>` : '';
+  html += `<div class="card" data-name="${h.n.toLowerCase()}" data-block="${h.block}" data-matcher="${!!h.matcher}" data-text="${esc(h.fires).toLowerCase()} ${h.cat}">
+    <div class="top"><span class="num">#${String(n).padStart(2,'0')}</span><span class="name">${h.n}</span></div>
+    <div class="badges">${blockBadge}${matchBadge}</div>
+    <div class="fires">${esc(h.fires)}</div>
+    <div class="io">
+      <div class="col"><h4>stdin 收到</h4><ul>${inLi}</ul></div>
+      <div class="col"><h4>能输出 / 影响</h4><ul>${outLi}</ul></div>
+    </div>
+    <div class="ex"><div class="lbl">例子</div><pre><code>${esc(h.ex)}</code></pre></div>
+    ${noteHtml}
+  </div>`;
+});
+cardsEl.innerHTML = html;
+
+/* ============ MATRIX ============ */
+const mb = document.getElementById('matrixBody');
+mb.innerHTML = HOOKS.map(h=>{
+  const blk = h.block ? '<td class="y">能</td>' : '<td class="n">—</td>';
+  const mat = h.matcher ? '<td class="y">✓</td>' : '<td class="n">—</td>';
+  const u = h.note ? ' <span style="color:var(--warn)">?</span>' : '';
+  return `<tr><td>${h.n}${u}</td><td style="color:var(--mut)">${h.cat}</td>${blk}${mat}<td style="color:var(--mut)">${esc(h.fires)}</td></tr>`;
+}).join('');
+
+/* ============ FILTER ============ */
+const search = document.getElementById('search');
+const countEl = document.getElementById('count');
+let activeFilter = 'all';
+function apply(){
+  const q = search.value.trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('.card').forEach(c=>{
+    let ok = true;
+    if (activeFilter==='block' && c.dataset.block!=='true') ok=false;
+    if (activeFilter==='matcher' && c.dataset.matcher!=='true') ok=false;
+    if (q && !(c.dataset.name.includes(q) || c.dataset.text.includes(q))) ok=false;
+    c.classList.toggle('hide', !ok);
+    if(ok) shown++;
+  });
+  countEl.textContent = `显示 ${shown} / ${HOOKS.length}`;
+}
+search.addEventListener('input', apply);
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+    chip.classList.add('on');
+    activeFilter = chip.dataset.f;
+    apply();
+  });
+});
+document.querySelector('.chip[data-f="all"]').classList.add('on');
+apply();
+</script>
+</body>
+</html>

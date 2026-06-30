@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 26 课 · xv6 调度器与上下文切换逐行精讲(讲稿+答辩) · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --codebg:#272b33; --codefg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:40px 28px 80px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:24px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:34px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:8px 0}
+  ul,ol{padding-left:22px} li{margin:4px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{background:var(--codebg); color:var(--codefg); border-radius:8px; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; line-height:1.7; margin:12px 0}
+  pre .ln{color:#6f7681; user-select:none; display:inline-block; width:2.2em; text-align:right; margin-right:1em}
+  pre .kw{color:#c678dd} pre .fn{color:#61afef} pre .cm{color:#7d8590; font-style:italic}
+  pre .n{color:#e0a45e} pre .s{color:#98c379} pre .b1{background:#33402f}  pre .b2{background:#2f3a40}
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:13.5px}
+  th,td{border:1px solid var(--line); padding:7px 9px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  td code{font-size:12.5px}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 14px; border-radius:4px; margin:14px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:#f1f9f4}
+  .q{background:#fff; border:1px solid var(--line); border-radius:6px; padding:12px 14px; margin:10px 0}
+  .q b{color:var(--accent)}
+  .pill{display:inline-block; padding:1px 7px; border-radius:10px; font-size:12px; background:#eee; margin-left:4px}
+  .pill.high{background:#fde2dd; color:#8a1c11}
+  .pill.mid{background:#fff0d6; color:#7a4a00}
+  .script{background:#f3f7ec; border:1px dashed #5d7a00; padding:14px 16px; border-radius:6px; margin:14px 0; font-size:15px; line-height:1.85}
+  .timeline{display:grid; grid-template-columns:78px 1fr; gap:6px 12px; font-size:14px; margin:14px 0}
+  .timeline .t{color:var(--accent); font-weight:bold}
+  .timeline .c{background:#fff; padding:8px 12px; border:1px solid var(--line); border-radius:4px}
+  .checklist{background:#fff; border:1px solid var(--ok); border-left:4px solid var(--ok); padding:14px 16px; border-radius:4px; margin:14px 0}
+  .diagram{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.55; background:#fff; border:1px solid var(--line); border-radius:6px; padding:14px 16px; white-space:pre; overflow-x:auto}
+  .big{font-size:15px}
+  footer{margin-top:60px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--accent); text-decoration:none} a:hover{text-decoration:underline}
+  @media print{ body{background:#fff;font-size:13px} .wrap{padding:12mm;max-width:none} pre{background:#f0eee4;color:#222} h2{break-after:avoid} table,.q,.timeline .c{break-inside:avoid} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 26 课 · Ch3 处理机调度 · 逐行源码精讲 + 答辩</p>
+  <h1>xv6 调度器与上下文切换逐行精讲<br><code>scheduler</code> · <code>sched</code> / <code>yield</code> · <code>swtch</code> ——选谁 → 切进去 → 让出来</h1>
+  <p class="sub">明天目标:对着真实代码逐行讲 8–10 分钟,答得住追问 · 源码:<code>xv6-riscv/kernel/proc.c</code> + <code>kernel/swtch.S</code></p>
+</header>
+
+<div class="callout">
+<b>🎯 这份稿子可以独立上场。</b> 它把课本第 3 章「低级调度(进程调度)/ 时间片轮转 / 进程切换 / 上下文」落到真实代码:<code>scheduler()</code> 是<b>选谁</b>、<code>swtch</code> 是<b>进程切换</b>、<code>yield()/sched()</code> 是<b>让出 CPU</b>、<code>struct context</code> 是<b>被保存的上下文</b>。<b>逐行讲代码 + 随时指回课本概念</b>,就是“讲解+答辩”的满分形态。<br>
+源码风格、答辩套路同 <a href="./0021-xv6-bmap-source-walkthrough.html">第 21 课(文件系统)</a>。
+</div>
+
+<h2>0. 先记这句主线(讲偏了就拉回来)</h2>
+<div class="callout ok big">
+<b>“每个 CPU 跑一个 <code>scheduler()</code> 死循环:不停扫描进程表,找一个 <code>RUNNABLE</code>(就绪)的进程,把它设成 <code>RUNNING</code>,用 <code>swtch</code> 切进去运行;等这个进程主动让出(<code>yield</code>)或阻塞(<code>sleep</code>),再用 <code>swtch</code> 切回 <code>scheduler</code>,继续找下一个。如此往复——这就是课本说的<u>低级调度(进程调度)</u>,而切来切去那一下,就是<u>进程切换 / 上下文切换</u>。”</b>
+</div>
+<div class="callout">
+<b>ELI5 比喻(开场可用):</b>调度器像一个不睡觉的值班调度员,手里只有一支麦克风(CPU)。他绕着会议桌一圈圈巡查,谁举手准备好了(RUNNABLE),就把麦克风递给谁(swtch 切入);那人说完一段或被叫停(yield/时钟中断),就把麦克风还回来(swtch 切回),调度员接着巡查下一个。<b>“切进程”本质就是换一张说话的桌签——把当前寄存器存好,把下一个人的寄存器恢复出来。</b>
+</div>
+
+<h2>1. 背景:上下文(context)与就绪状态(进程切换保存了什么)</h2>
+<p>讲调度前,先给老师看“切换到底切什么”。来自 <code>kernel/proc.h</code> 的 <code>struct context</code>——这就是课本说的<b>“进程上下文 / 现场”</b>在 xv6 里的真身:</p>
+<pre><span class="ln">1</span><span class="cm">// Saved registers for kernel context switches.</span>
+<span class="ln">2</span><span class="kw">struct</span> context {
+<span class="ln">3</span>  uint64 ra;   <span class="cm">// ★ 返回地址:切回来时从哪条指令继续执行</span>
+<span class="ln">4</span>  uint64 sp;   <span class="cm">// ★ 栈指针:指向这个内核线程自己的栈(切 sp = 切进程)</span>
+<span class="ln">5</span>
+<span class="ln">6</span>  <span class="cm">// callee-saved 被调用者保存寄存器</span>
+<span class="ln">7</span>  uint64 s0;
+<span class="ln">8</span>  uint64 s1;
+<span class="ln">..</span>  ...
+<span class="ln">18</span>  uint64 s11;  <span class="cm">// s0~s11 共 12 个,加 ra、sp,一共 14 个寄存器</span>
+<span class="ln">19</span>};</pre>
+<div class="callout">
+<b>讲这页时只强调两行:</b>“<code>ra</code> 是<b>返回地址</b>——切回来时从哪儿接着跑;<code>sp</code> 是<b>栈指针</b>——指向这个进程自己的内核栈。<b>只要把 sp 一换,就等于换了整条栈、换了整个执行现场,这就是‘进程切换’的核心。</b> 至于 s0~s11,是 RISC-V 规定‘被调用者保存’的寄存器,必须存下来,切回去才能原样恢复。”
+</div>
+<p><b>进程的几种状态</b>(来自 <code>proc.h</code> 的枚举,对应课本五状态):<code>UNUSED</code> / <code>USED</code> / <code>SLEEPING</code>(阻塞)/ <code>RUNNABLE</code>(就绪)/ <code>RUNNING</code>(运行)/ <code>ZOMBIE</code>(终止)。<b>调度器只挑 <code>RUNNABLE</code>——也就是课本的“就绪队列”里的进程。</b> xv6 没有显式的就绪队列链表,而是用一个全局数组 <code>proc[NPROC]</code>,靠遍历找 <code>RUNNABLE</code> 来代替“从就绪队列取队首”。</p>
+
+<h2>2. 逐行讲 <code>scheduler()</code>(来自 <code>kernel/proc.c</code>)</h2>
+<p>背景注释先念:<i>“每个 CPU 启动后都调用 scheduler(),它<b>永不返回</b>,只是循环:挑一个进程 → swtch 切进去运行 → 那个进程最终再 swtch 切回来。”</i></p>
+<pre><span class="ln">444</span><span class="kw">void</span>
+<span class="ln">445</span><span class="fn">scheduler</span>(<span class="kw">void</span>)
+<span class="ln">446</span>{
+<span class="ln">447</span>  <span class="kw">struct</span> proc *p;
+<span class="ln">448</span>  <span class="kw">struct</span> cpu *c = <span class="fn">mycpu</span>();   <span class="cm">// 取当前这个 CPU 的结构体</span>
+<span class="ln">449</span>
+<span class="ln">450</span>  c->proc = <span class="n">0</span>;
+<span class="ln">451</span>  <span class="b1"><span class="kw">for</span>(;;){                       <span class="cm">// ★ 外层死循环:调度器永不退出</span></span>
+<span class="ln">452</span><span class="b1">    <span class="cm">// Avoid deadlock by ensuring that devices can interrupt.</span></span>
+<span class="ln">453</span><span class="b1">    <span class="fn">intr_on</span>();                  <span class="cm">// 开中断:保证时钟中断能进来(否则没法被抢占)</span></span>
+<span class="ln">454</span>
+<span class="ln">455</span>    <span class="b2"><span class="kw">for</span>(p = proc; p &lt; &amp;proc[NPROC]; p++) { <span class="cm">// ★ 遍历整张进程表 proc[]</span></span>
+<span class="ln">456</span><span class="b2">      <span class="fn">acquire</span>(&amp;p->lock);        <span class="cm">// 上锁,防止别的 CPU 同时动这个进程</span></span>
+<span class="ln">457</span><span class="b2">      <span class="kw">if</span>(p->state == RUNNABLE) { <span class="cm">// ★ 找到一个“就绪”的进程</span></span>
+<span class="ln">461</span><span class="b2">        p->state = RUNNING;     <span class="cm">// ★ 状态:就绪 → 运行</span></span>
+<span class="ln">462</span><span class="b2">        c->proc = p;            <span class="cm">// 记下当前 CPU 正在跑谁</span></span>
+<span class="ln">463</span><span class="b2">        <span class="fn">swtch</span>(&amp;c->context, &amp;p->context); <span class="cm">// ★★ 进程切换:存调度器现场,载入 p 的现场,跳进 p 运行</span></span>
+<span class="ln">464</span>
+<span class="ln">465</span><span class="b2">        <span class="cm">// 执行到这里,说明 p 又把 CPU 让回来了</span></span>
+<span class="ln">467</span><span class="b2">        c->proc = <span class="n">0</span>;            <span class="cm">// 当前 CPU 暂时没在跑用户进程</span></span>
+<span class="ln">468</span><span class="b2">      }</span>
+<span class="ln">469</span>      <span class="fn">release</span>(&amp;p->lock);        <span class="cm">// 解锁,继续看下一个进程</span>
+<span class="ln">470</span>    }
+<span class="ln">471</span>  }
+<span class="ln">472</span>}</pre>
+
+<h3>把代码切成“三件事”讲(这是你讲解的主结构)</h3>
+<table>
+<tr><th>代码块</th><th>行</th><th>一句话讲法</th><th>对应课本</th></tr>
+<tr><td><b>① 死循环 + 开中断</b></td><td>451–453</td><td>“调度器是个永不返回的死循环。先开中断,这样<b>时钟中断</b>才能进来,才有‘抢占’和‘时间片’可言。”</td><td>抢占式调度 / 时钟</td></tr>
+<tr><td><b>② 遍历找 RUNNABLE</b></td><td>455–457</td><td>“扫描整张进程表 <code>proc[]</code>,找一个状态是 <code>RUNNABLE</code>(就绪)的进程。这就是‘从就绪队列里挑一个’的最朴素实现——顺序扫描。”</td><td>低级调度(进程调度)/ 就绪队列</td></tr>
+<tr><td><b>③ 设运行 + swtch 切入</b></td><td>461–463</td><td>“把它设成 <code>RUNNING</code>,然后 <code>swtch</code>:存下调度器自己的现场,载入这个进程的现场,CPU 就跳进它运行了。<b>这一行就是‘进程切换’。</b>”</td><td>进程切换 / 上下文切换</td></tr>
+<tr><td><b>④ 切回后继续</b></td><td>465–470</td><td>“<code>swtch</code> 之后那行很关键:能执行到这里,<b>说明刚才那个进程又把 CPU 让回来了</b>(它自己改了 state 再切回)。然后解锁,继续扫下一个。”</td><td>调度往复</td></tr>
+</table>
+<div class="callout warn">
+<b>最容易被追问、也最妙的一点:</b> 第 463 行 <code>swtch</code> 是一次“去”、第 464 行之后是一次“回”,中间隔着的<b>不是几纳秒,而是整个进程的一段运行时间</b>。CPU 从 463 行跳走去跑别的进程,可能过了好几毫秒、跑完一个时间片,才从 swtch 里“回来”落到 464 行。<b>同一个 swtch 调用,进去和出来跨越了一次完整的进程运行。</b>
+</div>
+
+<h2>3. 逐行讲 <code>yield()</code> / <code>sched()</code>(进程怎么“让出 CPU”)</h2>
+<p>上面调度器切进了进程。那进程<b>什么时候、怎么</b>把 CPU 还回来?答案是 <code>yield()</code>——它在<b>时钟中断</b>里被调用(每个时间片到点)。来自 <code>kernel/proc.c</code>:</p>
+<pre><span class="ln">501</span><span class="cm">// Give up the CPU for one scheduling round.(让出 CPU 一轮)</span>
+<span class="ln">502</span><span class="kw">void</span>
+<span class="ln">503</span><span class="fn">yield</span>(<span class="kw">void</span>)
+<span class="ln">504</span>{
+<span class="ln">505</span>  <span class="kw">struct</span> proc *p = <span class="fn">myproc</span>();   <span class="cm">// 当前正在跑的进程</span>
+<span class="ln">506</span>  <span class="fn">acquire</span>(&amp;p->lock);
+<span class="ln">507</span>  p->state = RUNNABLE;          <span class="cm">// ★ 运行 → 就绪:我还能跑,但先让出,重新排队</span>
+<span class="ln">508</span>  <span class="fn">sched</span>();                       <span class="cm">// ★ 切回调度器</span>
+<span class="ln">509</span>  <span class="fn">release</span>(&amp;p->lock);
+<span class="ln">510</span>}</pre>
+<p><code>yield</code> 只做一件事:把自己从 <code>RUNNING</code> 改回 <code>RUNNABLE</code>(<b>注意不是阻塞,而是“还就绪、只是排到后面”</b>),然后调用 <code>sched()</code> 真正切走。<code>sched()</code> 是“切回调度器”的统一出口:</p>
+<pre><span class="ln">481</span><span class="kw">void</span>
+<span class="ln">482</span><span class="fn">sched</span>(<span class="kw">void</span>)
+<span class="ln">483</span>{
+<span class="ln">484</span>  <span class="kw">int</span> intena;
+<span class="ln">485</span>  <span class="kw">struct</span> proc *p = <span class="fn">myproc</span>();
+<span class="ln">486</span>
+<span class="ln">487</span>  <span class="kw">if</span>(!<span class="fn">holding</span>(&amp;p->lock))      <span class="cm">// 安全检查:必须持有 p->lock</span>
+<span class="ln">488</span>    <span class="fn">panic</span>(<span class="s">"sched p->lock"</span>);
+<span class="ln">491</span>  <span class="kw">if</span>(p->state == RUNNING)       <span class="cm">// 安全检查:此时不能还是 RUNNING(必须已改成别的态)</span>
+<span class="ln">492</span>    <span class="fn">panic</span>(<span class="s">"sched running"</span>);
+<span class="ln">493</span>  <span class="kw">if</span>(<span class="fn">intr_get</span>())              <span class="cm">// 安全检查:切换期间必须关中断</span>
+<span class="ln">494</span>    <span class="fn">panic</span>(<span class="s">"sched interruptible"</span>);
+<span class="ln">495</span>
+<span class="ln">496</span>  intena = <span class="fn">mycpu</span>()->intena;
+<span class="ln">497</span>  <span class="b2"><span class="fn">swtch</span>(&amp;p->context, &amp;<span class="fn">mycpu</span>()->context); <span class="cm">// ★★ 与 scheduler 里那次方向相反:存进程现场,载入调度器现场</span></span>
+<span class="ln">498</span>  <span class="fn">mycpu</span>()->intena = intena;
+<span class="ln">499</span>}</pre>
+<div class="callout ok">
+<b>对称之美(讲这点显水平):</b> 看清这两行就懂了整个机制——
+<br>· <b>进入进程</b>(scheduler 第 463 行):<code>swtch(&amp;c->context, &amp;p->context)</code> — 存<b>调度器</b>、载<b>进程</b>。
+<br>· <b>离开进程</b>(sched 第 497 行):<code>swtch(&amp;p->context, &amp;mycpu()->context)</code> — 存<b>进程</b>、载<b>调度器</b>。
+<br>两次 <code>swtch</code> 一进一出,参数刚好对调。进程从 463 行被切进来运行,跑到时钟中断调 yield→sched,在 497 行把自己存好、切回调度器,于是调度器就从它的 463 行“回来”了,落到 464 行继续扫表。<b>调度器和进程,就这样靠两次反向 swtch 互相接力。</b>
+</div>
+<div class="callout">
+<b>三种“让出”的区别(老师爱问):</b>
+<br>· <b>时间片到</b> → 时钟中断 → <code>yield()</code>:state 改成 <code>RUNNABLE</code>(还就绪,排队后面)→ 这就是<b>时间片轮转 RR</b>的抢占。
+<br>· <b>等资源/等事件</b> → <code>sleep()</code>:state 改成 <code>SLEEPING</code>(阻塞)→ 被 <code>wakeup</code> 唤醒后才变回 RUNNABLE。
+<br>· <b>进程结束</b> → <code>exit()</code>:state 改成 <code>ZOMBIE</code>(终止)。
+<br><b>三者都殊途同归:改完 state,都调用 <code>sched()</code>,都用同一行 <code>swtch</code> 切回调度器。</b>
+</div>
+
+<h2>4. 逐行讲 <code>swtch</code> 汇编:上下文切换到底切了什么(来自 <code>kernel/swtch.S</code>)</h2>
+<p>这是全课最硬核、也最容易拿分的一段。<code>swtch(old, new)</code> 只做两件事:<b>把当前寄存器存进 old,再把 new 里的寄存器加载出来。</b> RISC-V 调用约定里,参数 <code>old</code> 在寄存器 <code>a0</code>、<code>new</code> 在 <code>a1</code>。只摘关键几行:</p>
+<pre><span class="ln">8</span>.globl swtch
+<span class="ln">9</span>swtch:
+<span class="ln">10</span>  <span class="b1">sd ra, 0(a0)      <span class="cm">// ★ 把返回地址 ra 存到 old->context(偏移 0)</span></span>
+<span class="ln">11</span>  <span class="b1">sd sp, 8(a0)      <span class="cm">// ★ 把栈指针 sp 存到 old(偏移 8)</span></span>
+<span class="ln">12</span>  <span class="b1">sd s0, 16(a0)     <span class="cm">// 把 s0~s11 依次存进 old</span></span>
+<span class="ln">..</span>  <span class="b1">...               <span class="cm">// (s1, s2, ... 共 12 个)</span></span>
+<span class="ln">23</span>  <span class="b1">sd s11, 104(a0)</span>
+<span class="ln">24</span>
+<span class="ln">25</span>  <span class="b2">ld ra, 0(a1)      <span class="cm">// ★ 从 new->context 加载 ra:决定“ret 之后跳到哪”</span></span>
+<span class="ln">26</span>  <span class="b2">ld sp, 8(a1)      <span class="cm">// ★ 从 new 加载 sp:换成新进程的栈 = 换了整个执行现场</span></span>
+<span class="ln">27</span>  <span class="b2">ld s0, 16(a1)     <span class="cm">// 把 new 的 s0~s11 恢复出来</span></span>
+<span class="ln">..</span>  <span class="b2">...</span>
+<span class="ln">38</span>  <span class="b2">ld s11, 104(a1)</span>
+<span class="ln">39</span>
+<span class="ln">40</span>  ret               <span class="cm">// ★ 跳到刚加载的 ra —— 此刻已经在“另一个进程”里执行了</span></pre>
+<div class="callout">
+<b>逐句拆解(答辩金句):</b>
+<br>① 第 10–23 行 <code>sd</code>(store):把<b>当前</b>的 ra、sp、s0~s11 一个个存进 <code>old</code> 指向的 context。这是<b>“保存现场”</b>。
+<br>② 第 25–38 行 <code>ld</code>(load):把 <code>new</code> 里的 ra、sp、s0~s11 加载回 CPU 寄存器。这是<b>“恢复现场”</b>。
+<br>③ 第 40 行 <code>ret</code>:跳到刚加载进来的 <code>ra</code>。<b>关键就在这:ra 已经是新进程上次被切走时存的返回地址,所以 ret 一执行,CPU 就回到了新进程当初离开的地方继续跑。</b>
+</div>
+<div class="callout warn">
+<b>“为什么切 sp 就等于切进程”——这是必考题,务必讲清:</b> 每个进程有自己独立的内核栈,局部变量、函数调用链、返回地址都压在各自的栈上。<code>sp</code> 指向哪条栈,CPU 就“站在”哪个进程的执行现场里。<b>第 26 行把 sp 一换,后面所有 push/pop、所有 <code>ret</code> 找返回地址,都到新进程的栈上去做了——执行流就此整个搬到了另一个进程。</b> 配合换掉的 ra(决定下一跳指令),一存一载之间,进程就被切换了。<b>swtch 没碰页表/通用寄存器 a0–a7、t0–t6,因为切换发生在两个内核线程之间的函数调用边界,调用者已按约定处理好那些,只剩 callee-saved 这 14 个需要 swtch 亲自存。</b>
+</div>
+
+<h2>5. 一张图:调度的一圈是怎么转的(PPT 核心页)</h2>
+<div class="diagram">  每个 CPU:  scheduler() 死循环
+        │
+        ▼
+   遍历 proc[] ──► 找到 state==RUNNABLE 的进程 p
+        │（没找到就一直转，等有进程就绪）
+        ▼
+   p->state = RUNNING
+        │
+        ▼
+   swtch(&amp;c->context, &amp;p->context)  ──存调度器/载进程──►  ┐
+        ▲                                                  │ 进程 p 在 CPU 上运行
+        │  swtch(&amp;p->context, &amp;c->context)                │ （跑它的代码……）
+        │  ◄──存进程/载调度器──   sched()  ◄── yield()  ◄──┘
+        │                                       ▲
+        │                          时钟中断(时间片到) / 主动阻塞 sleep
+        │
+        └──► 回到 464 行，c->proc=0，解锁，继续扫下一个 RUNNABLE  ──┐
+                                                                      │
+   (循环往复) ◄──────────────────────────────────────────────────────┘
+
+  口诀：  找就绪 → swtch 进 → 运行 → 中断/yield → swtch 回 → 再找
+</div>
+
+<h2>6. xv6 的调度算法 vs 课本调度算法(对照,显深度)</h2>
+<p>老师一定会问“这对应课本哪种算法”。把握一个核心:<b>xv6 是“顺序扫描进程表 + 时钟中断强制 yield”,效果近似时间片轮转(RR),但实现极简。</b></p>
+<table>
+<tr><th>维度</th><th>xv6 实际做法</th><th>课本对应</th></tr>
+<tr><td>就绪队列</td><td>没有真链表,用全局数组 <code>proc[NPROC]</code> 顺序遍历</td><td>就绪队列(逻辑上等价)</td></tr>
+<tr><td>选谁</td><td>从当前位置往后,<b>遇到的第一个 RUNNABLE</b></td><td>近似 RR 的“轮流”;也带点 FCFS 的扫描顺序味道</td></tr>
+<tr><td>抢占</td><td>时钟中断到点 → <code>yield()</code> 把当前进程踢回 RUNNABLE</td><td><b>时间片轮转 RR(抢占式)</b></td></tr>
+<tr><td>时间片</td><td>固定:每个时钟滴答(tick)就触发一次 yield</td><td>等长时间片</td></tr>
+<tr><td>优先级</td><td><b>没有</b>。所有就绪进程一视同仁</td><td>课本的优先级 / 短作业优先 / 多级反馈队列 xv6 都<b>没实现</b></td></tr>
+</table>
+<div class="callout">
+<b>一句话定性(背下来):</b>“xv6 用的是<b>最朴素的时间片轮转</b>:时钟中断每滴答一次就让运行进程 <code>yield</code>,调度器再顺序扫到下一个就绪进程切入。它<b>不做优先级、不做短作业优先</b>,所以是 RR 的极简版——课本的 FCFS/SJF/优先级/多级反馈队列都是在‘选谁’这一步上做更聪明的策略,而 xv6 把‘选谁’简化成了‘顺序找下一个就绪的’。”
+</div>
+
+<h2>7. 8–10 分钟讲稿(逐字稿)</h2>
+<div class="script"><b>🎤 7 段。撑满 8–10 分钟。时间紧就砍掉第 5 段(算法对照),把它压成一句话(见 §11 砍版)。</b></div>
+<div class="timeline">
+<div class="t">0:00–1:00</div><div class="c"><b>【开场+主线】</b>“老师好。我精讲 xv6 内核的<b>进程调度与上下文切换</b>,对应课本第 3 章。核心代码三处:<code>scheduler()</code> 负责<b>选谁</b>、<code>swtch</code> 负责<b>进程切换</b>、<code>yield()/sched()</code> 负责<b>让出 CPU</b>。一句话主线:<b>每个 CPU 跑一个死循环,扫进程表找就绪进程,swtch 切进去跑,进程让出时再 swtch 切回来,如此往复。</b>”</div>
+<div class="t">1:00–2:00</div><div class="c"><b>【背景:上下文】</b>讲 <code>struct context</code>:14 个寄存器,重点是 <code>ra</code>(返回地址)和 <code>sp</code>(栈指针)。“课本说的‘进程上下文/现场’,在 xv6 里就是这个结构体。切 sp 就等于切栈、切整个执行现场。”再点状态:调度器只挑 <code>RUNNABLE</code>(就绪)。</div>
+<div class="t">2:00–4:00</div><div class="c"><b>【scheduler 逐行】</b>讲 451–470:外层 <code>for(;;)</code> 死循环 → <code>intr_on</code> 开中断(为了能被时钟抢占)→ 遍历 <code>proc[]</code> → 找到 <code>RUNNABLE</code> → 设 <code>RUNNING</code> → 第 463 行 <code>swtch</code> 切进去。重点讲“464 行能执行到,说明进程又把 CPU 让回来了”——同一个 swtch,进去和出来跨越了一整段进程运行。</div>
+<div class="t">4:00–5:30</div><div class="c"><b>【yield/sched 逐行】</b>讲 503–510 和 481–499:时钟中断到点调 <code>yield</code> → state 改回 <code>RUNNABLE</code>(还就绪,只是排后面)→ <code>sched()</code> 在 497 行 <code>swtch(&amp;p->context, &amp;mycpu()->context)</code> 切回调度器。强调两次 swtch 参数刚好对调,一进一出对称接力。</div>
+<div class="t">5:30–7:00</div><div class="c"><b>【swtch 汇编·重头戏】</b>讲 swtch.S:10–23 行 <code>sd</code> 存当前 ra/sp/s0~s11 进 old;25–38 行 <code>ld</code> 从 new 加载;最后 <code>ret</code> 跳到新 ra。<b>答辩金句:为什么切 sp 就等于切进程——每个进程有独立内核栈,sp 一换,后续所有栈操作和 ret 都到新进程栈上,执行流整个搬过去了。</b></div>
+<div class="t">7:00–8:30</div><div class="c"><b>【对照课本算法】</b>“xv6 没有就绪队列链表,用数组顺序遍历找第一个就绪进程;靠时钟中断每滴答强制 <code>yield</code>。所以它是<b>最朴素的时间片轮转 RR</b>,不做优先级、不做短作业优先。课本的 FCFS/SJF/优先级/多级反馈,都是在‘选谁’这步做更聪明的策略。”</div>
+<div class="t">8:30–10:00</div><div class="c"><b>【收尾】</b>“这三段把课本第 3 章串了起来:<code>proc[]</code> + <code>state==RUNNABLE</code> 是<b>就绪队列与进程调度</b>;<code>scheduler</code> 的遍历是<b>调度算法(RR)</b>;时钟中断触发 <code>yield</code> 是<b>抢占</b>;<code>swtch</code> 存载 context 是<b>进程切换/上下文切换</b>。一圈死循环,把课本概念全连起来了。谢谢老师。”</div>
+</div>
+
+<h2>8. 答辩:老师可能逐行问的 10 题</h2>
+<p class="big"><b>逐行讲源码,老师最爱指着某一行问“这行干嘛”。下面是高危行的标准答法。</b></p>
+
+<div class="q"><b>Q1.</b> 指着 swtch.S 问:<code>swtch</code> 到底切了哪些寄存器?为什么是这些?<span class="pill high">必答</span><br>
+<b>答:</b>切 14 个:<code>ra</code>、<code>sp</code>、外加 <code>s0~s11</code> 共 12 个。这些是 RISC-V 调用约定里的<b>“被调用者保存(callee-saved)寄存器”</b>。因为 swtch 是被当作一次普通函数调用进入的,调用者保存(caller-saved)的寄存器编译器已经按约定在调用前处理好了,swtch 只需负责 callee-saved 这批。<b>不切页表、不切 a0–a7/t 寄存器</b>。</div>
+
+<div class="q"><b>Q2.</b> 为什么“切 <code>sp</code> 就等于切进程”?<span class="pill high">高危</span><br>
+<b>答:</b>因为每个进程有<b>独立的内核栈</b>,它的局部变量、函数调用链、压栈的返回地址全在自己的栈上。<code>sp</code> 指向哪条栈,CPU 就站在哪个进程的现场。<code>swtch</code> 第 26 行把 <code>sp</code> 一换,之后所有压栈出栈、所有 <code>ret</code> 找返回地址都到新进程的栈上做了,执行流就整个搬到了新进程。配合换掉的 <code>ra</code>(下一跳指令),进程就被切换了。</div>
+
+<div class="q"><b>Q3.</b> <code>ra</code> 在切换里起什么作用?为什么必须存它?<span class="pill high">高危</span><br>
+<b>答:</b><code>ra</code> 是<b>返回地址</b>。<code>swtch</code> 结尾的 <code>ret</code> 会跳到 <code>ra</code>。加载 new 的 ra,意味着 <code>ret</code> 后 CPU 跳到<b>新进程上次被切走时记下的返回点</b>,从那儿继续执行。不存 ra,就不知道切回来后从哪条指令接着跑。</div>
+
+<div class="q"><b>Q4.</b> <code>scheduler</code> 怎么选下一个进程?对应课本哪种算法?<span class="pill high">必答</span><br>
+<b>答:</b>顺序遍历全局进程表 <code>proc[NPROC]</code>,<b>遇到的第一个 <code>state==RUNNABLE</code> 的进程</b>就选它。没有优先级、没有短作业优先。配合时钟中断每滴答强制当前进程 <code>yield</code>,整体是<b>最朴素的时间片轮转(RR)</b>。课本其他算法(FCFS/SJF/优先级/多级反馈)是在“选谁”这一步做更复杂的策略。</div>
+
+<div class="q"><b>Q5.</b> 进程什么时候会被切走?(调度时机)<span class="pill high">必答</span><br>
+<b>答:</b>三种:① <b>时间片用完</b>——时钟中断里调 <code>yield()</code>,state 改回 RUNNABLE(抢占);② <b>主动阻塞</b>——等 I/O、等锁、等事件时调 <code>sleep()</code>,state 改成 SLEEPING;③ <b>进程结束</b>——<code>exit()</code>,state 改成 ZOMBIE。三者都改完 state 后调用 <code>sched()</code>,统一用 <code>swtch</code> 切回调度器。对应课本“低级调度的时机:运行完成/自动阻塞/发生抢占事件”。</div>
+
+<div class="q"><b>Q6.</b> 上下文(进程现场)保存在哪里?<span class="pill mid">必答</span><br>
+<b>答:</b>保存在每个进程 PCB 里的 <code>struct context</code>(<code>proc.h</code> 第 103 行 <code>p->context</code>),以及每个 CPU 自己的 <code>c->context</code>(第 24 行)。<code>swtch</code> 就是在“某个进程的 context”和“调度器的 context”之间存取。注意它只存内核态切换需要的 14 个寄存器;用户态的完整现场(全部寄存器、程序计数器等)是在进入内核时由 trap 机制存到 <code>trapframe</code> 里的,两者分工不同。</div>
+
+<div class="q"><b>Q7.</b> 第 463 行 <code>swtch</code> 之后那行(464)什么时候才会执行?<span class="pill high">高危</span><br>
+<b>答:</b>要等被切入的那个进程<b>再次让出 CPU</b>(yield/sleep/exit→sched→swtch 切回)时才执行。所以 463 行“进去”和 464 行“回来”之间,隔着那个进程一整段的运行时间(可能好几毫秒)。<b>同一次 swtch 调用,进入和返回跨越了一次完整的进程运行</b>——这是 swtch 最反直觉、也最精彩的地方。</div>
+
+<div class="q"><b>Q8.</b> 第 453 行 <code>intr_on()</code> 为什么要在循环里开中断?<span class="pill mid">进阶</span><br>
+<b>答:</b>为了保证<b>时钟中断和设备中断能进来</b>。没有时钟中断,就没法在时间片到点时触发 <code>yield</code>,抢占就失效了,RR 也就无从谈起。注释还提到“避免死锁”:如果所有进程都在等中断、而中断又被关着,系统就卡死。<b>而真正执行 swtch 切换的那一小段(在 sched 里)是要求关中断的</b>——见 Q9。</div>
+
+<div class="q"><b>Q9.</b> <code>sched()</code> 开头那几个 <code>panic</code> 检查是干嘛的?<span class="pill mid">进阶</span><br>
+<b>答:</b>切换前的三道安全闸:① 必须持有 <code>p->lock</code>(保护切换过程);② 此刻 state <b>不能还是 RUNNING</b>(说明调用者已经把状态改成 RUNNABLE/SLEEPING/ZOMBIE 了,否则切走后没人知道它该是什么态);③ 中断必须是关闭的(切换过程不能被打断)。任一不满足就 <code>panic</code>,把潜在的并发 bug 立刻暴露出来。</div>
+
+<div class="q"><b>Q10.</b> <code>yield</code> 把 state 设成 <code>RUNNABLE</code> 而不是 <code>SLEEPING</code>,区别在哪?<span class="pill mid">对比</span><br>
+<b>答:</b><code>RUNNABLE</code> = <b>就绪</b>:进程没在等任何东西,只是时间片到了被踢回队列,下一轮调度器扫到它还能继续跑。<code>SLEEPING</code> = <b>阻塞</b>:进程在等某个事件(I/O 完成、锁释放),<b>必须被 <code>wakeup</code> 唤醒</b>变回 RUNNABLE 后,调度器才会再选它。这正是课本“就绪态”和“阻塞态”的区别——yield 是时间片轮转的让出,sleep 是因事件而阻塞。</div>
+
+<h2>9. 临场应急</h2>
+<div class="callout warn"><b>🆘 老师问到 <code>trap</code>/<code>trapframe</code>/<code>usertrapret</code> 这些你没细看的:</b>诚实说“那是 trap(陷入)机制,负责用户态↔内核态切换时保存完整寄存器现场,我这次聚焦的是<b>内核线程之间</b>的调度切换 swtch,没深入 trap 那层”。<b>聚焦你讲的‘scheduler–swtch–yield’这条线,别被带偏。</b></div>
+<div class="callout"><b>🆘 被问哪行而卡住:</b>三步——“这行属于①scheduler(选谁)/ ②yield-sched(让出)/ ③swtch(切换)哪一段 → 它在做‘存现场’还是‘恢复现场’还是‘改状态’ → 对应课本哪个概念(就绪队列/进程切换/抢占)”。</div>
+<div class="callout"><b>🆘 被问 xv6 是不是某种高级算法:</b>稳住,标准答案就一句:“xv6 是<b>最朴素的时间片轮转 RR</b>,顺序找就绪进程 + 时钟抢占,没有优先级。”不要硬扯成多级反馈队列。</div>
+
+<h2>10. 彩排 Checklist(今晚)</h2>
+<div class="checklist">
+<label><input type="checkbox"> 1. <b>能不看注释</b>,把三段讲出来:scheduler 找 RUNNABLE / yield-sched 让出 / swtch 存载现场</label><br>
+<label><input type="checkbox"> 2. 高危行能脱口说出“干嘛+对应课本”:scheduler <b>457/461/463</b>、sched <b>497</b>、swtch.S <b>10/26/40</b></label><br>
+<label><input type="checkbox"> 3. <b>能讲清</b>“两次 swtch 参数刚好对调”(463 进 / 497 出)</label><br>
+<label><input type="checkbox"> 4. <b>背下金句</b>:为什么切 sp 就等于切进程(独立内核栈 + 后续栈操作全搬过去)</label><br>
+<label><input type="checkbox"> 5. <b>能说三种调度时机</b>:时间片到(yield/RUNNABLE)、阻塞(sleep/SLEEPING)、结束(exit/ZOMBIE)</label><br>
+<label><input type="checkbox"> 6. <b>能定性</b>:xv6 = 朴素 RR,对比 FCFS/SJF/优先级/多级反馈</label><br>
+<label><input type="checkbox"> 7. 讲稿<b>出声读 3 遍</b> + 卡时间(目标 8–10 分钟,或砍版 5 分钟)</label><br>
+<label><input type="checkbox"> 8. <b>答辩 10 题</b>过一遍,高危题 Q1/Q2/Q3/Q4/Q7 各两遍</label><br>
+<label><input type="checkbox"> 9. 电脑上<b>打开真实文件</b> <code>kernel/proc.c</code>(scheduler:445 / sched:482 / yield:503)、<code>kernel/swtch.S</code>,明天可带着</label><br>
+<label><input type="checkbox"> 10. 睡好觉</label>
+</div>
+
+<h2>11. 时间不够的「5 分钟砍版」</h2>
+<div class="callout ok">
+只讲<b>一条最短闭环</b>,砍掉算法对照和 sched 安全检查:<br>
+① 一句话主线 + <code>struct context</code> 的 ra/sp →
+② <code>scheduler()</code>:死循环 → 找 RUNNABLE → 设 RUNNING → swtch 切入 →
+③ <code>swtch</code>:存 old / 载 new / ret,重点说“切 sp = 切进程” →
+④ <code>yield()</code>:时钟中断让出,state 改回 RUNNABLE,swtch 切回(参数对调)→
+⑤ 收尾:这就是课本“进程切换 + 时间片轮转”的真代码。<br>
+算法对照、调度时机若被问到,再临场展开 §6、§8 的 Q4/Q5。<b>讲透一条线,远胜三条线都发虚。</b>
+</div>
+
+<footer>
+第 26 课 · Ch3 处理机调度 · xv6 调度器与上下文切换逐行精讲 ·
+源码风格同 → <a href="./0021-xv6-bmap-source-walkthrough.html">第 21 课(文件系统 bmap)</a><br>
+源码出处:<code>learn-code/xv6-riscv-20230207/kernel/proc.c:445</code>(scheduler)、<code>:482</code>(sched)、<code>:503</code>(yield);<code>kernel/swtch.S:8-40</code>(swtch);<code>kernel/proc.h:2-19</code>(struct context)。常量:NPROC=进程表大小;context 保存 14 个寄存器(ra、sp、s0~s11)。
+</footer>
+
+</div>
+</body>
+</html>
