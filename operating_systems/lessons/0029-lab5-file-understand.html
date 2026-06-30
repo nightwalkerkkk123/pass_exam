@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>实验⑤ 文件管理 · 理解版 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#5a6475; --line:#e3e6ec; --bg:#f6f8fc; --card:#ffffff;
+    --blue:#2b6cb0; --green:#2f855a; --amber:#b7791f; --red:#c53030; --purple:#6b46c1;
+    --green-bg:#e7f6ec; --green-bd:#9ad0ad;
+    --amber-bg:#fdeccd; --amber-bd:#e8b86a;
+    --blue-bg:#e7eefc; --blue-bd:#9bb6ec;
+    --shadow:0 1px 3px rgba(20,30,60,.05), 0 6px 24px rgba(20,30,60,.04);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:
+      radial-gradient(1200px 500px at 80% -10%, #eaf1ff 0%, transparent 60%),
+      radial-gradient(900px 400px at -10% 10%, #fef3e6 0%, transparent 55%),
+      var(--bg);
+    line-height:1.75; font-size:16px; -webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px; margin:0 auto; padding:36px 22px 110px}
+
+  /* header */
+  header.h{margin-bottom:26px}
+  .eyebrow{display:inline-block; color:#fff; background:linear-gradient(135deg,var(--green),#256d49);
+    font-weight:700; letter-spacing:.04em; font-size:12.5px; padding:4px 11px; border-radius:20px}
+  h1{font-size:27px; margin:14px 0 8px; letter-spacing:-.01em; line-height:1.3}
+  .sub{color:var(--muted); font-size:14.5px; max-width:62ch}
+  .tagrow{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap}
+  .tag{font-size:12.5px; color:var(--muted); background:#fff; border:1px solid var(--line);
+    padding:3px 10px; border-radius:20px}
+
+  h2{font-size:20px; margin:42px 0 12px; display:flex; align-items:center; gap:10px}
+  h2 .n{display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px;
+    border-radius:9px; background:var(--blue); color:#fff; font-size:15px; font-weight:700; flex:0 0 auto}
+  p{margin:9px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6;
+    padding:1px 6px; border-radius:4px; color:#33415c}
+
+  .card{background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:20px 22px; margin:16px 0; box-shadow:var(--shadow)}
+  .eli5{background:linear-gradient(180deg,#fffaf2,#fff); border:1px solid var(--amber-bd);
+    border-left:4px solid var(--amber); border-radius:10px; padding:14px 16px; margin:16px 0}
+  .eli5 .lbl{color:var(--amber); font-weight:700; font-size:13px; letter-spacing:.03em}
+  .key{background:linear-gradient(180deg,#f1fbf4,#fff); border:1px solid var(--green-bd);
+    border-left:4px solid var(--green); border-radius:10px; padding:14px 16px; margin:16px 0}
+  .key .lbl{color:var(--green); font-weight:700; font-size:13px}
+  .warn{background:#fff5f5; border:1px solid #f5c2c2; border-left:4px solid var(--red);
+    border-radius:10px; padding:14px 16px; margin:16px 0}
+  .warn .lbl{color:var(--red); font-weight:700; font-size:13px}
+
+  /* 问题对照表 */
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:9px 12px; text-align:left; vertical-align:top}
+  th{background:#f0f3f9; font-weight:700}
+  td.c{text-align:center}
+
+  /* ===== inode 交互可视化 ===== */
+  .stage{display:grid; grid-template-columns: 1fr; gap:18px}
+  @media(min-width:720px){ .stage{grid-template-columns: 230px 1fr} }
+  .inode-box{border:2px solid var(--ink); border-radius:12px; padding:14px; background:#fff}
+  .inode-title{font-size:12.5px; color:var(--muted); text-align:center; margin-bottom:10px; font-weight:700}
+  .cells{display:grid; grid-template-columns:repeat(4,1fr); gap:6px}
+  .cell{aspect-ratio:1/1; border-radius:8px; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; font-size:11px; cursor:pointer;
+    border:1.5px solid var(--green-bd); background:var(--green-bg); color:#1f5135;
+    transition:transform .15s, box-shadow .15s, outline .1s; user-select:none}
+  .cell .idx{font-weight:700; font-size:12px}
+  .cell .v{font-size:10px; opacity:.75}
+  .cell.indirect{border-color:var(--amber-bd); background:var(--amber-bg); color:#7a5410}
+  .cell:hover{transform:translateY(-2px); box-shadow:0 4px 12px rgba(20,30,60,.12)}
+  .cell.active{outline:3px solid var(--blue); outline-offset:1px; transform:translateY(-2px)}
+
+  .right{display:flex; flex-direction:column; gap:12px}
+  .stepbar{display:flex; align-items:stretch; gap:8px}
+  .node{flex:1; border:1.5px dashed var(--line); border-radius:10px; padding:10px 8px;
+    text-align:center; background:#fbfcfe; opacity:.45; transition:all .25s}
+  .node.lit{opacity:1; border-style:solid}
+  .node.lit.n1{border-color:var(--ink); background:#fff}
+  .node.lit.n2{border-color:var(--amber); background:var(--amber-bg)}
+  .node.lit.n3{border-color:var(--blue); background:var(--blue-bg)}
+  .node .t{font-size:12px; font-weight:700; margin-bottom:3px}
+  .node .d{font-size:11px; color:var(--muted); line-height:1.4}
+  .arrow{display:flex; align-items:center; color:#bbb; font-size:18px}
+  .arrow.lit{color:var(--ink)}
+  .readout{min-height:46px; background:#0f1626; color:#e8edf6; border-radius:10px;
+    padding:11px 14px; font-size:13.5px; line-height:1.5}
+  .readout b{color:#ffd479}
+  .hops{display:inline-block; font-weight:700; color:#7ee0a6}
+  .ctrls{display:flex; gap:8px; flex-wrap:wrap; margin-top:4px}
+  .btn{font:inherit; font-size:13.5px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:7px 14px; border-radius:22px; cursor:pointer; transition:background .15s}
+  .btn:hover{background:#eef4fb}
+  .btn.amber{border-color:var(--amber); color:var(--amber)} .btn.amber:hover{background:#fdf3e2}
+  .btn.reset{border-color:#bbb; color:#777} .btn.reset:hover{background:#f2f2f2}
+  .legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); margin-top:6px}
+  .dot{display:inline-block; width:11px; height:11px; border-radius:3px; vertical-align:-1px; margin-right:5px}
+
+  /* 计算器 */
+  .calc{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
+  @media(min-width:600px){ .calc{grid-template-columns:repeat(4,1fr)} }
+  .stat{background:#fbfcfe; border:1px solid var(--line); border-radius:10px; padding:12px; text-align:center}
+  .stat .big{font-size:22px; font-weight:800; color:var(--blue)}
+  .stat .lbl2{font-size:11.5px; color:var(--muted); margin-top:2px}
+  .formula{font-family:"SF Mono",Menlo,monospace; font-size:13px; background:#0f1626; color:#cfe;
+    padding:12px 14px; border-radius:10px; overflow-x:auto; margin-top:10px}
+
+  /* 自测 */
+  .q{margin:12px 0; padding:13px 15px; border:1px solid var(--line); border-radius:10px; background:#fff}
+  .q .qt{font-weight:600}
+  .q .ans{margin-top:8px; padding:10px 12px; background:#f1fbf4; border-radius:8px; font-size:14px;
+    border:1px solid var(--green-bd); display:none}
+  .q .ans.show{display:block}
+  .reveal{margin-top:8px; font-size:13px; color:var(--blue); background:none; border:none; cursor:pointer; padding:0; text-decoration:underline}
+
+  footer{margin-top:50px; padding-top:16px; border-top:1px solid var(--line); font-size:13px; color:var(--muted)}
+  footer a{color:var(--blue); text-decoration:none}
+  .pill{display:inline-block; font-size:11.5px; padding:2px 9px; border-radius:20px; background:#eef4fb;
+    color:var(--blue); margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="h">
+    <span class="eyebrow">实验⑤ 文件管理 · 理解版</span>
+    <h1>一个文件，是怎么"摊"在磁盘上的?</h1>
+    <p class="sub">这一页不教你上台讲，只让你自己<b>真正看懂</b>一件事:文件的数据块散在磁盘各处，inode 用"混合索引"把它们串起来。看懂了，再去看讲解版（第 30 课）。</p>
+    <div class="tagrow">
+      <span class="tag">对应教材 Ch6 文件管理</span>
+      <span class="tag">对应 xv6 <code>kernel/fs.c</code> 的 bmap()</span>
+      <span class="tag">常考计算题:文件最大大小</span>
+    </div>
+  </header>
+
+  <!-- 1. 直觉 -->
+  <h2><span class="n">1</span>先建立一个画面</h2>
+  <div class="eli5">
+    <span class="lbl">🧸 ELI5</span>
+    <p>把磁盘想成一栋有几百万个<b>储物柜</b>的大楼，每个柜子有个门牌号（块号）。你的一个文件太大，一个柜子装不下，于是被切成很多块，<b>塞进好多个分散的柜子</b>里。</p>
+    <p>问题来了:这些柜子东一个西一个，下次怎么找回来? —— 你需要一张<b>清单</b>，按顺序记下"我的第 0 块在 #58 柜，第 1 块在 #203 柜……"。这张清单，就是 <b>inode（索引结点）</b>。</p>
+  </div>
+
+  <!-- 2. 核心矛盾 -->
+  <h2><span class="n">2</span>核心矛盾:文件有大有小</h2>
+  <p>如果 inode 里只放一个固定长度的"地址清单"，就会两头不讨好:</p>
+  <table>
+    <tr><th>做法</th><th>小文件（几 KB）</th><th>大文件（几 MB）</th></tr>
+    <tr><td>清单留 <b>很多</b>格</td><td class="c">大部分格子空着<br><span style="color:var(--red)">→ 浪费</span></td><td class="c">够用</td></tr>
+    <tr><td>清单留 <b>很少</b>格</td><td class="c">刚好</td><td class="c">格子不够<br><span style="color:var(--red)">→ 装不下</span></td></tr>
+  </table>
+  <div class="key">
+    <span class="lbl">💡 解决方案:混合索引</span>
+    <p>既要省（对小文件），又要能撑大（对大文件）。办法是<b>分级</b>:前几格<b>直接</b>记数据块号（小文件一步到位）；最后一格不记数据，而是记一个"<b>清单的清单</b>"——指向另一个专门存块号的块（大文件才动用）。这就是教材说的"<b>直接地址 + 一次/多次间接</b>"。</p>
+  </div>
+
+  <!-- 3. 交互可视化 -->
+  <h2><span class="n">3</span>动手:点格子，看它带你"跳"几次</h2>
+  <p>下面是 xv6 的 inode 地址数组 <code>addrs[13]</code>:前 12 格是<b style="color:var(--green)">直接块</b>，第 13 格（<code>addrs[12]</code>）是<b style="color:var(--amber)">一次间接块</b>。点任意一格，看它怎么带你找到数据。</p>
+
+  <div class="card">
+    <div class="stage">
+      <div class="inode-box">
+        <div class="inode-title">inode · addrs[13]</div>
+        <div class="cells" id="cells"></div>
+        <div class="legend">
+          <span><span class="dot" style="background:var(--green-bg);border:1.5px solid var(--green-bd)"></span>直接块</span>
+          <span><span class="dot" style="background:var(--amber-bg);border:1.5px solid var(--amber-bd)"></span>间接块</span>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="stepbar">
+          <div class="node n1" id="nd1"><div class="t">① inode 格子</div><div class="d">读出里面存的门牌号</div></div>
+          <div class="arrow" id="ar1">→</div>
+          <div class="node n2" id="nd2"><div class="t">② 索引块</div><div class="d">一串门牌号清单</div></div>
+          <div class="arrow" id="ar2">→</div>
+          <div class="node n3" id="nd3"><div class="t">③ 数据块</div><div class="d">你真正的数据</div></div>
+        </div>
+        <div class="readout" id="readout">← 点左边任意一个格子开始。</div>
+        <div class="ctrls">
+          <button class="btn" onclick="demo(5)">▶ 读直接块 addrs[5]</button>
+          <button class="btn amber" onclick="demo(12)">▶ 读间接块 addrs[12]</button>
+          <button class="btn reset" onclick="resetDemo()">重置</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="eli5">
+    <span class="lbl">🔑 你应该看出来的事</span>
+    <p>直接块 <code>addrs[0..11]</code> 只走 <b>①→③，跳 1 次</b>:格子里的门牌号直接就是数据所在。<br>
+    间接块 <code>addrs[12]</code> 要走 <b>①→②→③，跳 2 次</b>:格子里的门牌号指向一张"清单"，得在清单里再挑一个门牌号、再推一次门。<br>
+    这"多出来的一跳"，就是大文件用间接索引付出的代价；也正因如此，<b>小文件只用直接块更快</b>。</p>
+  </div>
+
+  <!-- 4. 计算题 -->
+  <h2><span class="n">4</span>这就能算"文件最大能多大"</h2>
+  <p>能装多少数据块，就决定了文件最大能多大。在 xv6 里参数是固定的，套公式即可:</p>
+  <div class="card">
+    <div class="calc">
+      <div class="stat"><div class="big">1024</div><div class="lbl2">每块字节 BSIZE</div></div>
+      <div class="stat"><div class="big">12</div><div class="lbl2">直接块 NDIRECT</div></div>
+      <div class="stat"><div class="big">256</div><div class="lbl2">一次间接 NINDIRECT<br>=1024÷4</div></div>
+      <div class="stat"><div class="big">268</div><div class="lbl2">最大块数<br>=12+256</div></div>
+    </div>
+    <div class="formula" id="formula"></div>
+    <button class="btn" style="margin-top:10px" onclick="stepCalc()">▶ 一步步展开计算</button>
+  </div>
+  <div class="warn">
+    <span class="lbl">⚠ 别和教材的"三级间接"搞混</span>
+    <p>xv6 是<b>简化版</b>:只有 12 直接 + 1 个一次间接。<b>真正的 UNIX/教材 inode</b>通常是 <b>12 直接 + 1 一次间接 + 1 二次间接 + 1 三次间接</b>，能撑到 GB~TB 级。考试若问"最大文件大小"，看清题目给的是哪一版的参数——一次间接 256，二次间接就是 256×256，三次是 256³。原理完全一样，只是"清单的清单"再多套几层。</p>
+  </div>
+
+  <!-- 5. 自测 -->
+  <h2><span class="n">5</span>复述检查（看懂了就能答）</h2>
+  <div class="q">
+    <div class="qt">Q1. <code>addrs[12]</code> 里存的到底是什么? 推门进去看到的是数据吗?</div>
+    <button class="reveal" onclick="this.nextElementSibling.classList.add('show');this.style.display='none'">看答案</button>
+    <div class="ans">不是数据，是<b>一个索引块的门牌号</b>。推门进去看到的是一<b>串块号清单</b>（[200,201,202,…]），还得在清单里再挑一个、再推一次门，才到数据。</div>
+  </div>
+  <div class="q">
+    <div class="qt">Q2. 读直接块和读间接块，分别要"跳"几次? 为什么会差一跳?</div>
+    <button class="reveal" onclick="this.nextElementSibling.classList.add('show');this.style.display='none'">看答案</button>
+    <div class="ans">直接块跳 <b>1</b> 次，间接块跳 <b>2</b> 次。多的那一跳是因为间接块的格子先指向"清单"，要先读清单、再读数据——清单本身也占一个盘块。</div>
+  </div>
+  <div class="q">
+    <div class="qt">Q3. 为什么不干脆全部用间接、把 12 个直接块也省了?</div>
+    <button class="reveal" onclick="this.nextElementSibling.classList.add('show');this.style.display='none'">看答案</button>
+    <div class="ans">因为<b>绝大多数文件都很小</b>。保留直接块，让小文件"一跳到位"、不必为读一张几乎用不到的清单多花一次磁盘 I/O。这是"为常见情况优化"的经典设计取舍。</div>
+  </div>
+
+  <footer>
+    <p><span class="pill">理解版</span>看懂这一页后 → 去 <b>第 30 课 讲解版</b>:把这套画面落到真实 C 代码 <code>bmap()</code>，逐行讲 + 答辩。</p>
+    <p>配套旧课:<a href="0020-ch6-file-allocation-presentation.html">0020 概念稿</a> · <a href="0021-xv6-bmap-source-walkthrough.html">0021 bmap 逐行</a> · <a href="0023-indirect-block-twohops.html">0023 两跳可视化</a></p>
+  </footer>
+
+</div>
+
+<script>
+  // ---- inode 格子数据:前12直接,第13间接 ----
+  var DATA = [58,203,17,440,9,112,301,77,260,5,188,402,300]; // addrs[0..12] 的门牌号
+  var INDIRECT_LIST = [200,201,202,203]; // addrs[12] 指向的索引块内容(示意)
+  var cellsEl = document.getElementById('cells');
+  for(var i=0;i<13;i++){
+    var c=document.createElement('div');
+    c.className='cell'+(i===12?' indirect':'');
+    c.dataset.i=i;
+    c.innerHTML='<span class="idx">['+i+']</span><span class="v">#'+DATA[i]+'</span>';
+    (function(idx){ c.onclick=function(){ demo(idx); }; })(i);
+    cellsEl.appendChild(c);
+  }
+  var cellNodes = cellsEl.querySelectorAll('.cell');
+
+  function setNode(n, lit){ document.getElementById('nd'+n).classList.toggle('lit', lit); }
+  function setArrow(n, lit){ document.getElementById('ar'+n).classList.toggle('lit', lit); }
+
+  function resetDemo(){
+    [1,2,3].forEach(function(n){ document.getElementById('nd'+n).className='node n'+n; });
+    setArrow(1,false); setArrow(2,false);
+    cellNodes.forEach(function(c){ c.classList.remove('active'); });
+    document.getElementById('readout').innerHTML='← 点左边任意一个格子开始。';
+  }
+
+  function demo(i){
+    resetDemo();
+    cellNodes[i].classList.add('active');
+    var r=document.getElementById('readout');
+    var direct = i<12;
+    // 第1跳
+    document.getElementById('nd1').classList.add('lit');
+    setArrow(1,true);
+    if(direct){
+      // 直接:跳1次
+      var addr=DATA[i];
+      document.getElementById('nd3').classList.add('lit');
+      r.innerHTML='读 <b>addrs['+i+'] = #'+addr+'</b>。这是个<b>直接块</b>:门牌号 #'+addr+' 推门进去<b>就是数据</b>。'
+        +' <span class="hops">总共跳 1 次 ✅</span>';
+    }else{
+      // 间接:跳2次
+      var idxBlk=DATA[12];
+      setArrow(2,true);
+      document.getElementById('nd2').classList.add('lit');
+      document.getElementById('nd3').classList.add('lit');
+      r.innerHTML='读 <b>addrs[12] = #'+idxBlk+'</b>。这是<b>间接块</b>:#'+idxBlk+' 推门进去<b>不是数据</b>，是一串清单 ['+INDIRECT_LIST.join(',')+',…]。'
+        +'要在清单里再挑一个门牌号(比如 #'+INDIRECT_LIST[2]+')、<b>再推一次门</b>才到数据。 <span class="hops">总共跳 2 次</span>';
+    }
+  }
+
+  // ---- 计算题分步 ----
+  var calcSteps = [
+    '# 每个块能装多少个"块号"? (一个块号占 4 字节)',
+    'NINDIRECT = BSIZE / 4 = 1024 / 4 = 256   ← 一次间接块能管 256 个数据块',
+    '# 最多能管多少个数据块?',
+    'MAXFILE = NDIRECT + NINDIRECT = 12 + 256 = 268 块',
+    '# 换算成字节(每块 1024 = 1KB):',
+    '最大文件 = 268 块 × 1024 字节 = 274432 字节 ≈ 268 KB'
+  ];
+  var calcShown = 0;
+  var fEl = document.getElementById('formula');
+  function renderCalc(){ fEl.textContent = calcSteps.slice(0, calcShown).join('\n') || '点下面按钮，一步步展开 →'; }
+  function stepCalc(){ calcShown = (calcShown>=calcSteps.length)?0:calcShown+1; renderCalc(); }
+  renderCalc();
+</script>
+</body>
+</html>
