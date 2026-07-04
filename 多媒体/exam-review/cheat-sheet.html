@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>期末速查表 · 5 张主题卡</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --measure: 72ch;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+}
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 1080px; margin: 0 auto; text-align: center; padding-bottom: var(--space-3); border-bottom: 1px solid var(--rule); }
+.masthead-title { font-family: var(--serif); font-size: var(--text-2xl); font-weight: 700; letter-spacing: 0.04em; margin-bottom: var(--space-1); }
+.masthead-sub { font-family: var(--serif); font-style: italic; font-size: var(--text-sm); color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.primary-nav { max-width: 1080px; margin: var(--space-3) auto 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); justify-content: center; font-family: var(--sans); font-size: var(--text-sm); }
+.primary-nav a { color: var(--ink); text-decoration: none; padding: 2px 6px; border-bottom: 1px solid transparent; transition: all 0.15s ease; }
+.primary-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.primary-nav a.active { color: var(--accent); font-weight: 700; }
+.nav-divider { color: var(--ink-mute); user-select: none; }
+main { max-width: 1080px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.02em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; clear: both; }
+h2 .num { display: inline-block; font-size: 0.65em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); color: var(--ink); font-weight: 700; }
+h4 { font-size: var(--text-lg); margin: var(--space-5) 0 var(--space-2); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+pre { font-family: var(--mono); font-size: 0.88em; background: var(--paper-soft); border-left: 3px solid var(--accent); padding: var(--space-3) var(--space-4); overflow-x: auto; margin: var(--space-4) 0; line-height: 1.5; }
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+.tag { display: inline-block; font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 8px; border-radius: 2px; margin-left: var(--space-2); vertical-align: middle; font-weight: 700; }
+.tag-high { background: var(--accent); color: var(--paper); }
+.tag-mid { background: var(--highlight); color: var(--paper); }
+.tag-low { background: var(--ink-mute); color: var(--paper); }
+.exam-point { background: var(--paper-soft); border-left: 4px solid var(--accent); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; position: relative; }
+.exam-point-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); font-family: var(--sans); font-size: var(--text-sm); }
+.exam-point-id { color: var(--accent); font-weight: 700; letter-spacing: 0.04em; }
+.exam-point h4 { margin-top: 0; margin-bottom: var(--space-2); font-size: var(--text-lg); }
+.exam-point dl { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0; font-size: 0.94em; }
+.exam-point dt { font-family: var(--sans); font-weight: 700; font-size: var(--text-sm); color: var(--accent); }
+.exam-point dd { margin: 0; }
+.exercise { background: var(--paper); border: 1px solid var(--rule); margin: var(--space-4) 0; }
+.exercise-qid { font-weight: 700; color: var(--accent); margin-right: var(--space-3); font-family: var(--sans); }
+.exercise-type { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); background: var(--paper); padding: 1px 6px; border-radius: 2px; font-family: var(--sans); }
+.exercise-stem { padding: var(--space-4) var(--space-4) 0; font-size: var(--text-base); }
+.exercise-options { list-style: upper-alpha; padding-left: var(--space-6); margin: var(--space-3) var(--space-4); }
+.exercise-toggle { margin: var(--space-3) var(--space-4) var(--space-4); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.exercise-toggle summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--accent); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; list-style: none; padding: var(--space-2) 0; }
+.exercise-toggle summary::-webkit-details-marker { display: none; }
+.exercise-toggle summary::before { content: '▸ '; display: inline-block; margin-right: 4px; }
+.exercise-toggle[open] summary::before { content: '▾ '; }
+.exercise-answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.exercise-answer strong { color: var(--success); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; display: block; margin-bottom: var(--space-1); }
+.mastery { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--ink-soft); user-select: none; }
+.mastery input { cursor: pointer; }
+.mastery.checked { color: var(--success); }
+.cheat-card { background: var(--paper); border: 2px solid var(--ink); padding: var(--space-5); margin: var(--space-5) 0; break-inside: avoid; }
+.cheat-card h3 { margin-top: 0; border-bottom: 2px solid var(--ink); padding-bottom: var(--space-2); font-family: var(--serif); letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--text-lg); }
+.cheat-card table { font-size: 0.9em; }
+article > p:first-of-type::first-letter { font-size: 3.2em; float: left; line-height: 0.9; margin: 0.05em var(--space-3) 0 0; font-weight: 700; color: var(--accent); }
+footer { max-width: 1080px; margin: var(--space-8) auto var(--space-6); padding: var(--space-5) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: var(--text-sm); }
+footer .meta { font-family: var(--sans); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; color: var(--ink-mute); margin-top: var(--space-3); }
+@media (max-width: 720px) {
+  :root { --text-3xl: 32px; --text-2xl: 24px; --text-xl: 20px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  .exam-point dl { grid-template-columns: 1fr; }
+  article > p:first-of-type::first-letter { font-size: 2.6em; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 期末冲刺</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 第二讲至第十二讲</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="index.html">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="lectures/L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="lectures/L04-L05-视频与音频基础.html">L04-05</a>
+    <a href="lectures/L06-L07-压缩算法.html">L06-07</a>
+    <a href="lectures/L08-L10-压缩标准与视频压缩.html">L08-10</a>
+    <a href="lectures/L11-L12-检索与深度学习.html">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="cheat-sheet.html" class="active">速查表</a>
+    <a href="mock-exam.html">模拟卷</a>
+    <a href="error-list.html">易错清单</a>
+    <a href="sprint-plan.html">冲刺清单</a>
+    <a href="formulas.html">公式手册</a>
+    <a href="glossary.html">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">期末速查表 · 5 张主题卡</h1>
+<p class="lede">把 11 讲的最关键信息浓缩到 5 张卡里 · 适合考前最后一晚扫一眼</p>
+
+<!-- ============ 卡片 1 · 压缩主题 ============ -->
+<section>
+<h2><span class="num">01.</span>主题卡 1 · 压缩主题</h2>
+<p>覆盖 L06 / L07 / L08 / L09 / L10 · 11 讲的核心是"压缩" — 必背公式、关键数字、流程</p>
+
+<div class="cheat-card" data-mastery="cs-1-formula">
+<h3>关键公式</h3>
+<table>
+<thead><tr><th>名称</th><th>公式</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>PSNR(峰值信噪比)</td><td><code>PSNR = 10·log10(x²peak / MSE)</code></td><td>功率用 10;电压才用 20</td></tr>
+<tr><td>量化</td><td><code>F̂(u,v) = round(F(u,v) / Q(u,v))</code></td><td>JPEG 唯一不可逆步骤</td></tr>
+<tr><td>压缩比</td><td><code>CR = B0 / B1</code>(原大小 / 压后)</td><td>无损看 l̄,有损看 PSNR-CR 曲线</td></tr>
+<tr><td>DCT 量化 scaling</td><td><code>qf ≥ 50: (100−qf)/50</code>; <code>qf &lt; 50: 50/qf</code></td><td>qf=50 时 scaling=1</td></tr>
+<tr><td>MAD(平均绝对差)</td><td><code>MAD = (1/N²)·Σ|T−R|</code></td><td>运动估计失真度量</td></tr>
+<tr><td>搜索窗口</td><td><code>(2p+1)²</code> 个候选位置</td><td>p=15 → 31×31 = 961 候选</td></tr>
+<tr><td>熵</td><td><code>η = −Σ pi·log2(pi)</code></td><td>信源信息量的下界</td></tr>
+<tr><td>Huffman 界</td><td><code>η ≤ l̄ &lt; η+1</code></td><td>平均码长必 ≥ 熵(整数约束)</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-1-numbers">
+<h3>关键数字 / 阈值</h3>
+<table>
+<thead><tr><th>项目</th><th>数值</th></tr></thead>
+<tbody>
+<tr><td>JPEG 块大小</td><td><strong>8 × 8</strong></td></tr>
+<tr><td>H.261 宏块(亮度)</td><td><strong>16 × 16</strong></td></tr>
+<tr><td>H.261 色度(4:2:0)</td><td><strong>8 × 8</strong></td></tr>
+<tr><td>qf=100 质量</td><td>最高质量(scaling=0)</td></tr>
+<tr><td>H.261 编解码延迟</td><td><strong>150 ms</strong></td></tr>
+<tr><td>MPEG I/P/B 压缩比</td><td><strong>7:1 / 20:1 / 50:1</strong></td></tr>
+<tr><td>MPEG 平均压缩比</td><td>约 27:1</td></tr>
+<tr><td>H.264 vs MPEG-2</td><td>同画质下节省 <strong>50%</strong> 码率</td></tr>
+<tr><td>H.263 起支持</td><td>半像素精度 + 双线性插值</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-1-flow">
+<h3>流程 / 步骤</h3>
+
+<h4>JPEG 编码 5 步</h4>
+<pre>
+1. RGB → YCbCr + 4:2:0 子采样(可逆,视觉无损)
+2. 分块 8×8 + 2D DCT(无损可逆,能量集中)
+3. 均匀标量量化 F̂ = round(F/Q)  ← <strong>不可逆</strong>,JPEG 有损主因
+4. ZigZag 扫描 + DC DPCM / AC RLC(无损)
+5. Huffman 熵编码(无损,去统计冗余)
+</pre>
+
+<h4>H.261 P 帧编码</h4>
+<pre>
+宏块 → ME 找 MV → MC 取预测 → 残差 DCT → 量化 → ZigZag → Huffman
+参考帧必须用 <strong>已解码的帧</strong>(防 drift,DPCM 类系统共性)
+</pre>
+
+<h4>H.261 vs H.264</h4>
+<table>
+<thead><tr><th>维度</th><th>H.261</th><th>H.264</th></tr></thead>
+<tbody>
+<tr><td>年份</td><td>1990</td><td>2003</td></tr>
+<tr><td>MV 精度</td><td>整像素</td><td>1/4 像素(6-tap 滤波)</td></tr>
+<tr><td>参考帧数</td><td>1</td><td>多参考帧</td></tr>
+<tr><td>变块大小</td><td>否</td><td>16×16 ~ 4×4</td></tr>
+<tr><td>熵编码</td><td>VLC</td><td>CAVLC / CABAC</td></tr>
+<tr><td>码率节省</td><td>基线</td><td>比 MPEG-2 省 50%</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<!-- ============ 卡片 2 · 颜色空间 ============ -->
+<section>
+<h2><span class="num">02.</span>主题卡 2 · 颜色空间</h2>
+<p>覆盖 L02 / L03 / L04 / L08 · RGB、HSV、YCbCr、Gamma、子采样</p>
+
+<div class="cheat-card" data-mastery="cs-2-formula">
+<h3>关键公式</h3>
+<table>
+<thead><tr><th>名称</th><th>公式</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>灰度转换(BT.601)</td><td><code>Y = 0.299R + 0.587G + 0.114B</code></td><td>G 权重最大(人眼对绿最敏感)</td></tr>
+<tr><td>RGB → CMY</td><td><code>C = 1−R, M = 1−G, Y = 1−B</code></td><td>归一化 [0,1];加 K 因混合得不到真黑</td></tr>
+<tr><td>Gamma 显示亮度</td><td><code>L_display = V^(1/γ) · γ ≈ (V^(1/γ))^γ = V</code></td><td>γ≈2.2 (CRT/sRGB),1.8 (Mac)</td></tr>
+<tr><td>YCbCr (BT.601)</td><td><code>Y = 0.299R + 0.587G + 0.114B</code><br><code>Cb = 128 − 0.169R − 0.331G + 0.500B</code><br><code>Cr = 128 + 0.500R − 0.419G − 0.081B</code></td><td>亮度 + 色差;范围 Y:[16,235] Cb/Cr:[16,240]</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-2-numbers">
+<h3>关键数字 / 阈值</h3>
+<table>
+<thead><tr><th>项目</th><th>数值</th></tr></thead>
+<tbody>
+<tr><td>4:2:0 每像素字节</td><td><strong>1.5</strong> B/px</td></tr>
+<tr><td>4:2:2 每像素字节</td><td><strong>2.0</strong> B/px</td></tr>
+<tr><td>4:4:4 每像素字节</td><td><strong>3.0</strong> B/px</td></tr>
+<tr><td>YCbCr Y 范围</td><td>16-235(TV 标准,8-bit)</td></tr>
+<tr><td>YCbCr Cb/Cr 范围</td><td>16-240</td></tr>
+<tr><td>可见光波长</td><td>400-700 nm</td></tr>
+<tr><td>V(λ) 峰值</td><td>555 nm(黄绿)</td></tr>
+<tr><td>Gamma 典型值</td><td>2.2(CRT/sRGB),1.8(Mac),1.8(印刷 L*)</td></tr>
+<tr><td>CIE 白点</td><td>(1/3, 1/3)</td></tr>
+<tr><td>24-bit RGB 色数</td><td>256³ ≈ 16.8M 色</td></tr>
+<tr><td>640×480 24-bit 图</td><td>≈ 900 KB</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-2-compare">
+<h3>RGB vs HSV vs YCbCr 对比</h3>
+<table>
+<thead><tr><th>维度</th><th>RGB</th><th>HSV</th><th>YCbCr</th></tr></thead>
+<tbody>
+<tr><td>类型</td><td>加色</td><td>感知</td><td>视频</td></tr>
+<tr><td>通道</td><td>R, G, B</td><td>H(0-360°), S, V</td><td>Y(亮度), Cb, Cr(色度)</td></tr>
+<tr><td>设备相关</td><td>是</td><td>否</td><td>否</td></tr>
+<tr><td>可子采样</td><td>否</td><td>否</td><td>是(4:2:0 等)</td></tr>
+<tr><td>视觉均匀</td><td>否</td><td>否</td><td>否</td></tr>
+<tr><td>主要用途</td><td>屏幕显示</td><td>调色/分割</td><td>压缩/传输</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-2-flow">
+<h3>RGB → YCbCr 转换 4 步</h3>
+<pre>
+1. Y  = 0.299·R + 0.587·G + 0.114·B          (亮度)
+2. Cb = 128 + (−0.169·R − 0.331·G + 0.500·B) (蓝色差)
+3. Cr = 128 + ( 0.500·R − 0.419·G − 0.081·B) (红色差)
+4. 范围裁剪到 Y:[16,235] / Cb/Cr:[16,240]     (TV 数字域)
+</pre>
+</div>
+</section>
+
+<!-- ============ 卡片 3 · 质量度量与编码 ============ -->
+<section>
+<h2><span class="num">03.</span>主题卡 3 · 质量度量与编码</h2>
+<p>覆盖 L05 / L06 / L07 / L11 · SNR/PSNR/SQNR/熵/Huffman</p>
+
+<div class="cheat-card" data-mastery="cs-3-formula">
+<h3>关键公式</h3>
+<table>
+<thead><tr><th>名称</th><th>公式</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>SNR(信噪比)</td><td><code>SNR = 10·log10(Ps / Pn)</code></td><td>Ps=信号功率,Pn=噪声功率</td></tr>
+<tr><td>PSNR</td><td><code>PSNR = 10·log10(x²peak / MSE)</code></td><td>8-bit 灰度 x_peak=255</td></tr>
+<tr><td>SQNR(量化信噪比)</td><td><code>SQNR = 6.02 × N (dB)</code></td><td>N=量化 bit 数</td></tr>
+<tr><td>熵</td><td><code>η = −Σ pi·log2(pi)</code></td><td>信息下界</td></tr>
+<tr><td>Huffman 界</td><td><code>η ≤ l̄ &lt; η+1</code></td><td>整数约束 + Kraft</td></tr>
+<tr><td>MSE</td><td><code>MSE = (1/N)·Σ(xi − x̂i)²</code></td><td>PSNR 的分母</td></tr>
+<tr><td>Nyquist 定理</td><td><code>f_sample ≥ 2·f_max</code></td><td>采样率至少 2 倍信号最高频</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-3-numbers">
+<h3>关键数字 / 阈值</h3>
+<table>
+<thead><tr><th>项目</th><th>数值</th></tr></thead>
+<tbody>
+<tr><td>8-bit SQNR</td><td><strong>48 dB</strong>(电话语音)</td></tr>
+<tr><td>16-bit SQNR</td><td><strong>96 dB</strong>(CD 音质)</td></tr>
+<tr><td>CD 采样率</td><td>44.1 kHz(对应 22.05 kHz 信号)</td></tr>
+<tr><td>电话采样率</td><td>8 kHz(对应 4 kHz 信号)</td></tr>
+<tr><td>电话码率</td><td>8 kHz × 8 bit = 64 kbps(DS0)</td></tr>
+<tr><td>每 +1 bit</td><td>+6 dB SQNR</td></tr>
+<tr><td>MSE=100 时 PSNR</td><td>≈ 28 dB</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-3-compare">
+<h3>易混对比</h3>
+<table>
+<thead><tr><th>对比</th><th>关键差异</th></tr></thead>
+<tbody>
+<tr><td><strong>无损 vs 有损</strong></td><td>无损:Huffman/LZW/算术,l̄ ≥ η;有损:JPEG/MPEG,PSNR-CR 曲线</td></tr>
+<tr><td><strong>Huffman vs 算术编码</strong></td><td>Huffman:整数码字,接近熵;算术:分数码字,更接近 η,但实现复杂</td></tr>
+<tr><td><strong>SNR vs PSNR</strong></td><td>SNR:功率比,一般信号;PSNR:用峰值归一化,图像</td></tr>
+<tr><td><strong>MSE vs MAD</strong></td><td>MSE:平方误差,PSNR 用;MAD:绝对误差,运动估计用</td></tr>
+<tr><td><strong>DPCM vs ADPCM</strong></td><td>DPCM:固定量化步长;ADPCM:步长自适应</td></tr>
+<tr><td><strong>DM vs DPCM</strong></td><td>DM = DPCM 的 1-bit 简化(只输出方向)</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-3-mnemonic">
+<h3>口诀 · 速记</h3>
+<ul>
+<li><strong>"功率 10,电压 20"</strong> — dB 公式永远 10·log10(功率比);电压/电流用 20·log10</li>
+<li><strong>"SQNR ≈ 6N dB"</strong> — N 位量化 → 大约 6N dB 信噪比</li>
+<li><strong>"Huffman l̄ ≥ η"</strong> — 平均码长必 ≥ 熵,只有所有 -log2(pi) 为整数时 l̄ = η</li>
+<li><strong>"Nyquist 2 倍"</strong> — 采样率 ≥ 2 倍信号最高频率</li>
+</ul>
+</div>
+</section>
+
+<!-- ============ 卡片 4 · 帧 / 块 / 标准 ============ -->
+<section>
+<h2><span class="num">04.</span>主题卡 4 · 帧 / 块 / 标准</h2>
+<p>覆盖 L08 / L09 / L10 · 块大小、I/P/B 帧、协议族对应关系</p>
+
+<div class="cheat-card" data-mastery="cs-4-formula">
+<h3>qf → scaling 公式</h3>
+<table>
+<thead><tr><th>qf 范围</th><th>scaling 公式</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>qf ≥ 50</td><td><code>scaling = (100 − qf) / 50</code></td><td>qf=50 → scaling=1;qf=100 → scaling=0</td></tr>
+<tr><td>qf &lt; 50</td><td><code>scaling = 50 / qf</code></td><td>qf=25 → scaling=2.0;qf=1 → scaling=50</td></tr>
+</tbody>
+</table>
+<p><strong>口诀:</strong>"qf 大 = 质量高"(scaling 小 → 量化步长小 → 量化细 → 质量高)</p>
+</div>
+
+<div class="cheat-card" data-mastery="cs-4-numbers">
+<h3>关键数字 / 帧压缩比</h3>
+<table>
+<thead><tr><th>帧类型</th><th>压缩比</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>I 帧(帧内)</td><td><strong>7:1</strong></td><td>类似 JPEG,无参考</td></tr>
+<tr><td>P 帧(前向预测)</td><td><strong>20:1</strong></td><td>参考前一 I/P 帧</td></tr>
+<tr><td>B 帧(双向预测)</td><td><strong>50:1</strong></td><td>前后双向参考,压缩最高</td></tr>
+<tr><td>平均(GOP=12)</td><td>约 27:1</td><td>加权计算</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-4-standards">
+<h3>H.26x vs MPEG-x 协议族对应</h3>
+<table>
+<thead><tr><th>ITU-T H.26x</th><th>ISO MPEG-x</th><th>年份</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>H.261</td><td>—</td><td>1990</td><td>p×64 kbps,ISDN 视频电话</td></tr>
+<tr><td>H.262</td><td><strong>MPEG-2</strong></td><td>1995</td><td>DVD / SDTV</td></tr>
+<tr><td>H.263</td><td>—</td><td>1996</td><td>半像素精度</td></tr>
+<tr><td>H.264 / AVC</td><td><strong>MPEG-4 Part 10</strong></td><td>2003</td><td>比 MPEG-2 省 50% 码率</td></tr>
+<tr><td>H.265 / HEVC</td><td>MPEG-H Part 2</td><td>2013</td><td>4K/8K 视频</td></tr>
+<tr><td>H.266 / VVC</td><td>—</td><td>2020</td><td>比 HEVC 再省 50%</td></tr>
+</tbody>
+</table>
+<p><strong>口诀:</strong>"H.262=MPEG-2,H.264=AVC,H.265=HEVC,H.266=VVC"</p>
+</div>
+
+<div class="cheat-card" data-mastery="cs-4-flow">
+<h3>JPEG 编码 5 步 + H.261 P 帧</h3>
+
+<h4>JPEG 5 步</h4>
+<pre>
+RGB → YCbCr(4:2:0) → 8×8 DCT → 量化(F̂=round(F/Q)) → ZigZag + DPCM/RLC → Huffman
+                              <strong>↑ 不可逆</strong>
+</pre>
+
+<h4>H.261 P 帧编码</h4>
+<pre>
+宏块 → ME 搜索 MV → MC 取预测 → 残差 DCT → 量化 → ZigZag → Huffman
+参考帧 = 已解码帧(防 drift)
+</pre>
+</div>
+</section>
+
+<!-- ============ 卡片 5 · 深度学习与特征 ============ -->
+<section>
+<h2><span class="num">05.</span>主题卡 5 · 深度学习与特征</h2>
+<p>覆盖 L11 / L12 · Harris / SIFT / SURF / MSER + CNN</p>
+
+<div class="cheat-card" data-mastery="cs-5-formula">
+<h3>关键公式</h3>
+<table>
+<thead><tr><th>名称</th><th>公式</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>CNN 输出尺寸</td><td><code>(N + 2p − F) / s + 1</code></td><td>N=输入,p=padding,F=核,s=stride;2 表示双边</td></tr>
+<tr><td>CNN 参数量</td><td><code>(F · F · C + 1) · K</code></td><td>F=核边,C=输入通道,K=核数;+1 是 bias</td></tr>
+<tr><td>Harris 响应</td><td><code>R = det(M) − k·trace(M)²</code></td><td>k≈0.04~0.06;R 大 → 角点</td></tr>
+<tr><td>池化参数</td><td><code>0</code></td><td>池化是固定运算(Max/Avg),无参数</td></tr>
+<tr><td>Huffman 界</td><td><code>η ≤ l̄ &lt; η+1</code></td><td>同卡片 3</td></tr>
+<tr><td>Dropout</td><td>训练随机失活;测试全部使用(inverted dropout)</td><td>测试关闭,除以 (1-p)</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-5-numbers">
+<h3>关键数字 / 维度</h3>
+<table>
+<thead><tr><th>项目</th><th>数值</th></tr></thead>
+<tbody>
+<tr><td>SIFT 描述子</td><td>4 × 4 分块 × 8 方向 = <strong>128 维</strong></td></tr>
+<tr><td>SURF 描述子</td><td>64 维</td></tr>
+<tr><td>PCA-SIFT</td><td>20-36 维</td></tr>
+<tr><td>AlexNet 参数</td><td><strong>60M</strong></td></tr>
+<tr><td>VGG-16 参数</td><td><strong>138M</strong></td></tr>
+<tr><td>GoogleNet 参数</td><td><strong>5M</strong>(Inception 模块 + 1×1 降维)</td></tr>
+<tr><td>ResNet-152 参数</td><td><strong>25M</strong></td></tr>
+<tr><td>ResNet 层数</td><td>152 层</td></tr>
+<tr><td>VGG 层数</td><td>16-19 层</td></tr>
+<tr><td>AlexNet 层数</td><td>8 层</td></tr>
+<tr><td>GoogleNet 层数</td><td>22 层</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-5-detector">
+<h3>检测子对比 · 不变性</h3>
+<table>
+<thead><tr><th>检测子</th><th>光照</th><th>旋转</th><th>尺度</th><th>仿射</th><th>维度</th></tr></thead>
+<tbody>
+<tr><td>Harris(单尺度)</td><td>✓</td><td>✓</td><td>✗</td><td>✗</td><td>—</td></tr>
+<tr><td>Harris-Laplace</td><td>✓</td><td>✓</td><td>✓</td><td>✗</td><td>—</td></tr>
+<tr><td>SIFT</td><td>✓</td><td>✓</td><td>✓</td><td>✗</td><td>128</td></tr>
+<tr><td>SURF</td><td>✓</td><td>✓</td><td>✓</td><td>✗</td><td>64</td></tr>
+<tr><td>MSER</td><td>✓</td><td>✓</td><td>✓</td><td><strong>✓</strong></td><td>—</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-5-cnn">
+<h3>经典 CNN 对比</h3>
+<table>
+<thead><tr><th>网络</th><th>年份</th><th>层数</th><th>参数</th><th>核心创新</th><th>解决的问题</th></tr></thead>
+<tbody>
+<tr><td>AlexNet</td><td>2012</td><td>8</td><td>60M</td><td>ReLU + Dropout + Data Aug + 双 GPU</td><td>sigmoid 梯度消失</td></tr>
+<tr><td>VGG</td><td>2014</td><td>16-19</td><td>138M</td><td>多个 3×3 小卷积核替代大核</td><td>证明"变深"提升性能</td></tr>
+<tr><td>GoogleNet</td><td>2014</td><td>22</td><td>5M</td><td>Inception 多尺度 + 1×1 降维</td><td>VGG 参数爆炸(1/12)</td></tr>
+<tr><td>ResNet</td><td>2015</td><td>152</td><td>25M</td><td>残差连接 <code>y = F(x) + x</code></td><td>深度退化(训练误差随深度↑而↑)</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card" data-mastery="cs-5-mnemonic">
+<h3>口诀 · 速记</h3>
+<ul>
+<li><strong>"SIFT 不抗仿射、MSER 抗仿射"</strong> — 唯一抗仿射的检测子</li>
+<li><strong>"Harris 单尺度"</strong> — Harris 不抗缩放,Harris-Laplace 才抗</li>
+<li><strong>"ResNet 解决深度退化"</strong> — 不是梯度消失,而是训练误差随深度↑</li>
+<li><strong>"池化零参数"</strong> — MaxPool/AvgPool 无学习权重</li>
+<li><strong>"Dropout 测试关闭"</strong> — inverted dropout 训练时已除以 (1-p)</li>
+<li><strong>"DoG 简化 LoG"</strong> — SIFT 用 DoG 近似 LoG,计算更简单</li>
+</ul>
+</div>
+</section>
+
+<!-- ============ 速查总览 ============ -->
+<section>
+<h2><span class="num">★.</span>速查总览 · 考前 60 秒</h2>
+
+<div class="cheat-card">
+<h3>5 大必背公式</h3>
+<table>
+<thead><tr><th>公式</th><th>用途</th></tr></thead>
+<tbody>
+<tr><td><code>PSNR = 10·log10(255²/MSE)</code></td><td>图像失真</td></tr>
+<tr><td><code>SQNR = 6.02·N</code></td><td>音频量化</td></tr>
+<tr><td><code>η = −Σ pi·log2(pi)</code> + <code>η ≤ l̄ &lt; η+1</code></td><td>Huffman 下界</td></tr>
+<tr><td><code>(N+2p−F)/s+1</code> + <code>(F·F·C+1)·K</code></td><td>CNN 输出 + 参数</td></tr>
+<tr><td><code>Y = 0.299R + 0.587G + 0.114B</code></td><td>灰度转换</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>5 大必记数字</h3>
+<table>
+<thead><tr><th>数字</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td><strong>4:2:0 = 1.5 B/px</strong></td><td>色度子采样节省 50%</td></tr>
+<tr><td><strong>I:P:B = 7:20:50</strong></td><td>MPEG 帧压缩比</td></tr>
+<tr><td><strong>SIFT 128 维</strong></td><td>4×4×8 描述子</td></tr>
+<tr><td><strong>H.264 省 50%</strong></td><td>同画质 vs MPEG-2</td></tr>
+<tr><td><strong>JPEG 8×8</strong></td><td>分块大小</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>5 大必背对比</h3>
+<ul>
+<li><strong>RGB vs HSV vs YCbCr</strong> — 加色 / 感知 / 视频</li>
+<li><strong>无损 vs 有损</strong> — Huffman/LZW vs JPEG/MPEG</li>
+<li><strong>H.26x vs MPEG-x</strong> — H.262=MPEG-2, H.264=AVC, H.265=HEVC, H.266=VVC</li>
+<li><strong>I vs P vs B 帧</strong> — 帧内 / 前向 / 双向</li>
+<li><strong>AlexNet vs VGG vs GoogleNet vs ResNet</strong> — 60M / 138M / 5M / 25M 参数</li>
+</ul>
+</div>
+</section>
+
+</article>
+</main>
+
+<footer>
+<p>期末速查表 · 5 张主题卡 · 期末冲刺</p>
+<p class="meta">5 张主题卡 · 50+ 关键公式 · 30+ 关键数字 · 期末考前最后一眼</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const states = JSON.parse(localStorage.getItem('mastery') || '{}');
+  document.querySelectorAll('[data-mastery]').forEach(el => {
+    const key = el.dataset.mastery;
+    const cb = el.querySelector('input[type=checkbox]');
+    const lbl = el.querySelector('.mastery');
+    if (states[key] && cb) {
+      cb.checked = true;
+      if (lbl) lbl.classList.add('checked');
+    }
+    if (cb) {
+      cb.addEventListener('change', () => {
+        states[key] = cb.checked;
+        localStorage.setItem('mastery', JSON.stringify(states));
+        if (lbl) lbl.classList.toggle('checked', cb.checked);
+      });
+    }
+  });
+});
+</script>
+
+</body>
+</html>

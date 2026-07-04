@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L06-L07 · 无损压缩与有损压缩</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --measure: 72ch;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+}
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 1080px; margin: 0 auto; text-align: center; padding-bottom: var(--space-3); border-bottom: 1px solid var(--rule); }
+.masthead-title { font-family: var(--serif); font-size: var(--text-2xl); font-weight: 700; letter-spacing: 0.04em; margin-bottom: var(--space-1); }
+.masthead-sub { font-family: var(--serif); font-style: italic; font-size: var(--text-sm); color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.primary-nav { max-width: 1080px; margin: var(--space-3) auto 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); justify-content: center; font-family: var(--sans); font-size: var(--text-sm); }
+.primary-nav a { color: var(--ink); text-decoration: none; padding: 2px 6px; border-bottom: 1px solid transparent; transition: all 0.15s ease; }
+.primary-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.primary-nav a.active { color: var(--accent); font-weight: 700; }
+.nav-divider { color: var(--ink-mute); user-select: none; }
+main { max-width: 1080px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.02em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; clear: both; }
+h2 .num { display: inline-block; font-size: 0.65em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); color: var(--ink); font-weight: 700; }
+h4 { font-size: var(--text-lg); margin: var(--space-5) 0 var(--space-2); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+pre { font-family: var(--mono); font-size: 0.88em; background: var(--paper-soft); border-left: 3px solid var(--accent); padding: var(--space-3) var(--space-4); overflow-x: auto; margin: var(--space-4) 0; line-height: 1.5; }
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+.tag { display: inline-block; font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 8px; border-radius: 2px; margin-left: var(--space-2); vertical-align: middle; font-weight: 700; }
+.tag-high { background: var(--accent); color: var(--paper); }
+.tag-mid { background: var(--highlight); color: var(--paper); }
+.tag-low { background: var(--ink-mute); color: var(--paper); }
+.exam-point { background: var(--paper-soft); border-left: 4px solid var(--accent); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; position: relative; }
+.exam-point-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); font-family: var(--sans); font-size: var(--text-sm); }
+.exam-point-id { color: var(--accent); font-weight: 700; letter-spacing: 0.04em; }
+.exam-point h4 { margin-top: 0; margin-bottom: var(--space-2); font-size: var(--text-lg); }
+.exam-point dl { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0; font-size: 0.94em; }
+.exam-point dt { font-family: var(--sans); font-weight: 700; font-size: var(--text-sm); color: var(--accent); }
+.exam-point dd { margin: 0; }
+.exercise { background: var(--paper); border: 1px solid var(--rule); margin: var(--space-4) 0; }
+.exercise-qid { font-weight: 700; color: var(--accent); margin-right: var(--space-3); font-family: var(--sans); }
+.exercise-type { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); background: var(--paper); padding: 1px 6px; border-radius: 2px; font-family: var(--sans); }
+.exercise-stem { padding: var(--space-4) var(--space-4) 0; font-size: var(--text-base); }
+.exercise-options { list-style: upper-alpha; padding-left: var(--space-6); margin: var(--space-3) var(--space-4); }
+.exercise-toggle { margin: var(--space-3) var(--space-4) var(--space-4); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.exercise-toggle summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--accent); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; list-style: none; padding: var(--space-2) 0; }
+.exercise-toggle summary::-webkit-details-marker { display: none; }
+.exercise-toggle summary::before { content: '\25b8 '; display: inline-block; margin-right: 4px; }
+.exercise-toggle[open] summary::before { content: '\25be '; }
+.exercise-answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.exercise-answer strong { color: var(--success); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; display: block; margin-bottom: var(--space-1); }
+.mastery { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--ink-soft); user-select: none; }
+.mastery input { cursor: pointer; }
+.mastery.checked { color: var(--success); }
+.cheat-card { background: var(--paper); border: 2px solid var(--ink); padding: var(--space-5); margin: var(--space-5) 0; break-inside: avoid; }
+.cheat-card h3 { margin-top: 0; border-bottom: 2px solid var(--ink); padding-bottom: var(--space-2); font-family: var(--serif); letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--text-lg); }
+.cheat-card table { font-size: 0.9em; }
+article > p:first-of-type::first-letter { font-size: 3.2em; float: left; line-height: 0.9; margin: 0.05em var(--space-3) 0 0; font-weight: 700; color: var(--accent); }
+footer { max-width: 1080px; margin: var(--space-8) auto var(--space-6); padding: var(--space-5) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: var(--text-sm); }
+footer .meta { font-family: var(--sans); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; color: var(--ink-mute); margin-top: var(--space-3); }
+@media (max-width: 720px) {
+  :root { --text-3xl: 32px; --text-2xl: 24px; --text-xl: 20px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  .exam-point dl { grid-template-columns: 1fr; }
+  article > p:first-of-type::first-letter { font-size: 2.6em; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 期末冲刺</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 第二讲至第十二讲</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="../index.html">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="L04-L05-视频与音频基础.html">L04-05</a>
+    <a href="L06-L07-压缩算法.html" class="active">L06-07</a>
+    <a href="L08-L10-压缩标准与视频压缩.html">L08-10</a>
+    <a href="L11-L12-检索与深度学习.html">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="../cheat-sheet.html">速查表</a>
+    <a href="../mock-exam.html">模拟卷</a>
+    <a href="../error-list.html">易错清单</a>
+    <a href="../sprint-plan.html">冲刺清单</a>
+    <a href="../formulas.html">公式手册</a>
+    <a href="../glossary.html">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">第六讲 + 第七讲 · 无损压缩与有损压缩</h1>
+<p class="lede">L06 无损压缩(熵/Huffman/Shannon-Fano/算术/LZW/RLC) + L07 有损压缩(失真/PSNR/率失真/量化/DCT/IDCT) · 10 + 10 考点</p>
+
+<!-- ============ 第 1 部分:考点清单 ============ -->
+<section>
+<h2><span class="num">I.</span>考点清单 (Exam Point Checklist)</h2>
+
+<h3>第六讲 (L06) 无损压缩算法</h3>
+
+<div class="exam-point" data-mastery="L06-1">
+<div class="exam-point-head"><span class="exam-point-id">L06-考点 1</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>压缩的必要性与冗余类型</h4>
+<dl>
+<dt>核心</dt><dd>压缩 = 去除冗余；四类冗余：时间冗余 (Temporal, 帧间)、空间冗余 (Spatial, 相邻像素)、频谱冗余 (Spectral, 颜色/亮度分量相关)、心理视觉冗余 (Psycho-visual)。</dd>
+<dt>数字</dt><dd>512×512 24-bit 彩色图 = 0.75 MB；4032×3024 24-bit ≈ 34 MB；HDTV 1920×1080@25fps 真彩 ≈ 8.7 GB/min。</dd>
+<dt>易错</dt><dd>时间冗余是帧与帧之间（视频），空间冗余是像素与像素之间（图像内）。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L06-2">
+<div class="exam-point-head"><span class="exam-point-id">L06-考点 2</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>无损 vs 有损压缩</h4>
+<dl>
+<dt>核心</dt><dd>无损解压后得到原数据完全拷贝（信息无丢失）；有损解压得到"近似"（信息丢失）。</dd>
+<dt>示例</dt><dd>无损 — Shannon-Fano、Huffman、算术编码、LZW；有损 — JPEG、MPEG。</dd>
+<dt>易错</dt><dd>无损压缩率一般较小，有损压缩率大；不能说"无损一定好"，要看应用场景（图像归档 vs 视频流媒体）。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L06-3">
+<div class="exam-point-head"><span class="exam-point-id">L06-考点 3</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>压缩比 (Compression Ratio)</h4>
+<dl>
+<dt>核心</dt><dd>压缩前比特数 / 压缩后比特数。</dd>
+<dt>公式</dt><dd><code>CR = B0 / B1</code>，B0 = 压缩前比特数，B1 = 压缩后比特数。CR &gt; 1 表示压缩，CR = 1 表示无变化。</dd>
+<dt>易错</dt><dd>是 B0/B1 不是 B1/B0；压缩比和压缩效率不同（效率 = (B0-B1)/B0）。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考计算</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L06-4">
+<div class="exam-point-head"><span class="exam-point-id">L06-考点 4</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>信息熵 (Entropy)</h4>
+<dl>
+<dt>核心</dt><dd>源 S 中每个符号包含的平均信息量；单位 bit/symbol。</dd>
+<dt>公式</dt><dd>自信息 <code>I(si) = -log2(pi)</code>；熵 <code>η = Σ pi · I(si) = -Σ pi·log2(pi)</code>。</dd>
+<dt>易错</dt><dd>等概率分布时熵最大；熵是无损压缩的理论下限（编码平均长度 l̄ ≥ η）。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考计算</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L06-5">
+<div class="exam-point-head"><span class="exam-point-id">L06-考点 5</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>Huffman 编码</h4>
+<dl>
+<dt>核心</dt><dd>1952 年 Huffman 提出；JPEG/MPEG/传真机均采用；自底向上构造二叉树。</dd>
+<dt>步骤</dt><dd>① 按频次排序；② 取出频次最低两个节点合并为父节点（频次相加）；③ 重复直至只剩一个根；④ 左 0 右 1（或反过来）赋码字。</dd>
+<dt>性质</dt><dd>唯一前缀码（prefix-free，任意码字不是另一码字的前缀）→ 解码无歧义；最优性 <code>η ≤ l̄ &lt; η + 1</code>。</dd>
+<dt>易错</dt><dd>Huffman 对给定概率模型是最优，但若概率估计不准则整体未必最优；不能处理动态概率（除非自适应 Huffman）。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考构造题</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L06-6">
+<div class="exam-point-head"><span class="exam-point-id">L06-考点 6</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>Shannon-Fano 编码</h4>
+<dl>
+<dt>核心</dt><dd>自顶向下；将符号集按频次排序后递归二分使两部分频次和近似相等。</dd>
+<dt>易错</dt><dd>Shannon-Fano 不保证最优，可能产生非最优码（虽然满足前缀性）；Huffman 一定优于 Shannon-Fano（在同一概率模型下）。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L06-7">
+<div class="exam-point-head"><span class="exam-point-id">L06-考点 7</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>算术编码 (Arithmetic Coding)</h4>
+<dl>
+<dt>核心</dt><dd>把整条消息视为一个单位，输出 [0,1) 区间内的一个实数；通常优于 Huffman。</dd>
+<dt>公式</dt><dd>每读入一个符号 s，将当前区间 <code>[low, high)</code> 缩窄为 <code>low + range·Range_low(s), low + range·Range_high(s)</code>，其中 range = high - low。</dd>
+<dt>易错</dt><dd>整条消息→一个码字（不是每个符号→一个码字）；输出码字满足 <code>low ≤ codeword &lt; high</code>；需要终止符 <code>$</code> 标识结束。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L06-8">
+<div class="exam-point-head"><span class="exam-point-id">L06-考点 8</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>游程编码 (Run-Length Coding, RLC)</h4>
+<dl>
+<dt>核心</dt><dd>用 (count, symbol) 替代连续重复符号；最简单无损压缩。</dd>
+<dt>示例</dt><dd><code>WWWWBWWBWWWWWWB</code> → <code>(4,W)(1,B)(2,W)(1,B)(6,W)(1,B)</code>。</dd>
+<dt>易错</dt><dd>只对重复多的数据有效；图像里相邻像素常相近但不一定相等，常配合量化或预测使用。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L06-9">
+<div class="exam-point-head"><span class="exam-point-id">L06-考点 9</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>LZW 字典编码</h4>
+<dl>
+<dt>核心</dt><dd>固定长码字（区别于 Huffman 的变长）；把新字符串加入字典并输出其索引。</dd>
+<dt>数字</dt><dd>GIF 字典大小 4096 (2^12)；初始字典 2^l0 个条目；码长 l ∈ [l0, lmax]。</dd>
+<dt>示例</dt><dd><code>ABABBABCABABBA</code> 初始 A=1, B=2, C=3，输出码 <code>1 2 4 5 2 3 4 6 1</code>，压缩比 14/9 ≈ 1.56。</dd>
+<dt>易错</dt><dd>编/解码器动态构建<strong>相同</strong>字典；压缩比定义可能与前面不同（原文/编码后字符数比）。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L06-10">
+<div class="exam-point-head"><span class="exam-point-id">L06-考点 10</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>熵编码 (Entropy Coding) 总结</h4>
+<dl>
+<dt>核心</dt><dd>所有熵编码都是无损；本质是让高概率符号用短码、低概率符号用长码；理论下限是熵 η。</dd>
+<dt>对比</dt><dd>Huffman（整数码字，对字符逐个编码）vs 算术编码（区间实数，对整条消息编码，逼近熵）。</dd>
+<dt>易错</dt><dd>熵编码 ≠ 压缩全部，只是压缩流水线的一步（前端需先做变换/预测去除相关性）。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<h3>第七讲 (L07) 有损压缩算法</h3>
+
+<div class="exam-point" data-mastery="L07-1">
+<div class="exam-point-head"><span class="exam-point-id">L07-考点 1</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>有损压缩的目的与定位</h4>
+<dl>
+<dt>核心</dt><dd>有损是"手段"，目的是获取高压缩率；解压后是"近似"而非原数据。</dd>
+<dt>易错</dt><dd>有损 ≠ 失真越大越好——需要在率失真 (Rate-Distortion) 曲线上找平衡。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L07-2">
+<div class="exam-point-head"><span class="exam-point-id">L07-考点 2</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>失真度量 (Distortion Measures)</h4>
+<dl>
+<dt>核心</dt><dd>衡量压缩前后差异的指标。</dd>
+<dt>公式</dt><dd>均方差 MSE <code>σ²d = (1/N) · Σ(xi - yi)²</code>；信噪比 SNR <code>= 10·log10(σ²x / σ²d)</code> (dB)；峰值信噪比 PSNR <code>= 10·log10(x²peak / σ²d)</code> (dB，8-bit 灰度 x_peak = 255)。</dd>
+<dt>易错</dt><dd>SNR 分母是噪声方差（不是信号方差）；PSNR 对 8-bit 信号 x_peak=255；单位都是 dB（10 倍对数，不是 20 倍！）。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考计算</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L07-3">
+<div class="exam-point-head"><span class="exam-point-id">L07-考点 3</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>率失真理论 (Rate-Distortion)</h4>
+<dl>
+<dt>核心</dt><dd>R(D) 函数 — 给定可容忍失真 D，能编码源数据的最低比特率 R。</dd>
+<dt>思想</dt><dd>率失真曲线下凸；D=0 时 R = 熵（无损极限）；R=0 时 D 最大。</dd>
+<dt>易错</dt><dd>R(D) 是理论下限，实际编码只能接近，不能达到（除非理想情况）。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L07-4">
+<div class="exam-point-head"><span class="exam-point-id">L07-考点 4</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>量化 (Quantization) 基础</h4>
+<dl>
+<dt>核心</dt><dd>有损压缩"信息丢失"的主要来源；将连续取值映射到离散集合。</dd>
+<dt>示例</dt><dd>原 0~255 → 8 个量化级 {16, 48, 80, 112, 144, 176, 208, 240}，间距 32。</dd>
+<dt>易错</dt><dd>量化 ≠ 采样（采样是时间/空间离散化，量化是取值离散化）。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考简答+计算</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L07-5">
+<div class="exam-point-head"><span class="exam-point-id">L07-考点 5</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>标量量化 vs 向量量化</h4>
+<dl>
+<dt>核心</dt><dd>均匀标量量化：等间距划分区间。非均匀标量量化：不等间距（Lloyd-Max、压扩量化）。向量量化 (VQ)：把 n 维向量映射到码本中的码向量；编/解码器共享码本。</dd>
+<dt>易错</dt><dd>VQ 通常优于标量量化（利用分量间相关性），但码本设计（训练）代价高。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L07-6">
+<div class="exam-point-head"><span class="exam-point-id">L07-考点 6</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>变换编码 (Transform Coding) 思想</h4>
+<dl>
+<dt>核心</dt><dd>把数据从空间域变换到频率域；少数低频系数携带大部分能量，其余可粗量化或丢弃。</dd>
+<dt>示例</dt><dd><code>X = {100, 101, 100, 99, 100, 100, 100, 100}</code> 做差分变换 <code>T: d1 = x1, di = xi - xi-1</code> → <code>Y = {100, 1, -1, -1, 1, 0, 0, 0}</code>，能量集中。</dd>
+<dt>易错</dt><dd>变换本身无损，"损失"来自对变换系数的量化。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L07-7">
+<div class="exam-point-head"><span class="exam-point-id">L07-考点 7</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>DCT (离散余弦变换)</h4>
+<dl>
+<dt>核心</dt><dd>JPEG/MPEG Video/MPEG Audio 的"心脏"；与 DFT 相比 DCT 只有实数，无相位偏移问题，能量更集中。</dd>
+<dt>公式</dt><dd>1D DCT：<code>F(u) = C(u) · Σ f(i) · cos[(2i+1)uπ/(2N)]</code>；<code>C(0)=√(1/N), C(u&gt;0)=√(2/N)</code>。</dd>
+<dt>关键</dt><dd>2D DCT 可分离为两次 1D DCT，迭代从 8×8 → 8+8 步。</dd>
+<dt>易错</dt><dd>DCT 不是无损的——不丢信息是因为 IDCT 可逆，但量化步骤才丢信息。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L07-8">
+<div class="exam-point-head"><span class="exam-point-id">L07-考点 8</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>DCT 系数的物理意义：DC vs AC</h4>
+<dl>
+<dt>核心</dt><dd>DC 分量 (u=0)：信号的平均强度/亮度；图像中即"整体灰度"。AC 分量 (u&gt;0)：周期性变化的频率分量；图像中对应边缘/纹理细节。</dd>
+<dt>易错</dt><dd>图像低频 = 平滑区域/整体亮度；高频 = 边缘/细节 → 高频系数小则可粗量化（人眼不敏感）。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L07-9">
+<div class="exam-point-head"><span class="exam-point-id">L07-考点 9</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>DCT 在图像压缩中的应用流程</h4>
+<dl>
+<dt>步骤</dt><dd>① 读灰度图；② 8×8 分块；③ 对每块做 2D DCT；④ 保留左上 k×k（低频），其余置 0；⑤ IDCT 重建。</dd>
+<dt>易错</dt><dd>分块大小常用 8×8（权衡：太大→边界效应，太小→压缩率低）；低频保留多少是质量与压缩率的权衡。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 综合题</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L07-10">
+<div class="exam-point-head"><span class="exam-point-id">L07-考点 10</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>傅里叶变换 vs DCT</h4>
+<dl>
+<dt>核心</dt><dd>FT 复数输出，有相位；DCT 实数输出，更紧凑的能量聚集；FT 用于 MPEG Audio，DCT 用于 JPEG/MPEG Video。</dd>
+<dt>易错</dt><dd>DCT 边界处理更优（无 Gibbs 现象明显）；K-L 变换理论最优但无快速算法，DCT 是次优但有快速算法。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+</section>
+
+<!-- ============ 第 2 部分:习题 ============ -->
+<section>
+<h2><span class="num">II.</span>习题 (Exercises)</h2>
+
+<h3>L06 习题</h3>
+
+<div class="exercise" data-mastery="L06-Q1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L06-Q1</span><span class="exercise-type">单选</span> 下列哪种压缩方法属于无损压缩？</p>
+<ul class="exercise-options">
+<li>A. JPEG</li><li>B. MPEG-2 Video</li><li>C. Huffman 编码</li><li>D. MP3</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> Huffman 编码是熵编码，解码后可恢复原始数据。JPEG、MPEG Video、MP3 都是典型有损压缩。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L06-Q2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L06-Q2</span><span class="exercise-type">单选</span> 字母表 S = {a, b, c, d}，概率 P = {1/2, 1/4, 1/8, 1/8}，则该信源的熵 η 为多少 bit/symbol？</p>
+<ul class="exercise-options">
+<li>A. 1.5</li><li>B. 1.75</li><li>C. 2.0</li><li>D. 2.5</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> <code>η = -Σ pi·log2(pi) = -(1/2·1 + 1/4·2 + 1/8·3 + 1/8·3) = 0.5 + 0.5 + 0.375 + 0.375 = 1.75 bit/symbol</code>。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L06-Q3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L06-Q3</span><span class="exercise-type">多选</span> 关于 Huffman 编码，下列说法正确的是？</p>
+<ul class="exercise-options">
+<li>A. 是一种变长编码</li>
+<li>B. 满足唯一前缀性质，码字之间无歧义</li>
+<li>C. 平均码长一定等于熵</li>
+<li>D. 对于给定概率模型是最优的</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A, B, D
+<strong>解析</strong> Huffman 平均码长满足 <code>η ≤ l̄ &lt; η+1</code>，等于熵仅在所有 <code>-log2(pi)</code> 都是整数时才成立，所以 C 错。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L06-Q4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L06-Q4</span><span class="exercise-type">计算题</span> 字符串 "ACABADADEAABBAAAEDCACDEAAABCDBBEDCBACAE"（39 个字符），符号频次：A=15, B=7, C=6, D=6, E=5。求 Huffman 编码的平均码长（单位：bit/symbol）以及与理想熵的差。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> 平均码长 l̄ = 2.23 bit/symbol，理想熵 η = 2.19 bit/symbol，差 0.04 bit/symbol。
+<strong>解析</strong> 由讲义示例：<code>(1×15 + 3×7 + 3×6 + 3×6 + 3×5) / 39 = (15+21+18+18+15)/39 = 87/39 ≈ 2.23</code>。理想熵 <code>η = -Σ pi·log2(pi) = 2.19</code>。满足 <code>η ≤ l̄ &lt; η+1</code>。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L06-Q5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L06-Q5</span><span class="exercise-type">计算题</span> 一幅 512×512 的 8-bit 灰度图像（每像素 1 字节，原始数据量 256 KB = 2,097,152 bit）。使用 Huffman 编码后平均码长 2.5 bit/pixel。求压缩比 CR。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> CR ≈ 3.2
+<strong>解析</strong> <code>B0 = 512 × 512 × 8 = 2,097,152 bit</code>；<code>B1 = 512 × 512 × 2.5 = 655,360 bit</code>；<code>CR = B0/B1 = 2,097,152 / 655,360 = 3.2</code>。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L06-Q6">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L06-Q6</span><span class="exercise-type">计算题</span> 算术编码。字母表 {A=0.2, B=0.1, C=0.2, D=0.05, E=0.3, F=0.05, $=0.1}。对符号序列 "CAEE$" 编码，写出每步 low/high/range 的变化。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong>
+<table>
+<thead><tr><th>Symbol</th><th>low</th><th>high</th><th>range</th></tr></thead>
+<tbody>
+<tr><td>初值</td><td>0</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>C</td><td>0.3</td><td>0.5</td><td>0.2</td></tr>
+<tr><td>A</td><td>0.30</td><td>0.34</td><td>0.04</td></tr>
+<tr><td>E</td><td>0.322</td><td>0.334</td><td>0.012</td></tr>
+<tr><td>E</td><td>0.3286</td><td>0.3322</td><td>0.0036</td></tr>
+<tr><td>$</td><td>0.33184</td><td>0.33220</td><td>0.00036</td></tr>
+</tbody>
+</table>
+<p>输出码字须满足 <code>0.33184 ≤ code &lt; 0.33220</code>，最短二进制码 <code>0.01010101</code>。</p>
+<strong>解析</strong> 每步将当前区间按符号概率子区间缩窄。例如 C ∈ [0.3, 0.5) → low=0+1·0.3=0.3, high=0+1·0.5=0.5, range=0.2。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L06-Q7">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L06-Q7</span><span class="exercise-type">简答题</span> 简述 Huffman 编码的构造步骤，并说明为什么 Huffman 码满足"唯一前缀性质"？</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong><br>
+1. 把所有符号按出现频率从大到小（或从小到大）排成一个有序表。<br>
+2. 取出频率最小的两个符号作为左右子树，新节点的频率为两子节点之和。<br>
+3. 把新节点重新插入有序表保持有序。<br>
+4. 重复 2-3 直到表中只剩一个节点（根）。<br>
+5. 对每条边赋 0（左）/ 1（右），从根到叶的路径即码字。<br>
+<strong>唯一前缀性的原因</strong>：码字对应二叉树的叶子节点，叶子节点无子女，因此任何码字都不是其他码字的前缀（前缀性）。这保证了解码时可以即时匹配（遇到码字立即停止）而不会产生歧义。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L06-Q8">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L06-Q8</span><span class="exercise-type">简答题</span> 比较 Huffman 编码和算术编码。算术编码为什么通常能优于 Huffman？</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong>
+<ul>
+<li><strong>Huffman</strong>：每个符号独立编码为一个整数比特码字；码长受整数限制，最坏情况下平均码长 ≥ η。</li>
+<li><strong>算术编码</strong>：把整条消息视为一个单位，输出 [0,1) 区间内的一个实数；理论上可以让码长任意接近熵 η。</li>
+<li><strong>算术编码更优的原因</strong>：① 对整条消息编码，去除了符号间的整数比特限制；② 当某些符号概率使 <code>-log2(pi)</code> 为非整数时，Huffman 平均码长只能 ≥ <code>⌈-log2(pi)⌉</code> 而算术编码可以分配非整数比特；③ 算术编码天然支持自适应概率更新。</li>
+<li><strong>代价</strong>：实现复杂、需要浮点运算（早期）、专利问题（已过期）。</li>
+</ul>
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L06-Q9">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L06-Q9</span><span class="exercise-type">综合应用题</span> 给定字符串 S = "AAAAAAAAAAABBBBBCCCCCCCDDDDDDDDE"（10A+5B+7C+8D+1E，共 31 字符）。要求：<br>
+(1) 构造 Huffman 树并给出每个符号的码字；<br>
+(2) 计算平均码长 l̄；<br>
+(3) 计算压缩比 CR（对比 5-bit 定长编码）。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong>
+<p>(1) Huffman 树构造（频次 E=1, B=5, C=7, D=8, A=10）：<br>
+- 取 E(1), B(5) 合并 → 节点 EB(6)；表序: C(7), D(8), A(10), EB(6)<br>
+&nbsp;&nbsp;• 重新排序：D(8), A(10), C(7), EB(6)<br>
+&nbsp;&nbsp;• 取 EB(6), C(7) 合并 → 节点 EB-C(13)；表序: A(10), EB-C(13), D(8)<br>
+&nbsp;&nbsp;• 重新排序：EB-C(13), D(8), A(10)<br>
+&nbsp;&nbsp;• 取 D(8), A(10) 合并 → 节点 D-A(18)；表序: EB-C(13), D-A(18)<br>
+&nbsp;&nbsp;• 合并 → 根(31)</p>
+<p>码字（左 0 右 1）：<br>
+- A = 11 (2 bit)<br>
+- D = 10 (2 bit)<br>
+- C = 00 (2 bit)<br>
+- B = 010 (3 bit)<br>
+- E = 011 (3 bit)</p>
+<p>(2) <code>l̄ = (10×2 + 8×2 + 7×2 + 5×3 + 1×3) / 31 = (20+16+14+15+3)/31 = 68/31 ≈ 2.19 bit/symbol</code></p>
+<p>(3) 5-bit 定长：31 × 5 = 155 bit；Huffman 后：68 bit；<code>CR = 155/68 ≈ 2.28</code>。</p>
+<strong>解析</strong> Huffman 构造的关键是每次取频次最小的两个节点合并。注意：本题结果中 A、C、D 都是 2 bit，频次最高的 A 反而没拿到最短的码（因为 Huffman 考虑的是<strong>整体</strong>最优，而不是简单地让最高频最短）。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L06-Q10">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L06-Q10</span><span class="exercise-type">简答题</span> 解释什么是"熵"，并说明为什么无损压缩的平均码长一定 ≥ 熵。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong>
+<ul>
+<li><strong>熵</strong>：源 S 中每个符号所包含的平均信息量，定义为 <code>η = -Σ pi·log2(pi)</code>，单位 bit/symbol。</li>
+<li><strong>物理意义</strong>：熵是消除一个符号平均不确定性所需的最少比特数；即无损压缩理论下界。</li>
+<li><strong>为什么 l̄ ≥ η</strong>：考虑任意无损编码方案，对每个符号 si 分配长度 li 的码字。Kraft 不等式给出 <code>Σ 2^(-li) ≤ 1</code>，在该约束下，使加权平均 <code>Σ pi·li</code> 最小化的最优解正好是 <code>li = -log2(pi)</code>（即 Shannon 编码）。此时平均码长恰好是熵 η。实际编码若不能实现非整数长度（如 Huffman 用整数），则 l̄ 只能 ≥ η，且最优时满足 <code>η ≤ l̄ &lt; η+1</code>。</li>
+</ul>
+</div>
+</details>
+</div>
+
+<h3>L07 习题</h3>
+
+<div class="exercise" data-mastery="L07-Q1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L07-Q1</span><span class="exercise-type">单选</span> 下列哪个指标最适合用于衡量有损压缩重建图像与原图像的像素级差异？</p>
+<ul class="exercise-options">
+<li>A. 压缩比</li><li>B. 熵</li><li>C. PSNR</li><li>D. 帧率</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> PSNR（峰值信噪比）以 dB 为单位衡量重建信号与原信号的失真，是有损图像/视频压缩的标准评价指标。压缩比衡量压缩效率，熵衡量信息量，帧率衡量时间分辨率。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L07-Q2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L07-Q2</span><span class="exercise-type">单选</span> 在 JPEG 编码中，量化步骤的"信息损失"主要是因为？</p>
+<ul class="exercise-options">
+<li>A. DCT 变换不是可逆的</li>
+<li>B. 量化把连续/多值映射到离散/少值集合</li>
+<li>C. Huffman 编码使用了整数码字</li>
+<li>D. 图像被分成了 8×8 块</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> DCT 本身可逆（IDCT 可完美恢复），Huffman 是无损的，8×8 分块本身也不丢信息。真正的信息丢失来自量化——它把系数除以量化步长并取整，导致精度下降且不可逆。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L07-Q3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L07-Q3</span><span class="exercise-type">多选</span> 关于 DCT 的说法正确的是？</p>
+<ul class="exercise-options">
+<li>A. DCT 是 JPEG 的核心</li>
+<li>B. DCT 的输出都是实数</li>
+<li>C. DCT 的 DC 分量代表信号的平均能量</li>
+<li>D. DCT 与 DFT 相比能量更集中</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A, B, C, D
+<strong>解析</strong> 四项都正确。DCT 在 JPEG 中将空间域变换到频率域；输出实数；DC 分量（u=0）正比于信号均值；相比复数 DFT，DCT 边界更平滑，能量更集中。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L07-Q4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L07-Q4</span><span class="exercise-type">计算题</span> 一幅 256×256 的 8-bit 灰度图像，原图与重建图的 MSE = 100。求 PSNR（dB）。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> PSNR ≈ 28.13 dB
+<strong>解析</strong> 对 8-bit 灰度图，x_peak = 255，x²_peak = 255² = 65025。<code>PSNR = 10·log10(65025/100) = 10·log10(650.25) ≈ 10 × 2.813 ≈ 28.13 dB</code>。常用经验：MSE=100 → PSNR≈28dB。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L07-Q5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L07-Q5</span><span class="exercise-type">计算题</span> 一段音频信号 σ²x = 10000（信号方差），压缩后引入噪声方差 σ²d = 100。求 SNR（dB）。若信号峰值为 32000（16-bit 满量程），求 PSNR（dB）。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> SNR = 20 dB，PSNR ≈ 70.1 dB
+<strong>解析</strong> <code>SNR = 10·log10(σ²x/σ²d) = 10·log10(10000/100) = 10·log10(100) = 20 dB</code>。<code>PSNR = 10·log10(32000²/100) = 10·log10(1.024×10^7/100) = 10·log10(102400) ≈ 50.1 + 20 = 70.1 dB</code>。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L07-Q6">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L07-Q6</span><span class="exercise-type">计算题</span> 均匀标量量化。原 8-bit 灰度（0~255），用 8 个量化级 {16, 48, 80, 112, 144, 176, 208, 240} 表示。求量化步长 Δ，以及将原值 100 量化到哪个级。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> Δ = 32；100 量化到 112
+<strong>解析</strong> 8 个量化级间距 <code>(240-16)/7 = 32</code>（注意步长 = (max - min)/(N-1)，因为 N 个值有 N-1 个间隔）。100 所在区间：80 ≤ 100 &lt; 112（按中心点划分），或按距离最近原则：|100-80|=20, |100-112|=12，距离 112 更近 → 量化到 112。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L07-Q7">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L07-Q7</span><span class="exercise-type">简答题</span> 为什么 DCT 比 DFT 更适合图像压缩？说明 3 个理由。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong><br>
+1. <strong>实数 vs 复数</strong>：DCT 输出全为实数，无需处理相位信息；DFT 输出复数，需额外存储相位，效率低。<br>
+2. <strong>能量集中</strong>：DCT（特别是 Type-II DCT）的能量聚集能力优于 DFT，少数低频系数即可携带图像绝大部分能量，便于后续粗量化高频系数。<br>
+3. <strong>边界连续性</strong>：DCT 隐含偶对称延拓，图像块边界处更平滑，避免 DFT 在边界处产生的 Gibbs 现象（振铃效应）。<br>
+4. <strong>快速算法</strong>：有成熟的快速 DCT 算法（如 Loeffler 算法），计算复杂度 O(N log N)，可分块（如 8×8）应用。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L07-Q8">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L07-Q8</span><span class="exercise-type">简答题</span> 简述"率失真理论"的核心思想。R(D) 曲线有什么特点？</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong>
+<ul>
+<li><strong>核心思想</strong>：在允许一定失真 D 的条件下，对源进行编码所需的最小比特率 R 称为率失真函数 R(D)。它给出了"率"（压缩率）与"失真"（重建误差）之间的理论下界。</li>
+<li><strong>R(D) 曲线特点</strong>：
+<ul>
+<li>单调递减：D 越大，可允许的 R 越小；</li>
+<li>下凸（凸向下）：斜率递减（每多允许一点失真，节省的比特越来越少）；</li>
+<li>当 D=0（无损）时，R(0) ≥ η（熵）；</li>
+<li>当 R=0 时，D 达到最大值（无任何信息）。</li>
+</ul>
+</li>
+<li><strong>意义</strong>：指导编码器设计——给定目标比特率，能算出理论最低失真；或反之。</li>
+</ul>
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L07-Q9">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L07-Q9</span><span class="exercise-type">综合应用题</span> 设计一个简化的图像有损压缩流程（类似 JPEG 但简化）：<br>
+输入：8-bit 灰度图，分块 8×8。<br>
+要求：<br>
+(1) 画出编码流水线（4-5 个主要步骤）；<br>
+(2) 说明每步的目的（无损还是有损）；<br>
+(3) 在哪一步信息损失最大？为什么？</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong>
+<p>(1) 流水线：</p>
+<ol>
+<li><strong>分块</strong>：把图像分成 8×8 子块（无损）；</li>
+<li><strong>DCT</strong>：对每个 8×8 块做 2D DCT，得到 8×8 频域系数（无损，IDCT 可逆）；</li>
+<li><strong>量化</strong>：用量化表（如保留低频、丢弃高频，或对每个频率除以量化步长并取整）——<strong>这是主要信息损失来源</strong>；</li>
+<li><strong>Zig-Zag 扫描 + 行程编码</strong>：把 8×8 系数按 Z 字形排成一维序列，便于出现连续零（无损）；</li>
+<li><strong>Huffman 编码</strong>：对扫描结果做熵编码（无损）。</li>
+</ol>
+<p>(2) 每步目的：</p>
+<ul>
+<li>分块：便于局部处理；</li>
+<li>DCT：能量集中，把空间冗余转换为频率表示；</li>
+<li>量化：去除心理视觉不敏感的细节，是压缩率与质量的主要权衡点；</li>
+<li>扫描+RLC：把零集中，便于压缩；</li>
+<li>Huffman：进一步去除统计冗余。</li>
+</ul>
+<p>(3) <strong>量化步骤</strong>信息损失最大。原因：除以步长取整是不可逆运算，把接近但不相等的系数映射到同一量化级，必然丢失精度。DCT 本身完全可逆，分块无损，Huffman 完全可逆，只有量化真正改变了数据。</p>
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L07-Q10">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L07-Q10</span><span class="exercise-type">简答题</span> 解释向量量化 (VQ) 的基本原理，并比较 VQ 与标量量化的优缺点。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong>
+<ul>
+<li><strong>基本原理</strong>：VQ 把输入向量（n 维）作为一个整体，用"码本"（codebook，一组 n 维"码向量"）中最接近的码向量表示。编码器输出码向量的索引（log₂(码本大小) bit），解码器根据索引查表恢复。</li>
+<li><strong>VQ 优点</strong>：
+<ul>
+<li>利用分量间相关性（联合量化），理论最优（在等长条件下，VQ 可逼近率失真下界，标量量化不能）；</li>
+<li>对非均匀分布更鲁棒。</li>
+</ul>
+</li>
+<li><strong>VQ 缺点</strong>：
+<ul>
+<li>码本设计复杂（LBG 算法训练，需迭代）；</li>
+<li>搜索复杂度高（最近邻搜索）；</li>
+<li>码本需随训练数据更新，编/解码器必须共享同一码本。</li>
+</ul>
+</li>
+<li><strong>标量量化</strong>：简单、易实现，但不能利用分量间相关性。</li>
+</ul>
+</div>
+</details>
+</div>
+</section>
+
+<!-- ============ 第 3 部分:Cheat Sheet ============ -->
+<section>
+<h2><span class="num">III.</span>Cheat Sheet · 一页速查</h2>
+
+<div class="cheat-card">
+<h3>关键公式表 (Key Formulas)</h3>
+<table>
+<thead><tr><th>公式</th><th>表达式</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>自信息</td><td><code>I(s) = -log2(p(s))</code></td><td>单个符号携带的信息量</td></tr>
+<tr><td>熵</td><td><code>η = -Σ pi·log2(pi)</code></td><td>信源平均信息量（bit/symbol），无损压缩下限</td></tr>
+<tr><td>平均码长</td><td><code>l̄ = Σ pi·li</code></td><td>实际编码方案的平均码长</td></tr>
+<tr><td>Huffman 界</td><td><code>η ≤ l̄ &lt; η + 1</code></td><td>最优编码满足的关系</td></tr>
+<tr><td>压缩比</td><td><code>CR = B0 / B1</code></td><td>B0=压缩前比特数, B1=压缩后比特数</td></tr>
+<tr><td>压缩效率</td><td><code>η_c = (B0 - B1) / B0</code></td><td>节省的比特占比</td></tr>
+<tr><td>MSE</td><td><code>σ²d = (1/N) Σ(xi - yi)²</code></td><td>均方差</td></tr>
+<tr><td>SNR</td><td><code>SNR = 10·log10(σ²x / σ²d)</code> (dB)</td><td>信噪比</td></tr>
+<tr><td>PSNR</td><td><code>PSNR = 10·log10(x²peak / σ²d)</code> (dB)</td><td>峰值信噪比，8-bit 取 x_peak=255</td></tr>
+<tr><td>1D DCT</td><td><code>F(u) = C(u) Σ f(i)·cos[(2i+1)uπ/(2N)]</code></td><td>C(0)=√(1/N), C(u&gt;0)=√(2/N)</td></tr>
+<tr><td>算术编码区间</td><td><code>[low+range·rL, low+range·rH)</code></td><td>每步按符号概率子区间缩窄</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>关键数字 / 阈值</h3>
+<table>
+<thead><tr><th>项目</th><th>数值</th></tr></thead>
+<tbody>
+<tr><td>HDTV 1920×1080@25fps 真彩</td><td>≈ 8.7 GB/min</td></tr>
+<tr><td>4032×3024 24-bit 彩图</td><td>≈ 34 MB</td></tr>
+<tr><td>Nyquist 采样频率</td><td>≥ 2× 信号最高频率</td></tr>
+<tr><td>8-bit 灰度峰值</td><td>x_peak = 255, x²_peak = 65025</td></tr>
+<tr><td>典型可接受 PSNR</td><td>≥ 30 dB (图像), ≥ 40 dB (高清)</td></tr>
+<tr><td>GIF 字典大小</td><td>4096 (2^12)</td></tr>
+<tr><td>LZW 压缩比示例</td><td>14/9 ≈ 1.56</td></tr>
+<tr><td>DCT 分块大小</td><td>8×8</td></tr>
+<tr><td>算术编码终止符</td><td><code>$</code> (如 EOT)</td></tr>
+<tr><td>Lena 经典测试图</td><td>256×512 (早期)、512×512 灰度</td></tr>
+<tr><td>视频典型帧率</td><td>25 / 30 fps</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>无损 vs 有损压缩对比</h3>
+<table>
+<thead><tr><th>维度</th><th>无损</th><th>有损</th></tr></thead>
+<tbody>
+<tr><td>解压结果</td><td>完全等同原数据</td><td>近似原数据</td></tr>
+<tr><td>压缩率</td><td>一般较小 (2-3x)</td><td>可很大 (10-100x)</td></tr>
+<tr><td>信息损失</td><td>无</td><td>有</td></tr>
+<tr><td>示例</td><td>Huffman, 算术, LZW, RLE</td><td>JPEG, MPEG, MP3</td></tr>
+<tr><td>应用</td><td>文本、代码、归档</td><td>图像、音视频流</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>Huffman vs 算术编码对比</h3>
+<table>
+<thead><tr><th>维度</th><th>Huffman</th><th>算术</th></tr></thead>
+<tbody>
+<tr><td>输出</td><td>每个符号一个整数码字</td><td>整条消息→一个实数</td></tr>
+<tr><td>效率</td><td><code>η ≤ l̄ &lt; η+1</code></td><td>可逼近 η</td></tr>
+<tr><td>实现</td><td>简单 (构造二叉树)</td><td>复杂 (浮点)</td></tr>
+<tr><td>自适应</td><td>需重算码表</td><td>天然支持</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>标量量化 vs 向量量化对比</h3>
+<table>
+<thead><tr><th>维度</th><th>标量量化</th><th>向量量化</th></tr></thead>
+<tbody>
+<tr><td>处理单元</td><td>单个值</td><td>n 维向量</td></tr>
+<tr><td>利用相关性</td><td>不利用</td><td>利用</td></tr>
+<tr><td>实现复杂度</td><td>低</td><td>高 (码本设计)</td></tr>
+<tr><td>理论性能</td><td>较优</td><td>更优 (接近率失真界)</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>常用变换对比</h3>
+<table>
+<thead><tr><th>变换</th><th>类型</th><th>应用</th></tr></thead>
+<tbody>
+<tr><td>DFT</td><td>复数</td><td>频谱分析、信号处理</td></tr>
+<tr><td>DCT</td><td>实数</td><td>JPEG、MPEG Video/ Audio</td></tr>
+<tr><td>K-L 变换</td><td>依赖数据</td><td>理论最优但无快速算法</td></tr>
+<tr><td>小波变换</td><td>时频</td><td>JPEG2000</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>JPEG 编码 7 步 (简化版)</h3>
+<pre>
+1. 分块 (8×8)
+2. DCT 变换
+3. 量化 (量化表)
+4. Zig-Zag 扫描
+5. 行程编码 (RLC)
+6. Huffman / 算术编码
+7. 输出码流
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>Huffman 编码步骤</h3>
+<pre>
+1. 初始化：所有符号按频次排序成表
+2. 重复直至表剩一个：
+   - 取频次最小两个节点作为左右子树
+   - 新节点频次 = 两子节点之和
+   - 新节点插入表中保持有序
+3. 对每条边赋 0/1 (左/右)
+4. 根到叶的路径 = 码字
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>算术编码步骤</h3>
+<pre>
+1. 初始化：low=0, high=1, range=1
+2. 对每个符号 s：
+   - low2  = low + range · Range_low(s)
+   - high2 = low + range · Range_high(s)
+   - 更新 low, high, range
+3. 遇到终止符 $ 后输出满足 low ≤ code &lt; high 的最短二进制码
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>LZW 编码步骤 (核心)</h3>
+<pre>
+1. 初始化字典：A=1, B=2, ..., Z=26 (256 项基础)
+2. 读入字符 w；若 w+下一字符 c 在字典中，w ← w+c 继续
+3. 若不在字典中：输出 w 的索引，将 w+c 加入字典，w ← c
+4. 重复至输入结束；输出 w 的索引
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>易混淆点 (Trap Map)</h3>
+<table>
+<thead><tr><th>混淆</th><th>区别</th></tr></thead>
+<tbody>
+<tr><td><strong>采样 vs 量化</strong></td><td>采样：时间/空间离散化 (x→x轴)；量化：取值离散化 (y→y轴)</td></tr>
+<tr><td><strong>时间冗余 vs 空间冗余</strong></td><td>时间：帧与帧之间 (视频)；空间：同一帧内像素间</td></tr>
+<tr><td><strong>DC vs AC 分量</strong></td><td>DC：u=0 平均强度；AC：u&gt;0 频率分量</td></tr>
+<tr><td><strong>帧内预测 vs 帧间预测</strong></td><td>帧内：当前帧内部预测；帧间：跨帧运动补偿</td></tr>
+<tr><td><strong>场 vs 帧</strong></td><td>场：隔行扫描的半帧；帧：完整画面</td></tr>
+<tr><td><strong>Huffman 最优 vs 绝对最优</strong></td><td>Huffman 对给定概率模型最优；若模型不准则整体未必最优</td></tr>
+<tr><td><strong>量化误差 vs 编码误差</strong></td><td>量化：不可逆丢精度；Huffman 编码：完全可逆</td></tr>
+<tr><td><strong>熵 vs 平均码长</strong></td><td>熵 η：理论下限 (可非整数)；平均码长 l̄：实际编码长度 (整数)</td></tr>
+<tr><td><strong>DCT 无损 vs JPEG 有损</strong></td><td>DCT 本身可逆 (无损)；JPEG 的"损"来自量化，不是 DCT</td></tr>
+<tr><td><strong>率失真曲线 vs 单调性</strong></td><td>R(D) 单调递减下凸；不是单调递增！</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>复习建议</h3>
+<ul>
+<li><strong>L06/L07 是 L08 JPEG/MPEG 标准的基础，期末必考重点</strong>。</li>
+<li>Huffman 构造题必须动手画一遍 (至少 2-3 道)。</li>
+<li>熵 / 平均码长 / 压缩比 三件套计算要熟练。</li>
+<li>PSNR 公式背熟 (dB 单位、x_peak=255)。</li>
+<li>DCT 公式只需记概念和常数 C(u)，不必默写三角函数展开。</li>
+<li>流水线题 (综合应用) 按"分块→变换→量化→编码"四步答即可。</li>
+</ul>
+</div>
+</section>
+
+</article>
+</main>
+
+<footer>
+<p>祝期末顺利 · 🎯</p>
+<p class="meta">L06-L07 复习专题 · 10 + 10 考点 · 10 + 10 习题 · 期末冲刺</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const states = JSON.parse(localStorage.getItem('mastery') || '{}');
+  document.querySelectorAll('[data-mastery]').forEach(el => {
+    const key = el.dataset.mastery;
+    const cb = el.querySelector('input[type=checkbox]');
+    const lbl = el.querySelector('.mastery');
+    if (states[key] && cb) {
+      cb.checked = true;
+      if (lbl) lbl.classList.add('checked');
+    }
+    if (cb) {
+      cb.addEventListener('change', () => {
+        states[key] = cb.checked;
+        localStorage.setItem('mastery', JSON.stringify(states));
+        if (lbl) lbl.classList.toggle('checked', cb.checked);
+      });
+    }
+  });
+});
+</script>
+
+</body>
+</html>

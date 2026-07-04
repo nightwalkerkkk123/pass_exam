@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L04-L05 · 视频与音频基础</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --measure: 72ch;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+}
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 1080px; margin: 0 auto; text-align: center; padding-bottom: var(--space-3); border-bottom: 1px solid var(--rule); }
+.masthead-title { font-family: var(--serif); font-size: var(--text-2xl); font-weight: 700; letter-spacing: 0.04em; margin-bottom: var(--space-1); }
+.masthead-sub { font-family: var(--serif); font-style: italic; font-size: var(--text-sm); color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.primary-nav { max-width: 1080px; margin: var(--space-3) auto 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); justify-content: center; font-family: var(--sans); font-size: var(--text-sm); }
+.primary-nav a { color: var(--ink); text-decoration: none; padding: 2px 6px; border-bottom: 1px solid transparent; transition: all 0.15s ease; }
+.primary-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.primary-nav a.active { color: var(--accent); font-weight: 700; }
+.nav-divider { color: var(--ink-mute); user-select: none; }
+main { max-width: 1080px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.02em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; clear: both; }
+h2 .num { display: inline-block; font-size: 0.65em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); color: var(--ink); font-weight: 700; }
+h4 { font-size: var(--text-lg); margin: var(--space-5) 0 var(--space-2); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+pre { font-family: var(--mono); font-size: 0.88em; background: var(--paper-soft); border-left: 3px solid var(--accent); padding: var(--space-3) var(--space-4); overflow-x: auto; margin: var(--space-4) 0; line-height: 1.5; }
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+.tag { display: inline-block; font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 8px; border-radius: 2px; margin-left: var(--space-2); vertical-align: middle; font-weight: 700; }
+.tag-high { background: var(--accent); color: var(--paper); }
+.tag-mid { background: var(--highlight); color: var(--paper); }
+.tag-low { background: var(--ink-mute); color: var(--paper); }
+.exam-point { background: var(--paper-soft); border-left: 4px solid var(--accent); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; position: relative; }
+.exam-point-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); font-family: var(--sans); font-size: var(--text-sm); }
+.exam-point-id { color: var(--accent); font-weight: 700; letter-spacing: 0.04em; }
+.exam-point h4 { margin-top: 0; margin-bottom: var(--space-2); font-size: var(--text-lg); }
+.exam-point dl { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0; font-size: 0.94em; }
+.exam-point dt { font-family: var(--sans); font-weight: 700; font-size: var(--text-sm); color: var(--accent); }
+.exam-point dd { margin: 0; }
+.exercise { background: var(--paper); border: 1px solid var(--rule); margin: var(--space-4) 0; }
+.exercise-qid { font-weight: 700; color: var(--accent); margin-right: var(--space-3); font-family: var(--sans); }
+.exercise-type { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); background: var(--paper); padding: 1px 6px; border-radius: 2px; font-family: var(--sans); }
+.exercise-stem { padding: var(--space-4) var(--space-4) 0; font-size: var(--text-base); }
+.exercise-options { list-style: upper-alpha; padding-left: var(--space-6); margin: var(--space-3) var(--space-4); }
+.exercise-toggle { margin: var(--space-3) var(--space-4) var(--space-4); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.exercise-toggle summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--accent); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; list-style: none; padding: var(--space-2) 0; }
+.exercise-toggle summary::-webkit-details-marker { display: none; }
+.exercise-toggle summary::before { content: '▸ '; display: inline-block; margin-right: 4px; }
+.exercise-toggle[open] summary::before { content: '▾ '; }
+.exercise-answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.exercise-answer strong { color: var(--success); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; display: block; margin-bottom: var(--space-1); }
+.mastery { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--ink-soft); user-select: none; }
+.mastery input { cursor: pointer; }
+.mastery.checked { color: var(--success); }
+.cheat-card { background: var(--paper); border: 2px solid var(--ink); padding: var(--space-5); margin: var(--space-5) 0; break-inside: avoid; }
+.cheat-card h3 { margin-top: 0; border-bottom: 2px solid var(--ink); padding-bottom: var(--space-2); font-family: var(--serif); letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--text-lg); }
+.cheat-card table { font-size: 0.9em; }
+article > p:first-of-type::first-letter { font-size: 3.2em; float: left; line-height: 0.9; margin: 0.05em var(--space-3) 0 0; font-weight: 700; color: var(--accent); }
+footer { max-width: 1080px; margin: var(--space-8) auto var(--space-6); padding: var(--space-5) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: var(--text-sm); }
+footer .meta { font-family: var(--sans); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; color: var(--ink-mute); margin-top: var(--space-3); }
+@media (max-width: 720px) {
+  :root { --text-3xl: 32px; --text-2xl: 24px; --text-xl: 20px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  .exam-point dl { grid-template-columns: 1fr; }
+  article > p:first-of-type::first-letter { font-size: 2.6em; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 期末冲刺</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 第二讲至第十二讲</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="../index.html">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="L04-L05-视频与音频基础.html" class="active">L04-05</a>
+    <a href="L06-L07-压缩算法.html">L06-07</a>
+    <a href="L08-L10-压缩标准与视频压缩.html">L08-10</a>
+    <a href="L11-L12-检索与深度学习.html">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="../cheat-sheet.html">速查表</a>
+    <a href="../mock-exam.html">模拟卷</a>
+    <a href="../error-list.html">易错清单</a>
+    <a href="../sprint-plan.html">冲刺清单</a>
+    <a href="../formulas.html">公式手册</a>
+    <a href="../glossary.html">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">L04 + L05 · 视频与音频基础</h1>
+<p class="lede">L04 视频基本概念 + L05 数字音频基础 · 7 + 8 考点</p>
+
+<!-- ============ 第 1 部分:考点清单 ============ -->
+<section>
+<h2><span class="num">I.</span>考点清单 (Exam Point Checklist)</h2>
+
+<h3>L04 视频基础 — 7 大考点</h3>
+
+<div class="exam-point" data-mastery="L04-1">
+<div class="exam-point-head"><span class="exam-point-id">L04-考点 1</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>模拟视频信号与扫描方式</h4>
+<dl>
+<dt>核心</dt><dd>模拟视频 f(t) 是关于时间的连续信号;亮度关于电压单调。两种扫描方式 = 逐行 (progressive) + 隔行 (interlaced)。</dd>
+<dt>关键</dt><dd>NTSC 30fps / 60场/秒 / 33.3ms/帧;PAL 25fps / 50场/秒 / 40ms/帧;每场 20ms。</dd>
+<dt>易错</dt><dd>隔行扫描是 "先奇后偶",而不是把一帧拆成两半独立时间均匀画。PAL "25fps" 是帧率,场率是 50。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L04-2">
+<div class="exam-point-head"><span class="exam-point-id">L04-考点 2</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>帧 vs 场 (Frame vs Field)</h4>
+<dl>
+<dt>核心</dt><dd>帧 = 一幅完整的图像;场 = 隔行扫描中奇数场或偶数场(只含一半扫描线)。人眼靠视觉暂留把两场合成一帧。</dd>
+<dt>关键</dt><dd>1 帧 = 2 场(NTSC/PAL 隔行)。</dd>
+<dt>易错</dt><dd>HDTV 为避免运动锯齿 (jaggies) 改用 progressive scan (逐行),而不是用更快的隔行。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L04-3">
+<div class="exam-point-head"><span class="exam-point-id">L04-考点 3</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>色度二次采样 J:a:b 体系</h4>
+<dl>
+<dt>核心</dt><dd>人对色度 (Cr/Cb) 的分辨力弱于亮度 (Y),可降采样色度节约带宽。</dd>
+<dt>关键</dt><dd>J=水平基准(4)。4:2:2 = 2 Bytes/pixel;4:1:1 = 1.5 Bytes/pixel(水平 1/4);4:2:0 = 1.5 Bytes/pixel(水平/垂直各 1/2)。</dd>
+<dt>易错</dt><dd>4:2:0 的 "0" 表示第二行不单独采样(复用第一行),并不是全 0;4:2:2 水平半采样但垂直全采样。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考计算</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L04-4">
+<div class="exam-point-head"><span class="exam-point-id">L04-考点 4</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>HDTV / UHDTV 分辨率与数据量</h4>
+<dl>
+<dt>核心</dt><dd>HD 4:3 → 16:9;SD 720×480;2K-HD 1920×1080;4K UHD 3840×2160;8K UHD 7680×4320。</dd>
+<dt>公式</dt><dd><code>每秒数据量 = 宽 × 高 × 帧率 × 每像素字节数</code>(4:2:0 为 1.5)。</dd>
+<dt>易错</dt><dd>1080p30 在 4:2:0 下 1 秒是 1920×1080×30×1.5 ≈ 93 MB,不是 RGB 的 186 MB。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考计算</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L04-5">
+<div class="exam-point-head"><span class="exam-point-id">L04-考点 5</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>数字视频优势</h4>
+<dl>
+<dt>核心</dt><dd>可存储、易编辑(直接访问帧)、重复录制无质量损失、易加密、噪声容忍。</dd>
+<dt>易错</dt><dd>模拟视频的 "非线性编辑很难",但数字视频容易;数字 ≠ 压缩。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L04-6">
+<div class="exam-point-head"><span class="exam-point-id">L04-考点 6</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>模拟视频接口对比</h4>
+<dl>
+<dt>核心</dt><dd>分量视频 (3 路 YCC/RGB) &gt; S-Video (Y+C) &gt; 复合视频 (Y+C 混合)。</dd>
+<dt>易错</dt><dd>VGA 是模拟分量 RGBHV (5 路),不是数字接口。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频 · 简答/对比</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L04-7">
+<div class="exam-point-head"><span class="exam-point-id">L04-考点 7</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>数字显示接口 & 3D 显示</h4>
+<dl>
+<dt>核心</dt><dd>DVI 早期数字、HDMI 音视频一体化、DP 带宽最高且免费。3D = 单目线索(阴影/纹理/遮挡)+ 双目线索(视差)。</dd>
+<dt>易错</dt><dd>HDMI 向后兼容 DVI;DP 通过有源适配器可兼容 VGA/DVI。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<h3>L05 数字音频基础 — 8 大考点</h3>
+
+<div class="exam-point" data-mastery="L05-1">
+<div class="exam-point-head"><span class="exam-point-id">L05-考点 1</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>声音的三要素 (Amplitude / Frequency / Timbre)</h4>
+<dl>
+<dt>核心</dt><dd>振幅→响度 (Loudness);频率→音调 (Pitch);波形/频谱→音色 (Timbre)。复音 = 基频 + 多次谐波叠加。</dd>
+<dt>易错</dt><dd>纯音 ≠ 复合音;噪音是非周期 (aperiodic) 的随机频率。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L05-2">
+<div class="exam-point-head"><span class="exam-point-id">L05-考点 2</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>音频 vs 语音频率范围</h4>
+<dl>
+<dt>关键</dt><dd>音频 (Audio) 20Hz – 20kHz;语音 (Speech) 85Hz – 1.1kHz;语音带宽远小于音频。</dd>
+<dt>易错</dt><dd>1.1k 单位是 Hz,不是 kHz;语音之所以能用低采样率编码 (8kHz) 就是因为这个 1.1k 上限。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L05-3">
+<div class="exam-point-head"><span class="exam-point-id">L05-考点 3</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>数字化过程 = 采样 + 量化</h4>
+<dl>
+<dt>核心</dt><dd>采样 = 连续时间 → 离散时间;量化 = 连续幅值 → 离散幅值。两个维度都要数字化。</dd>
+<dt>易错</dt><dd>不要把 "采样" 与 "量化" 搞混。常见采样率 8 kHz(电话)~ 48 kHz(专业音频)。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L05-4">
+<div class="exam-point-head"><span class="exam-point-id">L05-考点 4</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>奈奎斯特定理 (Nyquist Theorem)</h4>
+<dl>
+<dt>公式</dt><dd><code>f_sample ≥ 2 × f_max</code>。临界 2f_max 称为奈奎斯特频率;超过(不满足)时出现混叠 (aliasing),产生假频。</dd>
+<dt>关键</dt><dd>22.05 kHz 声音 → 必须 ≥ 44.1 kHz 采样;33.075 kHz 采样真频 22.05 kHz → 假频 = 33.075 - 22.05 = 11.025 kHz。</dd>
+<dt>易错</dt><dd>假频 = |f_sample - f_true|(当 f_sample &lt; 2 f_max 且接近 f_sample 整数分之一时)。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考计算</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L05-5">
+<div class="exam-point-head"><span class="exam-point-id">L05-考点 5</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>信噪比 SNR / SQNR (dB)</h4>
+<dl>
+<dt>公式</dt><dd><code>SNR = 10·log10(P_s/P_n) = 20·log10(V_s/V_n)</code>;<code>SQNR = 6.02·N</code> (N 位量化)。</dd>
+<dt>关键</dt><dd>每加 1 bit ≈ 6 dB;8 bit = 电话质量 (~48 dB);16 bit = CD 质量 (~96 dB);12 bit 已足够。</dd>
+<dt>易错</dt><dd>"功率—10,电压—20" 系数;1 dB = 1/10 bel。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考计算</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L05-6">
+<div class="exam-point-head"><span class="exam-point-id">L05-考点 6</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>PCM / DPCM / DM 编码</h4>
+<dl>
+<dt>核心</dt><dd>PCM (Pulse Code Modulation) = 脉冲编码调制,原始采样直接量化;DPCM = 差分编码,传输差值;DM = Delta Modulation,是 DPCM 的极端简化版(1-bit 量化差值)。</dd>
+<dt>易错</dt><dd>DM 不是简单 "差分",而是 1-bit 表示增减方向;ADPCM 是 DPCM 的自适应版本。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L05-7">
+<div class="exam-point-head"><span class="exam-point-id">L05-考点 7</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>无损预测编码 (DPCM) — SU/SD 控制码</h4>
+<dl>
+<dt>核心</dt><dd>差分使样本直方图更尖锐 (peak),便于熵编码。当差值过大时用 SU (+32) / SD (-32) 控制码 + 小差值表示。</dd>
+<dt>关键</dt><dd>差值 100 = SU, SU, SU, 4(即 3×32 + 4 = 100)。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L05-8">
+<div class="exam-point-head"><span class="exam-point-id">L05-考点 8</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>dB 音量等级与音频幅度范围</h4>
+<dl>
+<dt>关键</dt><dd>0 dB 听力阈值;60 dB 日常对话;120 dB 不舒服;140 dB 痛苦;160 dB 鼓膜受损。</dd>
+<dt>频率</dt><dd><span class="tag tag-low">低频 · 送分题</span></dd>
+</dl>
+</div>
+</section>
+
+<!-- ============ 第 2 部分:习题 ============ -->
+<section>
+<h2><span class="num">II.</span>习题 (Exercises)</h2>
+
+<h3>L04 视频基础 — 习题</h3>
+
+<div class="exercise" data-mastery="L04-Q1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L04-Q1</span><span class="exercise-type">单选</span> 关于模拟视频扫描方式,下列说法正确的是:</p>
+<ul class="exercise-options">
+<li>A. 逐行扫描是先扫描偶数行再扫描奇数行</li>
+<li>B. PAL 标准采用 30fps、60场/秒</li>
+<li>C. 隔行扫描通过在一帧内分奇偶两场扫描,依赖人眼视觉暂留合成完整帧</li>
+<li>D. NTSC 标准下每帧扫描时长是 20ms</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> 逐行是按顺序逐行扫描;PAL 是 25fps / 50场;NTSC 每帧 33.3ms。隔行的核心是 "奇场 1/3/5... + 偶场 2/4/6..." 两场合成一帧,靠视觉暂留。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L04-Q2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L04-Q2</span><span class="exercise-type">单选</span> 帧 (frame) 与场 (field) 的关系,下列正确的是:</p>
+<ul class="exercise-options">
+<li>A. 一帧 = 一场</li>
+<li>B. 一帧 = 二场(奇场 + 偶场),仅用于隔行扫描</li>
+<li>C. 一场 = 二帧</li>
+<li>D. 场是 3D 视频的单位</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> 隔行扫描中,奇数行构成的图称为奇场,偶数行构成的图称为偶场,两场合成为一帧。逐行扫描无场概念。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L04-Q3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L04-Q3</span><span class="exercise-type">单选</span> 4:2:2 色度二次采样中,每像素占多少字节?</p>
+<ul class="exercise-options">
+<li>A. 3 字节</li>
+<li>B. 2 字节</li>
+<li>C. 1.5 字节</li>
+<li>D. 1 字节</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> 4:2:2 指 8 像素有 Y=8 字节,Cb/Cr 各 4 字节,共 16 字节 / 8 像素 = 2 Bytes/pixel。4:4:4 (无降采样) 才是 3 Bytes/pixel。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L04-Q4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L04-Q4</span><span class="exercise-type">单选</span> 4:2:0 与 4:1:1 相比,下列说法正确的是:</p>
+<ul class="exercise-options">
+<li>A. 4:2:0 带宽利用率比 4:1:1 高</li>
+<li>B. 4:2:0 水平分辨率是原来的 1/4,与 4:1:1 相同</li>
+<li>C. 4:2:0 水平/垂直分辨率均为原来的 1/2,4:1:1 仅水平降为 1/4</li>
+<li>D. 二者完全相同</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> 4:2:0 二维都降为 1/2(第二行复用第一行色度);4:1:1 只水平降为 1/4,垂直仍全分辨率。两者均为 1.5 Bytes/pixel,但几何分布不同。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L04-Q5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L04-Q5</span><span class="exercise-type">多选</span> 以下属于数字显示接口的有:</p>
+<ul class="exercise-options">
+<li>A. DVI</li>
+<li>B. HDMI</li>
+<li>C. DisplayPort</li>
+<li>D. VGA</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A, B, C
+<strong>解析</strong> VGA 是模拟分量接口 (RGBHV)。DVI、HDMI、DP 都是数字接口,HDMI/DP 同时传音频信号。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L04-Q6">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L04-Q6</span><span class="exercise-type">计算题</span> 一段 720×480 分辨率、25 fps、采用 4:2:0 色度采样的数字视频片段,长度为 5 分钟,请计算其原始数据量(以 MB 为单位)。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong><br>
+- 每像素字节数:4:2:0 → 1.5 Bytes/pixel<br>
+- 每帧数据量:720 × 480 × 1.5 = 518,400 Bytes ≈ 0.494 MB (按 1 MB = 2²⁰ Bytes,约 0.494 MiB;若按 10⁶ ≈ 0.518 MB)<br>
+- 每秒数据量:0.494 × 25 ≈ 12.36 MB/s (二进) 或 12.96 MB/s (十进)<br>
+- 5 分钟 = 300 s:约 0.494 × 25 × 300 ≈ 3,705 MB ≈ 3.62 GB (二进) 或 3.89 GB (十进)<br>
+<strong>解析</strong> 用公式 <code>数据量 = 宽 × 高 × 帧率 × 时长 × 1.5</code>,注意单位和单位换算。课堂 SD 数据给的是 ~15.5 MB/s (即约十进制),与本题结果一致量级。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L04-Q7">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L04-Q7</span><span class="exercise-type">计算题</span> 一段 4K UHDTV 视频,分辨率 3840×2160,30fps,4:2:0 格式。求:<br>
+(1) 单帧数据量;<br>
+(2) 1 秒数据量 (MB);<br>
+(3) 相对 1080p 视频的倍数。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong><br>
+(1) 单帧:3840 × 2160 × 1.5 = 12,441,600 Bytes ≈ 11.87 MB<br>
+(2) 1 秒:11.87 × 30 ≈ 356 MB/s(接近讲义的 ~372 MB/s,因为 60fps 时才能达到 372 MB/s;讲义表中 30fps 是近似值)<br>
+(3) 4K 像素是 1080p 的 4 倍 → 单帧 4 倍、相同 fps 下码率 4 倍<br>
+<strong>解析</strong> 4:2:0 压缩比 1.5 B/px;4K 像素 = 3840×2160 = 8,294,400,是 1920×1080 = 2,073,600 的 4 倍。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L04-Q8">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L04-Q8</span><span class="exercise-type">简答</span> 简述为什么 HDTV 选择逐行扫描 (progressive scan) 而非隔行扫描 (interlaced scan)?这对视频数据量有何影响?</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong><br>
+1. <strong>隔行扫描锯齿 (jaggies)</strong>:快速运动物体横跨两场时,由于两场时间不同,合成帧产生边缘锯齿;逐行扫描同一帧内所有行同一时刻,无此问题。<br>
+2. <strong>隔行扫描对现代 LCD/OLED 显示器不友好</strong>(显示设备按逐行刷新)。<br>
+3. <strong>HDTV 同时增加可视域宽度</strong>(4:3 → 16:9),需要更高空间分辨率。<br>
+4. <strong>数据量影响</strong>:在同样帧率下,逐行需一次送出所有行,瞬时带宽更高;但视频流总码率 = 帧率 × 单帧数据,二者若帧率相同 (如 30p vs 60i),码率相同;现代高清更常用 60p 真正高于隔行。<br>
+<strong>解析</strong> 1080p30 (逐行) 与 1080i60 (隔行) 帧率定义略有差异:p 用逐行帧数;i 用场数映射到 60 场/秒。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L04-Q9">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L04-Q9</span><span class="exercise-type">简答</span> 比较分量视频、S-Video、复合视频三种模拟接口在画质、线缆数量、串扰三方面的差异。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong><br>
+1. <strong>分量视频</strong>:3 路独立 YCC/RGB,线缆 3 根,画质最高,无亮色串扰,同步严格,成本高、专业级。<br>
+2. <strong>S-Video</strong>:1 根线缆两路铜芯(Y + 复合 C),亮度与色度分开,画质中等,串扰极少。<br>
+3. <strong>复合视频</strong>:1 根线缆 Y+C 混合(色度副载波放高频),画质最低,亮色串扰严重,成本最低。<br>
+4. <strong>整体趋势</strong>:分离越多 → 画质越好、串扰越少、成本越高。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L04-Q10">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L04-Q10</span><span class="exercise-type">综合应用</span> 设计一种将现有 NTSC 模拟电视信号转为可在 IP 网络上传输的数字流方案,需要说明:分辨率选择、色度采样、帧率、码率、显示端接口。请给出关键参数选择理由。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong><br>
+1. <strong>分辨率选择</strong>:NTSC 原始 720×480 是 SD 标清;考虑向后兼容 + 带宽,选 720×480 即可;若面向高清可升 1920×1080。<br>
+2. <strong>色度采样</strong>:从兼容性最好选 4:2:0,1.5 Bytes/pixel。专业制作用 4:2:2。<br>
+3. <strong>帧率</strong>:保持与 NTSC 兼容 30fps 或 29.97fps (drop-frame)。<br>
+4. <strong>码率</strong>:<br>
+&nbsp;&nbsp;- SD 720×480@30fps, 4:2:0 → 720×480×30×1.5 ≈ 15.5 MB/s ≈ 124 Mbps 原始<br>
+&nbsp;&nbsp;- 高清 1920×1080@30fps, 4:2:0 → ~93 MB/s ≈ 744 Mbps 原始<br>
+&nbsp;&nbsp;- 实际传输需 H.264/H.265 压缩至 2–10 Mbps 量级。<br>
+5. <strong>显示端接口</strong>:现代电视/显示器多用 HDMI 2.0 (4K@60Hz) 或 DP 1.4 (8K@60Hz);老设备兼容 DVI。<br>
+6. <strong>设计折衷</strong>:在 "画质 / 带宽 / 兼容性" 三者间权衡;本题 SD 方案总原始码率 ~124 Mbps,需要至少 ~3 倍压缩才能在 100M 以太网舒适传输。
+</div>
+</details>
+</div>
+
+<h3>L05 数字音频基础 — 习题</h3>
+
+<div class="exercise" data-mastery="L05-Q1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L05-Q1</span><span class="exercise-type">单选</span> 声音三要素中,决定音色 (Timbre) 的是:</p>
+<ul class="exercise-options">
+<li>A. 振幅</li>
+<li>B. 频率</li>
+<li>C. 波形/频谱</li>
+<li>D. 声压级</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> 振幅 → 响度 (Loudness),频率 → 音调 (Pitch),波形/频谱 → 音色 (Timbre)。音色由基频 + 谐波叠加(共振峰)的形状决定。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L05-Q2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L05-Q2</span><span class="exercise-type">单选</span> 人耳可听音频范围约为:</p>
+<ul class="exercise-options">
+<li>A. 20 Hz – 1100 Hz</li>
+<li>B. 85 Hz – 1.1 kHz</li>
+<li>C. 20 Hz – 20 kHz</li>
+<li>D. 50 Hz – 15 kHz</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> 人耳可听音频 (Audio) 范围是 20 Hz – 20 kHz;85 Hz – 1.1 kHz 是语音 (Speech) 范围,比音频窄很多,所以语音可以用低采样率编码。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L05-Q3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L05-Q3</span><span class="exercise-type">单选</span> 一个频率为 22.05 kHz 的声音,根据奈奎斯特定理,最低采样率应为:</p>
+<ul class="exercise-options">
+<li>A. 11.025 kHz</li>
+<li>B. 22.05 kHz</li>
+<li>C. 33.075 kHz</li>
+<li>D. 44.1 kHz</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> D
+<strong>解析</strong> Nyquist 要求 f_sample ≥ 2 × f_max = 2 × 22.05 = 44.1 kHz;CD 正是用 44.1 kHz 采样 22.05 kHz 最高音频。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L05-Q4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L05-Q4</span><span class="exercise-type">单选</span> 用 33.075 kHz 采样率对一个 22.05 kHz 的声音采样,会出现的现象是:</p>
+<ul class="exercise-options">
+<li>A. 完整还原,无失真</li>
+<li>B. 出现混叠 (aliasing),假频约 11.025 kHz</li>
+<li>C. 信号幅度被量化</li>
+<li>D. 数据量减半</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> 33.075 &lt; 2 × 22.05 = 44.1,违反奈奎斯特定理;假频 = |33.075 − 22.05| = 11.025 kHz。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L05-Q5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L05-Q5</span><span class="exercise-type">单选</span> 16 bit 量化的理论 SQNR 约为:</p>
+<ul class="exercise-options">
+<li>A. 6 dB</li>
+<li>B. 48 dB</li>
+<li>C. 96 dB</li>
+<li>D. 160 dB</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> SQNR = 6.02 × N ≈ 6 × N dB;16 bit → ~96 dB,这就是 CD 音质。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L05-Q6">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L05-Q6</span><span class="exercise-type">多选</span> 下列属于音频编码方式的有:</p>
+<ul class="exercise-options">
+<li>A. PCM</li>
+<li>B. DPCM</li>
+<li>C. ADPCM</li>
+<li>D. DM</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A, B, C, D
+<strong>解析</strong> PCM 是基础脉冲编码;DPCM 是差分;ADPCM 是自适应差分;DM 是 1-bit DPCM 简化版。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L05-Q7">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L05-Q7</span><span class="exercise-type">计算题</span> 一段单声道音频,采样率 8 kHz,每个样本 8 bit 量化,时长 10 秒。求:<br>
+(1) 每秒数据量;<br>
+(2) 总数据量;<br>
+(3) 与 44.1 kHz/16 bit 立体声 CD 相比,码率差距多少倍?</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong><br>
+(1) 8 kHz × 8 bit = 64 kbps = 8 KB/s<br>
+(2) 10 × 8 KB = 80 KB<br>
+(3) CD 立体声:44.1 kHz × 16 bit × 2 = 1411.2 kbps,本题 64 kbps,差距约 <strong>22 倍</strong><br>
+<strong>解析</strong> 公式 <code>码率 = 采样率 × 每样本 bit × 通道数</code>。"码率差距" 主要由采样率、量化位数、通道数三方面决定,立体声比单声道也是 2 倍差距来源之一。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L05-Q8">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L05-Q8</span><span class="exercise-type">计算题</span> 一段最高频率为 8 kHz 的音频信号:<br>
+(1) 求奈奎斯特采样率;<br>
+(2) 若实际采样率 = 12 kHz,求假频;<br>
+(3) 若改用 16 bit 量化,求理论 SQNR。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong><br>
+(1) f_Nyquist = 2 × 8 = 16 kHz<br>
+(2) 假频 = |12 − 8| = 4 kHz (因为 12 &lt; 16,违反 Nyquist)<br>
+(3) SQNR = 6.02 × 16 ≈ 96 dB<br>
+<strong>解析</strong> 当采样率 &lt; 2 f_max 时,假频 = |f_sample − f_true|;16 bit CD 质量约 96 dB。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L05-Q9">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L05-Q9</span><span class="exercise-type">简答</span> 解释 PCM、DPCM、DM 三者的关系。DM 与 DPCM 相比有什么主要优势与代价?</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong><br>
+1. <strong>PCM</strong> (Pulse Code Modulation):直接对每个采样值量化(不做差分),是基础编码。<br>
+2. <strong>DPCM</strong> (Differential PCM):对相邻样本差值量化,由于差值小、方差小,量化更精细。<br>
+3. <strong>DM</strong> (Delta Modulation):DPCM 的极端简化,每样本只用 1 bit 表示 "上升"或"下降"一个固定步长。<br>
+4. <strong>优势</strong>:DM 硬件简单、码率低 (1 bit/sample),适合实时 AD 转换和语音低速编码。<br>
+5. <strong>代价</strong>:DM 在快速变化信号上 "斜率过载" (slope overload),在缓慢变化区易 "颗粒噪声" (granular noise);只能用于语音类缓变信号。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L05-Q10">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L05-Q10</span><span class="exercise-type">简答 + 设计</span> 为什么电话系统可以使用 8 kHz 采样、8 bit 量化(即 64 kbps)即可实现可懂语音通话?结合奈奎斯特定理与 SQNR 公式解释。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案要点</strong><br>
+1. 语音 (speech) 频率范围 85 Hz – 1.1 kHz,远小于音频 (20 Hz – 20 kHz);奈奎斯特要求 8 kHz 采样即可覆盖 4 kHz 内全部信息(留有余量到 4 kHz)。<br>
+2. 8 bit 量化 → SQNR ≈ 48 dB,对语音可懂度足够(人耳对语音信噪比要求 ~30–40 dB 即可懂)。<br>
+3. 综合:码率 = 8 kHz × 8 bit = 64 kbps,是单信道 PSTN 数字电话的标准速率 (DS0 = 64 kbps)。<br>
+4. 设计验证:若用 16 kHz/16 bit 量化,仍是高质量电话;现代 VoIP 普遍用 8 kHz/16 bit 或 16 kHz/16 bit 进一步提升音质。
+</div>
+</details>
+</div>
+</section>
+
+<!-- ============ 第 3 部分:Cheat Sheet ============ -->
+<section>
+<h2><span class="num">III.</span>Cheat Sheet · 一页速查</h2>
+
+<div class="cheat-card">
+<h3>关键公式</h3>
+<table>
+<thead><tr><th>名称</th><th>公式</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>奈奎斯特定理</td><td><code>f_sample ≥ 2 × f_max</code></td><td>可还原上限</td></tr>
+<tr><td>假频公式</td><td><code>f_alias = |f_sample − f_true|</code></td><td>采样率不足时</td></tr>
+<tr><td>信噪比 SNR (dB)</td><td><code>10·log10(P_s/P_n) = 20·log10(V_s/V_n)</code></td><td>功率用 10,电压用 20</td></tr>
+<tr><td>量化信噪比 SQNR</td><td><code>SQNR = 6.02 × N (dB)</code></td><td>N 位均匀量化</td></tr>
+<tr><td>音频码率</td><td><code>码率 = 采样率 × 量化bit × 通道数</code></td><td>数字音频比特率</td></tr>
+<tr><td>视频数据量</td><td><code>数据量 = 宽 × 高 × 帧率 × 时长 × 每像素字节</code></td><td>原始视频未压缩</td></tr>
+<tr><td>每像素字节</td><td>4:2:0/4:1:1 = 1.5;4:2:2 = 2;4:4:4 = 3</td><td>色度子采样</td></tr>
+<tr><td>分贝换算</td><td><code>dB = 10·log10(P_ratio)</code> 或 <code>20·log10(V_ratio)</code></td><td>1 dB = 1/10 bel</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>关键数字 / 阈值</h3>
+<table>
+<thead><tr><th>项目</th><th>数值</th></tr></thead>
+<tbody>
+<tr><td>听觉频率范围</td><td>Audio 20 Hz – 20 kHz;Speech 85 Hz – 1.1 kHz</td></tr>
+<tr><td>常用采样率</td><td>电话 8 kHz;CD 44.1 kHz;专业 48 kHz</td></tr>
+<tr><td>量化位数</td><td>电话 8 bit;CD 16 bit;高端 24 bit</td></tr>
+<tr><td>Nyquist 例</td><td>22.05 kHz → 44.1 kHz 采样;假频 33.075↔22.05 → 11.025 kHz</td></tr>
+<tr><td>SQNR</td><td>8 bit ≈ 48 dB;16 bit ≈ 96 dB;每 +1 bit ≈ +6 dB</td></tr>
+<tr><td>帧率标准</td><td>NTSC 30fps/60场;PAL 25fps/50场;电影 24fps</td></tr>
+<tr><td>扫描时长</td><td>PAL 每帧 40ms、每场 20ms</td></tr>
+<tr><td>视频分辨率</td><td>SD 720×480;HD 1920×1080;4K 3840×2160;8K 7680×4320</td></tr>
+<tr><td>4:2:0 码率</td><td>1080p30 → 1920×1080×30×1.5 ≈ 93 MB/s</td></tr>
+<tr><td>4K 倍率</td><td>相对 1080p = 4 倍;8K = 16 倍</td></tr>
+<tr><td>颜色模型</td><td>RGB (4:4:4 = 3 B/px);YUV (亮度+色度分离)</td></tr>
+<tr><td>音量 dB</td><td>0 阈值 / 60 对话 / 80 交通 / 100 割草机 / 120 不适 / 140 痛苦 / 160 鼓膜</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>模拟视频接口对比</h3>
+<table>
+<thead><tr><th>接口</th><th>信号</th><th>线缆</th><th>画质</th><th>串扰</th></tr></thead>
+<tbody>
+<tr><td>分量视频</td><td>3 路 YCC/RGB</td><td>3 根</td><td>最高</td><td>无</td></tr>
+<tr><td>S-Video</td><td>Y + 复合 C</td><td>1 根(2 芯)</td><td>中</td><td>极少</td></tr>
+<tr><td>复合视频</td><td>1 路 Y+C 混合</td><td>1 根</td><td>最低</td><td>严重</td></tr>
+<tr><td>VGA</td><td>RGBHV (5 路)</td><td>1 根(15 针)</td><td>较高(模拟)</td><td>较少</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>数字显示接口对比</h3>
+<table>
+<thead><tr><th>接口</th><th>核心优势</th><th>最高规格</th><th>音频</th></tr></thead>
+<tbody>
+<tr><td>DVI</td><td>早期数字,兼容 VGA</td><td>2560×1600@60Hz</td><td>否</td></tr>
+<tr><td>HDMI</td><td>音视频一体,生态完善</td><td>8K@60Hz (HDMI 2.1)</td><td>是</td></tr>
+<tr><td>DisplayPort</td><td>高带宽,免费开放</td><td>8K@120Hz / 10K@60Hz</td><td>是</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>色度子采样对比 (J:a:b, J=4)</h3>
+<table>
+<thead><tr><th>模式</th><th>Bytes/px</th><th>带宽比</th><th>水平</th><th>垂直</th></tr></thead>
+<tbody>
+<tr><td>4:4:4</td><td>3.0</td><td>100%</td><td>1</td><td>1</td></tr>
+<tr><td>4:2:2</td><td>2.0</td><td>67%</td><td>1/2</td><td>1</td></tr>
+<tr><td>4:1:1</td><td>1.5</td><td>50%</td><td>1/4</td><td>1</td></tr>
+<tr><td>4:2:0</td><td>1.5</td><td>50%</td><td>1/2</td><td>1/2</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>JPEG / 视频颜色子采样流程</h3>
+<pre>
+RGB 全分辨率
+   ↓ RGB → YCbCr 转换
+   ↓ 色度子采样 (4:2:0 等)
+Y (全) + Cb/Cr (降采样)
+   ↓ 编码 (DCT / 量化 / 熵编码)
+压缩码流
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>PCM 编码流程</h3>
+<pre>
+模拟音频信号
+   ↓ 采样 (低通滤波 + 离散化)
+     → 采样率 f_s (满足 Nyquist)
+   ↓ 量化 (离散幅值 → N bit)
+     → PCM 样本
+   ↓ 编码 (Huffman 等熵编码 / 直接存储)
+数字音频流 (WAV/PCM 格式)
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>DPCM 差分编码</h3>
+<pre>
+原始采样 x[n]
+   ↓ 差分 d[n] = x[n] - x[n-1]
+DPCM 编码 d[n] (直方图更尖锐)
+   ↓ 量化 (N bit)
+码流
+   ↓ 解码 (累加还原) x[n] = x[n-1] + d'[n]
+重构信号
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>DM (Delta Modulation) 1-bit 编码</h3>
+<pre>
+若当前采样 > 上一个量化值: 输出 1 (+Δ)
+否则:                     输出 0 (-Δ)
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>易混淆点 (Trap Map)</h3>
+<table>
+<thead><tr><th>易混对</th><th>关键差异</th></tr></thead>
+<tbody>
+<tr><td>帧 vs 场</td><td>一帧 = 二场(隔行);场是奇/偶行集合</td></tr>
+<tr><td>逐行 vs 隔行</td><td>逐行整帧一次扫描;隔行分奇偶两场</td></tr>
+<tr><td>NTSC vs PAL</td><td>NTSC 30fps/60场;PAL 25fps/50场;每帧时间差</td></tr>
+<tr><td>采样 vs 量化</td><td>采样:时间离散化;量化:幅值离散化</td></tr>
+<tr><td>奈奎斯特率 vs 信号最高频率</td><td>奈奎斯特率 ≥ 2× 最高频率</td></tr>
+<tr><td>假频 vs 噪声</td><td>假频由欠采样产生,频率确定;噪声是随机扰动</td></tr>
+<tr><td>SNR vs SQNR</td><td>SNR 任意信噪;SQNR 特指量化产生</td></tr>
+<tr><td>10·log10 vs 20·log10</td><td>功率用 10;电压/电流幅值用 20</td></tr>
+<tr><td>4:2:0 vs 4:1:1</td><td>都 1.5 B/px,但 4:2:0 二维各 1/2;4:1:1 仅水平 1/4</td></tr>
+<tr><td>4:4:4 vs 4:2:2 vs 4:2:0</td><td>Y 全保留,色度采样递减</td></tr>
+<tr><td>RGB vs YUV</td><td>RGB 加性原色;YUV 亮度-色度分离</td></tr>
+<tr><td>PCM vs DM</td><td>PCM 多 bit 直接量化;DM 1-bit 方向量化</td></tr>
+<tr><td>DPCM vs ADPCM</td><td>DPCM 固定步长;ADPCM 自适应步长</td></tr>
+<tr><td>Audio vs Speech</td><td>Audio 20Hz-20kHz;Speech 85Hz-1.1kHz</td></tr>
+<tr><td>复合 vs 分量视频</td><td>复合单线 Y+C 混合;分量多线 YCC 分离</td></tr>
+<tr><td>VGA vs DVI</td><td>VGA 模拟;DVI 数字</td></tr>
+<tr><td>HDMI vs DP</td><td>HDMI 电视/家电;DP 电脑/电竞,免费规范</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>口诀速记表</h3>
+<table>
+<thead><tr><th>口诀</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>"二倍不混叠"</td><td>采样率 ≥ 2× 最高频率</td></tr>
+<tr><td>"功率 10 电压 20"</td><td>dB 换算系数</td></tr>
+<tr><td>"每 bit 加 6dB"</td><td>SQNR 增量</td></tr>
+<tr><td>"16-bit 96 dB = CD"</td><td>CD 音质</td></tr>
+<tr><td>"4:2:0 二维半、4:1:1 水平 1/4"</td><td>色度降维方式</td></tr>
+<tr><td>"PAL 25 帧 50 场 40 ms"</td><td>PAL 时序</td></tr>
+<tr><td>"1080p30 = 1.5 × 1920 × 1080 × 30 = 93 MB/s"</td><td>4:2:0 HD 原始码率</td></tr>
+<tr><td>"Speech 1.1k → 8k 采样足矣"</td><td>电话窄带</td></tr>
+<tr><td>"3B 2B 1.5B"</td><td>4:4:4 / 4:2:2 / 4:2:0 每像素字节</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>常见考点公式速查</h3>
+<pre>
+Nyquist:      f_s ≥ 2 × f_max
+Alias freq:   f_a = |f_s − f_real|
+SNR(dB):      20·log10(V_s/V_n) = 10·log10(P_s/P_n)
+SQNR(dB):     ≈ 6.02·N
+数据量:       W × H × fps × 时间(s) × Bytes/px
+4:2:0 字节:   1.5 B/px = (8+2+2)/8
+4:2:2 字节:   2.0 B/px = (8+4+4)/8
+4:1:1 字节:   1.5 B/px = (8+2+2)/8 (仅水平 1/4)
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>复习重点 (High-Yield)</h3>
+<ul>
+<li><strong>L04</strong>:色度子采样 4:2:0/4:2:2/4:1:1 几何与带宽(必考计算);4K/8K 数据量计算;模拟/数字接口对比;HDTV 选逐行原因</li>
+<li><strong>L05</strong>:奈奎斯特定理与假频计算;SQNR = 6.02·N 公式;声音三要素;PCM/DPCM/DM 关系;dB 系数选择</li>
+<li><strong>综合</strong>:视频数据量 = W×H×fps×时间×1.5(4:2:0);音频码率 = 采样率×bit×通道;采样 vs 量化的双维度数字化</li>
+</ul>
+</div>
+</section>
+
+</article>
+</main>
+
+<footer>
+<p>祝期末顺利 · 🎯</p>
+<p class="meta">L04-L05 复习专题 · 7 + 8 考点 · 10 + 10 习题 · 期末冲刺</p>
+<p class="meta">编制依据:L04 L414-L628 + L05 L629-L791 · 2026-07-04</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const states = JSON.parse(localStorage.getItem('mastery') || '{}');
+  document.querySelectorAll('[data-mastery]').forEach(el => {
+    const key = el.dataset.mastery;
+    const cb = el.querySelector('input[type=checkbox]');
+    const lbl = el.querySelector('.mastery');
+    if (states[key] && cb) {
+      cb.checked = true;
+      if (lbl) lbl.classList.add('checked');
+    }
+    if (cb) {
+      cb.addEventListener('change', () => {
+        states[key] = cb.checked;
+        localStorage.setItem('mastery', JSON.stringify(states));
+        if (lbl) lbl.classList.toggle('checked', cb.checked);
+      });
+    }
+  });
+});
+</script>
+
+</body>
+</html>

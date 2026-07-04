@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多媒体系统导论 · 期末冲刺主页</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --danger: #a13e2a;
+  --rule: #c9bda5;
+
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --measure: 72ch;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* === Masthead === */
+.site-header {
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+  padding: var(--space-5) var(--space-6) var(--space-3);
+}
+
+.masthead {
+  max-width: 1080px;
+  margin: 0 auto;
+  text-align: center;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.masthead-title {
+  font-family: var(--serif);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-1);
+}
+
+.masthead-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* === Nav === */
+.primary-nav {
+  max-width: 1080px;
+  margin: var(--space-3) auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  justify-content: center;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+}
+
+.primary-nav a {
+  color: var(--ink);
+  text-decoration: none;
+  padding: 2px 6px;
+  border-bottom: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.primary-nav a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.primary-nav a.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.nav-divider {
+  color: var(--ink-mute);
+  user-select: none;
+}
+
+/* === Main === */
+main {
+  max-width: 1080px;
+  margin: var(--space-7) auto;
+  padding: 0 var(--space-6);
+}
+
+article {
+  max-width: var(--measure);
+  margin: 0 auto;
+}
+
+h1.title {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-3);
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+}
+
+.lede {
+  font-size: var(--text-lg);
+  font-style: italic;
+  color: var(--ink-soft);
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+h2 {
+  font-size: var(--text-2xl);
+  margin: var(--space-7) 0 var(--space-4);
+  padding-bottom: var(--space-2);
+  border-bottom: 2px solid var(--ink);
+  letter-spacing: 0.02em;
+  clear: both;
+}
+
+h2 .num {
+  display: inline-block;
+  font-size: 0.65em;
+  vertical-align: super;
+  color: var(--accent);
+  margin-right: var(--space-3);
+}
+
+h3 {
+  font-size: var(--text-xl);
+  margin: var(--space-6) 0 var(--space-3);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+h4 {
+  font-size: var(--text-lg);
+  margin: var(--space-5) 0 var(--space-2);
+  font-weight: 700;
+}
+
+p { margin: var(--space-3) 0; }
+
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--paper-soft);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+pre {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--paper-soft);
+  border-left: 3px solid var(--accent);
+  padding: var(--space-3) var(--space-4);
+  overflow-x: auto;
+  margin: var(--space-4) 0;
+  line-height: 1.5;
+}
+
+/* === Tables === */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-4) 0;
+  font-size: 0.94em;
+}
+
+th, td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+th {
+  font-weight: 700;
+  background: var(--paper-soft);
+  border-bottom: 2px solid var(--ink);
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+tr:last-child td { border-bottom: none; }
+
+/* === Frequency Tags === */
+.tag {
+  display: inline-block;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1px 8px;
+  border-radius: 2px;
+  margin-left: var(--space-2);
+  vertical-align: middle;
+  font-weight: 700;
+}
+
+.tag-high { background: var(--accent); color: var(--paper); }
+.tag-mid { background: var(--highlight); color: var(--paper); }
+.tag-low { background: var(--ink-mute); color: var(--paper); }
+
+/* === Exam Point Card === */
+.exam-point {
+  background: var(--paper-soft);
+  border-left: 4px solid var(--accent);
+  padding: var(--space-4) var(--space-5);
+  margin: var(--space-4) 0;
+  position: relative;
+}
+
+.exam-point-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-2);
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+}
+
+.exam-point-id {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.exam-point h4 {
+  margin-top: 0;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.exam-point dl {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-2) 0;
+  font-size: 0.94em;
+}
+
+.exam-point dt {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--accent);
+}
+
+.exam-point dd {
+  margin: 0;
+}
+
+/* === Exercise (details/summary) === */
+.exercise {
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  margin: var(--space-4) 0;
+}
+
+.exercise-qid {
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: var(--space-3);
+  font-family: var(--sans);
+}
+
+.exercise-type {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  background: var(--paper);
+  padding: 1px 6px;
+  border-radius: 2px;
+  font-family: var(--sans);
+}
+
+.exercise-stem {
+  padding: var(--space-4) var(--space-4) 0;
+  font-size: var(--text-base);
+}
+
+.exercise-options {
+  list-style: upper-alpha;
+  padding-left: var(--space-6);
+  margin: var(--space-3) var(--space-4);
+}
+
+.exercise-toggle {
+  margin: var(--space-3) var(--space-4) var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--rule);
+}
+
+.exercise-toggle summary {
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  list-style: none;
+  padding: var(--space-2) 0;
+}
+
+.exercise-toggle summary::-webkit-details-marker { display: none; }
+
+.exercise-toggle summary::before {
+  content: '▸ ';
+  display: inline-block;
+  margin-right: 4px;
+  transition: transform 0.15s ease;
+}
+
+.exercise-toggle[open] summary::before {
+  content: '▾ ';
+}
+
+.exercise-answer {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--paper-soft);
+  border-left: 3px solid var(--success);
+}
+
+.exercise-answer strong {
+  color: var(--success);
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+/* === Mastery Checkbox === */
+.mastery {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  user-select: none;
+}
+
+.mastery input { cursor: pointer; }
+
+.mastery.checked {
+  color: var(--success);
+}
+
+/* === Cheat Sheet Card === */
+.cheat-card {
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  padding: var(--space-5);
+  margin: var(--space-5) 0;
+  break-inside: avoid;
+}
+
+.cheat-card h3 {
+  margin-top: 0;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: var(--space-2);
+  font-family: var(--serif);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: var(--text-lg);
+}
+
+.cheat-card table { font-size: 0.9em; }
+
+/* === Sprint Grid === */
+.sprint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-4) 0;
+}
+
+.sprint-card {
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  padding: var(--space-4);
+  break-inside: avoid;
+}
+
+.sprint-card h4 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-base);
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+}
+
+.sprint-card .sprint-list {
+  font-size: 0.92em;
+  line-height: 1.5;
+}
+
+.sprint-card .sprint-list li {
+  margin-bottom: var(--space-1);
+}
+
+/* === Dropcap for first paragraph === */
+article > p:first-of-type::first-letter {
+  font-size: 3.2em;
+  float: left;
+  line-height: 0.9;
+  margin: 0.05em var(--space-3) 0 0;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* === Footer === */
+footer {
+  max-width: 1080px;
+  margin: var(--space-8) auto var(--space-6);
+  padding: var(--space-5) var(--space-6);
+  border-top: 2px solid var(--ink);
+  text-align: center;
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+footer p { margin: var(--space-1) 0; }
+
+footer .meta {
+  font-family: var(--sans);
+  font-style: normal;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--ink-mute);
+  margin-top: var(--space-3);
+}
+
+/* === Responsive === */
+@media (max-width: 720px) {
+  :root {
+    --text-3xl: 32px;
+    --text-2xl: 24px;
+    --text-xl: 20px;
+  }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  .exam-point dl { grid-template-columns: 1fr; }
+  article > p:first-of-type::first-letter { font-size: 2.6em; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 期末冲刺</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 第二讲至第十二讲</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="index.html" class="active">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="lectures/L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="lectures/L04-L05-视频与音频基础.html">L04-05</a>
+    <a href="lectures/L06-L07-压缩算法.html">L06-07</a>
+    <a href="lectures/L08-L10-压缩标准与视频压缩.html">L08-10</a>
+    <a href="lectures/L11-L12-检索与深度学习.html">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="cheat-sheet.html">速查表</a>
+    <a href="mock-exam.html">模拟卷</a>
+    <a href="error-list.html">易错清单</a>
+    <a href="sprint-plan.html">冲刺清单</a>
+    <a href="formulas.html">公式手册</a>
+    <a href="glossary.html">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">期末复习主页</h1>
+<p class="lede">从 11 个讲次提炼的考点、做题与速查 · 把这当作复习指挥台,按节奏推进即可。</p>
+
+<section>
+<h2><span class="num">I.</span>11 讲一览</h2>
+
+<p>课件从<strong>第二讲</strong>开始(第一讲为绪论未覆盖),共 11 个讲次。下面是按考频预判排序的总览,高频讲次优先突击。</p>
+
+<table>
+<thead><tr><th>讲次</th><th>中文标题</th><th>核心主题</th><th>考点数</th><th>考频</th></tr></thead>
+<tbody>
+<tr><td><a href="lectures/L02-L03-图像数据与颜色.html">L02</a></td><td>图形和图像的数据表现</td><td>像素/位图/灰度/24-bit 彩/CLUT/抖动</td><td>9</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td><a href="lectures/L02-L03-图像数据与颜色.html">L03</a></td><td>图像和视频中的颜色</td><td>RGB/CIE/HSV/Lab/YCbCr/Gamma</td><td>10</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td><a href="lectures/L04-L05-视频与音频基础.html">L04</a></td><td>视频中的基本概念</td><td>扫描/NTSC/PAL/4:2:0/HDTV/UHDTV</td><td>7</td><td><span class="tag tag-mid">中频</span></td></tr>
+<tr><td><a href="lectures/L04-L05-视频与音频基础.html">L05</a></td><td>数字音频基础</td><td>声音三要素/Nyquist/SNR/SQNR/PCM</td><td>8</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td><a href="lectures/L06-L07-压缩算法.html">L06</a></td><td>无损压缩算法</td><td>熵/Huffman/Shannon-Fano/算术/LZW</td><td>10</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td><a href="lectures/L06-L07-压缩算法.html">L07</a></td><td>有损压缩算法</td><td>失真/PSNR/率失真/量化/DCT</td><td>10</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td><a href="lectures/L08-L10-压缩标准与视频压缩.html">L08</a></td><td>图像压缩标准 (JPEG)</td><td>YCbCr/DCT/ZigZag/DPCM/RLC/Huffman</td><td>10</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td><a href="lectures/L08-L10-压缩标准与视频压缩.html">L09</a></td><td>视频压缩 I</td><td>MC/MAD/宏块/MV/搜索算法</td><td>8</td><td><span class="tag tag-mid">中频</span></td></tr>
+<tr><td><a href="lectures/L08-L10-压缩标准与视频压缩.html">L10</a></td><td>视频压缩 II</td><td>H.261/I/P/B/MPEG/VOP</td><td>10</td><td><span class="tag tag-mid">中频</span></td></tr>
+<tr><td><a href="lectures/L11-L12-检索与深度学习.html">L11</a></td><td>基于内容的多媒体检索</td><td>语义鸿沟/Harris/SIFT/SURF/距离度量</td><td>13</td><td><span class="tag tag-mid">中频</span></td></tr>
+<tr><td><a href="lectures/L11-L12-检索与深度学习.html">L12</a></td><td>深度学习与 CNN</td><td>卷积/池化/FC/AlexNet/VGG/ResNet</td><td>14</td><td><span class="tag tag-high">高频</span></td></tr>
+</tbody>
+</table>
+
+<p><strong>TOP 5 必杀区:</strong>L02、L03、L06、L08、L12(计算题密集 + 概念对比密集)。</p>
+</section>
+
+<section>
+<h2><span class="num">II.</span>复习路径 · 2 周冲刺</h2>
+
+<p>按"高频考点先突击"的节奏。下面 5 个 <strong>5×5</strong> 卡片覆盖了你冲刺时最该背的 25 项内容。</p>
+
+<h3>5 个必须背下来的核心公式</h3>
+<div class="sprint-grid">
+<div class="sprint-card">
+<h4>公式 1 · PSNR</h4>
+<div class="sprint-list"><code>PSNR = 10·log10(255²/MSE)</code><br>8-bit 灰度失真度量;MSE=100 → PSNR ≈ 28 dB</div>
+</div>
+<div class="sprint-card">
+<h4>公式 2 · SQNR</h4>
+<div class="sprint-list"><code>SQNR = 6.02 × N (dB)</code><br>16 bit ≈ 96 dB (CD 音质);每 +1 bit ≈ +6 dB</div>
+</div>
+<div class="sprint-card">
+<h4>公式 3 · Nyquist</h4>
+<div class="sprint-list"><code>f_sample ≥ 2·f_max</code><br>假频 = |f_sample − f_true|</div>
+</div>
+<div class="sprint-card">
+<h4>公式 4 · 压缩比</h4>
+<div class="sprint-list"><code>CR = B0/B1</code><br>Huffman 界:η ≤ l̄ &lt; η+1</div>
+</div>
+<div class="sprint-card">
+<h4>公式 5 · CNN 输出尺寸</h4>
+<div class="sprint-list"><code>(N + 2·padding − F)/stride + 1</code><br>参数 = (F·F·C + 1)·K</div>
+</div>
+</div>
+
+<h3>5 个必须能推导的过程</h3>
+<div class="sprint-grid">
+<div class="sprint-card">
+<h4>过程 1 · JPEG 5 步</h4>
+<div class="sprint-list">RGB→YCbCr(4:2:0) → 8×8 DCT → 量化 F̂=round(F/Q) → ZigZag → DC DPCM / AC RLC → Huffman</div>
+</div>
+<div class="sprint-card">
+<h4>过程 2 · Huffman 编码</h4>
+<div class="sprint-list">频次排序 → 取最小两个合并 → 新节点插入 → 重复直到根 → 左 0 右 1 赋码</div>
+</div>
+<div class="sprint-card">
+<h4>过程 3 · 帧间预测</h4>
+<div class="sprint-list">当前宏块 → 参考帧 (2p+1)² 窗口搜索 → 找 MV 使 MAD 最小 → 取预测 → 编码残差</div>
+</div>
+<div class="sprint-card">
+<h4>过程 4 · H.261 P 帧</h4>
+<div class="sprint-list">宏块 → ME 找 MV → MC 取预测 → 残差 DCT→量化→ZigZag→Huffman;参考帧必须是已解码帧</div>
+</div>
+<div class="sprint-card">
+<h4>过程 5 · 算术编码</h4>
+<div class="sprint-list">low=0, high=1, range=1 → 每符号缩窄区间 → 输出满足 low ≤ code &lt; high 的最短二进制</div>
+</div>
+</div>
+
+<h3>5 个必须能对比的对比表</h3>
+<div class="sprint-grid">
+<div class="sprint-card">
+<h4>对比 1 · 压缩主题</h4>
+<div class="sprint-list">无损(Huffman/LZW) vs 有损(JPEG/MPEG);JPEG vs JPEG2000;H.261 vs H.264</div>
+</div>
+<div class="sprint-card">
+<h4>对比 2 · 颜色空间</h4>
+<div class="sprint-list">RGB vs HSV vs YCbCr;YUV vs YCbCr(数字版)</div>
+</div>
+<div class="sprint-card">
+<h4>对比 3 · 质量度量</h4>
+<div class="sprint-list">SNR vs PSNR;MSE vs MAD;距离 vs 相似度</div>
+</div>
+<div class="sprint-card">
+<h4>对比 4 · 预测方式</h4>
+<div class="sprint-list">帧内 vs 帧间;前向 vs 双向;DPCM vs ADPCM</div>
+</div>
+<div class="sprint-card">
+<h4>对比 5 · 特征提取</h4>
+<div class="sprint-list">全局 vs 局部;Harris vs SIFT/SURF/MSER;手工 vs CNN</div>
+</div>
+</div>
+
+<h3>5 个必须能举例的实例</h3>
+<div class="sprint-grid">
+<div class="sprint-card">
+<h4>例 1 · Lena 512² JPEG</h4>
+<div class="sprint-list">原始 256 KB;典型 JPEG 10-20:1 → 12-25 KB;qf=75 时约 30-50 KB</div>
+</div>
+<div class="sprint-card">
+<h4>例 2 · H.264 vs MPEG-2</h4>
+<div class="sprint-list">同画质下 H.264 码率约为 MPEG-2 的 <strong>50%</strong>(节省 50%)</div>
+</div>
+<div class="sprint-card">
+<h4>例 3 · 1080p@30fps 4:2:0</h4>
+<div class="sprint-list">单帧 3.11 MB;每秒 93 MB (≈744 Mbps);H.264 压缩到 2-5 Mbps</div>
+</div>
+<div class="sprint-card">
+<h4>例 4 · 经典 CNN 参数对比</h4>
+<div class="sprint-list">AlexNet 60M → VGG 138M → GoogleNet 5M (1/12) → ResNet 25M</div>
+</div>
+<div class="sprint-card">
+<h4>例 5 · 电话 8k/8bit</h4>
+<div class="sprint-list">8 kHz × 8 bit = 64 kbps = DS0 标准;SQNR ≈ 48 dB 满足语音可懂度</div>
+</div>
+</div>
+
+<h3>5 个"必背"数字</h3>
+<div class="sprint-grid">
+<div class="sprint-card">
+<h4>数字 1 · MPEG 压缩比</h4>
+<div class="sprint-list">I : P : B ≈ <strong>7 : 20 : 50</strong>;平均 ≈ 27:1</div>
+</div>
+<div class="sprint-card">
+<h4>数字 2 · SIFT 描述子</h4>
+<div class="sprint-list">4 × 4 分块 × 8 方向 = <strong>128 维</strong>;SURF 64 维;PCA-SIFT 20-36</div>
+</div>
+<div class="sprint-card">
+<h4>数字 3 · YCbCr 4:2:0</h4>
+<div class="sprint-list">每 2×2 块 = Y(4)+Cb(1)+Cr(1) = 6 字节 = <strong>1.5 B/px</strong></div>
+</div>
+<div class="sprint-card">
+<h4>数字 4 · 灰度公式</h4>
+<div class="sprint-list"><code>Y = 0.299R + 0.587G + 0.114B</code>(G 权重最大,人眼对绿最敏感)</div>
+</div>
+<div class="sprint-card">
+<h4>数字 5 · 标准协议族</h4>
+<div class="sprint-list">H.262=MPEG-2;H.264=MPEG-4 AVC;H.265=HEVC;H.266=VVC</div>
+</div>
+</div>
+</section>
+
+<section>
+<h2><span class="num">III.</span>横向知识串联 · 7 大主题</h2>
+
+<p>期末综合题常用"一张图串多讲"。下面 7 个主题把跨讲次的概念串起来。</p>
+
+<div class="cheat-card">
+<h3>主题 1 · 压缩 (L06 / L07 / L08 / L09 / L10)</h3>
+<table>
+<thead><tr><th>讲次</th><th>关键概念</th><th>公式 / 步骤</th></tr></thead>
+<tbody>
+<tr><td>L06</td><td>熵 / Huffman / 算术编码</td><td><code>η = -Σ pi·log2(pi)</code>,<code>η ≤ l̄ &lt; η+1</code></td></tr>
+<tr><td>L07</td><td>量化 / DCT / PSNR</td><td><code>F̂ = round(F/Q)</code>,<code>PSNR = 10·log10(x²peak/MSE)</code></td></tr>
+<tr><td>L08</td><td>JPEG 流水线</td><td>分块 → DCT → 量化 → ZigZag → DPCM(DC)/RLC(AC) → Huffman</td></tr>
+<tr><td>L09</td><td>时间冗余 / MC / MAD</td><td><code>MAD = (1/N²)·Σ|T-R|</code>,MV 搜索复杂度</td></tr>
+<tr><td>L10</td><td>H.261 / MPEG I/P/B</td><td>I : P : B ≈ 7 : 20 : 50</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>主题 2 · 颜色空间 (L02 / L03 / L04 / L08 / L11)</h3>
+<table>
+<thead><tr><th>讲次</th><th>关键概念</th><th>公式 / 步骤</th></tr></thead>
+<tbody>
+<tr><td>L02</td><td>RGB 加色、灰度公式</td><td><code>Y = 0.299R + 0.587G + 0.114B</code></td></tr>
+<tr><td>L03</td><td>HSV / Lab / YCbCr / Gamma</td><td><code>C = 1 - R, M = 1 - G, Y = 1 - B</code>;<code>L_display = V^γ</code></td></tr>
+<tr><td>L04</td><td>色度子采样 4:2:0/4:2:2/4:4:4</td><td>4:2:0 → 1.5 B/px</td></tr>
+<tr><td>L08</td><td>YCbCr 4:2:0 子采样</td><td>每 2×2:Y(4)+Cb(1)+Cr(1)=6 字节</td></tr>
+<tr><td>L11</td><td>颜色直方图(全局特征)</td><td><code>h[k] = #{pixels | I(x,y) = k}</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>主题 3 · 质量度量 (L05 / L07 / L11)</h3>
+<table>
+<thead><tr><th>讲次</th><th>关键概念</th><th>公式 / 步骤</th></tr></thead>
+<tbody>
+<tr><td>L05</td><td>SNR / SQNR(音频)</td><td><code>SQNR = 6.02·N (dB)</code></td></tr>
+<tr><td>L07</td><td>MSE / PSNR / 率失真</td><td><code>PSNR = 10·log10(x²peak/MSE)</code>;R(D) 曲线下凸</td></tr>
+<tr><td>L11</td><td>距离度量(非负/同一/对称/三角不等式)</td><td>L1/L2/余弦/马氏;高斯核 <code>e^(-d²/2σ²)</code></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>主题 4 · 预测 (L05 / L07 / L08 / L09 / L10)</h3>
+<table>
+<thead><tr><th>讲次</th><th>关键概念</th><th>公式 / 步骤</th></tr></thead>
+<tbody>
+<tr><td>L05</td><td>DPCM 差分编码</td><td><code>d[n] = x[n] − x[n-1]</code></td></tr>
+<tr><td>L07</td><td>预测编码(理论)</td><td>残差 <code>d = x − x̂</code> → 量化</td></tr>
+<tr><td>L08</td><td>DC 系数 DPCM</td><td><code>d_i = DC_{i+1} − DC_i</code></td></tr>
+<tr><td>L09</td><td>帧间预测 / MV</td><td>用前/后帧作参考;残差编码</td></tr>
+<tr><td>L10</td><td>H.264 P 帧 1/4 像素</td><td>H.264 vs MPEG-2 节省 50% 码率</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>主题 5 · 变换 (L07 / L08 / L10)</h3>
+<table>
+<thead><tr><th>讲次</th><th>关键概念</th><th>公式 / 步骤</th></tr></thead>
+<tbody>
+<tr><td>L07</td><td>1D/2D DCT;DC vs AC</td><td><code>F(u) = C(u)·Σ f(i)·cos[(2i+1)uπ/(2N)]</code></td></tr>
+<tr><td>L08</td><td>JPEG 8×8 DCT 块</td><td>分块 → DCT → 量化 → ZigZag;DC 用 DPCM,AC 用 RLC</td></tr>
+<tr><td>L10</td><td>H.261 宏块 DCT</td><td>4 个 8×8 亮度 + 2 个 8×8 色度</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>主题 6 · 冗余类型 (L06 / L08 / L09)</h3>
+<table>
+<thead><tr><th>讲次</th><th>关键概念</th><th>公式 / 步骤</th></tr></thead>
+<tbody>
+<tr><td>L06</td><td>四类冗余:时间/空间/频谱/心理视觉</td><td>(概念性)</td></tr>
+<tr><td>L08</td><td>JPEG 处理空间 + 心理视觉冗余</td><td>DCT + 量化表 + 4:2:0</td></tr>
+<tr><td>L09</td><td>运动补偿处理时间冗余</td><td>MV + 残差编码</td></tr>
+<tr><td>L10</td><td>H.264 综合处理四类冗余</td><td>多参考 + 1/4 像素 + CABAC</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>主题 7 · 特征提取 (L11 / L12)</h3>
+<table>
+<thead><tr><th>讲次</th><th>关键概念</th><th>公式 / 步骤</th></tr></thead>
+<tbody>
+<tr><td>L11</td><td>手工特征:Harris / SIFT / SURF / MSER</td><td><code>R = det(M) − k·trace(M)²</code>;SIFT 128 维;SURF 64 维;MSER 仿射不变</td></tr>
+<tr><td>L12</td><td>深度特征:CNN 卷积层自动学习</td><td>输出尺寸 <code>(N+2p−F)/s+1</code>;参数 <code>(F·F·C+1)·K</code></td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section>
+<h2><span class="num">IV.</span>TOP 30 易错清单 · 前 10 必扣分</h2>
+
+<p>完整 TOP 30 见 <a href="error-list.html">易错清单</a>。这里给出最致命的 10 条。</p>
+
+<table>
+<thead><tr><th>#</th><th>易错点</th><th>正确 vs 错误</th><th>避坑提示</th></tr></thead>
+<tbody>
+<tr>
+<td>1</td><td><strong>8-bit 灰度图数据量</strong></td>
+<td>正确:像素数 × 1 Byte(B);错误:× 8 bit(混淆 b 与 B)</td>
+<td>单位永远先换算到 Byte,再 × 像素数</td>
+</tr>
+<tr>
+<td>2</td><td><strong>YCbCr 4:2:0 子采样后总像素数</strong></td>
+<td>正确:每 2×2 块=Y(4)+Cb(1)+Cr(1)=6 字节;1.5 B/px;错误:仍按 3 B/px 算</td>
+<td>4:2:0 = 水平+垂直都 2:1 降采样</td>
+</tr>
+<tr>
+<td>3</td><td><strong>量化是 JPEG 有损的真正来源</strong></td>
+<td>正确:DCT 本身无损;错误:以为是 DCT 丢信息</td>
+<td>口诀:"DCT 可逆,量化不可逆"</td>
+</tr>
+<tr>
+<td>4</td><td><strong>PSNR 公式的对数底与系数</strong></td>
+<td>正确:<code>10·log10(x²peak/MSE)</code>;错误:<code>20·log10</code>(电压系数)、<code>ln</code></td>
+<td>功率用 10,电压用 20;永远是 10·log10</td>
+</tr>
+<tr>
+<td>5</td><td><strong>MPEG-4 ≠ H.264</strong></td>
+<td>正确:H.264 = MPEG-4 Part 10(AVC);MPEG-4 是协议族</td>
+<td>H.262=MPEG-2,H.264=AVC,H.265=HEVC</td>
+</tr>
+<tr>
+<td>6</td><td><strong>H.261 的宏块大小</strong></td>
+<td>正确:亮度 N=16,4:2:0 下色度 N=8;错误:16×16 色度</td>
+<td>宏块 = 16×16 Y + 8×8 Cb + 8×8 Cr</td>
+</tr>
+<tr>
+<td>7</td><td><strong>CNN 卷积输出尺寸的"双边"padding</strong></td>
+<td>正确:<code>(N + 2·padding − F)/stride + 1</code>;错误:只 + padding</td>
+<td>公式中 2 表示左右(或上下)各填充 padding</td>
+</tr>
+<tr>
+<td>8</td><td><strong>Harris 角点不具有尺度不变性</strong></td>
+<td>正确:Harris 单尺度;错误:以为 Harris 抗缩放</td>
+<td>抗尺度:SIFT/SURF/MSER/Harris-Laplace</td>
+</tr>
+<tr>
+<td>9</td><td><strong>H.261 P 帧的参考帧是"已解码的帧"</strong></td>
+<td>正确:参考帧必须用已解码(重建)的帧</td>
+<td>DPCM 类系统共性 — 防 drift</td>
+</tr>
+<tr>
+<td>10</td><td><strong>Huffman 平均码长 ≥ 熵</strong></td>
+<td>正确:<code>η ≤ l̄ &lt; η+1</code>;错误:以为 <code>l̄ = η</code></td>
+<td>整数约束 + Kraft 不等式 → l̄ ≥ η</td>
+</tr>
+</tbody>
+</table>
+</section>
+
+<section>
+<h2><span class="num">V.</span>推荐阅读顺序</h2>
+
+<ol>
+<li><strong>通读</strong>本页(主页) + <a href="cheat-sheet.html">速查表</a> — 5 分钟建立全景认知。</li>
+<li>按 <code>L06 → L07 → L08 → L02 → L03 → L12 → L05 → L09 → L10 → L11 → L04</code> 顺序精读 5 个讲次文件(每讲 30-60 分钟)。</li>
+<li>用 <a href="mock-exam.html">模拟卷</a> 自测 — 100 分全真模拟,时间 90 分钟。</li>
+<li>对照 <a href="error-list.html">易错清单</a> 复盘错题。</li>
+<li>最后一周按本页 §II 的 5×5 冲刺清单 + <a href="formulas.html">公式手册</a> + <a href="glossary.html">术语词典</a> 逐项过关。</li>
+</ol>
+</section>
+
+<section>
+<h2><span class="num">VI.</span>期末复习 5 大心法</h2>
+
+<div class="sprint-grid">
+<div class="sprint-card">
+<h4>心法 1 · 算为王</h4>
+<div class="sprint-list">L02/03/04/05/06/07/08/12 全部必出计算题。练习时 <strong>先列公式 → 代入数字 → 验算单位</strong>(b vs B, KB vs KiB)。</div>
+</div>
+<div class="sprint-card">
+<h4>心法 2 · 流为纲</h4>
+<div class="sprint-list">JPEG 5 步、H.261 I/P 帧、CNN 三大思想、SIFT 5 步——任何"流程题"按 <strong>分块 → 变换 → 量化 → 编码</strong> 四步即可得分。</div>
+</div>
+<div class="sprint-card">
+<h4>心法 3 · 比为剑</h4>
+<div class="sprint-list">高频对比题(Huffman vs 算术、YUV vs YCbCr、I 帧 vs P 帧 vs B 帧、AlexNet vs VGG vs GoogleNet vs ResNet)按 <strong>维度 × 优劣</strong> 两栏对比表答。</div>
+</div>
+<div class="sprint-card">
+<h4>心法 4 · 错为镜</h4>
+<div class="sprint-list"><a href="error-list.html">TOP 30 易错清单</a> 考前过 3 遍,<strong>尤其是必扣分 TOP 10</strong>(数据量单位、PSNR 系数、量化是 JPEG 主因等)。</div>
+</div>
+<div class="sprint-card">
+<h4>心法 5 · 例为锚</h4>
+<div class="sprint-list">抽象概念记不住就记典型数字——Lena 512×512、MPEG 7:1/20:1/50:1、SQNR ≈ 6N dB、H.264 比 MPEG-2 省 50% 码率。<strong>数字是记忆的钩子</strong>。</div>
+</div>
+</div>
+</section>
+
+</article>
+</main>
+
+<footer>
+<p>祝期末顺利 · 🎯</p>
+<p class="meta">文档版本 v1.0 · 2026-07-04 · 期末复习总指挥</p>
+<p class="meta">编制依据:00-syllabus-map.md + lectures/ 下 5 个分组文件</p>
+</footer>
+
+</body>
+</html>

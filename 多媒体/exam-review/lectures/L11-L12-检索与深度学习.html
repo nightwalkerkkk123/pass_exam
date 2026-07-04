@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L11-L12 · 检索与深度学习</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --measure: 72ch;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+}
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 1080px; margin: 0 auto; text-align: center; padding-bottom: var(--space-3); border-bottom: 1px solid var(--rule); }
+.masthead-title { font-family: var(--serif); font-size: var(--text-2xl); font-weight: 700; letter-spacing: 0.04em; margin-bottom: var(--space-1); }
+.masthead-sub { font-family: var(--serif); font-style: italic; font-size: var(--text-sm); color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.primary-nav { max-width: 1080px; margin: var(--space-3) auto 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); justify-content: center; font-family: var(--sans); font-size: var(--text-sm); }
+.primary-nav a { color: var(--ink); text-decoration: none; padding: 2px 6px; border-bottom: 1px solid transparent; transition: all 0.15s ease; }
+.primary-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.primary-nav a.active { color: var(--accent); font-weight: 700; }
+.nav-divider { color: var(--ink-mute); user-select: none; }
+main { max-width: 1080px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.02em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; clear: both; }
+h2 .num { display: inline-block; font-size: 0.65em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); color: var(--ink); font-weight: 700; }
+h4 { font-size: var(--text-lg); margin: var(--space-5) 0 var(--space-2); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+pre { font-family: var(--mono); font-size: 0.88em; background: var(--paper-soft); border-left: 3px solid var(--accent); padding: var(--space-3) var(--space-4); overflow-x: auto; margin: var(--space-4) 0; line-height: 1.5; }
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+.tag { display: inline-block; font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 8px; border-radius: 2px; margin-left: var(--space-2); vertical-align: middle; font-weight: 700; }
+.tag-high { background: var(--accent); color: var(--paper); }
+.tag-mid { background: var(--highlight); color: var(--paper); }
+.tag-low { background: var(--ink-mute); color: var(--paper); }
+.exam-point { background: var(--paper-soft); border-left: 4px solid var(--accent); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; position: relative; }
+.exam-point-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); font-family: var(--sans); font-size: var(--text-sm); }
+.exam-point-id { color: var(--accent); font-weight: 700; letter-spacing: 0.04em; }
+.exam-point h4 { margin-top: 0; margin-bottom: var(--space-2); font-size: var(--text-lg); }
+.exam-point dl { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0; font-size: 0.94em; }
+.exam-point dt { font-family: var(--sans); font-weight: 700; font-size: var(--text-sm); color: var(--accent); }
+.exam-point dd { margin: 0; }
+.exercise { background: var(--paper); border: 1px solid var(--rule); margin: var(--space-4) 0; }
+.exercise-qid { font-weight: 700; color: var(--accent); margin-right: var(--space-3); font-family: var(--sans); }
+.exercise-type { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); background: var(--paper); padding: 1px 6px; border-radius: 2px; font-family: var(--sans); }
+.exercise-stem { padding: var(--space-4) var(--space-4) 0; font-size: var(--text-base); }
+.exercise-options { list-style: upper-alpha; padding-left: var(--space-6); margin: var(--space-3) var(--space-4); }
+.exercise-toggle { margin: var(--space-3) var(--space-4) var(--space-4); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.exercise-toggle summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--accent); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; list-style: none; padding: var(--space-2) 0; }
+.exercise-toggle summary::-webkit-details-marker { display: none; }
+.exercise-toggle summary::before { content: '▸ '; display: inline-block; margin-right: 4px; }
+.exercise-toggle[open] summary::before { content: '▾ '; }
+.exercise-answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.exercise-answer strong { color: var(--success); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; display: block; margin-bottom: var(--space-1); }
+.mastery { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--ink-soft); user-select: none; }
+.mastery input { cursor: pointer; }
+.mastery.checked { color: var(--success); }
+.cheat-card { background: var(--paper); border: 2px solid var(--ink); padding: var(--space-5); margin: var(--space-5) 0; break-inside: avoid; }
+.cheat-card h3 { margin-top: 0; border-bottom: 2px solid var(--ink); padding-bottom: var(--space-2); font-family: var(--serif); letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--text-lg); }
+.cheat-card table { font-size: 0.9em; }
+article > p:first-of-type::first-letter { font-size: 3.2em; float: left; line-height: 0.9; margin: 0.05em var(--space-3) 0 0; font-weight: 700; color: var(--accent); }
+footer { max-width: 1080px; margin: var(--space-8) auto var(--space-6); padding: var(--space-5) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: var(--text-sm); }
+footer .meta { font-family: var(--sans); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; color: var(--ink-mute); margin-top: var(--space-3); }
+@media (max-width: 720px) {
+  :root { --text-3xl: 32px; --text-2xl: 24px; --text-xl: 20px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  .exam-point dl { grid-template-columns: 1fr; }
+  article > p:first-of-type::first-letter { font-size: 2.6em; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 期末冲刺</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 第二讲至第十二讲</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="../index.html">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="L04-L05-视频与音频基础.html">L04-05</a>
+    <a href="L06-L07-压缩算法.html">L06-07</a>
+    <a href="L08-L10-压缩标准与视频压缩.html">L08-10</a>
+    <a href="L11-L12-检索与深度学习.html" class="active">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="../cheat-sheet.html">速查表</a>
+    <a href="../mock-exam.html">模拟卷</a>
+    <a href="../error-list.html">易错清单</a>
+    <a href="../sprint-plan.html">冲刺清单</a>
+    <a href="../formulas.html">公式手册</a>
+    <a href="../glossary.html">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">第十一讲 + 第十二讲 · 检索与深度学习</h1>
+<p class="lede">L11 基于内容的多媒体检索 (CBIR) + L12 深度学习与卷积神经网络 · 13 + 14 考点</p>
+
+<!-- ============ 第 1 部分:考点清单 ============ -->
+<section>
+<h2><span class="num">I.</span>考点清单 (Exam Point Checklist)</h2>
+
+<h3>第十一讲 (L11) 考点 · 基于内容的多媒体检索 (CBIR)</h3>
+
+<div class="exam-point" data-mastery="L11-1">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 1</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>语义鸿沟与意图鸿沟</h4>
+<dl>
+<dt>核心</dt><dd>低层视觉特征与高层语义之间的"语义鸿沟 (Semantic Gap)";文本标签难以覆盖图像内容与查询意图的"意图鸿沟 (Intention Gap)"</dd>
+<dt>对比</dt><dd>传统基于文本的检索 vs 基于内容的检索 (CBIR, Query by Example)</dd>
+<dt>易错</dt><dd>混淆"语义鸿沟"和"意图鸿沟"——前者是低层特征↔高层语义,后者是用户查询↔内容描述</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-2">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 2</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>CBIR 系统框架</h4>
+<dl>
+<dt>核心</dt><dd>离线库图像→特征提取→索引;在线查询图像→特征提取→匹配→结果</dd>
+<dt>关键</dt><dd>三大关键技术:特征提取、特征匹配、高维索引;QBE (Query By Example) 是 CBIR 核心交互模式</dd>
+<dt>易错</dt><dd>忽略"高维索引"环节的重要性——它是支持大规模库检索的工程关键</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-3">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 3</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>全局特征(颜色/纹理/形状)</h4>
+<dl>
+<dt>核心</dt><dd>颜色直方图、纹理统计量、形状描述子;计算简单但难以应对遮挡、裁剪等攻击,缺乏不变性</dd>
+<dt>弱点</dt><dd>对几何变换(旋转、缩放、裁剪)敏感;丢失空间分布信息</dd>
+<dt>易错</dt><dd>颜色直方图对光照敏感;对"内容相同但颜色不同"的图像区分力差</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-4">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 4</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>局部特征检测子分类与 Harris 角点</h4>
+<dl>
+<dt>公式</dt><dd><code>R = det(M) - k·trace(M)²</code>,k = 0.04~0.06;M 是 2×2 图像微分矩阵,由 Ix², IxIy, Iy² 高斯加权</dd>
+<dt>分类</dt><dd>基于特征值 λ₁, λ₂:两者都小→Flat;一大一小→Edge;都大且相近→Corner</dd>
+<dt>分类</dt><dd>检测子分三类:基于角点(Harris/FAST)、基于斑点(SIFT/SURF)、基于区域(MSER)</dd>
+<dt>易错</dt><dd>Harris <strong>不具有尺度不变性</strong>;对模糊和噪声敏感;k 是经验常数</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-5">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 5</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>FAST 角点检测</h4>
+<dl>
+<dt>核心</dt><dd>圆环上若有连续 12 个像素比中心像素更亮(或更暗),则该点为角点</dd>
+<dt>加速</dt><dd>实际使用剪枝先测 1/9/5/13 号像素</dd>
+<dt>优缺</dt><dd>算法简单、速度极快(几毫秒);但角点定义过严、误检率高、不具有尺度不变性</dd>
+<dt>易错</dt><dd>FAST 的"12 点连续"是定义门槛,硬件加速剪枝并非定义</dd>
+<dt>频率</dt><dd><span class="tag tag-low">低频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-6">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 6</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>尺度空间与 Harris-Laplace</h4>
+<dl>
+<dt>核心</dt><dd>图像多尺度两种方法:图像金字塔(平滑+降采样)与高斯尺度空间(卷积可变尺度高斯核)</dd>
+<dt>关键</dt><dd>特征尺度 = 响应值最大的尺度</dd>
+<dt>流程</dt><dd>Harris-Laplace 生成高斯尺度空间计算角点响应,在尺度空间搜索拉普拉斯响应极大值</dd>
+<dt>易错</dt><dd>高斯尺度空间 ≠ 图像金字塔——前者图片尺寸不变,后者尺寸逐层减半</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-7">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 7</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>SIFT 检测子(DoG 金字塔)</h4>
+<dl>
+<dt>核心</dt><dd>Lowe 1999/2004;在 DoG (Difference-of-Gaussian) 尺度空间同时检测二维空间与尺度空间的局部极值</dd>
+<dt>步骤</dt><dd>①高斯金字塔→DoG 金字塔;②26 邻域比较极值;③曲线拟合精确定位;④Hessian 删除边缘响应</dd>
+<dt>原理</dt><dd>DoG 是规范化 LoG (Laplacian-of-Gaussian) 的近似,LoG 各向同性具真正尺度不变性</dd>
+<dt>优缺</dt><dd>鲁棒性高(旋转+尺度不变);但实时性不高(1~2 秒)、不具仿射不变性、特征数约 3000</dd>
+<dt>易错</dt><dd>DoG ≈ LoG 但 ≠ LoG;SIFT 不抗仿射;26 邻域是"立方体邻域"(同层 8 + 上下层各 9)</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-8">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 8</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>SURF 加速鲁棒特征</h4>
+<dl>
+<dt>核心</dt><dd>基于 Hessian 矩阵行列式建立多尺度金字塔;二阶导数近似模板 + 积分图加速</dd>
+<dt>关键</dt><dd>金字塔构建时<strong>图片大小不变,只改变高斯核尺度</strong></dd>
+<dt>优缺</dt><dd>速度是 SIFT 的 3~5 倍(描述子环节可达 3~7 倍);但光照鲁棒性略弱于 SIFT,不抗仿射</dd>
+<dt>易错</dt><dd>SURF 金字塔构建方式与 SIFT 不同(图片尺寸不变 vs 逐层降采样)</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-9">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 9</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>MSER(最大稳定极值区域)</h4>
+<dl>
+<dt>核心</dt><dd>Matas 2002;地形学分水岭概念;按灰度排序(Binsort, O(n)),用 Component Tree 记录连通区域</dd>
+<dt>关键</dt><dd>在宽阈值范围内形状稳定的区域即 MSER</dd>
+<dt>优缺</dt><dd><strong>唯一具有仿射不变性</strong>的区域检测子;提取快速、重复率高;但对模糊敏感、信息量少</dd>
+<dt>易错</dt><dd>MSER 是"检测子 + 区域",而 SIFT/SURF 是"检测子 + 描述子"组合</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-10">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 10</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>SIFT 描述子(128 维向量)</h4>
+<dl>
+<dt>步骤</dt><dd>①像素梯度计算;②局部区块主方向统计;③坐标轴旋转到主方向 + 4×4 分块每块 8 方向 → <strong>4×4×8=128 维</strong>;④特征归一化</dd>
+<dt>PCA</dt><dd>PCA-SIFT 在 39×39 邻域内取 3042 维梯度向量,用离线训练得到的 K 维 PCA 投影降至 K 维(20~36)</dd>
+<dt>优缺</dt><dd>128 维区分性强、旋转不变;缺点是维数高、存储匹配代价大</dd>
+<dt>易错</dt><dd>4×4 是<strong>分块数</strong>,8 是<strong>方向 bin 数</strong>;PCA-SIFT 是把 3042 维原始梯度降到 K 维,而非 128 维</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-11">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 11</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>距离度量与性质</h4>
+<dl>
+<dt>公式</dt><dd><code>d(x,y) ≥ 0, d(x,x)=0, d(x,y)=d(y,x), d(x,k)+d(k,y) ≥ d(x,y)</code></dd>
+<dt>性质</dt><dd>①非负性 ②同一性 ③对称性 ④三角不等式</dd>
+<dt>常用</dt><dd>欧氏距离(L2)、曼哈顿距离(L1)、余弦距离、马氏距离、汉明距离(二进制描述子)</dd>
+<dt>易错</dt><dd>相似性≠距离,需要从距离转换(如高斯核 e^(-d²/2σ²));不同特征类型选用不同度量</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-12">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 12</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>群组匹配(空间上下文)</h4>
+<dl>
+<dt>核心</dt><dd>单点特征匹配不稳定,需要群组/几何校验</dd>
+<dt>方法</dt><dd>KNN Vote、RANSAC、WGC (Weak Geometric Consistency)、Bundle of features</dd>
+<dt>易错</dt><dd>RANSAC 适合估计几何变换矩阵;KNN Vote 用最近邻投票做空间投票</dd>
+<dt>频率</dt><dd><span class="tag tag-low">低频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L11-13">
+<div class="exam-point-head"><span class="exam-point-id">L11-考点 13</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>高维索引(简述)</h4>
+<dl>
+<dt>核心</dt><dd>倒排索引(基于量化词袋)、树型索引(KD-Tree / R-Tree)、哈希索引(LSH 局部敏感哈希)</dd>
+<dt>易错</dt><dd>当维度 > 16 时 KD-Tree 退化为线性扫描,需要近似最近邻 (ANN) 方法</dd>
+<dt>频率</dt><dd><span class="tag tag-low">低频(仅作选择题概念)</span></dd>
+</dl>
+</div>
+
+<h3>第十二讲 (L12) 考点 · 深度学习与卷积神经网络</h3>
+
+<div class="exam-point" data-mastery="L12-1">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 1</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>深度学习三部曲</h4>
+<dl>
+<dt>核心</dt><dd>①搭建网络结构;②找到合适损失函数;③找到合适优化函数更新参数</dd>
+<dt>关键</dt><dd>损失函数衡量预测与真实吻合度;优化函数通过反向传播更新权重 W</dd>
+<dt>易错</dt><dd>把"损失函数"和"优化函数"混淆——前者衡量吻合度,后者更新参数</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-2">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 2</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>常用损失函数</h4>
+<dl>
+<dt>分类</dt><dd>交叉熵损失 (Cross Entropy Loss)、Hinge Loss <code>l(y,f(x)) = max(0, 1-y·f(x))</code>(SVM 风格)</dd>
+<dt>回归</dt><dd>均方误差 MSE、L1 损失(平均绝对值误差)</dd>
+<dt>易错</dt><dd>分类≠回归——损失函数选择与任务类型严格对应;Hinge Loss 与 SVM 紧密相关</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-3">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 3</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>全连接网络处理图像的瓶颈</h4>
+<dl>
+<dt>核心</dt><dd>图像展平后输入全连接网络,权重矩阵参数过多→过拟合</dd>
+<dt>例</dt><dd>1000×1000 RGB 图像 = 3×10⁶ 输入维度,第一层若有 1000 个神经元,仅一层就需要 3×10⁹ 个权重</dd>
+<dt>易错</dt><dd>参数爆炸≠计算慢,关键是过拟合</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-4">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 4</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>CNN 三大设计思想</h4>
+<dl>
+<dt>局部</dt><dd>每个神经元只感受局部区域(局部感受野),符合图像的空间局部性</dd>
+<dt>共享</dt><dd>同一卷积核在整张图上滑动共享权重,大幅减少参数</dd>
+<dt>多核</dt><dd>使用多个不同卷积核提取不同特征(如边缘、纹理、颜色)</dd>
+<dt>易错</dt><dd>CNN 三大优点——局部关联+参数共享+层级特征表达</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-5">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 5</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>卷积层关键超参数与输出尺寸</h4>
+<dl>
+<dt>公式</dt><dd>无 padding:<code>output = (N - F) / stride + 1</code></dd>
+<dt>公式</dt><dd>有 padding:<code>output = (N + 2·padding - F) / stride + 1</code></dd>
+<dt>参数</dt><dd><code>(F × F × C + 1) × K</code>(含 1 个 bias),K 为卷积核个数</dd>
+<dt>术语</dt><dd>input / kernel / weights / receptive field / feature map / padding / depth / stride</dd>
+<dt>示例</dt><dd>5×5 输入 + 3×3 卷积核 + stride 1 → 3×3 输出(无 padding: (5-3)/1+1=3)</dd>
+<dt>易错</dt><dd>padding 是<strong>单边</strong>;公式中 +2·padding 表示左右(或上下)各填充 padding 行/列;输出必须为整数</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考计算</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-6">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 6</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>池化层(Pooling)</h4>
+<dl>
+<dt>作用</dt><dd>保留主要特征的同时减少参数和计算量、防止过拟合、提高泛化能力</dd>
+<dt>类型</dt><dd>Max Pooling(取最大值,更常用)、Average Pooling(取平均值)</dd>
+<dt>位置</dt><dd>通常位于卷积层之间、全连接层之间</dd>
+<dt>易错</dt><dd>池化层<strong>没有可学习参数</strong>;只是固定运算(与卷积层不同)</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-7">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 7</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>全连接层(FC)</h4>
+<dl>
+<dt>核心</dt><dd>两层之间所有神经元都有权重连接;通常位于 CNN 尾部</dd>
+<dt>关键</dt><dd><strong>参数量通常最大</strong>(VGG 138M 参数大多在 FC 层)</dd>
+<dt>易错</dt><dd>ResNet/GoogleNet 已逐步去掉 FC 层(除输出层外),改用全局平均池化 (GAP)</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-8">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 8</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>AlexNet(2012 ImageNet 冠军)</h4>
+<dl>
+<dt>历史</dt><dd>top-5 错误率比上一年下降约 10 个百分点,开启深度学习时代</dd>
+<dt>结构</dt><dd>8 层 (C1→C2→C3→C4→C5→F1→F2→F3),5 卷积 + 3 全连接</dd>
+<dt>关键</dt><dd>①百万级 ImageNet 数据;②ReLU 激活函数(解决梯度消失);③Dropout + Data Augmentation;④双 GPU 并行训练</dd>
+<dt>细节</dt><dd>前两次"卷积-ReLU-池化",第三/四次"卷积-ReLU"无池化,第五次"卷积-ReLU-池化",第六/七次"FC-ReLU-Dropout",第八次"FC-Softmax"</dd>
+<dt>易错</dt><dd>ReLU 的关键贡献是"在正区间不会饱和",解决 sigmoid/tanh 的梯度消失</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-9">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 9</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>VGG(2014)</h4>
+<dl>
+<dt>核心</dt><dd>更深的网络(16-19 层 vs AlexNet 8 层);多个 3×3 小卷积核替代大卷积核</dd>
+<dt>关键</dt><dd>两个 3×3 堆叠 = 一个 5×5 感受野,但参数更少+非线性更多</dd>
+<dt>性能</dt><dd>ILSVRC top-5 错误率 11.7% → 7.3%</dd>
+<dt>参数</dt><dd>138M,<strong>主要分布在全连接层</strong></dd>
+<dt>易错</dt><dd>VGG 简单但参数巨大,正是后续 GoogleNet/ResNet 改进的动机</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-10">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 10</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>GoogleNet / Inception(2014 冠军)</h4>
+<dl>
+<dt>性能</dt><dd>top-5 错误率 11.7% → 6.7%</dd>
+<dt>架构</dt><dd>22 层带参数层(含 pooling 共 27 层),独立成块约 100 个,<strong>参数量仅 AlexNet 的 1/12</strong></dd>
+<dt>关键</dt><dd>除输出层外<strong>没有 FC 层</strong></dd>
+<dt>演进</dt><dd>Naïve 多核并联;V2 插入 1×1 降维(瓶颈层);V3 用小核替代大核(5×5→两个 3×3)</dd>
+<dt>辅助</dt><dd>辅助分类器解决深度网络的梯度消失问题</dd>
+<dt>易错</dt><dd>1×1 卷积的核心作用是<strong>降维/通道变换</strong>,不是提取空间特征</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-11">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 11</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>ResNet 残差网络(2015 冠军)</h4>
+<dl>
+<dt>性能</dt><dd>top-5 错误率 6.7% → 3.57%,深度 152 层</dd>
+<dt>核心</dt><dd><code>H(x) = F(x) + x</code>,让网络学习残差 F(x) 而非直接学习映射 H(x)</dd>
+<dt>关键</dt><dd>解决深度网络的"退化问题"(不是过拟合,是训练误差随深度增大而增大)</dd>
+<dt>架构</dt><dd>除输出层外<strong>没有其他全连接层</strong>(用全局平均池化 GAP)</dd>
+<dt>易错</dt><dd>残差网络解决的不是梯度消失,而是<strong>深度退化</strong>问题;跳连接使得"什么都不做"也容易(学 F(x)=0)</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-12">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 12</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>CNN 典型网络演进对比</h4>
+<dl>
+<dt>层数</dt><dd>LeNet(5) → AlexNet(8) → VGG(16-19) → GoogleNet(22) → ResNet(152) → Xception(2017)</dd>
+<dt>主线</dt><dd>变深 → 减少参数 → 解决退化</dd>
+<dt>易错</dt><dd>Xception 是 Inception V3 的极端版(深度可分离卷积)</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-13">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 13</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>数据增强、Dropout、正则化</h4>
+<dl>
+<dt>增强</dt><dd>平移、翻转、对称;随机 crop(256×256 → 224×224);水平翻转;PCA Color Augmentation</dd>
+<dt>Dropout</dt><dd>训练时随机关闭部分神经元(典型 0.5);测试时使用所有神经元;本质是隐式的模型集成</dd>
+<dt>ReLU</dt><dd><code>f(x) = max(0, x)</code>;正区间不会饱和,计算快、收敛远快于 sigmoid;缺点是负区间梯度为 0(Dead ReLU)</dd>
+<dt>易错</dt><dd>Dropout 只在训练时启用,测试时关闭;ReLU 不是零中心化</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L12-14">
+<div class="exam-point-head"><span class="exam-point-id">L12-考点 14</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>深度学习开源框架对比</h4>
+<dl>
+<dt>TF</dt><dd>TensorFlow (Google Brain):数据流图,静态图(TF1.x)/动态图(TF2.x);适合生产部署</dd>
+<dt>PT</dt><dd>PyTorch (Facebook):Torch + Python,<strong>动态图 (Define-by-Run)</strong>,相比 TF 1.x 最大优势;学术主流</dd>
+<dt>Caffe</dt><dd>UC Berkeley 贾扬清:layer-based,适合传统 CNN,配置简单但灵活度低</dd>
+<dt>易错</dt><dd>TF 2.x 已默认动态执行 (Eager Execution),与 PyTorch 接近;区分 TF 1.x 和 TF 2.x</dd>
+<dt>频率</dt><dd><span class="tag tag-low">低频(概念题)</span></dd>
+</dl>
+</div>
+</section>
+
+<!-- ============ 第 2 部分:习题 ============ -->
+<section>
+<h2><span class="num">II.</span>习题 (Exercises)</h2>
+
+<h3>L11 习题 · 基于内容的多媒体检索</h3>
+
+<div class="exercise" data-mastery="L11-Q1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L11-Q1</span><span class="exercise-type">单选</span> 下列哪一项最准确地描述了 CBIR 系统需要克服的"语义鸿沟 (Semantic Gap)"?</p>
+<ul class="exercise-options">
+<li>A. 不同图像采集设备造成的像素差异</li>
+<li>B. 图像底层视觉特征(如颜色、纹理)与高层人类语义之间的差异</li>
+<li>C. 用户查询关键词与数据库索引词之间的差异</li>
+<li>D. 图像压缩前后视觉质量的差异</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> 语义鸿沟 (Semantic Gap) 指图像底层视觉特征与高层人类理解的概念(如"一只狗在草地上跑")之间的鸿沟;C 选项对应的是"意图鸿沟"。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L11-Q2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L11-Q2</span><span class="exercise-type">单选</span> 关于 Harris 角点响应函数 <code>R = det(M) - k·trace(M)²</code> 的描述,错误的是?</p>
+<ul class="exercise-options">
+<li>A. k 是经验常数,取值范围 0.04~0.06</li>
+<li>B. M 是 2×2 图像微分矩阵,由 Ix², IxIy, Iy² 高斯加权得到</li>
+<li>C. 当 λ₁, λ₂ 都较大且相近时,R 为较大正值,对应角点</li>
+<li>D. Harris 检测子对尺度变化具有完全不变性</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> D
+<strong>解析</strong> Harris 角点检测子<strong>不具有尺度不变性</strong>,对图像缩放敏感;Harris-Laplace 才具有尺度不变性。A/B/C 都是 Harris 角点的正确描述。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L11-Q3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L11-Q3</span><span class="exercise-type">单选</span> SIFT 检测子采用 DoG (Difference-of-Gaussian) 近似 LoG 的主要原因是?</p>
+<ul class="exercise-options">
+<li>A. DoG 比 LoG 精度更高</li>
+<li>B. DoG 计算更简单,可减少计算量</li>
+<li>C. DoG 具有仿射不变性而 LoG 没有</li>
+<li>D. DoG 在离散像素上比 LoG 更容易实现</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> DoG 是规范化 LoG 的近似,两者效果相近但 DoG 通过两个高斯图像相减即可获得,无需计算二阶导数,计算量大幅降低。仿射不变性与 DoG/LoG 选择无关。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L11-Q4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L11-Q4</span><span class="exercise-type">多选</span> 下列哪些检测子具有尺度不变性?</p>
+<ul class="exercise-options">
+<li>A. Harris Corner</li>
+<li>B. SIFT (DoG)</li>
+<li>C. Harris-Laplacian</li>
+<li>D. MSER</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B, C, D
+<strong>解析</strong> Harris 角点只在单尺度上检测,不具尺度不变性;SIFT 在 DoG 尺度空间检测、Harris-Laplacian 在拉普拉斯尺度空间搜索特征尺度、MSER 在不同灰度阈值范围下检测区域,三者均具有尺度不变性(MSER 还额外具有仿射不变性)。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L11-Q5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L11-Q5</span><span class="exercise-type">多选</span> 关于 SIFT 描述子的描述,正确的有?</p>
+<ul class="exercise-options">
+<li>A. 以特征点为中心取 4×4 分块,每块统计 8 个方向的梯度幅值,共 128 维</li>
+<li>B. 在统计直方图前需要将坐标轴旋转到主方向</li>
+<li>C. 特征向量最终归一化以去除光照影响</li>
+<li>D. SIFT 描述子对尺度不变性的实现依赖于分块尺寸的固定</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A, B, C
+<strong>解析</strong> D 错——SIFT 的尺度不变性依赖于<strong>在特征尺度对应的图像上提取</strong>描述子(坐标轴已在 DoG 尺度空间内对齐),而不是分块尺寸固定。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L11-Q6">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L11-Q6</span><span class="exercise-type">简答</span> 简述 SIFT 检测子的主要步骤,并解释为什么 DoG 可以近似 LoG。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+1. <strong>SIFT 步骤</strong>:<br>
+&nbsp;&nbsp;• Step 1:构建高斯金字塔(多分辨率金字塔+多层高斯滤波);<br>
+&nbsp;&nbsp;• Step 2:组内逐层相减得到 DoG 金字塔;<br>
+&nbsp;&nbsp;• Step 3:每个像素与 26 邻域(立方体邻域:同层 8 个 + 上下层各 9 个)比较 DoG 响应值找极值;<br>
+&nbsp;&nbsp;• Step 4:对 DoG 函数进行曲线拟合,实现关键点精确定位;<br>
+&nbsp;&nbsp;• Step 5:利用 Hessian 矩阵判断主曲率,删除边缘响应点。<br>
+2. <strong>DoG 近似 LoG</strong>:<br>
+&nbsp;&nbsp;• LoG (Laplacian-of-Gaussian) 算子具有各向同性的斑点响应特性,是真正的尺度归一化算子;<br>
+&nbsp;&nbsp;• DoG 是两个相邻尺度高斯核的差分;<br>
+&nbsp;&nbsp;• 由热扩散方程可得:∂G/∂σ ≈ σ·∇²G,即 LoG 可用相邻尺度高斯差分近似;<br>
+&nbsp;&nbsp;• 因此 DoG 是规范化 LoG 的近似,但计算量仅为 LoG 的一小部分(无需对图像做二阶微分)。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L11-Q7">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L11-Q7</span><span class="exercise-type">简答</span> 试比较 SIFT、SURF、MSER 三种检测子在光照、旋转、尺度、仿射四种变换下的不变性,并说明各自最适合的应用场景。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+<table>
+<thead><tr><th>检测子</th><th>光照</th><th>旋转</th><th>尺度</th><th>仿射</th><th>适合场景</th></tr></thead>
+<tbody>
+<tr><td>SIFT</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td><td>通用物体识别、图像匹配,要求高鲁棒性但允许非实时</td></tr>
+<tr><td>SURF</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td><td>实时性要求较高的场景(视频跟踪、实时匹配)</td></tr>
+<tr><td>MSER</td><td>Yes</td><td>Yes</td><td>Yes</td><td>Yes</td><td>文字检测、显著区域提取、要求仿射不变的应用</td></tr>
+</tbody>
+</table>
+MSER 因具有仿射不变性,特别适合<strong>视角变化大</strong>的场景(如文字识别、宽基线匹配)。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L11-Q8">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L11-Q8</span><span class="exercise-type">综合应用</span> 设计一个基于内容的商品图像检索系统,要求用户上传一张商品照片,系统在百万级商品库中找到相同或相似的商品。请描述系统的离线建库流程和在线检索流程,并讨论关键技术挑战。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+<strong>离线建库流程</strong>:<br>
+1. 商品库图像预处理(去噪、统一尺寸如 256×256);<br>
+2. 特征提取:提取全局特征(颜色直方图、纹理 GLCM)和局部特征(SIFT/SURF 检测子+描述子);<br>
+3. 特征聚合:对局部特征采用 Bag-of-Words (BoW) 模型聚类(如 K-means, K=1000)形成视觉词袋;每张图转化为视觉词频直方图;<br>
+4. 高维索引:使用倒排索引(基于视觉词)+ 哈希索引 (LSH);<br>
+5. 存储特征库与索引。<br>
+<strong>在线检索流程</strong>:<br>
+1. 用户上传查询图像,预处理后提取同样的全局+局部特征;<br>
+2. 特征量化:将 SIFT 描述子映射到最近的视觉词(NN 搜索);<br>
+3. 查询向量构造:直方图表示;<br>
+4. 倒排索引查询:返回候选集;<br>
+5. 重排序:用空间校验(RANSAC)做几何一致性验证,过滤误匹配;<br>
+6. 返回 top-K 最相似商品。<br>
+<strong>关键技术挑战</strong>:<br>
+• <strong>语义鸿沟</strong>:相同语义商品外观差异大(不同角度/光照/遮挡),需要鲁棒特征;<br>
+• <strong>高维索引</strong>:SIFT 128 维 + 百万库,精确 KNN 太慢,需要 ANN 近似最近邻;<br>
+• <strong>可扩展性</strong>:商品类别更新时索引需要增量构建;<br>
+• <strong>效率 vs 精度</strong>:BoW + 倒排索引牺牲部分精度换取速度。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L11-Q9">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L11-Q9</span><span class="exercise-type">论述</span> 论述全局特征与局部特征在 CBIR 中的优缺点,并解释为什么现代 CBIR 系统通常采用"局部特征 + 视觉词袋"的组合策略。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+<strong>全局特征</strong>:颜色直方图、GLCM 纹理、形状描述子等<br>
+• 优点:计算简单、维度低、检索速度快;<br>
+• 缺点:对遮挡、裁剪、几何变换敏感;丢失空间分布信息;难以应对"语义相似但外观差异"的图像。<br>
+<strong>局部特征</strong>:SIFT/SURF 关键点 + 描述子<br>
+• 优点:对旋转、尺度、光照变化鲁棒;对遮挡、裁剪有一定容忍度(少量局部区域仍可匹配);<br>
+• 缺点:单图特征数多(3000+),存储和匹配代价大;缺乏全局空间结构。<br>
+<strong>为什么采用"局部特征 + 视觉词袋"</strong>:<br>
+1. 利用局部特征的鲁棒性应对几何/光照变化;<br>
+2. 通过 BoW 聚类将不定数量的局部特征转化为固定维度的直方图,便于索引和比较;<br>
+3. 借鉴文本检索中 TF-IDF + 倒排索引的成熟框架;<br>
+4. 局部特征的空间几何信息可通过 RANSAC 等做后验校验,避免完全丢失结构信息。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L11-Q10">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L11-Q10</span><span class="exercise-type">计算/简答</span> 给定一个 3042 维的 PCA-SIFT 特征向量,使用 36 维 PCA 投影矩阵进行降维。请计算降维后特征的存储空间(假设每个分量用 4 字节浮点数表示),并与原始 128 维 SIFT 特征对比压缩比。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+• PCA-SIFT 存储:36 × 4 = <strong>144 字节</strong><br>
+• 原始 SIFT 存储:128 × 4 = <strong>512 字节</strong><br>
+• 压缩比 = 512 / 144 ≈ <strong>3.56</strong>(或压缩到原来的 28.1%)<br>
+<strong>解析</strong> PCA-SIFT 在保留大部分区分性信息的前提下,将存储开销降低到约 1/3.5。
+</div>
+</details>
+</div>
+
+<h3>L12 习题 · 深度学习与卷积神经网络</h3>
+
+<div class="exercise" data-mastery="L12-Q1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L12-Q1</span><span class="exercise-type">单选</span> 下列关于卷积神经网络 (CNN) 的描述,错误的是?</p>
+<ul class="exercise-options">
+<li>A. CNN 通过局部关联和参数共享减少参数量</li>
+<li>B. 池化层具有可学习参数,可以像卷积层一样训练</li>
+<li>C. 全连接层的参数量通常占整个网络的大部分</li>
+<li>D. 卷积层的输出称为特征图 (feature map)</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> 池化层(如 Max Pooling、Average Pooling)<strong>没有可学习参数</strong>,只是固定的下采样操作。A、C、D 都是 CNN 的正确描述。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L12-Q2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L12-Q2</span><span class="exercise-type">单选</span> 对一个 32×32 的输入图像,使用 10 个 5×5 卷积核,stride=1,padding=2,则输出特征图的尺寸是?</p>
+<ul class="exercise-options">
+<li>A. 32×32×10</li>
+<li>B. 28×28×10</li>
+<li>C. 30×30×10</li>
+<li>D. 32×32×5</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A
+<strong>解析</strong> 输出尺寸 = (N + 2·padding - F) / stride + 1 = (32 + 2×2 - 5) / 1 + 1 = 32,所以输出是 32×32×10。参数量 = (5×5 + 1) × 10 = 260。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L12-Q3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L12-Q3</span><span class="exercise-type">单选</span> AlexNet 在 2012 年 ImageNet 竞赛中取得突破性成功的关键因素不包括?</p>
+<ul class="exercise-options">
+<li>A. 百万级 ImageNet 训练数据</li>
+<li>B. ReLU 激活函数解决了 sigmoid 的梯度消失问题</li>
+<li>C. 使用 3×3 小卷积核替代大卷积核</li>
+<li>D. Dropout 和数据增强防止过拟合</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> "使用 3×3 小卷积核替代大卷积核"是 <strong>VGG(2014)</strong> 的核心改进,不是 AlexNet。AlexNet 主要使用 11×11、5×5、3×3 卷积核。A、B、D 都是 AlexNet 的成功关键。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L12-Q4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L12-Q4</span><span class="exercise-type">多选</span> 关于 ResNet 残差网络的描述,正确的有?</p>
+<ul class="exercise-options">
+<li>A. 残差块通过 y = F(x) + x 的形式实现跳连接</li>
+<li>B. ResNet 主要解决了深度网络的梯度消失问题</li>
+<li>C. ResNet 在 2015 年 ILSVRC 取得 top-5 错误率 3.57% 的成绩</li>
+<li>D. ResNet 除输出层外没有其他全连接层</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A, C, D
+<strong>解析</strong> B 错——ResNet 主要解决的不是梯度消失,而是<strong>深度退化问题</strong>(即训练误差随网络深度增加而增大)。残差结构让网络容易学习"什么都不做"(F(x)=0),从而可以训练很深的网络。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L12-Q5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L12-Q5</span><span class="exercise-type">多选</span> 关于 GoogleNet / Inception 模块的演进,正确的有?</p>
+<ul class="exercise-options">
+<li>A. Naïve Inception 通过多卷积核并联增加特征多样性</li>
+<li>B. Inception V2 引入 1×1 卷积核进行降维</li>
+<li>C. Inception V3 用小卷积核替代大卷积核</li>
+<li>D. GoogleNet 包含 22 层带参数层和约 100 个独立成块的层</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A, B, C, D
+<strong>解析</strong> 全部正确。GoogleNet 的关键改进:①多尺度卷积核并联增加特征多样性;②1×1 卷积降维降低计算量;③小卷积核替代大卷积核进一步降参数;④辅助分类器解决深度梯度问题。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L12-Q6">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L12-Q6</span><span class="exercise-type">计算</span> 对一个 224×224×3 的输入图像进行卷积:<br>
+• 第一层:使用 64 个 3×3 卷积核,stride=1,padding=1<br>
+• 第二层:使用 128 个 3×3 卷积核,stride=1,padding=1<br>
+• 第三层:使用 2×2 最大池化,stride=2<br>
+请计算每层输出的特征图尺寸和该层参数量。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+<strong>第一层卷积</strong>:<br>
+• 输出尺寸 = (224 + 2×1 - 3)/1 + 1 = 224 → <strong>224×224×64</strong><br>
+• 参数量 = (3×3×3 + 1) × 64 = 28 × 64 = <strong>1,792</strong>(每个卷积核 3×3×3=27 个权重 + 1 个 bias)<br>
+<strong>第二层卷积</strong>:<br>
+• 输入 224×224×64<br>
+• 输出尺寸 = (224 + 2×1 - 3)/1 + 1 = 224 → <strong>224×224×128</strong><br>
+• 参数量 = (3×3×64 + 1) × 128 = 577 × 128 = <strong>73,856</strong><br>
+<strong>第三层池化</strong>:<br>
+• 输入 224×224×128<br>
+• 输出尺寸 = (224 - 2)/2 + 1 = 112 → <strong>112×112×128</strong><br>
+• 参数量 = <strong>0</strong>(池化层无可学习参数)
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L12-Q7">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L12-Q7</span><span class="exercise-type">简答</span> 简述 ReLU 激活函数的优缺点,并解释为什么 AlexNet 使用 ReLU 而不是 sigmoid。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+<strong>ReLU 函数</strong>:<code>f(x) = max(0, x)</code><br>
+<strong>优点</strong>:<br>
+1. 正区间梯度恒为 1,<strong>不存在梯度消失</strong>问题;<br>
+2. 计算简单(只需比较和取最大),速度远快于 sigmoid 的指数运算;<br>
+3. 收敛速度远快于 sigmoid/tanh(实验证明训练速度快约 6 倍);<br>
+4. 稀疏激活:负区间输出为 0,使网络具有稀疏性。<br>
+<strong>缺点</strong>:<br>
+1. 负区间梯度为 0,可能出现"Dead ReLU"(神经元永远不被激活);<br>
+2. 输出不是零中心化,可能影响收敛;<br>
+3. 对学习率敏感,过大易导致大量神经元死亡。<br>
+<strong>AlexNet 选择 ReLU 的原因</strong>:<br>
+• 解决 sigmoid 在深层网络中的<strong>梯度消失</strong>问题,使得训练更深的网络成为可能;<br>
+• 收敛速度快,可大幅缩短训练时间;<br>
+• 计算简单,适合 GPU 并行。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L12-Q8">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L12-Q8</span><span class="exercise-type">简答</span> 什么是 Dropout?它在训练和测试阶段的行为有什么区别?为什么 Dropout 能防止过拟合?</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+<strong>Dropout 定义</strong>:训练时以概率 p(通常 0.5)随机将神经元输出置零,使其不参与前向传播和反向传播。<br>
+<strong>训练阶段</strong>:每个 mini-batch 随机丢弃部分神经元,相当于在训练不同的子网络。<br>
+<strong>测试阶段</strong>:使用所有神经元,但需要按保留概率 (1-p) 对权重进行缩放(inverted dropout 实现时已在训练时除以 (1-p),测试时无需缩放)。<br>
+<strong>为什么能防止过拟合</strong>:<br>
+1. <strong>隐式的模型集成</strong>:每次训练相当于训练一个不同的子网络,最终模型相当于大量子网络的集成;<br>
+2. <strong>减少神经元共适应</strong>:防止某些神经元只在其他特定神经元存在时才有效,迫使每个神经元学习更鲁棒的特征;<br>
+3. <strong>类似正则化</strong>:等价于在损失函数中加入 L2 正则项;<br>
+4. <strong>增加噪声</strong>:训练过程的随机性提升泛化能力。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L12-Q9">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L12-Q9</span><span class="exercise-type">综合应用</span> 设计一个用于猫狗二分类的卷积神经网络,要求输入图像 64×64×3。请设计网络结构(含卷积层、池化层、全连接层),并计算每一层的输出尺寸和参数量。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点(参考设计)</strong><br>
+<table>
+<thead><tr><th>层</th><th>类型</th><th>卷积核/池化</th><th>Stride</th><th>Padding</th><th>输出尺寸</th><th>参数量</th></tr></thead>
+<tbody>
+<tr><td>输入</td><td>-</td><td>-</td><td>-</td><td>-</td><td>64×64×3</td><td>0</td></tr>
+<tr><td>C1</td><td>Conv</td><td>16 个 3×3</td><td>1</td><td>1</td><td>64×64×16</td><td>(3×3×3+1)×16 = 448</td></tr>
+<tr><td>P1</td><td>MaxPool</td><td>2×2</td><td>2</td><td>0</td><td>32×32×16</td><td>0</td></tr>
+<tr><td>C2</td><td>Conv</td><td>32 个 3×3</td><td>1</td><td>1</td><td>32×32×32</td><td>(3×3×16+1)×32 = 4,640</td></tr>
+<tr><td>P2</td><td>MaxPool</td><td>2×2</td><td>2</td><td>0</td><td>16×16×32</td><td>0</td></tr>
+<tr><td>C3</td><td>Conv</td><td>64 个 3×3</td><td>1</td><td>1</td><td>16×16×64</td><td>(3×3×32+1)×64 = 18,496</td></tr>
+<tr><td>P3</td><td>MaxPool</td><td>2×2</td><td>2</td><td>0</td><td>8×8×64</td><td>0</td></tr>
+<tr><td>F1</td><td>FC</td><td>-</td><td>-</td><td>-</td><td>128</td><td>8×8×64×128+128 = 524,416</td></tr>
+<tr><td>F2</td><td>FC</td><td>-</td><td>-</td><td>-</td><td>2</td><td>128×2+2 = 258</td></tr>
+</tbody>
+</table>
+<strong>总参数量</strong>:约 548,258 个<br>
+<strong>设计要点</strong>:<br>
+• 每层卷积后接 ReLU 和池化,逐步降低空间分辨率、增加通道数;<br>
+• 最后一层用 Softmax 输出二分类概率;<br>
+• 训练时使用交叉熵损失 + Adam 优化器 + Dropout(0.5) 防过拟合。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L12-Q10">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L12-Q10</span><span class="exercise-type">论述</span> 比较 AlexNet、VGG、GoogleNet、ResNet 四种典型 CNN 的结构特点、参数量、深度和性能,并分析它们的演进动机。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+<table>
+<thead><tr><th>网络</th><th>年份</th><th>层数</th><th>参数量</th><th>top-5 错误率</th><th>核心创新</th></tr></thead>
+<tbody>
+<tr><td>AlexNet</td><td>2012</td><td>8</td><td>~60M</td><td>16.4%</td><td>ReLU, Dropout, 双GPU</td></tr>
+<tr><td>VGG</td><td>2014</td><td>16-19</td><td>138M</td><td>7.3%</td><td>多个 3×3 小卷积核堆叠</td></tr>
+<tr><td>GoogleNet</td><td>2014</td><td>22</td><td>~5M (1/12 AlexNet)</td><td>6.7%</td><td>Inception 多尺度模块, 1×1 降维, 辅助分类器</td></tr>
+<tr><td>ResNet</td><td>2015</td><td>152</td><td>~25M</td><td>3.57%</td><td>残差连接解决深度退化</td></tr>
+</tbody>
+</table>
+<strong>演进动机分析</strong>:<br>
+• <strong>AlexNet → VGG</strong>:变深可提升性能(VGG 用更多 3×3 替代大核);<br>
+• <strong>VGG → GoogleNet</strong>:参数爆炸问题(VGG 138M)促使更高效的 Inception 模块设计;<br>
+• <strong>GoogleNet → ResNet</strong>:深度增加出现退化问题,残差学习突破深度瓶颈;<br>
+• <strong>演进主线</strong>:深度↑ → 参数↓ → 解决退化 → 性能持续提升。
+</div>
+</details>
+</div>
+</section>
+
+<!-- ============ 第 3 部分:Cheat Sheet ============ -->
+<section>
+<h2><span class="num">III.</span>Cheat Sheet · 一页速查</h2>
+
+<div class="cheat-card">
+<h3>关键公式</h3>
+<table>
+<thead><tr><th>名称</th><th>公式</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>Harris 角点响应</td><td><code>R = det(M) - k·trace(M)²</code></td><td>k = 0.04~0.06</td></tr>
+<tr><td>Harris 灰度变化</td><td><code>E(u,v) ≈ [u,v] M [u,v]ᵀ</code></td><td>双线性近似</td></tr>
+<tr><td>卷积输出(无 padding)</td><td><code>(N - F)/stride + 1</code></td><td>N 输入尺寸,F 卷积核</td></tr>
+<tr><td>卷积输出(有 padding)</td><td><code>(N + 2·padding - F)/stride + 1</code></td><td>padding 为单边填充</td></tr>
+<tr><td>卷积参数量</td><td><code>(F × F × C + 1) × K</code></td><td>F 核大小,C 输入通道,K 核个数,+1 为 bias</td></tr>
+<tr><td>交叉熵损失</td><td><code>CrossEntropy = -Σ y·log(p)</code></td><td>多分类</td></tr>
+<tr><td>Hinge Loss</td><td><code>l(y,f(x)) = max(0, 1-y·f(x))</code></td><td>SVM 风格</td></tr>
+<tr><td>均方误差</td><td><code>MSE = (1/n)·Σ(y-ŷ)²</code></td><td>回归损失</td></tr>
+<tr><td>ReLU</td><td><code>f(x) = max(0, x)</code></td><td>解决梯度消失</td></tr>
+<tr><td>距离函数四性质</td><td><code>d(x,y)≥0, d(x,x)=0, d(x,y)=d(y,x), d(x,k)+d(k,y)≥d(x,y)</code></td><td>非负/同一/对称/三角不等式</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>关键数字 / 阈值</h3>
+<table>
+<thead><tr><th>项目</th><th>数值</th></tr></thead>
+<tbody>
+<tr><td>Harris k 经验常数</td><td>0.04~0.06</td></tr>
+<tr><td>SIFT 描述子维度</td><td>128 维(4×4×8)</td></tr>
+<tr><td>SURF 描述子维度</td><td>64 维(4×4×4)</td></tr>
+<tr><td>PCA-SIFT 原始梯度</td><td>3042 维(39×39×2)</td></tr>
+<tr><td>PCA-SIFT 降维目标</td><td>20~36 维</td></tr>
+<tr><td>SIFT 关键点 26 邻域</td><td>立方体邻域(同层 8 + 上下层各 9)</td></tr>
+<tr><td>SIFT 单图特征数</td><td>~3000</td></tr>
+<tr><td>SURF 速度提升</td><td>3~5 倍(SIFT 比)</td></tr>
+<tr><td>FAST 角点定义门槛</td><td>12 连续像素</td></tr>
+<tr><td>ReLU 正区间</td><td>梯度恒为 1,不饱和</td></tr>
+<tr><td>Dropout 典型比例</td><td>0.5</td></tr>
+<tr><td>AlexNet 层数</td><td>8 层(5 conv + 3 fc)</td></tr>
+<tr><td>VGG 层数</td><td>16-19 层</td></tr>
+<tr><td>GoogleNet 带参数层</td><td>22 层</td></tr>
+<tr><td>ResNet 层数</td><td>152 层</td></tr>
+<tr><td>VGG 参数量</td><td>138M(大部分在 FC)</td></tr>
+<tr><td>GoogleNet 参数量</td><td>~5M(AlexNet 的 1/12)</td></tr>
+<tr><td>float32 单分量</td><td>4 字节</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>检测子对比(光照/旋转/尺度/仿射)</h3>
+<table>
+<thead><tr><th>检测子</th><th>光照</th><th>旋转</th><th>尺度</th><th>仿射</th></tr></thead>
+<tbody>
+<tr><td>Harris corner</td><td>Yes</td><td>Yes</td><td><strong>No</strong></td><td>No</td></tr>
+<tr><td>SIFT (DoG)</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+<tr><td>Harris-Laplacian</td><td>Yes</td><td>Yes</td><td>Yes</td><td>No</td></tr>
+<tr><td>MSER</td><td>Yes</td><td>Yes</td><td>Yes</td><td><strong>Yes</strong></td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>描述子对比</h3>
+<table>
+<thead><tr><th>描述子</th><th>维度</th><th>速度</th><th>特点</th></tr></thead>
+<tbody>
+<tr><td>SIFT</td><td>128</td><td>慢</td><td>旋转+尺度不变,鲁棒性最强</td></tr>
+<tr><td>SURF</td><td>64</td><td>快(3-7× SIFT)</td><td>积分图+Harr 小波加速</td></tr>
+<tr><td>PCA-SIFT</td><td>20-36</td><td>中</td><td>离线 PCA 降维,存储高效</td></tr>
+<tr><td>BRIEF</td><td>32/64/128 比特</td><td>极快</td><td>二进制特征,汉明距离匹配</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>CNN 典型网络对比</h3>
+<table>
+<thead><tr><th>网络</th><th>年份</th><th>层数</th><th>参数量</th><th>top-5 错误率</th><th>核心创新</th></tr></thead>
+<tbody>
+<tr><td>AlexNet</td><td>2012</td><td>8</td><td>~60M</td><td>16.4%</td><td>ReLU, Dropout, Data Aug, 双GPU</td></tr>
+<tr><td>VGG</td><td>2014</td><td>16-19</td><td>138M</td><td>7.3%</td><td>多 3×3 小卷积核</td></tr>
+<tr><td>GoogleNet</td><td>2014</td><td>22</td><td>~5M</td><td>6.7%</td><td>Inception 多尺度, 1×1 降维</td></tr>
+<tr><td>ResNet</td><td>2015</td><td>152</td><td>~25M</td><td>3.57%</td><td>残差连接解决深度退化</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>深度学习框架对比</h3>
+<table>
+<thead><tr><th>框架</th><th>厂商</th><th>特点</th></tr></thead>
+<tbody>
+<tr><td>TensorFlow</td><td>Google</td><td>数据流图, 静态图(TF1.x)/动态图(TF2.x), 生产部署</td></tr>
+<tr><td>PyTorch</td><td>Facebook</td><td>动态图(Define-by-Run), 简洁, 学术主流</td></tr>
+<tr><td>Caffe</td><td>UC Berkeley(贾扬清)</td><td>Layer-based, 配置简单, 灵活度低</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>SIFT 检测子步骤</h3>
+<pre>
+1. 构建高斯金字塔(多分辨率金字塔 + 多层高斯滤波)
+2. 组内逐层相减 → DoG 金字塔
+3. 26 邻域比较找局部极值(立方体邻域)
+4. DoG 曲线拟合精确定位关键点
+5. Hessian 矩阵删除边缘响应点
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>SIFT 描述子步骤</h3>
+<pre>
+1. 计算像素梯度(模 + 方向)
+2. 局部区块主方向统计(直方图峰值)
+3. 坐标轴旋转到主方向
+4. 4×4 分块 × 8 方向梯度直方图 → 128 维
+5. 特征归一化(去光照影响)
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>AlexNet 网络结构</h3>
+<pre>
+C1 → C2 → C3 → C4 → C5 → F6 → F7 → F8
+(5 conv + 3 FC)
+
+详细:CR-P, CR-P, CR, CR, CR-P, FR-D, FR-D, FS
+     C=Conv  R=ReLU  P=Pool  F=FC  D=Dropout  S=Softmax
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>ResNet 残差块</h3>
+<pre>
+主路径: x → Conv → BN → ReLU → Conv → BN
+跳连接: y = F(x) + x
+输出:   y → ReLU
+
+解决的不是梯度消失,而是深度退化(degradation)问题
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>深度学习三部曲</h3>
+<pre>
+1. 搭建网络结构(CNN / RNN / Transformer)
+2. 选择损失函数(Cross Entropy / MSE / Hinge)
+3. 选择优化函数(SGD / Adam / RMSprop),反向传播更新参数
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>CBIR 系统流程</h3>
+<pre>
+离线: 库图像 → 特征提取 → 索引
+在线: 查询图像 → 特征提取 → 特征匹配 → 检索结果
+
+关键技术: 特征提取 + 特征匹配 + 高维索引
+核心模式: QBE (Query By Example)
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>易混淆点 (Trap Map)</h3>
+<table>
+<thead><tr><th>概念 A</th><th>概念 B</th><th>区别</th></tr></thead>
+<tbody>
+<tr><td>Harris</td><td>Harris-Laplace</td><td>Harris 单尺度不抗尺度;Harris-Laplace 在尺度空间搜索特征尺度</td></tr>
+<tr><td>SIFT 检测子</td><td>SIFT 描述子</td><td>检测子 = DoG 空间找关键点;描述子 = 128 维梯度直方图向量</td></tr>
+<tr><td>SIFT</td><td>SURF</td><td>SURF 金字塔图片大小不变只改核尺度;SIFT 逐层降采样</td></tr>
+<tr><td>DoG</td><td>LoG</td><td>LoG 是规范化 Laplacian;DoG 是相邻高斯差分(近似)</td></tr>
+<tr><td>全局特征</td><td>局部特征</td><td>全局=整图统计简单但缺不变性;局部=关键点描述子</td></tr>
+<tr><td>卷积层</td><td>全连接层</td><td>卷积=局部连接+共享参数少;全连接=参数多(VGG 138M 大部分在 FC)</td></tr>
+<tr><td>卷积</td><td>池化</td><td>卷积有可学习参数;池化无参数(Max/Avg 固定运算)</td></tr>
+<tr><td>MaxPool</td><td>AvgPool</td><td>Max 取局部最大保留纹理;Avg 取局部平均平滑特征</td></tr>
+<tr><td>ReLU</td><td>sigmoid</td><td>ReLU 正区间不饱和无梯度消失;sigmoid 两端饱和易梯度消失</td></tr>
+<tr><td>Dropout 训练</td><td>Dropout 测试</td><td>训练随机失活;测试使用全部(需缩放权重)</td></tr>
+<tr><td>Inception V2</td><td>Inception V3</td><td>V2 = 引入 1×1 降维;V3 = 小核替代大核(5×5→两个 3×3)</td></tr>
+<tr><td>梯度消失</td><td>深度退化</td><td>梯度消失=反向传播梯度趋零;深度退化=训练误差随深度增加而增大</td></tr>
+<tr><td>语义鸿沟</td><td>意图鸿沟</td><td>语义鸿沟=低层特征↔高层概念;意图鸿沟=用户查询↔内容描述</td></tr>
+<tr><td>距离</td><td>相似度</td><td>距离越小越相似;可转换 d → s = e^(-d²/2σ²) 或 s = 1/(1+d)</td></tr>
+<tr><td>CBIR</td><td>文本检索</td><td>CBIR=相似性检索(距离度量);文本检索=精确匹配(倒排索引)</td></tr>
+<tr><td>静态图</td><td>动态图</td><td>TF 1.x 静态图;PyTorch/TF 2.x 动态图(Define-by-Run)</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>复习提示</h3>
+<ul>
+<li><strong>L11 高频</strong>:Harris 响应函数、SIFT 步骤 + DoG 近似 LoG、描述子维度(128/64)、MSER 仿射不变性、距离四性质</li>
+<li><strong>L12 高频</strong>:卷积输出尺寸公式、参数量计算、AlexNet 成功原因、VGG/GoogleNet/ResNet 核心创新、ReLU vs sigmoid</li>
+<li><strong>计算题重点</strong>:卷积输出尺寸、卷积参数量、PCA-SIFT 存储压缩比、CNN 网络设计总参数量</li>
+<li><strong>综合题重点</strong>:设计简单 CNN(猫狗二分类)、设计 CBIR 离线+在线流程、CNN 网络对比演进</li>
+<li><strong>必背公式</strong>:<code>(N+2p-F)/s+1</code>、<code>(F×F×C+1)×K</code>、<code>R=det(M)-k·trace(M)²</code></li>
+</ul>
+</div>
+</section>
+
+</article>
+</main>
+
+<footer>
+<p>祝期末顺利 · 🎯</p>
+<p class="meta">L11-L12 复习专题 · 13 + 14 考点 · 10 + 10 习题 · 期末冲刺</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const states = JSON.parse(localStorage.getItem('mastery') || '{}');
+  document.querySelectorAll('[data-mastery]').forEach(el => {
+    const key = el.dataset.mastery;
+    const cb = el.querySelector('input[type=checkbox]');
+    const lbl = el.querySelector('.mastery');
+    if (states[key] && cb) {
+      cb.checked = true;
+      if (lbl) lbl.classList.add('checked');
+    }
+    if (cb) {
+      cb.addEventListener('change', () => {
+        states[key] = cb.checked;
+        localStorage.setItem('mastery', JSON.stringify(states));
+        if (lbl) lbl.classList.toggle('checked', cb.checked);
+      });
+    }
+  });
+});
+</script>
+
+</body>
+</html>

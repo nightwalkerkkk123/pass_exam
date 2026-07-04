@@ -11,3 +11,7 @@ reference/egos-2000/
 # 大体积辅助技能（默认不进 public 仓库）
 skills/ExamPass-Assistant/
 skills/book-to-skill/
+
+# 浏览器工具产物 / 临时截图
+.playwright-mcp/
+homepage-full.png
