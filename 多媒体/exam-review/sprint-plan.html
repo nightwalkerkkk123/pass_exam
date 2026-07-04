@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>最后一周冲刺清单 · 多媒体期末</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --measure: 72ch;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+}
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 1080px; margin: 0 auto; text-align: center; padding-bottom: var(--space-3); border-bottom: 1px solid var(--rule); }
+.masthead-title { font-family: var(--serif); font-size: var(--text-2xl); font-weight: 700; letter-spacing: 0.04em; margin-bottom: var(--space-1); }
+.masthead-sub { font-family: var(--serif); font-style: italic; font-size: var(--text-sm); color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.primary-nav { max-width: 1080px; margin: var(--space-3) auto 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); justify-content: center; font-family: var(--sans); font-size: var(--text-sm); }
+.primary-nav a { color: var(--ink); text-decoration: none; padding: 2px 6px; border-bottom: 1px solid transparent; transition: all 0.15s ease; }
+.primary-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.primary-nav a.active { color: var(--accent); font-weight: 700; }
+.nav-divider { color: var(--ink-mute); user-select: none; }
+main { max-width: 1080px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.02em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; clear: both; }
+h2 .num { display: inline-block; font-size: 0.65em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); color: var(--ink); font-weight: 700; }
+h4 { font-size: var(--text-lg); margin: var(--space-5) 0 var(--space-2); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+pre { font-family: var(--mono); font-size: 0.88em; background: var(--paper-soft); border-left: 3px solid var(--accent); padding: var(--space-3) var(--space-4); overflow-x: auto; margin: var(--space-4) 0; line-height: 1.5; }
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+.tag { display: inline-block; font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 8px; border-radius: 2px; margin-left: var(--space-2); vertical-align: middle; font-weight: 700; }
+.tag-high { background: var(--accent); color: var(--paper); }
+.tag-mid { background: var(--highlight); color: var(--paper); }
+.tag-low { background: var(--ink-mute); color: var(--paper); }
+.exam-point { background: var(--paper-soft); border-left: 4px solid var(--accent); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; position: relative; }
+.exam-point-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); font-family: var(--sans); font-size: var(--text-sm); }
+.exam-point-id { color: var(--accent); font-weight: 700; letter-spacing: 0.04em; }
+.exam-point h4 { margin-top: 0; margin-bottom: var(--space-2); font-size: var(--text-lg); }
+.exam-point dl { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0; font-size: 0.94em; }
+.exam-point dt { font-family: var(--sans); font-weight: 700; font-size: var(--text-sm); color: var(--accent); }
+.exam-point dd { margin: 0; }
+.cheat-card { background: var(--paper); border: 2px solid var(--ink); padding: var(--space-5); margin: var(--space-5) 0; break-inside: avoid; }
+.cheat-card h3 { margin-top: 0; border-bottom: 2px solid var(--ink); padding-bottom: var(--space-2); font-family: var(--serif); letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--text-lg); }
+.cheat-card table { font-size: 0.9em; }
+.sprint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-4) 0;
+}
+.sprint-card {
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  padding: var(--space-4);
+  break-inside: avoid;
+}
+.sprint-card h4 {
+  margin: 0 0 var(--space-2);
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+}
+.sprint-card .sprint-list {
+  font-size: 0.92em;
+  line-height: 1.5;
+}
+.sprint-card .sprint-list li {
+  margin-bottom: var(--space-1);
+}
+.week-bar { background: var(--paper-soft); border: 1px solid var(--rule); padding: var(--space-3) var(--space-4); margin: var(--space-4) 0; font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; }
+.week-bar strong { color: var(--accent); font-size: var(--text-base); }
+article > p:first-of-type::first-letter { font-size: 3.2em; float: left; line-height: 0.9; margin: 0.05em var(--space-3) 0 0; font-weight: 700; color: var(--accent); }
+footer { max-width: 1080px; margin: var(--space-8) auto var(--space-6); padding: var(--space-5) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: var(--text-sm); }
+footer .meta { font-family: var(--sans); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; color: var(--ink-mute); margin-top: var(--space-3); }
+@media (max-width: 720px) {
+  :root { --text-3xl: 32px; --text-2xl: 24px; --text-xl: 20px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  .exam-point dl { grid-template-columns: 1fr; }
+  article > p:first-of-type::first-letter { font-size: 2.6em; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 期末冲刺</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 第二讲至第十二讲</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="index.html">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="lectures/L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="lectures/L04-L05-视频与音频基础.html">L04-05</a>
+    <a href="lectures/L06-L07-压缩算法.html">L06-07</a>
+    <a href="lectures/L08-L10-压缩标准与视频压缩.html">L08-10</a>
+    <a href="lectures/L11-L12-检索与深度学习.html">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="cheat-sheet.html">速查表</a>
+    <a href="mock-exam.html">模拟卷</a>
+    <a href="error-list.html">易错清单</a>
+    <a href="sprint-plan.html" class="active">冲刺清单</a>
+    <a href="formulas.html">公式手册</a>
+    <a href="glossary.html">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">最后一周冲刺清单</h1>
+<p class="lede">14 天倒计时 · 5×5 必背 · 5 大心法 · 答题卡格式</p>
+
+<!-- ============ section 1: 14 天冲刺计划 ============ -->
+<section>
+<h2><span class="num">I.</span>14 天冲刺计划 (Sprint Timeline)</h2>
+
+<p>按"高频考点先突击 + 计算密集优先"的原则,把 11 个讲次拆成 14 天节奏。前 10 天过讲次,后 4 天做综合模拟。</p>
+
+<div class="week-bar"><strong>第 1 周 · 计算 + 概念双密集</strong>　目标:把高频讲次的核心计算题刷通,概念对比表能默写</div>
+
+<table>
+<thead><tr><th>日期</th><th>讲次</th><th>主题</th><th>重点任务</th><th>考频</th></tr></thead>
+<tbody>
+<tr><td>Day 1</td><td>L06</td><td>无损压缩</td><td>Huffman 编码步骤、熵/平均码长计算、Kraft 不等式</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td>Day 2</td><td>L07</td><td>有损压缩</td><td>PSNR 公式、DCT 计算、量化误差 MSE</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td>Day 3</td><td>L08</td><td>JPEG 标准</td><td>JPEG 5 步流水线、ZigZag、DC DPCM/AC RLC</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td>Day 4</td><td>L02</td><td>图像数据表现</td><td>灰度公式、数据量计算、位平面、CLUT、Bayer 抖动</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td>Day 5</td><td>L03</td><td>颜色空间</td><td>RGB/HSV/YCbCr 转换、Gamma 校正、4:2:0 子采样</td><td><span class="tag tag-high">高频</span></td></tr>
+</tbody>
+</table>
+
+<div class="week-bar"><strong>第 2 周 · 综合 + 模拟</strong>　目标:横向串讲、综合应用题、模拟卷全套</div>
+
+<table>
+<thead><tr><th>日期</th><th>讲次</th><th>主题</th><th>重点任务</th><th>考频</th></tr></thead>
+<tbody>
+<tr><td>Day 6</td><td>L12</td><td>CNN 与深度学习</td><td>卷积输出尺寸、参数量、四大经典网络对比</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td>Day 7</td><td>L05</td><td>音频基础</td><td>Nyquist、SQNR=6.02N、PCM 码率计算</td><td><span class="tag tag-high">高频</span></td></tr>
+<tr><td>Day 8</td><td>L09</td><td>运动估计</td><td>MAD 公式、MV 搜索、搜索窗口复杂度</td><td><span class="tag tag-mid">中频</span></td></tr>
+<tr><td>Day 9</td><td>L10</td><td>视频压缩标准</td><td>H.261 宏块、H.264 改进、I/P/B 帧压缩比</td><td><span class="tag tag-mid">中频</span></td></tr>
+<tr><td>Day 10</td><td>L11 + L04</td><td>检索 + 视频基础</td><td>SIFT 128 维、4:2:0 数据量、NTSC/PAL</td><td><span class="tag tag-mid">中频</span></td></tr>
+<tr><td>Day 11</td><td colspan="2">综合串讲 · 7 大主题</td><td>用"压缩/颜色/质量/预测/变换/冗余/特征"七主题把跨讲次串起来</td><td>—</td></tr>
+<tr><td>Day 12</td><td colspan="2">模拟卷 1</td><td>100 分 90 分钟全真模拟</td><td>—</td></tr>
+<tr><td>Day 13</td><td colspan="2">错题复盘 + TOP 30 易错清单过第 2 遍</td><td>每错一题回到对应讲次强化</td><td>—</td></tr>
+<tr><td>Day 14</td><td colspan="2">最后冲刺 · 5×5 必背 + 答题卡格式演练</td><td>把本页 II-VII 全过一遍</td><td>—</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ============ section 2: 5 个必背公式 ============ -->
+<section>
+<h2><span class="num">II.</span>5 个必须背下来的核心公式</h2>
+
+<p>下面 5 张卡片是期末最容易出计算题的公式。卡片内容一字不差背到能写出为止。</p>
+
+<div class="sprint-grid">
+<div class="sprint-card">
+<h4>公式 1 · PSNR(峰值信噪比)</h4>
+<div class="sprint-list"><code>PSNR = 10·log10(255² / MSE)</code><br>8-bit 灰度;MSE=100 → PSNR ≈ 28 dB;≥ 40 dB 视觉无损</div>
+</div>
+<div class="sprint-card">
+<h4>公式 2 · SQNR(量化信噪比)</h4>
+<div class="sprint-list"><code>SQNR = 6.02 × N (dB)</code><br>16 bit ≈ 96 dB(CD 音质);每 +1 bit ≈ +6 dB</div>
+</div>
+<div class="sprint-card">
+<h4>公式 3 · Nyquist(奈奎斯特采样)</h4>
+<div class="sprint-list"><code>f_sample ≥ 2·f_max</code><br>假频 = |f_sample − f_true|;电话 8 kHz 可还原 4 kHz</div>
+</div>
+<div class="sprint-card">
+<h4>公式 4 · 压缩比</h4>
+<div class="sprint-list"><code>CR = B0 / B1</code><br>Huffman 界:<code>η ≤ l̄ &lt; η+1</code>(平均码长 ≥ 熵)</div>
+</div>
+<div class="sprint-card">
+<h4>公式 5 · CNN 输出尺寸</h4>
+<div class="sprint-list"><code>(N + 2·padding − F) / stride + 1</code><br>参数 = <code>(F·F·C + 1)·K</code>;N=输入边长,F=卷积核</div>
+</div>
+</div>
+</section>
+
+<!-- ============ section 3: 5 个必推过程 ============ -->
+<section>
+<h2><span class="num">III.</span>5 个必须能推导的过程</h2>
+
+<p>流程题是综合应用题的重头戏。下面 5 个过程能默写到能讲明白为什么这么做的程度。</p>
+
+<div class="sprint-grid">
+<div class="sprint-card">
+<h4>过程 1 · JPEG 编码</h4>
+<div class="sprint-list">RGB → YCbCr(4:2:0 子采样) → 8×8 分块 → DCT → 量化 F̂=round(F/Q) → ZigZag → DC 用 DPCM、AC 用 RLC → Huffman 编码</div>
+</div>
+<div class="sprint-card">
+<h4>过程 2 · Huffman 编码</h4>
+<div class="sprint-list">频次排序 → 取最小两个合并为新节点 → 插入新节点 → 重复直到根 → 左 0 右 1 赋码;平均码长满足 <code>η ≤ l̄ &lt; η+1</code></div>
+</div>
+<div class="sprint-card">
+<h4>过程 3 · 帧间预测 (MC)</h4>
+<div class="sprint-list">当前宏块 → 参考帧 (2p+1)² 窗口搜索 → 计算 MAD → 找 MV 使 MAD 最小 → 取预测 → 编码残差 <code>d = T − R</code></div>
+</div>
+<div class="sprint-card">
+<h4>过程 4 · H.261 P 帧编码</h4>
+<div class="sprint-list">宏块 16×16 → ME 找 MV → MC 取预测 → 残差 4 个 8×8 Y + 2 个 8×8 色度 DCT → 量化 → ZigZag → Huffman;参考帧必须是已解码帧</div>
+</div>
+<div class="sprint-card">
+<h4>过程 5 · 算术编码</h4>
+<div class="sprint-list">low=0, high=1, range=1 → 每符号缩窄区间 range·=p, low+=range_start → 输出满足 low ≤ code &lt; high 的最短二进制</div>
+</div>
+</div>
+</section>
+
+<!-- ============ section 4: 5 个必对比 ============ -->
+<section>
+<h2><span class="num">IV.</span>5 个必须能对比的主题</h2>
+
+<p>对比题常以"维度 × 优劣"两栏形式出。下面 5 张对比表是高频考点。</p>
+
+<div class="cheat-card">
+<h3>对比 1 · 压缩主题</h3>
+<table>
+<thead><tr><th>维度</th><th>无损压缩</th><th>有损压缩</th></tr></thead>
+<tbody>
+<tr><td>代表算法</td><td>Huffman / 算术 / LZW / RLC</td><td>JPEG / MPEG / DCT + 量化</td></tr>
+<tr><td>压缩率</td><td>低(2-3 倍)</td><td>高(10-50 倍)</td></tr>
+<tr><td>质量</td><td>完全可还原</td><td>有失真,PSNR 度量</td></tr>
+<tr><td>适用</td><td>文本/代码/可执行文件</td><td>图像/音视频</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>对比 2 · 颜色空间</h3>
+<table>
+<thead><tr><th>维度</th><th>RGB</th><th>HSV</th><th>YCbCr</th></tr></thead>
+<tbody>
+<tr><td>类型</td><td>加色</td><td>感知</td><td>视频</td></tr>
+<tr><td>通道</td><td>R, G, B</td><td>H, S, V</td><td>Y, Cb, Cr</td></tr>
+<tr><td>设备相关</td><td>是</td><td>否</td><td>否</td></tr>
+<tr><td>主要用途</td><td>屏幕显示</td><td>调色/分割</td><td>压缩/传输</td></tr>
+<tr><td>可子采样</td><td>否</td><td>否</td><td>是(4:2:0/4:2:2/4:4:4)</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>对比 3 · 质量度量</h3>
+<table>
+<thead><tr><th>维度</th><th>SNR</th><th>PSNR</th></tr></thead>
+<tbody>
+<tr><td>定义</td><td>信号噪声功率比</td><td>峰值信噪比</td></tr>
+<tr><td>公式</td><td><code>SNR = 10·log10(Ps/Pn)</code></td><td><code>PSNR = 10·log10(x²peak/MSE)</code></td></tr>
+<tr><td>输入</td><td>模拟信号/电压</td><td>图像(MSE)</td></tr>
+<tr><td>电压系数</td><td><code>20·log10(Vs/Vn)</code></td><td>—</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>对比 4 · 预测方式</h3>
+<table>
+<thead><tr><th>维度</th><th>帧内</th><th>帧间</th><th>DPCM</th><th>ADPCM</th></tr></thead>
+<tbody>
+<tr><td>参考</td><td>当前帧像素</td><td>前后帧</td><td>前一信号值</td><td>前 N 个值自适应</td></tr>
+<tr><td>冗余</td><td>空间</td><td>时间</td><td>信号相关性</td><td>信号相关性</td></tr>
+<tr><td>典型</td><td>JPEG DC 系数</td><td>H.261 P/B 帧</td><td>音频/语音</td><td>语音(G.721)</td></tr>
+<tr><td>公式</td><td>—</td><td><code>MAD = (1/N²)·Σ|T-R|</code></td><td><code>d[n]=x[n]-x[n-1]</code></td><td>自适应预测系数</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>对比 5 · 特征提取</h3>
+<table>
+<thead><tr><th>维度</th><th>全局特征</th><th>局部特征</th><th>Harris</th><th>SIFT</th><th>CNN</th></tr></thead>
+<tbody>
+<tr><td>代表</td><td>颜色直方图</td><td>角点/关键点</td><td>角点检测</td><td>尺度不变关键点</td><td>深度卷积特征</td></tr>
+<tr><td>维度</td><td>256(H+S)</td><td>数十~128</td><td>1 个 R 值</td><td>128</td><td>数千~数万</td></tr>
+<tr><td>不变性</td><td>旋转/平移</td><td>取决于算法</td><td>旋转(非尺度)</td><td>旋转+尺度+光照</td><td>取决于训练数据</td></tr>
+<tr><td>速度</td><td>快</td><td>中</td><td>快</td><td>慢</td><td>GPU 快</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<!-- ============ section 5: 5 个必举例 ============ -->
+<section>
+<h2><span class="num">V.</span>5 个必须能举例的实例</h2>
+
+<p>抽象概念记不住就记典型数字。下面 5 个数字钩子是高频出现的"必举例"。</p>
+
+<div class="sprint-grid">
+<div class="sprint-card">
+<h4>例 1 · Lena 512² JPEG</h4>
+<div class="sprint-list">原始 512×512×1 = 256 KB;典型 JPEG 10-20:1 → <strong>12-25 KB</strong>;qf=75 时约 30-50 KB</div>
+</div>
+<div class="sprint-card">
+<h4>例 2 · H.264 vs MPEG-2</h4>
+<div class="sprint-list">同画质下 H.264 码率约为 MPEG-2 的 <strong>50%</strong>(节省一半码率)</div>
+</div>
+<div class="sprint-card">
+<h4>例 3 · 1080p@30fps 4:2:0</h4>
+<div class="sprint-list">单帧 1920×1080×1.5 ≈ 3.11 MB;每秒 <strong>93 MB (≈744 Mbps)</strong>;H.264 压缩到 2-5 Mbps</div>
+</div>
+<div class="sprint-card">
+<h4>例 4 · 经典 CNN 参数对比</h4>
+<div class="sprint-list">AlexNet 60M → VGG 138M → GoogleNet 5M(1/12) → ResNet 25M</div>
+</div>
+<div class="sprint-card">
+<h4>例 5 · 电话 8 kHz / 8 bit</h4>
+<div class="sprint-list">8 kHz × 8 bit = <strong>64 kbps</strong> = DS0 标准;SQNR ≈ 48 dB 满足语音可懂度</div>
+</div>
+</div>
+</section>
+
+<!-- ============ section 6: 5 大心法 ============ -->
+<section>
+<h2><span class="num">VI.</span>5 大心法 (Five Mental Models)</h2>
+
+<p>复习方法论。心法不对,再多时间也事倍功半。下面 5 条是考场答题的总指挥原则。</p>
+
+<div class="sprint-grid">
+<div class="sprint-card">
+<h4>心法 1 · 算为王</h4>
+<div class="sprint-list">L02/03/04/05/06/07/08/12 全部必出计算题。练习时 <strong>先列公式 → 代入数字 → 验算单位</strong>(b vs B, KB vs KiB, Mbps vs MB/s)。</div>
+</div>
+<div class="sprint-card">
+<h4>心法 2 · 流为纲</h4>
+<div class="sprint-list">JPEG 5 步、H.261 I/P 帧、CNN 三大思想、SIFT 5 步——任何"流程题"按 <strong>分块 → 变换 → 量化 → 编码</strong> 四步即可得分。</div>
+</div>
+<div class="sprint-card">
+<h4>心法 3 · 比为剑</h4>
+<div class="sprint-list">高频对比题(Huffman vs 算术、YUV vs YCbCr、I vs P vs B、AlexNet vs VGG vs GoogleNet vs ResNet)按 <strong>维度 × 优劣</strong> 两栏对比表答。</div>
+</div>
+<div class="sprint-card">
+<h4>心法 4 · 错为镜</h4>
+<div class="sprint-list"><a href="error-list.html">TOP 30 易错清单</a> 考前过 3 遍,<strong>尤其是必扣分 TOP 10</strong>(数据量单位、PSNR 系数、量化是 JPEG 主因、Huffman 界、H.261 宏块等)。</div>
+</div>
+<div class="sprint-card">
+<h4>心法 5 · 例为锚</h4>
+<div class="sprint-list">抽象概念记不住就记典型数字——Lena 512×512、MPEG 7:1/20:1/50:1、SQNR ≈ 6N dB、H.264 比 MPEG-2 省 50% 码率。<strong>数字是记忆的钩子</strong>。</div>
+</div>
+</div>
+</section>
+
+<!-- ============ section 7: 答题卡格式 ============ -->
+<section>
+<h2><span class="num">VII.</span>答题卡格式建议</h2>
+
+<p>格式规范 = 多拿 5-10 分。下面是各类题型的答题模板。</p>
+
+<div class="cheat-card">
+<h3>1 · 选择题 / 填空题(每题 1-2 分)</h3>
+<ul>
+<li><strong>时间预算</strong>:每题 30-60 秒,5 分钟一组做完填答题卡</li>
+<li><strong>答题格式</strong>:用 2B 铅笔涂黑,确认题号对应</li>
+<li><strong>策略</strong>:先易后难,不会的标星号回头再想,不空题</li>
+</ul>
+</div>
+
+<div class="cheat-card">
+<h3>2 · 计算题(每题 5-10 分,通常 2-3 道)</h3>
+<ol>
+<li><strong>列已知</strong>:写出题目给出的符号和数值(用 <code>P = ?</code> 形式)</li>
+<li><strong>列公式</strong>:写出核心公式,标注每个符号的含义</li>
+<li><strong>代数字</strong>:代入数值,每一步写明单位</li>
+<li><strong>得结果</strong>:写明数值 + 单位,保留 2-3 位有效数字</li>
+<li><strong>验算</strong>:用数量级检查合理性(128 KB vs 1.28 GB)</li>
+</ol>
+</div>
+
+<div class="cheat-card">
+<h3>3 · 简答题(每题 5-8 分,通常 3-4 道)</h3>
+<ul>
+<li><strong>答题结构</strong>:定义 + 特点 + 应用 + 优缺点 / 异同(对比题)</li>
+<li><strong>长度</strong>:200-400 字,3-5 个要点,每个要点 1-2 句</li>
+<li><strong>加分技巧</strong>:能用公式/数字/图示表达的绝不只写字</li>
+</ul>
+</div>
+
+<div class="cheat-card">
+<h3>4 · 论述题 / 综合应用题(每题 10-15 分,通常 1-2 道)</h3>
+<ol>
+<li><strong>总-分-总</strong>:开头一句概括核心论点,中间分点论述,结尾总结</li>
+<li><strong>跨讲次串联</strong>:综合题最爱考"压缩/颜色/质量/预测/变换"七主题</li>
+<li><strong>举数字</strong>:每个抽象概念配一个具体数字(心法 5)</li>
+<li><strong>画流程图</strong>:时间充裕时画 ASCII 流程图(JPEG 5 步、CNN 三大思想)</li>
+</ol>
+</div>
+
+<div class="cheat-card">
+<h3>5 · 时间分配建议(100 分卷 · 90 分钟)</h3>
+<table>
+<thead><tr><th>题型</th><th>题数</th><th>分值</th><th>总时长</th><th>单题时长</th></tr></thead>
+<tbody>
+<tr><td>选择 / 填空</td><td>15-20</td><td>30 分</td><td>20 分钟</td><td>60-90 秒</td></tr>
+<tr><td>计算题</td><td>2-3</td><td>20 分</td><td>25 分钟</td><td>8-12 分钟</td></tr>
+<tr><td>简答题</td><td>3-4</td><td>25 分</td><td>25 分钟</td><td>6-8 分钟</td></tr>
+<tr><td>综合应用</td><td>1-2</td><td>25 分</td><td>20 分钟</td><td>10-15 分钟</td></tr>
+</tbody>
+</table>
+<p><strong>口诀</strong>:填空选择题 25%、计算 25%、简答 25%、综合 25%——各类题型分配均衡。</p>
+</div>
+</section>
+
+</article>
+</main>
+
+<footer>
+<p>祝期末顺利 · 14 天倒计时完成时,你会感谢现在拼命的自己</p>
+<p class="meta">最后一周冲刺清单 · 14 天倒计时 · 5×5 必背 · 5 大心法 · 答题卡格式</p>
+<p class="meta">文档版本 v1.0 · 2026-07-04 · 期末冲刺</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const KEY = 'sprint-plan-progress';
+  const states = JSON.parse(localStorage.getItem(KEY) || '{}');
+  document.querySelectorAll('[data-check]').forEach((el, idx) => {
+    const key = el.dataset.check;
+    const cb = el.querySelector('input[type=checkbox]');
+    if (states[key] && cb) {
+      cb.checked = true;
+    }
+    if (cb) {
+      cb.addEventListener('change', () => {
+        states[key] = cb.checked;
+        localStorage.setItem(KEY, JSON.stringify(states));
+        const total = document.querySelectorAll('[data-check]').length;
+        const done = Object.values(states).filter(Boolean).length;
+        const pct = total ? Math.round(done / total * 100) : 0;
+        document.title = `(${pct}%) 最后一周冲刺清单`;
+      });
+    }
+  });
+});
+</script>
+
+</body>
+</html>

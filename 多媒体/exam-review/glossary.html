@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>术语词典 · 多媒体期末</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --measure: 72ch;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+}
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 1080px; margin: 0 auto; text-align: center; padding-bottom: var(--space-3); border-bottom: 1px solid var(--rule); }
+.masthead-title { font-family: var(--serif); font-size: var(--text-2xl); font-weight: 700; letter-spacing: 0.04em; margin-bottom: var(--space-1); }
+.masthead-sub { font-family: var(--serif); font-style: italic; font-size: var(--text-sm); color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.primary-nav { max-width: 1080px; margin: var(--space-3) auto 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); justify-content: center; font-family: var(--sans); font-size: var(--text-sm); }
+.primary-nav a { color: var(--ink); text-decoration: none; padding: 2px 6px; border-bottom: 1px solid transparent; transition: all 0.15s ease; }
+.primary-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.primary-nav a.active { color: var(--accent); font-weight: 700; }
+.nav-divider { color: var(--ink-mute); user-select: none; }
+main { max-width: 1080px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.02em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; clear: both; }
+h2 .num { display: inline-block; font-size: 0.65em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); color: var(--ink); font-weight: 700; }
+h4 { font-size: var(--text-lg); margin: var(--space-5) 0 var(--space-2); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+.cheat-card { background: var(--paper); border: 2px solid var(--ink); padding: var(--space-5); margin: var(--space-5) 0; break-inside: avoid; }
+.cheat-card h3 { margin-top: 0; border-bottom: 2px solid var(--ink); padding-bottom: var(--space-2); font-family: var(--serif); letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--text-lg); }
+.cheat-card table { font-size: 0.9em; }
+.cheat-card td code { font-size: 0.95em; }
+.term-en { font-family: var(--mono); font-size: 0.95em; color: var(--accent); font-weight: 700; }
+.term-zh { font-weight: 700; }
+.tag-lecture { display: inline-block; font-family: var(--sans); font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; padding: 1px 6px; background: var(--paper-soft); color: var(--ink-soft); border-radius: 2px; margin-left: var(--space-2); }
+article > p:first-of-type::first-letter { font-size: 3.2em; float: left; line-height: 0.9; margin: 0.05em var(--space-3) 0 0; font-weight: 700; color: var(--accent); }
+footer { max-width: 1080px; margin: var(--space-8) auto var(--space-6); padding: var(--space-5) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: var(--text-sm); }
+footer .meta { font-family: var(--sans); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; color: var(--ink-mute); margin-top: var(--space-3); }
+@media (max-width: 720px) {
+  :root { --text-3xl: 32px; --text-2xl: 24px; --text-xl: 20px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  article > p:first-of-type::first-letter { font-size: 2.6em; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 期末冲刺</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 第二讲至第十二讲</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="index.html">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="lectures/L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="lectures/L04-L05-视频与音频基础.html">L04-05</a>
+    <a href="lectures/L06-L07-压缩算法.html">L06-07</a>
+    <a href="lectures/L08-L10-压缩标准与视频压缩.html">L08-10</a>
+    <a href="lectures/L11-L12-检索与深度学习.html">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="cheat-sheet.html">速查表</a>
+    <a href="mock-exam.html">模拟卷</a>
+    <a href="error-list.html">易错清单</a>
+    <a href="sprint-plan.html">冲刺清单</a>
+    <a href="formulas.html">公式手册</a>
+    <a href="glossary.html" class="active">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">术语词典 · 中英对照</h1>
+<p class="lede">按主题聚类的 80+ 个核心术语 · 11 个讲次全覆盖</p>
+
+<p>期末试卷、文献、PPT 中常出现中英混用术语。本表按讲次主题聚类,每条注明英文术语、中文译名、简短定义,方便查阅和记忆。</p>
+
+<!-- ============ 卡片 1:图像基础 ============ -->
+<div class="cheat-card">
+<h3>1 · 图像基础(L02)</h3>
+
+<table>
+<thead><tr><th>英文</th><th>中文</th><th>定义</th><th>讲次</th></tr></thead>
+<tbody>
+<tr><td><span class="term-en">Pixel</span></td><td class="term-zh">像素</td><td>Picture element;图像最小离散单位</td><td><span class="tag-lecture">L02</span></td></tr>
+<tr><td><span class="term-en">Bitmap</span></td><td class="term-zh">位图</td><td>由像素点阵构成的图像表示方式</td><td><span class="tag-lecture">L02</span></td></tr>
+<tr><td><span class="term-en">Bitplane</span></td><td class="term-zh">位平面</td><td>8-bit 图像可分解为 8 个 1-bit 平面</td><td><span class="tag-lecture">L02</span></td></tr>
+<tr><td><span class="term-en">Gray Image</span></td><td class="term-zh">灰度图</td><td>每像素 8-bit,取值 0-255,共 256 级</td><td><span class="tag-lecture">L02</span></td></tr>
+<tr><td><span class="term-en">Binary Image</span></td><td class="term-zh">二值图</td><td>每像素 1-bit,仅 0/1 两值</td><td><span class="tag-lecture">L02</span></td></tr>
+<tr><td><span class="term-en">Histogram</span></td><td class="term-zh">直方图</td><td>统计每个灰度值出现的像素数</td><td><span class="tag-lecture">L02</span></td></tr>
+<tr><td><span class="term-en">CLUT</span></td><td class="term-zh">颜色查找表</td><td>Color Look-Up Table;8-bit 索引对应 24-bit 色</td><td><span class="tag-lecture">L02</span></td></tr>
+<tr><td><span class="term-en">Dithering</span></td><td class="term-zh">抖动</td><td>用空间分辨率换强度分辨率,1-bit 模拟灰度</td><td><span class="tag-lecture">L02</span></td></tr>
+<tr><td><span class="term-en">Halftone</span></td><td class="term-zh">半色调</td><td>印刷用 1-bit 网点模拟灰度</td><td><span class="tag-lecture">L02</span></td></tr>
+<tr><td><span class="term-en">Resolution</span></td><td class="term-zh">分辨率</td><td>图像像素总数;屏幕 DPI 是物理密度</td><td><span class="tag-lecture">L02</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ 卡片 2:颜色模型 ============ -->
+<div class="cheat-card">
+<h3>2 · 颜色模型(L03)</h3>
+
+<table>
+<thead><tr><th>英文</th><th>中文</th><th>定义</th><th>讲次</th></tr></thead>
+<tbody>
+<tr><td><span class="term-en">Additive Color</span></td><td class="term-zh">加色</td><td>RGB 叠加发光;用于屏幕显示</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">Subtractive Color</span></td><td class="term-zh">减色</td><td>CMY 墨水吸收光;用于印刷</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">RGB</span></td><td class="term-zh">RGB 颜色空间</td><td>Red/Green/Blue 三通道;设备相关</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">CMY(K)</span></td><td class="term-zh">CMY(K) 颜色空间</td><td>Cyan/Magenta/Yellow(+Key 黑);印刷用</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">CIE XYZ</span></td><td class="term-zh">CIE XYZ 标准色度</td><td>设备无关;匹配函数全非负;Y 表亮度</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">CIELAB</span></td><td class="term-zh">CIELAB 感知均匀空间</td><td>L*a*b*;欧氏距离 ≈ 感知色差</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">HSV</span></td><td class="term-zh">HSV 感知模型</td><td>Hue(0-360°)/ Saturation / Value</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">HSL</span></td><td class="term-zh">HSL 感知模型</td><td>Hue / Saturation / Lightness;双六棱锥</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">YCbCr</span></td><td class="term-zh">YCbCr 视频色度</td><td>Y 亮度 + Cb/Cr 色度;数字版 YUV</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">YUV / YIQ</span></td><td class="term-zh">YUV / YIQ 模拟电视</td><td>Y 亮度 + UV/IQ 色差;PAL/NTSC 用</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">Gamma Correction</span></td><td class="term-zh">Gamma 校正</td><td>补偿 CRT 非线性显示;γ ≈ 2.2</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">Gamut</span></td><td class="term-zh">色域</td><td>设备可表示的颜色子集;色度图上的三角形</td><td><span class="tag-lecture">L03</span></td></tr>
+<tr><td><span class="term-en">Chromaticity Diagram</span></td><td class="term-zh">色度图</td><td>CIE xy 图;马蹄形光谱轨迹</td><td><span class="tag-lecture">L03</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ 卡片 3:视频基础 ============ -->
+<div class="cheat-card">
+<h3>3 · 视频基础(L04)</h3>
+
+<table>
+<thead><tr><th>英文</th><th>中文</th><th>定义</th><th>讲次</th></tr></thead>
+<tbody>
+<tr><td><span class="term-en">Interlaced Scanning</span></td><td class="term-zh">隔行扫描</td><td>奇偶场交替;传统电视用</td><td><span class="tag-lecture">L04</span></td></tr>
+<tr><td><span class="term-en">Progressive Scanning</span></td><td class="term-zh">逐行扫描</td><td>逐行更新;现代 HDTV/UHDTV 用</td><td><span class="tag-lecture">L04</span></td></tr>
+<tr><td><span class="term-en">NTSC</span></td><td class="term-zh">NTSC 制式</td><td>美国/日本;29.97 fps 隔行;YIQ</td><td><span class="tag-lecture">L04</span></td></tr>
+<tr><td><span class="term-en">PAL</span></td><td class="term-zh">PAL 制式</td><td>欧洲/中国;25 fps 隔行;YUV</td><td><span class="tag-lecture">L04</span></td></tr>
+<tr><td><span class="term-en">Chroma Subsampling</span></td><td class="term-zh">色度二次采样</td><td>4:2:0 / 4:2:2 / 4:4:4;节省带宽</td><td><span class="tag-lecture">L04</span></td></tr>
+<tr><td><span class="term-en">HDTV</span></td><td class="term-zh">高清电视</td><td>1920×1080;50/60p</td><td><span class="tag-lecture">L04</span></td></tr>
+<tr><td><span class="term-en">UHDTV / 4K</span></td><td class="term-zh">超高清</td><td>3840×2160;4 倍 HDTV 像素</td><td><span class="tag-lecture">L04</span></td></tr>
+<tr><td><span class="term-en">VGA / DVI / HDMI / DP</span></td><td class="term-zh">显示接口</td><td>模拟 VGA / 数字 DVI/HDMI/DisplayPort</td><td><span class="tag-lecture">L04</span></td></tr>
+<tr><td><span class="term-en">3D Display</span></td><td class="term-zh">3D 显示</td><td>红青眼镜 / 偏光 / 快门式 / 自动立体</td><td><span class="tag-lecture">L04</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ 卡片 4:音频基础 ============ -->
+<div class="cheat-card">
+<h3>4 · 音频基础(L05)</h3>
+
+<table>
+<thead><tr><th>英文</th><th>中文</th><th>定义</th><th>讲次</th></tr></thead>
+<tbody>
+<tr><td><span class="term-en">Amplitude</span></td><td class="term-zh">振幅</td><td>声波强度,主观感受为响度</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">Frequency</span></td><td class="term-zh">频率</td><td>Hz;主观感受为音调</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">Timbre</span></td><td class="term-zh">音色</td><td>声波频谱结构;区分乐器/人声</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">Loudness</span></td><td class="term-zh">响度</td><td>感知强度(与振幅对数关系)</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">Pitch</span></td><td class="term-zh">音调</td><td>感知频率(高频 → 尖,低频 → 沉)</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">Nyquist Theorem</span></td><td class="term-zh">奈奎斯特定理</td><td>f_sample ≥ 2·f_max;可无损还原</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">Alias(ing)</span></td><td class="term-zh">假频</td><td>采样不足导致的高频折叠为低频</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">SNR</span></td><td class="term-zh">信噪比</td><td>Signal-to-Noise Ratio;10·log10(Ps/Pn)</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">SQNR</span></td><td class="term-zh">量化信噪比</td><td>6.02·N dB;每 bit ≈ 6 dB</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">PCM</span></td><td class="term-zh">脉冲编码调制</td><td>采样 → 量化 → 编码;无损数字音频</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">DPCM</span></td><td class="term-zh">差分脉冲编码</td><td>Differential PCM;编码差值</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">ADPCM</span></td><td class="term-zh">自适应差分 PCM</td><td>Adaptive DPCM;G.721 标准</td><td><span class="tag-lecture">L05</span></td></tr>
+<tr><td><span class="term-en">DM</span></td><td class="term-zh">增量调制</td><td>Delta Modulation;1-bit DPCM 极端形式</td><td><span class="tag-lecture">L05</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ 卡片 5:无损压缩 ============ -->
+<div class="cheat-card">
+<h3>5 · 无损压缩(L06)</h3>
+
+<table>
+<thead><tr><th>英文</th><th>中文</th><th>定义</th><th>讲次</th></tr></thead>
+<tbody>
+<tr><td><span class="term-en">Entropy</span></td><td class="term-zh">信息熵</td><td>η = −Σ pi·log2(pi);信息下限</td><td><span class="tag-lecture">L06</span></td></tr>
+<tr><td><span class="term-en">Self-Information</span></td><td class="term-zh">自信息</td><td>I(s) = −log2(p(s));单位 bit</td><td><span class="tag-lecture">L06</span></td></tr>
+<tr><td><span class="term-en">Huffman Coding</span></td><td class="term-zh">Huffman 编码</td><td>频次合并二叉树;η ≤ l̄ &lt; η+1</td><td><span class="tag-lecture">L06</span></td></tr>
+<tr><td><span class="term-en">Shannon-Fano</span></td><td class="term-zh">Shannon-Fano 编码</td><td>自顶向下分组;Huffman 前身</td><td><span class="tag-lecture">L06</span></td></tr>
+<tr><td><span class="term-en">Arithmetic Coding</span></td><td class="term-zh">算术编码</td><td>区间缩窄;理论可逼近 η</td><td><span class="tag-lecture">L06</span></td></tr>
+<tr><td><span class="term-en">Run-Length Coding (RLC)</span></td><td class="term-zh">游程编码</td><td>(run, value) 对;适合长串重复</td><td><span class="tag-lecture">L06</span></td></tr>
+<tr><td><span class="term-en">LZW</span></td><td class="term-zh">LZW 字典编码</td><td>动态建表;GIF/TIFF 用</td><td><span class="tag-lecture">L06</span></td></tr>
+<tr><td><span class="term-en">Kraft Inequality</span></td><td class="term-zh">Kraft 不等式</td><td>Σ 2^(−li) ≤ 1;前缀码存在条件</td><td><span class="tag-lecture">L06</span></td></tr>
+<tr><td><span class="term-en">Compression Ratio (CR)</span></td><td class="term-zh">压缩比</td><td>CR = B0 / B1;CR &gt; 1 即压缩</td><td><span class="tag-lecture">L06</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ 卡片 6:有损压缩 ============ -->
+<div class="cheat-card">
+<h3>6 · 有损压缩(L07-L08)</h3>
+
+<table>
+<thead><tr><th>英文</th><th>中文</th><th>定义</th><th>讲次</th></tr></thead>
+<tbody>
+<tr><td><span class="term-en">MSE</span></td><td class="term-zh">均方误差</td><td>Mean Squared Error;(1/N)Σ(xi−yi)²</td><td><span class="tag-lecture">L07</span></td></tr>
+<tr><td><span class="term-en">PSNR</span></td><td class="term-zh">峰值信噪比</td><td>10·log10(255²/MSE);8-bit 图像失真度</td><td><span class="tag-lecture">L07</span></td></tr>
+<tr><td><span class="term-en">Quantization</span></td><td class="term-zh">量化</td><td>连续值离散化;JPEG 有损主因</td><td><span class="tag-lecture">L07</span></td></tr>
+<tr><td><span class="term-en">Scalar Quantization</span></td><td class="term-zh">标量量化</td><td>逐元素量化;JPEG 用</td><td><span class="tag-lecture">L07</span></td></tr>
+<tr><td><span class="term-en">Vector Quantization (VQ)</span></td><td class="term-zh">向量量化</td><td>块级量化;码本匹配</td><td><span class="tag-lecture">L07</span></td></tr>
+<tr><td><span class="term-en">DCT</span></td><td class="term-zh">离散余弦变换</td><td>Discrete Cosine Transform;实数,能量集中</td><td><span class="tag-lecture">L07</span></td></tr>
+<tr><td><span class="term-en">IDCT</span></td><td class="term-zh">离散余弦反变换</td><td>Inverse DCT;从频域重建空域</td><td><span class="tag-lecture">L07</span></td></tr>
+<tr><td><span class="term-en">DC Coefficient</span></td><td class="term-zh">直流系数</td><td>DCT 输出 (0,0);块均值;DPCM 编码</td><td><span class="tag-lecture">L08</span></td></tr>
+<tr><td><span class="term-en">AC Coefficient</span></td><td class="term-zh">交流系数</td><td>其余 63 个;DCT 高频分量</td><td><span class="tag-lecture">L08</span></td></tr>
+<tr><td><span class="term-en">ZigZag Scan</span></td><td class="term-zh">Z 字扫描</td><td>8×8 块按 Z 序读出;集中低频</td><td><span class="tag-lecture">L08</span></td></tr>
+<tr><td><span class="term-en">Rate-Distortion R(D)</span></td><td class="term-zh">率失真函数</td><td>给定失真 D 下的最小码率 R</td><td><span class="tag-lecture">L07</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ 卡片 7:视频压缩 ============ -->
+<div class="cheat-card">
+<h3>7 · 视频压缩(L09-L10)</h3>
+
+<table>
+<thead><tr><th>英文</th><th>中文</th><th>定义</th><th>讲次</th></tr></thead>
+<tbody>
+<tr><td><span class="term-en">Motion Compensation (MC)</span></td><td class="term-zh">运动补偿</td><td>用 MV 取参考帧预测当前块</td><td><span class="tag-lecture">L09</span></td></tr>
+<tr><td><span class="term-en">Motion Estimation (ME)</span></td><td class="term-zh">运动估计</td><td>搜索 MV 使 MAD/MSE 最小</td><td><span class="tag-lecture">L09</span></td></tr>
+<tr><td><span class="term-en">Motion Vector (MV)</span></td><td class="term-zh">运动向量</td><td>(dx, dy);块在参考帧的偏移</td><td><span class="tag-lecture">L09</span></td></tr>
+<tr><td><span class="term-en">Macroblock</span></td><td class="term-zh">宏块</td><td>H.261 中 16×16 亮度 + 8×8×2 色度</td><td><span class="tag-lecture">L09</span></td></tr>
+<tr><td><span class="term-en">I-frame</span></td><td class="term-zh">I 帧(帧内)</td><td>Intra-coded;不依赖其他帧;压缩比 7:1</td><td><span class="tag-lecture">L10</span></td></tr>
+<tr><td><span class="term-en">P-frame</span></td><td class="term-zh">P 帧(前向预测)</td><td>Predictive;参考前一帧;20:1</td><td><span class="tag-lecture">L10</span></td></tr>
+<tr><td><span class="term-en">B-frame</span></td><td class="term-zh">B 帧(双向预测)</td><td>Bidirectional;前后两参考;50:1</td><td><span class="tag-lecture">L10</span></td></tr>
+<tr><td><span class="term-en">H.261</span></td><td class="term-zh">H.261 标准</td><td>1990;p×64 kbps;ISDN 视频会议</td><td><span class="tag-lecture">L10</span></td></tr>
+<tr><td><span class="term-en">H.264 / AVC</span></td><td class="term-zh">H.264 / MPEG-4 AVC</td><td>2003;比 MPEG-2 省 50% 码率</td><td><span class="tag-lecture">L10</span></td></tr>
+<tr><td><span class="term-en">MPEG-1/2/4</span></td><td class="term-zh">MPEG 系列</td><td>MPEG-1 VCD / MPEG-2 DVD / MPEG-4 协议族</td><td><span class="tag-lecture">L10</span></td></tr>
+<tr><td><span class="term-en">VOP</span></td><td class="term-zh">视频对象平面</td><td>Video Object Plane;MPEG-4 基于对象</td><td><span class="tag-lecture">L10</span></td></tr>
+<tr><td><span class="term-en">Mesh</span></td><td class="term-zh">网格模型</td><td>基于网格的运动补偿</td><td><span class="tag-lecture">L10</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ 卡片 8:检索与特征 ============ -->
+<div class="cheat-card">
+<h3>8 · 检索与特征(L11)</h3>
+
+<table>
+<thead><tr><th>英文</th><th>中文</th><th>定义</th><th>讲次</th></tr></thead>
+<tbody>
+<tr><td><span class="term-en">CBIR</span></td><td class="term-zh">基于内容的图像检索</td><td>Content-Based Image Retrieval</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">QBE</span></td><td class="term-zh">按例查询</td><td>Query By Example;用户给参考图</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">Semantic Gap</span></td><td class="term-zh">语义鸿沟</td><td>底层特征 vs 人类语义理解的差异</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">Harris Corner</span></td><td class="term-zh">Harris 角点</td><td>R = det(M) − k·trace(M)²;不抗尺度</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">FAST</span></td><td class="term-zh">FAST 角点</td><td>Features from Accelerated Segment Test;快速</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">SIFT</span></td><td class="term-zh">SIFT 特征</td><td>Scale-Invariant Feature Transform;128 维</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">SURF</span></td><td class="term-zh">SURF 特征</td><td>Speeded-Up Robust Features;64 维</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">MSER</span></td><td class="term-zh">最大稳定极值区域</td><td>Maximally Stable Extremal Regions;仿射不变</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">DoG</span></td><td class="term-zh">高斯差分</td><td>Difference of Gaussian;SIFT 尺度空间</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">LoG</span></td><td class="term-zh">拉普拉斯高斯</td><td>Laplacian of Gaussian;斑点检测</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">Inverted Index</span></td><td class="term-zh">倒排索引</td><td>特征 → 图片列表;加速检索</td><td><span class="tag-lecture">L11</span></td></tr>
+<tr><td><span class="term-en">RANSAC</span></td><td class="term-zh">随机采样一致</td><td>RANdom SAmple Consensus;鲁棒估计</td><td><span class="tag-lecture">L11</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ 卡片 9:深度学习 ============ -->
+<div class="cheat-card">
+<h3>9 · 深度学习与 CNN(L12)</h3>
+
+<table>
+<thead><tr><th>英文</th><th>中文</th><th>定义</th><th>讲次</th></tr></thead>
+<tbody>
+<tr><td><span class="term-en">CNN</span></td><td class="term-zh">卷积神经网络</td><td>Convolutional Neural Network;局部关联+参数共享</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Local Receptive Field</span></td><td class="term-zh">局部感受野</td><td>神经元只连接局部输入;模拟视觉皮层</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Weight Sharing</span></td><td class="term-zh">参数共享</td><td>同一卷积核扫全图;大幅减少参数</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Convolutional Kernel</span></td><td class="term-zh">卷积核</td><td>F×F 权重矩阵;特征提取器</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Stride</span></td><td class="term-zh">步长</td><td>卷积/池化的滑动步幅</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Padding</span></td><td class="term-zh">填充</td><td>边缘补 0(常用 "same");保持尺寸</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Pooling</span></td><td class="term-zh">池化</td><td>Max/Avg;降采样,扩大感受野</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">FC Layer</span></td><td class="term-zh">全连接层</td><td>Fully Connected;分类器尾部</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">AlexNet</span></td><td class="term-zh">AlexNet</td><td>2012;60M 参数;ReLU+Dropout+GPU</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">VGG</span></td><td class="term-zh">VGG-Net</td><td>2014;138M;3×3 卷积堆叠</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">GoogleNet / Inception</span></td><td class="term-zh">GoogleNet / Inception</td><td>2014;5M;Inception 模块多尺度</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">ResNet</span></td><td class="term-zh">ResNet 残差网络</td><td>2015;25M;残差学习,百层以上</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">ReLU</span></td><td class="term-zh">ReLU 激活函数</td><td>Rectified Linear Unit;max(0, x)</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Dropout</span></td><td class="term-zh">Dropout 正则化</td><td>训练时随机丢弃节点;防过拟合</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Inception Module</span></td><td class="term-zh">Inception 模块</td><td>多尺度并行卷积;1×1 降维</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Data Augmentation</span></td><td class="term-zh">数据增强</td><td>翻转/裁剪/加噪;扩充训练集</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Transfer Learning</span></td><td class="term-zh">迁移学习</td><td>预训练模型 + 微调;小数据集复用</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Static Graph</span></td><td class="term-zh">静态图</td><td>Define-and-Run;先建图再运行(TensorFlow)</td><td><span class="tag-lecture">L12</span></td></tr>
+<tr><td><span class="term-en">Dynamic Graph</span></td><td class="term-zh">动态图</td><td>Define-by-Run;边运行边建图(PyTorch)</td><td><span class="tag-lecture">L12</span></td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============ 综合速查表 ============ -->
+<div class="cheat-card">
+<h3>附录 · 核心缩写对照</h3>
+
+<table>
+<thead><tr><th>缩写</th><th>全称</th><th>中文</th></tr></thead>
+<tbody>
+<tr><td><span class="term-en">PSNR</span></td><td>Peak Signal-to-Noise Ratio</td><td>峰值信噪比</td></tr>
+<tr><td><span class="term-en">SQNR</span></td><td>Signal-to-Quantization-Noise Ratio</td><td>量化信噪比</td></tr>
+<tr><td><span class="term-en">SNR</span></td><td>Signal-to-Noise Ratio</td><td>信噪比</td></tr>
+<tr><td><span class="term-en">MSE</span></td><td>Mean Squared Error</td><td>均方误差</td></tr>
+<tr><td><span class="term-en">MAD</span></td><td>Mean Absolute Difference</td><td>平均绝对差</td></tr>
+<tr><td><span class="term-en">DCT</span></td><td>Discrete Cosine Transform</td><td>离散余弦变换</td></tr>
+<tr><td><span class="term-en">DPCM</span></td><td>Differential Pulse Code Modulation</td><td>差分脉冲编码调制</td></tr>
+<tr><td><span class="term-en">ADPCM</span></td><td>Adaptive DPCM</td><td>自适应差分脉冲编码调制</td></tr>
+<tr><td><span class="term-en">MC</span></td><td>Motion Compensation</td><td>运动补偿</td></tr>
+<tr><td><span class="term-en">ME</span></td><td>Motion Estimation</td><td>运动估计</td></tr>
+<tr><td><span class="term-en">MV</span></td><td>Motion Vector</td><td>运动向量</td></tr>
+<tr><td><span class="term-en">VOP</span></td><td>Video Object Plane</td><td>视频对象平面</td></tr>
+<tr><td><span class="term-en">CBIR</span></td><td>Content-Based Image Retrieval</td><td>基于内容的图像检索</td></tr>
+<tr><td><span class="term-en">QBE</span></td><td>Query By Example</td><td>按例查询</td></tr>
+<tr><td><span class="term-en">SIFT</span></td><td>Scale-Invariant Feature Transform</td><td>尺度不变特征变换</td></tr>
+<tr><td><span class="term-en">SURF</span></td><td>Speeded-Up Robust Features</td><td>加速鲁棒特征</td></tr>
+<tr><td><span class="term-en">MSER</span></td><td>Maximally Stable Extremal Regions</td><td>最大稳定极值区域</td></tr>
+<tr><td><span class="term-en">DoG</span></td><td>Difference of Gaussian</td><td>高斯差分</td></tr>
+<tr><td><span class="term-en">LoG</span></td><td>Laplacian of Gaussian</td><td>拉普拉斯高斯</td></tr>
+<tr><td><span class="term-en">RANSAC</span></td><td>RANdom SAmple Consensus</td><td>随机采样一致</td></tr>
+<tr><td><span class="term-en">CNN</span></td><td>Convolutional Neural Network</td><td>卷积神经网络</td></tr>
+<tr><td><span class="term-en">FC</span></td><td>Fully Connected</td><td>全连接</td></tr>
+<tr><td><span class="term-en">CLUT</span></td><td>Color Look-Up Table</td><td>颜色查找表</td></tr>
+<tr><td><span class="term-en">LZW</span></td><td>Lempel-Ziv-Welch</td><td>Lempel-Ziv-Welch 字典编码</td></tr>
+<tr><td><span class="term-en">RLC</span></td><td>Run-Length Coding</td><td>游程编码</td></tr>
+<tr><td><span class="term-en">CR</span></td><td>Compression Ratio</td><td>压缩比</td></tr>
+<tr><td><span class="term-en">HEVC</span></td><td>High Efficiency Video Coding</td><td>H.265 高效视频编码</td></tr>
+<tr><td><span class="term-en">VVC</span></td><td>Versatile Video Coding</td><td>H.266 通用视频编码</td></tr>
+<tr><td><span class="term-en">AVC</span></td><td>Advanced Video Coding</td><td>H.264 高级视频编码</td></tr>
+</tbody>
+</table>
+</div>
+
+</article>
+</main>
+
+<footer>
+<p>术语词典 · 80+ 核心术语 · 中英对照 · 期末冲刺</p>
+<p class="meta">术语词典 v1.0 · 2026-07-04 · 期末冲刺</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // 术语词典:每打开一次累加阅读计数
+  const KEY = 'glossary-views';
+  const views = parseInt(localStorage.getItem(KEY) || '0', 10);
+  localStorage.setItem(KEY, String(views + 1));
+});
+</script>
+
+</body>
+</html>

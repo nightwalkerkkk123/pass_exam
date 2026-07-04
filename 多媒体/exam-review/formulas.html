@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>公式手册 · 多媒体期末</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --measure: 72ch;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+}
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 1080px; margin: 0 auto; text-align: center; padding-bottom: var(--space-3); border-bottom: 1px solid var(--rule); }
+.masthead-title { font-family: var(--serif); font-size: var(--text-2xl); font-weight: 700; letter-spacing: 0.04em; margin-bottom: var(--space-1); }
+.masthead-sub { font-family: var(--serif); font-style: italic; font-size: var(--text-sm); color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.primary-nav { max-width: 1080px; margin: var(--space-3) auto 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); justify-content: center; font-family: var(--sans); font-size: var(--text-sm); }
+.primary-nav a { color: var(--ink); text-decoration: none; padding: 2px 6px; border-bottom: 1px solid transparent; transition: all 0.15s ease; }
+.primary-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.primary-nav a.active { color: var(--accent); font-weight: 700; }
+.nav-divider { color: var(--ink-mute); user-select: none; }
+main { max-width: 1080px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.02em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; clear: both; }
+h2 .num { display: inline-block; font-size: 0.65em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); color: var(--ink); font-weight: 700; }
+h4 { font-size: var(--text-lg); margin: var(--space-5) 0 var(--space-2); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+pre { font-family: var(--mono); font-size: 0.88em; background: var(--paper-soft); border-left: 3px solid var(--accent); padding: var(--space-3) var(--space-4); overflow-x: auto; margin: var(--space-4) 0; line-height: 1.5; }
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+.cheat-card { background: var(--paper); border: 2px solid var(--ink); padding: var(--space-5); margin: var(--space-5) 0; break-inside: avoid; }
+.cheat-card h3 { margin-top: 0; border-bottom: 2px solid var(--ink); padding-bottom: var(--space-2); font-family: var(--serif); letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--text-lg); }
+.cheat-card table { font-size: 0.9em; }
+.cheat-card td code { font-size: 0.95em; white-space: nowrap; }
+.formula-grid { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-2) var(--space-4); margin: var(--space-3) 0; font-size: 0.94em; }
+.formula-grid dt { font-family: var(--sans); font-weight: 700; font-size: var(--text-sm); color: var(--accent); }
+.formula-grid dd { margin: 0; }
+article > p:first-of-type::first-letter { font-size: 3.2em; float: left; line-height: 0.9; margin: 0.05em var(--space-3) 0 0; font-weight: 700; color: var(--accent); }
+footer { max-width: 1080px; margin: var(--space-8) auto var(--space-6); padding: var(--space-5) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: var(--text-sm); }
+footer .meta { font-family: var(--sans); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; color: var(--ink-mute); margin-top: var(--space-3); }
+@media (max-width: 720px) {
+  :root { --text-3xl: 32px; --text-2xl: 24px; --text-xl: 20px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  .formula-grid { grid-template-columns: 1fr; }
+  article > p:first-of-type::first-letter { font-size: 2.6em; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 期末冲刺</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 第二讲至第十二讲</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="index.html">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="lectures/L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="lectures/L04-L05-视频与音频基础.html">L04-05</a>
+    <a href="lectures/L06-L07-压缩算法.html">L06-07</a>
+    <a href="lectures/L08-L10-压缩标准与视频压缩.html">L08-10</a>
+    <a href="lectures/L11-L12-检索与深度学习.html">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="cheat-sheet.html">速查表</a>
+    <a href="mock-exam.html">模拟卷</a>
+    <a href="error-list.html">易错清单</a>
+    <a href="sprint-plan.html">冲刺清单</a>
+    <a href="formulas.html" class="active">公式手册</a>
+    <a href="glossary.html">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">公式手册 · 考前 1 小时过一遍</h1>
+<p class="lede">22 个核心公式按主题聚类 · 11 个讲次全覆盖 · 数字即记忆的钩子</p>
+
+<p>本手册收录期末最易出计算题和应用题的 22 个核心公式,按"图像 → 颜色 → 视频 → 音频 → 压缩 → 检索 → 深度学习"7 大主题聚类。每条公式注明讲次来源和典型陷阱,建议考前 1 小时过一遍。</p>
+
+<!-- ============ 卡片 1:图像数据 ============ -->
+<div class="cheat-card">
+<h3>1 · 图像数据(L02)</h3>
+
+<dl class="formula-grid">
+<dt>灰度公式</dt>
+<dd><code>Y = 0.299·R + 0.587·G + 0.114·B</code>(BT.601)</dd>
+
+<dt>数据量</dt>
+<dd><code>Size = W × H × B / 8</code> (Bytes);B = 每像素 bit 数</dd>
+
+<dt>RGB → CMY</dt>
+<dd><code>C = 1 − R, M = 1 − G, Y = 1 − B</code>(归一化 [0,1])</dd>
+
+<dt>Bayer 抖动</dt>
+<dd><code>O(x,y) = 1 if I(x,y) &gt; D(x mod n, y mod n) else 0</code></dd>
+</dl>
+
+<p><strong>陷阱</strong>:灰度公式 G 通道权重 0.587 最大(人眼对绿最敏感);数据量单位换算 1024 而非 1000。</p>
+</div>
+
+<!-- ============ 卡片 2:颜色空间 ============ -->
+<div class="cheat-card">
+<h3>2 · 颜色空间(L03)</h3>
+
+<dl class="formula-grid">
+<dt>Gamma 显示</dt>
+<dd><code>L_display = V^γ</code>;γ ≈ 2.2(CRT/sRGB);inverse gamma 预校正</dd>
+
+<dt>YCbCr 4:2:0</dt>
+<dd>每 2×2 像素块 = Y(4)+Cb(1)+Cr(1) = 6 字节 → <strong>1.5 B/px</strong></dd>
+
+<dt>YCbCr 4:2:2</dt>
+<dd>水平减半 → <strong>2.0 B/px</strong></dd>
+
+<dt>YCbCr 4:4:4</dt>
+<dd>无子采样 → <strong>3.0 B/px</strong>(等同于 RGB 24-bit)</dd>
+
+<dt>RGB → Y</dt>
+<dd><code>Y = 0.299R + 0.587G + 0.114B</code>;Cb/Cr = 128 + 色差</dd>
+</dl>
+
+<p><strong>陷阱</strong>:YCbCr ≠ YUV(YCbCr 是 YUV 经 scale+offset 的数字版);Y 范围 16-235,Cb/Cr 范围 16-240。</p>
+</div>
+
+<!-- ============ 卡片 3:视频基础 ============ -->
+<div class="cheat-card">
+<h3>3 · 视频基础(L04)</h3>
+
+<dl class="formula-grid">
+<dt>视频数据量</dt>
+<dd><code>Size = W × H × fps × 时长 × 每像素字节</code></dd>
+
+<dt>Nyquist</dt>
+<dd><code>f_sample ≥ 2·f_max</code>;假频 = <code>|f_sample − f_true|</code></dd>
+
+<dt>扫描帧率</dt>
+<dd>NTSC 29.97 fps 隔行;PAL 25 fps 隔行;HDTV 1920×1080 50/60p</dd>
+
+<dt>码率</dt>
+<dd><code>码率 = 像素数 × fps × BPP</code>(BPP = bits per pixel)</dd>
+</dl>
+
+<p><strong>陷阱</strong>:1080p@30fps 4:2:0 = 1920×1080×30×1.5 ≈ 93 MB/s(原码率约 744 Mbps)。</p>
+</div>
+
+<!-- ============ 卡片 4:音频 ============ -->
+<div class="cheat-card">
+<h3>4 · 音频基础(L05)</h3>
+
+<dl class="formula-grid">
+<dt>SNR(信噪比)</dt>
+<dd><code>SNR = 10·log10(Ps/Pn) = 20·log10(Vs/Vn)</code>(功率 10,电压 20)</dd>
+
+<dt>SQNR(量化信噪比)</dt>
+<dd><code>SQNR = 6.02·N (dB)</code>;N = 量化位数;每 +1 bit ≈ +6 dB</dd>
+
+<dt>码率(码率 = 数据率)</dt>
+<dd><code>码率 = 采样率 × 量化 bit × 通道数</code>(单位 bps)</dd>
+
+<dt>DPCM 差分</dt>
+<dd><code>d[n] = x[n] − x[n−1]</code>;残差编码</dd>
+
+<dt>电话 PCM</dt>
+<dd>8 kHz × 8 bit = <strong>64 kbps</strong>(DS0 标准)</dd>
+</dl>
+
+<p><strong>陷阱</strong>:SNR 系数 10 vs 20 是功率/电压之分,别记混;16-bit CD ≈ 96 dB SQNR。</p>
+</div>
+
+<!-- ============ 卡片 5:无损压缩 ============ -->
+<div class="cheat-card">
+<h3>5 · 无损压缩(L06)</h3>
+
+<dl class="formula-grid">
+<dt>自信息</dt>
+<dd><code>I(s) = −log2(p(s))</code>;单位 bit</dd>
+
+<dt>信息熵</dt>
+<dd><code>η = −Σ pi·log2(pi)</code>;熵 = 平均自信息</dd>
+
+<dt>平均码长</dt>
+<dd><code>l̄ = Σ pi·li</code>;li = 第 i 符号码长</dd>
+
+<dt>Huffman 界</dt>
+<dd><code>η ≤ l̄ &lt; η+1</code>;整数约束 + Kraft 不等式</dd>
+
+<dt>压缩比</dt>
+<dd><code>CR = B0 / B1</code>;B0 原始,B1 压缩后;CR&gt;1 即压缩</dd>
+
+<dt>Kraft 不等式</dt>
+<dd><code>Σ 2^(−li) ≤ 1</code>;前缀码存在性</dd>
+</dl>
+
+<p><strong>陷阱</strong>:Huffman 是 l̄ ≥ η(不是等于);算术编码可以无限逼近 η(理论极限)。</p>
+</div>
+
+<!-- ============ 卡片 6:有损压缩 ============ -->
+<div class="cheat-card">
+<h3>6 · 有损压缩(L07)</h3>
+
+<dl class="formula-grid">
+<dt>MSE(均方误差)</dt>
+<dd><code>MSE = (1/N)·Σ(xi − yi)²</code>;xi 原始,yi 解码</dd>
+
+<dt>PSNR(峰值信噪比)</dt>
+<dd><code>PSNR = 10·log10(x²peak / MSE)</code>;8-bit xpeak = 255</dd>
+
+<dt>量化</dt>
+<dd><code>F̂(u,v) = round(F(u,v) / Q(u,v))</code>;Q 是量化步长</dd>
+
+<dt>DCT(1D)</dt>
+<dd><code>F(u) = C(u)·Σf(i)·cos[(2i+1)uπ / (2N)]</code>;C(0)=√(1/N),C(u)=√(2/N)</dd>
+
+<dt>率失真</dt>
+<dd>R(D) 曲线下凸;D 越大 R 越小;D=0 时 R=η(无损)</dd>
+</dl>
+
+<p><strong>陷阱</strong>:DCT 本身无损,有损来自量化;PSNR 永远是 10·log10(功率意义)。</p>
+</div>
+
+<!-- ============ 卡片 7:JPEG 量化因子 ============ -->
+<div class="cheat-card">
+<h3>7 · JPEG 量化因子(L08)</h3>
+
+<table>
+<thead><tr><th>条件</th><th>公式</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>qf ≥ 50</td><td><code>scaling = (100 − qf) / 50</code></td><td>qf=50 → scaling=1(标准表);qf=75 → 0.5(更精细)</td></tr>
+<tr><td>qf &lt; 50</td><td><code>scaling = 50 / qf</code></td><td>qf=25 → scaling=2(粗糙);qf=10 → scaling=5</td></tr>
+</tbody>
+</table>
+
+<p><strong>陷阱</strong>:qf 越高 scaling 越小,量化越精细,文件越大;qf 越低 scaling 越大,量化越粗糙,文件越小但失真大。</p>
+</div>
+
+<!-- ============ 卡片 8:视频压缩 ============ -->
+<div class="cheat-card">
+<h3>8 · 视频压缩(L09)</h3>
+
+<dl class="formula-grid">
+<dt>MAD(平均绝对差)</dt>
+<dd><code>MAD = (1/N²)·Σ|T(i,j) − R(i,j)|</code>;MV 搜索目标</dd>
+
+<dt>DPCM(DC 系数)</dt>
+<dd><code>d_i = DC_{i+1} − DC_i</code>;相邻块 DC 差分</dd>
+
+<dt>搜索窗口</dt>
+<dd><code>(2p + 1) × (2p + 1)</code>;p = 搜索半径</dd>
+
+<dt>p = 15 实例</dt>
+<dd>31 × 31 = <strong>961</strong> 个候选位置;复杂度 O(N²)</dd>
+
+<dt>H.261 宏块</dt>
+<dd>16×16 Y + 8×8 Cb + 8×8 Cr(4:2:0 下)</dd>
+</dl>
+
+<p><strong>陷阱</strong>:MAD 不是 MSE,前者用绝对值,后者用平方;搜索窗口 = (2p+1)²。</p>
+</div>
+
+<!-- ============ 卡片 9:帧类型压缩比 ============ -->
+<div class="cheat-card">
+<h3>9 · 帧类型压缩比(L10)</h3>
+
+<table>
+<thead><tr><th>帧类型</th><th>压缩比</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>I 帧</td><td>≈ 7:1</td><td>帧内压缩,中等压缩率,作为参考帧</td></tr>
+<tr><td>P 帧</td><td>≈ 20:1</td><td>前向预测,利用时间冗余</td></tr>
+<tr><td>B 帧</td><td>≈ 50:1</td><td>双向预测,最高压缩率</td></tr>
+<tr><td>平均</td><td>≈ 27:1</td><td>MPEG 标准压缩水平</td></tr>
+</tbody>
+</table>
+
+<p><strong>陷阱</strong>:I : P : B = 7 : 20 : 50,平均 ≈ 27:1;B 帧需前后两个参考帧,延迟高。</p>
+</div>
+
+<!-- ============ 卡片 10:CNN ============ -->
+<div class="cheat-card">
+<h3>10 · CNN 输出尺寸(L12)</h3>
+
+<dl class="formula-grid">
+<dt>输出尺寸</dt>
+<dd><code>(N + 2·padding − F) / stride + 1</code>;N 输入边长,F 卷积核</dd>
+
+<dt>参数量</dt>
+<dd><code>(F·F·C + 1)·K</code>;F 卷积核,C 输入通道,K 卷积核数</dd>
+
+<dt>池化输出</dt>
+<dd><code>(N − F) / stride + 1</code>;无填充(常见 max pooling)</dd>
+
+<dt>典型实例</dt>
+<dd>输入 224×224, F=3, stride=1, padding=1 → 224×224(保持尺寸)</dd>
+
+<dt>AlexNet 首层</dt>
+<dd>F=11, stride=4, padding=2, N=224 → 55×55×96(96 个卷积核)</dd>
+</dl>
+
+<p><strong>陷阱</strong>:公式里 2·padding 表示左右(或上下)各填 padding,常被漏算一边。</p>
+</div>
+
+<!-- ============ 卡片 11:检索特征 ============ -->
+<div class="cheat-card">
+<h3>11 · 检索与特征(L11)</h3>
+
+<dl class="formula-grid">
+<dt>Harris 角点</dt>
+<dd><code>R = det(M) − k·trace(M)²</code>;k ≈ 0.04-0.06;R &gt; 阈值即角点</dd>
+
+<dt>SIFT 描述子</dt>
+<dd><code>4 × 4 × 8 = 128 维</code>;4×4 子块,8 方向梯度直方图</dd>
+
+<dt>SURF 描述子</dt>
+<dd><code>4 × 4 × 4 = 64 维</code>;4×4 子块,4 方向</dd>
+
+<dt>PCA-SIFT</dt>
+<dd>20-36 维;用 PCA 降维 SIFT</dd>
+
+<dt>距离四性质</dt>
+<dd>非负 / 同一(d(x,x)=0)/ 对称(d(x,y)=d(y,x))/ 三角不等式</dd>
+
+<dt>常用距离</dt>
+<dd>L1(曼哈顿)/ L2(欧氏)/ 余弦 / 马氏距离</dd>
+</dl>
+
+<p><strong>陷阱</strong>:Harris 角点不抗尺度缩放;SIFT/SURF/MSER 才抗尺度。</p>
+</div>
+
+<!-- ============ 综合速查 ============ -->
+<div class="cheat-card">
+<h3>附录 · 关键常数速查</h3>
+
+<table>
+<thead><tr><th>项目</th><th>数值</th><th>讲次</th></tr></thead>
+<tbody>
+<tr><td>8-bit 灰度范围</td><td>0-255(256 级)</td><td>L02</td></tr>
+<tr><td>24-bit RGB 色数</td><td>256³ ≈ 16.8M</td><td>L02</td></tr>
+<tr><td>V(λ) 峰值</td><td>555 nm(黄绿最亮)</td><td>L03</td></tr>
+<tr><td>YCbCr Y 范围</td><td>16-235(TV 标准)</td><td>L03</td></tr>
+<tr><td>4:2:0 每像素字节</td><td>1.5 B/px</td><td>L03/L04</td></tr>
+<tr><td>Gamma 典型值</td><td>2.2(CRT/sRGB), 1.8(Mac)</td><td>L03</td></tr>
+<tr><td>电话 PCM</td><td>8 kHz × 8 bit = 64 kbps</td><td>L05</td></tr>
+<tr><td>CD 音质</td><td>44.1 kHz × 16 bit × 2 = 1411 kbps</td><td>L05</td></tr>
+<tr><td>SQNR 公式</td><td>6.02·N dB</td><td>L05</td></tr>
+<tr><td>Lena 标准图</td><td>256×256 / 512×512</td><td>L02/L07</td></tr>
+<tr><td>JPEG 8×8 块</td><td>64 像素 / 块</td><td>L07/L08</td></tr>
+<tr><td>H.261 宏块</td><td>16×16(亮度)+8×8×2(色度)</td><td>L09/L10</td></tr>
+<tr><td>MPEG 帧压缩比</td><td>I:P:B = 7:20:50</td><td>L10</td></tr>
+<tr><td>AlexNet 参数量</td><td>60M</td><td>L12</td></tr>
+<tr><td>VGG-16 参数量</td><td>138M</td><td>L12</td></tr>
+<tr><td>GoogleNet 参数量</td><td>5M(Inception 模块)</td><td>L12</td></tr>
+<tr><td>ResNet-50 参数量</td><td>25M</td><td>L12</td></tr>
+<tr><td>SIFT 描述子维度</td><td>128</td><td>L11</td></tr>
+<tr><td>SURF 描述子维度</td><td>64</td><td>L11</td></tr>
+<tr><td>Nyquist 比例</td><td>f_sample ≥ 2·f_max</td><td>L04/L05</td></tr>
+</tbody>
+</table>
+</div>
+
+</article>
+</main>
+
+<footer>
+<p>公式手册 · 22 个核心公式 · 考前 1 小时过一遍</p>
+<p class="meta">公式手册 v1.0 · 2026-07-04 · 期末冲刺</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // 公式手册阅读进度:滚动到底视为完成一次
+  const KEY = 'formulas-read';
+  let ticking = false;
+  function checkScroll() {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const scrolled = window.scrollY + window.innerHeight;
+      const total = document.documentElement.scrollHeight;
+      const pct = Math.min(100, Math.round((scrolled / total) * 100));
+      if (pct >= 95) {
+        localStorage.setItem(KEY, JSON.stringify({ done: true, ts: Date.now() }));
+      }
+      ticking = false;
+    });
+  }
+  window.addEventListener('scroll', checkScroll, { passive: true });
+});
+</script>
+
+</body>
+</html>

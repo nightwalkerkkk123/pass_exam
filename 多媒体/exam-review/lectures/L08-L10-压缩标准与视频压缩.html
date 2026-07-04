@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>L08-L10 · 压缩标准与视频压缩</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --measure: 72ch;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+}
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 1080px; margin: 0 auto; text-align: center; padding-bottom: var(--space-3); border-bottom: 1px solid var(--rule); }
+.masthead-title { font-family: var(--serif); font-size: var(--text-2xl); font-weight: 700; letter-spacing: 0.04em; margin-bottom: var(--space-1); }
+.masthead-sub { font-family: var(--serif); font-style: italic; font-size: var(--text-sm); color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.primary-nav { max-width: 1080px; margin: var(--space-3) auto 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); justify-content: center; font-family: var(--sans); font-size: var(--text-sm); }
+.primary-nav a { color: var(--ink); text-decoration: none; padding: 2px 6px; border-bottom: 1px solid transparent; transition: all 0.15s ease; }
+.primary-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.primary-nav a.active { color: var(--accent); font-weight: 700; }
+.nav-divider { color: var(--ink-mute); user-select: none; }
+main { max-width: 1080px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.02em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; clear: both; }
+h2 .num { display: inline-block; font-size: 0.65em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); color: var(--ink); font-weight: 700; }
+h4 { font-size: var(--text-lg); margin: var(--space-5) 0 var(--space-2); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+pre { font-family: var(--mono); font-size: 0.88em; background: var(--paper-soft); border-left: 3px solid var(--accent); padding: var(--space-3) var(--space-4); overflow-x: auto; margin: var(--space-4) 0; line-height: 1.5; }
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+.tag { display: inline-block; font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 8px; border-radius: 2px; margin-left: var(--space-2); vertical-align: middle; font-weight: 700; }
+.tag-high { background: var(--accent); color: var(--paper); }
+.tag-mid { background: var(--highlight); color: var(--paper); }
+.tag-low { background: var(--ink-mute); color: var(--paper); }
+.exam-point { background: var(--paper-soft); border-left: 4px solid var(--accent); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; position: relative; }
+.exam-point-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); font-family: var(--sans); font-size: var(--text-sm); }
+.exam-point-id { color: var(--accent); font-weight: 700; letter-spacing: 0.04em; }
+.exam-point h4 { margin-top: 0; margin-bottom: var(--space-2); font-size: var(--text-lg); }
+.exam-point dl { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0; font-size: 0.94em; }
+.exam-point dt { font-family: var(--sans); font-weight: 700; font-size: var(--text-sm); color: var(--accent); }
+.exam-point dd { margin: 0; }
+.exercise { background: var(--paper); border: 1px solid var(--rule); margin: var(--space-4) 0; }
+.exercise-qid { font-weight: 700; color: var(--accent); margin-right: var(--space-3); font-family: var(--sans); }
+.exercise-type { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); background: var(--paper); padding: 1px 6px; border-radius: 2px; font-family: var(--sans); }
+.exercise-stem { padding: var(--space-4) var(--space-4) 0; font-size: var(--text-base); }
+.exercise-options { list-style: upper-alpha; padding-left: var(--space-6); margin: var(--space-3) var(--space-4); }
+.exercise-toggle { margin: var(--space-3) var(--space-4) var(--space-4); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.exercise-toggle summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--accent); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; list-style: none; padding: var(--space-2) 0; }
+.exercise-toggle summary::-webkit-details-marker { display: none; }
+.exercise-toggle summary::before { content: '▸ '; display: inline-block; margin-right: 4px; }
+.exercise-toggle[open] summary::before { content: '▾ '; }
+.exercise-answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.exercise-answer strong { color: var(--success); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; display: block; margin-bottom: var(--space-1); }
+.mastery { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--ink-soft); user-select: none; }
+.mastery input { cursor: pointer; }
+.mastery.checked { color: var(--success); }
+.cheat-card { background: var(--paper); border: 2px solid var(--ink); padding: var(--space-5); margin: var(--space-5) 0; break-inside: avoid; }
+.cheat-card h3 { margin-top: 0; border-bottom: 2px solid var(--ink); padding-bottom: var(--space-2); font-family: var(--serif); letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--text-lg); }
+.cheat-card table { font-size: 0.9em; }
+article > p:first-of-type::first-letter { font-size: 3.2em; float: left; line-height: 0.9; margin: 0.05em var(--space-3) 0 0; font-weight: 700; color: var(--accent); }
+footer { max-width: 1080px; margin: var(--space-8) auto var(--space-6); padding: var(--space-5) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: var(--text-sm); }
+footer .meta { font-family: var(--sans); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; color: var(--ink-mute); margin-top: var(--space-3); }
+@media (max-width: 720px) {
+  :root { --text-3xl: 32px; --text-2xl: 24px; --text-xl: 20px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  .exam-point dl { grid-template-columns: 1fr; }
+  article > p:first-of-type::first-letter { font-size: 2.6em; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 期末冲刺</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 第二讲至第十二讲</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="../index.html">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="L04-L05-视频与音频基础.html">L04-05</a>
+    <a href="L06-L07-压缩算法.html">L06-07</a>
+    <a href="L08-L10-压缩标准与视频压缩.html" class="active">L08-10</a>
+    <a href="L11-L12-检索与深度学习.html">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="../cheat-sheet.html">速查表</a>
+    <a href="../mock-exam.html">模拟卷</a>
+    <a href="../error-list.html">易错清单</a>
+    <a href="../sprint-plan.html">冲刺清单</a>
+    <a href="../formulas.html">公式手册</a>
+    <a href="../glossary.html">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">第八讲 至 第十讲 · 图像与视频压缩标准</h1>
+<p class="lede">L08 JPEG 静态图像压缩 + L09 视频压缩 I(帧内/帧间预测与运动估计) + L10 视频压缩 II(H.261/MPEG-1/MPEG-4) · 10 + 8 + 10 考点</p>
+
+<!-- ============ 第 1 部分:考点清单 ============ -->
+<section>
+<h2><span class="num">I.</span>考点清单 (Exam Point Checklist)</h2>
+
+<h3>第八讲 (L08 · JPEG 静态图像压缩) 考点</h3>
+
+<div class="exam-point" data-mastery="L08-1">
+<div class="exam-point-head"><span class="exam-point-id">L08-考点 1</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>JPEG 标准的基本信息与三大观察</h4>
+<dl>
+<dt>核心</dt><dd>JPEG = Joint Photographic Experts Group,1992 年成为国际标准;基于"变换编码 + 量化 + DPCM + 行程编码 + 熵编码"的混合编码方案。</dd>
+<dt>关键</dt><dd>① 图像内容变化缓慢(空间冗余→用 DCT);② 人眼对高频不敏感(可丢弃高频);③ 对亮度的敏锐度高于色度(4:2:0 色度子采样)。</dd>
+<dt>易错</dt><dd>把"空间冗余"和"时间冗余"混为一谈。JPEG 处理的是<strong>单帧</strong>图像,没有时间冗余维度。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L08-2">
+<div class="exam-point-head"><span class="exam-point-id">L08-考点 2</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>RGB → YCbCr 变换与 4:2:0 色度子采样</h4>
+<dl>
+<dt>核心</dt><dd>Y = 亮度(细节),Cb/Cr = 色度(蓝/红色差)。YCbCr 是一种<strong>解相关的</strong>颜色空间,更适合压缩。</dd>
+<dt>关键</dt><dd>4:2:0 表示每 4 个亮度样本对应 2 个 Cb + 0 个 Cr(一行 4:2,下一行 4:0 交替),相当于色度平面在水平/垂直方向都做了 2:1 降采样;色度数据量降为亮度的 1/2。</dd>
+<dt>易错</dt><dd>4:2:0 不是"丢掉 Cr",而是水平+垂直各 2:1 降采样;4:2:2 才是水平 2:1、垂直 1:1。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L08-3">
+<div class="exam-point-head"><span class="exam-point-id">L08-考点 3</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>8×8 DCT 变换</h4>
+<dl>
+<dt>核心</dt><dd>把空间域 8×8 像素块变换到频域;信息集中在低频(左上角),高频在右下角。解码端用 IDCT 反变换。</dd>
+<dt>关键</dt><dd>块大小固定 8×8 = 64 个系数;F(0,0) 为 DC(直流)系数,其余 63 个为 AC(交流)系数。</dd>
+<dt>易错</dt><dd>DCT 本身无损;JPEG 的有损来自后续<strong>量化</strong>步骤,不是 DCT 本身。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L08-4">
+<div class="exam-point-head"><span class="exam-point-id">L08-考点 4</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>量化表与质量因子 qf</h4>
+<dl>
+<dt>核心</dt><dd><code>F̂(u,v) = round(F(u,v) / Q(u,v))</code>;JPEG 主要的压缩来源就是这一步。Y 和 CbCr 使用<strong>不同的量化表</strong>;右下角(高频)系数对应的 Q 较大。</dd>
+<dt>公式</dt><dd>qf ≥ 50:<code>scaling_factor = (100 - qf) / 50</code>;qf &lt; 50:<code>scaling_factor = 50 / qf</code>;实际 Q = 标准 Q × scaling_factor</dd>
+<dt>关键</dt><dd>qf ∈ [1, 100];qf=100 质量最高,qf=1 最低。</dd>
+<dt>易错</dt><dd>qf 越大 → scaling 越小 → Q 越小 → 量化越细 → 质量越高;qf=50 时 scaling=1(标准表)。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考计算</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L08-5">
+<div class="exam-point-head"><span class="exam-point-id">L08-考点 5</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>ZigZag 扫描</h4>
+<dl>
+<dt>核心</dt><dd>把 8×8 二维系数按低频→高频的顺序拉成一维序列,目的是把零系数聚在一起便于行程编码。</dd>
+<dt>关键</dt><dd>顺序:左上 (0,0)→ (0,1)→ (1,0)→ (2,0)→ (1,1)→ (0,2)→ ... 直至右下 (7,7)。</dd>
+<dt>易错</dt><dd>不要把 ZigZag 与"行优先"或"列优先"扫描混淆。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L08-6">
+<div class="exam-point-head"><span class="exam-point-id">L08-考点 6</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>DC 系数的 DPCM 编码</h4>
+<dl>
+<dt>核心</dt><dd>DC 系数 F(0,0) 代表块的平均亮度,相邻块差异很小;JPEG 用 DPCM 编码 DC:<code>d_i = DC_{i+1} - DC_i</code>,d_0 = DC_0。</dd>
+<dt>关键</dt><dd>例 DC=[150,155,149,152,144] → 编码结果 [150, 5, -6, 3, -8]。</dd>
+<dt>易错</dt><dd>负数幅度用反码("以 0 开头的都为负数")表示,例如 -6 用 SIZE=3、AMPLITUDE=001。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必考编码题</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L08-7">
+<div class="exam-point-head"><span class="exam-point-id">L08-考点 7</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>AC 系数的行程编码 (RLC)</h4>
+<dl>
+<dt>核心</dt><dd>ZigZag 后用 (RUNLENGTH, VALUE) 编码;每对表示"连续 RUNLENGTH 个零 + 一个非零 VALUE";EOB = (0,0) 表示块结束。</dd>
+<dt>关键</dt><dd>例 ZigZag 序列 (32, 6, -1, -1, 0, -1, 0, 0, 0, -1, 0, 0, 1, 0, 0…0) → RLC 序列 (0,6) (0,-1) (0,-1) (1,-1) (3,-1) (2,1) (0,0)。</dd>
+<dt>易错</dt><dd>每对 (run, value) 中 "run" 是<strong>之前</strong>零的个数;EOB 之后没有更多非零。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 必出编码题</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L08-8">
+<div class="exam-point-head"><span class="exam-point-id">L08-考点 8</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>熵编码 (Huffman)</h4>
+<dl>
+<dt>核心</dt><dd>DC 编码为 (SIZE, AMPLITUDE),SIZE 走 Huffman、AMPLITUDE 不走 Huffman;AC 编码为 (RUNLENGTH, SIZE, AMPLITUDE),RUNLENGTH+SIZE 拼成一个字节走 Huffman、AMPLITUDE 直接用值。</dd>
+<dt>易错</dt><dd>AMPLITUDE 一律是原值(不走 Huffman);负数用其绝对值的反码,以 0 开头。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L08-9">
+<div class="exam-point-head"><span class="exam-point-id">L08-考点 9</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>JPEG 编码完整流程与比特流结构</h4>
+<dl>
+<dt>核心</dt><dd>5 大步骤 = RGB→YCbCr(4:2:0) → 8×8 DCT → 量化 → ZigZag + DPCM(DC)/RLC(AC) → 熵编码。比特流由 SOI、Frame(Tables/Header/Scan...)、EOI 组成。</dd>
+<dt>易错</dt><dd>容易漏掉"分块"和"色度子采样"两步;解码流程是逆序(EOI→SOI 方向)。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 画流程图题</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L08-10">
+<div class="exam-point-head"><span class="exam-point-id">L08-考点 10</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>JPEG2000 对比 JPEG</h4>
+<dl>
+<dt>核心</dt><dd>JPEG2000 用<strong>小波变换</strong>代替 DCT,支持<strong>无损/有损</strong>统一框架、更优的码流组织(按分辨率/质量渐进),但计算复杂度更高、专利费历史问题影响推广。</dd>
+<dt>易错</dt><dd>JPEG ≠ JPEG2000;JPEG2000 不等于"更好的 JPEG",它改变了变换域和码流结构。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频 · 横向对比题</span></dd>
+</dl>
+</div>
+
+<h3>第九讲 (L09 · 视频压缩技术 I) 考点</h3>
+
+<div class="exam-point" data-mastery="L09-1">
+<div class="exam-point-head"><span class="exam-point-id">L09-考点 1</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>时间冗余与运动补偿的基本思想</h4>
+<dl>
+<dt>核心</dt><dd>相邻帧之间高度相似(时间冗余)。帧间压缩 = 用前面/后面的帧作参考,对残差(预测误差)编码,必要时记一个<strong>运动向量 (MV)</strong>。</dd>
+<dt>易错</dt><dd>不能把"运动补偿 (MC)"和"运动估计 (ME)"混用;ME 找 MV,MC 用 MV 生成预测。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L09-2">
+<div class="exam-point-head"><span class="exam-point-id">L09-考点 2</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>宏块 (Macroblock) 与搜索窗口</h4>
+<dl>
+<dt>核心</dt><dd>图像分宏块,默认 N=16(亮度),色度 4:2:0 时 N=8。MV 搜索在参考帧的 (2p+1)×(2p+1) 窗口内做。</dd>
+<dt>关键</dt><dd>H.261/263 中 p=15 → 窗口 31×31 = 961 个候选位置。</dd>
+<dt>易错</dt><dd>宏块大小 16×16 = 256 像素,不是 8×8;8×8 是 DCT 块。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L09-3">
+<div class="exam-point-head"><span class="exam-point-id">L09-考点 3</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>MAD 匹配准则</h4>
+<dl>
+<dt>核心</dt><dd>平均绝对误差 (Mean Absolute Difference) 越小表示越相似。目标:找 (i,j) 使 MAD(i,j) 最小,对应 MV=(u,v)。</dd>
+<dt>公式</dt><dd><code>MAD(i,j) = (1/N²) Σ |T(x,y) - R(x+i, y+j)|</code></dd>
+<dt>易错</dt><dd>误以为用 MSE;MAD 在硬件实现上比 MSE 更便宜(无乘方)。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L09-4">
+<div class="exam-point-head"><span class="exam-point-id">L09-考点 4</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>顺序搜索 (Full Search)</h4>
+<dl>
+<dt>核心</dt><dd>遍历 (2p+1)² 个候选位置。复杂度 <code>O(p² N²)</code>。</dd>
+<dt>关键</dt><dd>720×480、30fps、p=15 → 约 29.89×10⁹ OPS。</dd>
+<dt>易错</dt><dd>复杂度中含 N²,因为每个候选点要算 N×N = 256 个像素差。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L09-5">
+<div class="exam-point-head"><span class="exam-point-id">L09-考点 5</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>2D 对数搜索</h4>
+<dl>
+<dt>核心</dt><dd>从 9 个种子点起步 → 取 MAD 最小的中心 → 步长减半 → 重复直到步长=1。</dd>
+<dt>公式</dt><dd>复杂度约 <code>O(log p · N²)</code></dd>
+<dt>关键</dt><dd>同 720×480、30fps → 约 1.25×10⁹ OPS(p=15)。</dd>
+<dt>易错</dt><dd>不一定全局最优,但实际中"够用";H.263 之后用半像素精度进一步提升。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L09-6">
+<div class="exam-point-head"><span class="exam-point-id">L09-考点 6</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>分层 (Hierarchical) 搜索</h4>
+<dl>
+<dt>核心</dt><dd>原图 Level 0,逐级 2:1 降采样得 Level 1、2;先在最低分辨率(Level 2)粗估 MV,再回到高分辨率精修。</dd>
+<dt>关键</dt><dd>3-level Hierarchical Search, 720×480/30fps/p=15 → 约 0.51×10⁹ OPS。</dd>
+<dt>易错</dt><dd>分层把 p 和 N <strong>同时</strong>缩小,节省量比单纯降 p 大得多。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L09-7">
+<div class="exam-point-head"><span class="exam-point-id">L09-考点 7</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>半像素精度预测 (Half-pixel)</h4>
+<dl>
+<dt>核心</dt><dd>MV 不必是整数,H.263 起对参考帧做双线性插值后搜索半像素位置。</dd>
+<dt>易错</dt><dd>半像素代价是参考帧要先插值,多一次内存读取。</dd>
+<dt>频率</dt><dd><span class="tag tag-low">低频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L09-8">
+<div class="exam-point-head"><span class="exam-point-id">L09-考点 8</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>三种搜索方法复杂度对比</h4>
+<dl>
+<dt>关键</dt><dd>p=15 时 720×480@30fps:顺序 29.89G / 对数 1.25G / 分层 0.51G;p=7 时:7.00G / 0.78G / 0.40G。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频 · 读表 + 简答</span></dd>
+</dl>
+</div>
+
+<h3>第十讲 (L10 · 视频压缩技术 II) 考点</h3>
+
+<div class="exam-point" data-mastery="L10-1">
+<div class="exam-point-head"><span class="exam-point-id">L10-考点 1</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>H.261 协议族地位与基本参数</h4>
+<dl>
+<dt>核心</dt><dd>1990 年成为国际标准,专为 ISDN 上的可视电话/视频会议设计;支持 p×64 kbps(p=1..30),又叫 p×64;端到端编码延迟 &lt; 150 ms。</dd>
+<dt>关键</dt><dd>CIF 格式 352×288(PAL)/ 352×240(NTSC);QCIF 176×144;GOB(Group of Blocks)结构。</dd>
+<dt>易错</dt><dd>H.261 帧率固定 30 fps 还是 25 fps 由 p 值决定,不是自由选。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L10-2">
+<div class="exam-point-head"><span class="exam-point-id">L10-考点 2</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>I 帧 vs P 帧</h4>
+<dl>
+<dt>核心</dt><dd>I 帧(Intra)= 类似 JPEG 的帧内编码,仅去空间冗余;P 帧(Predicted)= 前向预测编码,去空间+时间冗余。</dd>
+<dt>关键</dt><dd>每秒通常发送若干 I 帧(典型 1~2 帧/秒);P 帧压缩率远高于 I 帧。</dd>
+<dt>易错</dt><dd>I 帧也可以参考之前的 P 帧(这里 H.261 P 帧是 forward prediction);H.264/AVC 中 I 帧独立,P/B 帧可双向参考。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L10-3">
+<div class="exam-point-head"><span class="exam-point-id">L10-考点 3</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>H.261 I 帧编码流程</h4>
+<dl>
+<dt>核心</dt><dd>宏块 (16×16 Y + 8×8 Cb + 8×8 Cr) → 对每个 8×8 块做 DCT → 量化(宏块内用统一 step_size)→ ZigZag → 熵编码。</dd>
+<dt>易错</dt><dd>H.261 的量化器对<strong>一个宏块内所有 DCT 系数共用一个 step_size</strong>,不同于 JPEG 每个系数一个 Q。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L10-4">
+<div class="exam-point-head"><span class="exam-point-id">L10-考点 4</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>H.261 P 帧编码流程</h4>
+<dl>
+<dt>核心</dt><dd>对每个宏块 → 运动估计得到 MV → 计算预测残差 → 对残差的每个 8×8 块 DCT→量化→ZigZag→熵编码。若预测误差过大(找不到好匹配),把宏块按 I 块编码。</dd>
+<dt>易错</dt><dd>参考帧是<strong>已解码</strong>的帧(不是原始帧),因为解码端只有重建帧可用——这是 DPCM 类系统的共性。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L10-5">
+<div class="exam-point-head"><span class="exam-point-id">L10-考点 5</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>MPEG-1 与 H.261 的区别</h4>
+<dl>
+<dt>核心</dt><dd>MPEG-1 (1991) 面向 CD/VCD 存储,1.5 Mbps;引入 SIF 格式 352×240/288,仅支持<strong>逐行</strong>扫描;4:2:0 子采样。</dd>
+<dt>关键</dt><dd>MPEG-1 = ISO/IEC 11172,五部分(系统/视频/音频/一致性/软件)。</dd>
+<dt>易错</dt><dd>MPEG-1 不支持隔行;隔行由 MPEG-2 引入。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L10-6">
+<div class="exam-point-head"><span class="exam-point-id">L10-考点 6</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>B 帧与双向预测</h4>
+<dl>
+<dt>核心</dt><dd>MPEG 引入第三种帧 B (Bi-directional),从前向 + 后向两个参考帧做预测;最多 2 个 MV,两个匹配块<strong>取平均</strong>。</dd>
+<dt>关键</dt><dd>典型压缩 I:P:B ≈ 7:1 / 20:1 / 50:1;平均 ≈ 27:1。</dd>
+<dt>易错</dt><dd>B 帧不能被其他帧参考(除 H.264 的 B 参考外);B 帧的代价是<strong>编码延迟</strong>和<strong>编码复杂度翻倍</strong>,所以低时延场景不用 B 帧。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L10-7">
+<div class="exam-point-head"><span class="exam-point-id">L10-考点 7</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>显示顺序 vs 编码顺序</h4>
+<dl>
+<dt>核心</dt><dd>显示顺序 I B B P B B P B B I…;编码顺序 I P B B P B B I B B…(B 帧要在它参考的两个 I/P 帧之后才编码)。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L10-8">
+<div class="exam-point-head"><span class="exam-point-id">L10-考点 8</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>MPEG-4 与基于对象的编码</h4>
+<dl>
+<dt>核心</dt><dd>MPEG-1/2 = 帧/块基编码;MPEG-4 = <strong>VOP</strong> (Video Object Plane) 基于对象的编码;码率 5 kbps ~ 10 Mbps;引入 2D Mesh (uniform / Delaunay) 和 3D 模型 (VRML 通用人脸模型) 编码。</dd>
+<dt>易错</dt><dd>FAP (Face Animation Parameters) 控制 3D 人脸动画;Mesh 中除首点外坐标<strong>差分编码</strong>。</dd>
+<dt>频率</dt><dd><span class="tag tag-mid">中频</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L10-9">
+<div class="exam-point-head"><span class="exam-point-id">L10-考点 9</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>H.26x vs MPEG-x 协议族对比</h4>
+<dl>
+<dt>核心</dt><dd>H.261 (1990, ISDN p×64) → H.263 (1995/96, 低码率可视电话) → H.264/AVC (2003, 通用视频) → H.265/HEVC (2013) → H.266/VVC (2020, 面向 4K/8K/VR/AR)。</dd>
+<dt>易错</dt><dd>MPEG-x 与 H.26x 在很多代是合作/并行的:H.262 = MPEG-2,H.264 = MPEG-4 Part 10 (AVC),H.265 = MPEG-H Part 2 (HEVC),H.266 = MPEG-I Part 3 (VVC)。</dd>
+<dt>频率</dt><dd><span class="tag tag-high">高频 · 简答/对比题必出</span></dd>
+</dl>
+</div>
+
+<div class="exam-point" data-mastery="L10-10">
+<div class="exam-point-head"><span class="exam-point-id">L10-考点 10</span><label class="mastery"><input type="checkbox"> 已掌握</label></div>
+<h4>5G/8K/VR 与新一代压缩</h4>
+<dl>
+<dt>核心</dt><dd>4K/8K、VR/AR/云游戏需要高带宽 + 低时延,催生 H.266/VVC;"没有视频压缩,5G 一切都是 0"。</dd>
+<dt>频率</dt><dd><span class="tag tag-low">低频 · 开放性论述题</span></dd>
+</dl>
+</div>
+</section>
+
+<!-- ============ 第 2 部分:习题 ============ -->
+<section>
+<h2><span class="num">II.</span>习题 (Exercises)</h2>
+
+<h3>L08 习题</h3>
+
+<div class="exercise" data-mastery="L08-Q1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L08-Q1</span><span class="exercise-type">单选</span> JPEG 标准中,有损压缩的"主要来源"是以下哪一步?</p>
+<ul class="exercise-options">
+<li>A. RGB→YCbCr 颜色空间变换</li><li>B. 8×8 DCT 变换</li><li>C. 均匀标量量化</li><li>D. Huffman 熵编码</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> DCT 本身是可逆正交变换,无损;Huffman 也可视为无损;颜色空间变换虽然改变表达但严格说也可逆;只有量化是<strong>不可逆</strong>的、引入失真的步骤,因此是 JPEG 有损压缩的主因。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L08-Q2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L08-Q2</span><span class="exercise-type">单选</span> 关于 4:2:0 色度子采样,正确的描述是?</p>
+<ul class="exercise-options">
+<li>A. 保留 Cb、丢弃 Cr</li><li>B. 水平方向 2:1,垂直方向 2:1</li><li>C. 水平方向 2:1,垂直方向 1:1</li><li>D. 三个通道同等采样</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> 4:2:0 表示每 4 个 Y 样本配 2 个 Cb 与 0 个 Cr,水平与垂直方向对色度都做了 2:1 降采样;4:2:2 才是水平 2:1、垂直 1:1。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L08-Q3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L08-Q3</span><span class="exercise-type">多选</span> 下列关于 JPEG 编码流程的描述,哪些是正确的?</p>
+<ul class="exercise-options">
+<li>A. 8×8 DCT 块的 F(0,0) 称为 DC 系数</li>
+<li>B. ZigZag 扫描的目的是把零系数聚集,便于后续行程编码</li>
+<li>C. DC 系数用 DPCM 编码,AC 系数用 RLC 编码</li>
+<li>D. 量化表右下角(高频)的 Q(u,v) 值通常较大</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A, B, C, D
+<strong>解析</strong> 四项都是 JPEG 标准中明确的设计:DC = 平均亮度 → 相邻块差分;ZigZag 把高频零系数聚到尾;高频人眼不敏感 → Q 更大、量化更粗。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L08-Q4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L08-Q4</span><span class="exercise-type">计算题</span> 已知 qf=25,按 JPEG 公式计算 scaling_factor 应该是多少?它对标准量化表 Q 的影响是?</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> scaling_factor = 50 / 25 = <strong>2.0</strong>
+<strong>解析</strong> qf &lt; 50 用公式 <code>scaling_factor = 50/qf = 2.0</code>,表示实际量化表 = 标准 Q × 2.0,量化步长变粗 → 压缩比更高、质量更低。这是 JPEG 中"质量因子越低→压缩比越大"的来源。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L08-Q5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L08-Q5</span><span class="exercise-type">计算/编码题</span> 已知相邻 5 个 8×8 块的 DC 系数为 150, 155, 149, 152, 144。用 DPCM 编码,结果是什么?</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> 150, 5, -6, 3, -8
+<strong>解析</strong> d_0 = DC_0 = 150;d_1 = 155-150 = 5;d_2 = 149-155 = -6;d_3 = 152-149 = 3;d_4 = 144-152 = -8。注意差分后值域更小,编码熵更低。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L08-Q6">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L08-Q6</span><span class="exercise-type">编码题</span> ZigZag 扫描后得到序列 (32, 6, -1, -1, 0, -1, 0, 0, 0, -1, 0, 0, 1, 0, 0…0)。用 RLC 编码并以 (0,0) 结束,结果是什么?</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> (0,6), (0,-1), (0,-1), (1,-1), (3,-1), (2,1), (0,0)
+<strong>解析</strong> 第一个 6 前 0 个零 → (0,6);-1 前 0 个零 → (0,-1);第二个 -1 前 0 个零 → (0,-1);第三个 -1 前 1 个零 → (1,-1);第四个 -1 前 3 个零 → (3,-1);1 前 2 个零 → (2,1);后续全零 → (0,0) EOB。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L08-Q7">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L08-Q7</span><span class="exercise-type">简答</span> 简述 JPEG 编码的完整 5 个主要步骤,并说明哪一步是不可逆的。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+1. RGB → YCbCr,并对色度做 4:2:0 子采样。<br>
+2. 把图像分成 8×8 块,每块做 2D DCT。<br>
+3. <strong>均匀标量量化</strong> <code>F̂(u,v) = round(F(u,v)/Q(u,v))</code>(此步不可逆,是有损主因)。<br>
+4. ZigZag 扫描把系数拉成一维;DC 用 DPCM,AC 用 RLC。<br>
+5. 对 DC 的 SIZE 和 AC 的 (RUNLENGTH, SIZE) 走 Huffman 熵编码,AMPLITUDE 直接输出。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L08-Q8">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L08-Q8</span><span class="exercise-type">综合应用</span> 假设你负责设计一个指纹图像压缩系统。指纹图像的特点是细密纹路 → 高频丰富,纹理细节重要。请分析:直接套用标准 JPEG 是否合适?如果不合适,提出两点改进方向。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+- <strong>不太合适</strong>:JPEG 对高频成分<strong>量化粗</strong>(Q 表右下角值大),而指纹的判读价值恰恰在高频细线上,会被严重破坏。<br>
+- <strong>改进方向 1</strong>:改用<strong>无损或近无损</strong>模式(如 JPEG-LS,或将 qf 拉到 95+),或用 JPEG2000 的小波 + EBCOT,能在低码率下保留高频。<br>
+- <strong>改进方向 2</strong>:改用针对二值/纹理的专用编码(如 Gabor 滤波 + 细节点编码),把"压缩"转为"特征压缩",这是 JPEG2000/MPEG-7 思路。
+</div>
+</details>
+</div>
+
+<h3>L09 习题</h3>
+
+<div class="exercise" data-mastery="L09-Q1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L09-Q1</span><span class="exercise-type">单选</span> 在视频压缩中,"运动补偿 (MC)"指的是?</p>
+<ul class="exercise-options">
+<li>A. 在参考帧中搜索最佳匹配块以得到运动向量</li>
+<li>B. 利用运动向量生成当前块的预测,再编码预测残差</li>
+<li>C. 对当前帧做 DCT 变换</li>
+<li>D. 对像素做颜色空间转换</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> MC 强调"补偿",即用 MV 把参考块"贴"过来作为预测,对残差编码。A 是 ME(运动估计)。两者是上下游关系。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L09-Q2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L09-Q2</span><span class="exercise-type">单选</span> H.261 中亮度宏块大小 N 为多少?色度在 4:2:0 下 N 为多少?</p>
+<ul class="exercise-options">
+<li>A. N_Y = 8, N_C = 8</li><li>B. N_Y = 16, N_C = 16</li>
+<li>C. N_Y = 16, N_C = 8</li><li>D. N_Y = 32, N_C = 16</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> 亮度 N=16(256 像素),4:2:0 下色度水平和垂直各 2:1 降采样 → N=8(64 像素)。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L09-Q3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L09-Q3</span><span class="exercise-type">多选</span> 关于三种运动估计搜索方法,下面哪些说法正确?</p>
+<ul class="exercise-options">
+<li>A. 顺序搜索一定能找到全局最优 MAD</li>
+<li>B. 2D 对数搜索的复杂度约为 O(log p · N²)</li>
+<li>C. 分层搜索从最低分辨率开始粗估再上采样精修</li>
+<li>D. 半像素精度是 H.263 之后引入的</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A, B, C, D
+<strong>解析</strong> 顺序搜索遍历所有候选 → 全局最优;对数/分层的复杂度公式与讲义一致;H.263 起使用半像素 + 双线性插值。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L09-Q4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L09-Q4</span><span class="exercise-type">计算题</span> 已知搜索参数 p=15,N=16。求顺序搜索的复杂度数量级,并算出 720×480@30fps 下的总 OPS(公式:(2p+1)²·N²·像素数·fps)。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong><br>
+- 候选数 = (2·15+1)² = 31² = 961<br>
+- 每候选比较 N² = 256 个像素,每像素 3 次操作<br>
+- 单帧 OPS = 961·256·3·720·480 ≈ 2.56×10¹¹... 但讲义给出 <strong>29.89×10⁹ OPS</strong>(与每秒宏块数 N_macros = 720·480 / 256 = 1350、每秒 OPS = 1350·30·961·256·3 ≈ 29.89×10⁹ 一致)<br>
+- <strong>答:约 29.89×10⁹ OPS/秒</strong><br>
+<strong>解析</strong> 注意分母是"每秒处理的宏块数 = (W·H/256)·fps",而不是整帧像素数 × 候选数(否则会多算 256 倍)。记住讲义表里的 29.89×10⁹。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L09-Q5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L09-Q5</span><span class="exercise-type">简答</span> 简述分层搜索 (Hierarchical Search) 的基本思想和优点。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+- 思想:原图为 Level 0,逐级 2:1 降采样得 Level 1、2;从 Level 2 低分辨率图像开始估计 MV,再到 Level 1 精修,再到 Level 0。<br>
+- 优点:低分辨率下 p 可同比缩小,N 也变小,搜索量大幅减少;并且大运动也能捕获(不会被小窗口漏掉)。<br>
+- 数据:3-level 分层 720×480@30fps/p=15 → 0.51×10⁹ OPS,相比顺序 29.89×10⁹ 节省近 60 倍。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L09-Q6">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L09-Q6</span><span class="exercise-type">论述</span> 为什么 P 帧的参考帧必须是"已解码的帧"而不是原始帧?会带来什么副作用?</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+- 根本原因:解码端拿不到原始帧,只能拿到已解码(重建)的帧;如果编/解码用的参考不一致,会出现<strong>漂移 (drift)</strong>,失真累积放大。<br>
+- 副作用:量化误差进入参考帧 → 残差实际编码时使用"有损参考" → 一定会有误差累积;这是 DPCM 系统的共性问题,也是为什么 I 帧需要定期重发(充当 reset 点)。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L09-Q7">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L09-Q7</span><span class="exercise-type">综合应用</span> 设计一个低码率 (&lt;64 kbps) 远程监控系统的视频压缩方案:在带宽极受限、丢包较多、运动缓慢的场景下,应优先选哪种运动估计方法?为什么?</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+- 选<strong>分层 (Hierarchical) 搜索</strong>:复杂度最低(0.51×10⁹ vs 顺序 29.89×10⁹ OPS),省电/省算力;且对缓慢运动最适配。<br>
+- 配合:① 低频发送 I 帧以抵抗丢包漂移;② 搜索半径 p 取小(如 7),进一步省计算;③ 用对数搜索作折中。<br>
+- 避免用 B 帧(增加编码延迟,监控不要求双向预测)。
+</div>
+</details>
+</div>
+
+<h3>L10 习题</h3>
+
+<div class="exercise" data-mastery="L10-Q1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L10-Q1</span><span class="exercise-type">单选</span> H.261 标准的设计目标和码率范围是?</p>
+<ul class="exercise-options">
+<li>A. VCD 存储,1.5 Mbps</li><li>B. DVD 存储,4–8 Mbps</li>
+<li>C. ISDN 可视电话/会议,p×64 kbps(p=1..30)</li><li>D. 4K/8K 直播,&gt;50 Mbps</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> H.261 1990 年标准化,专为 ISDN 上的 p×64 kbps 可视电话/会议,编码延迟 &lt;150 ms。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L10-Q2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L10-Q2</span><span class="exercise-type">单选</span> MPEG-1 与 H.261 的主要区别之一是?</p>
+<ul class="exercise-options">
+<li>A. MPEG-1 引入 B 帧和双向预测</li><li>B. MPEG-1 不支持色度子采样</li><li>C. MPEG-1 用于 ISDN</li><li>D. MPEG-1 不使用 DCT</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A
+<strong>解析</strong> MPEG-1 引入 B 帧 (Bidirectional) 和双向运动补偿,可从前后两个参考帧做预测;其他描述均与 MPEG-1 实际不符。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L10-Q3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L10-Q3</span><span class="exercise-type">多选</span> 关于 MPEG B 帧,下面哪些说法正确?</p>
+<ul class="exercise-options">
+<li>A. B 帧最多有 2 个运动向量</li>
+<li>B. B 帧的压缩比通常高于 P 帧</li>
+<li>C. B 帧可以被其他 P 帧作为参考</li>
+<li>D. B 帧不适用于低时延应用</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A, B, D
+<strong>解析</strong> A 正确:前向 + 后向各一个 MV。B 正确:B 帧约 50:1,优于 P 帧的 20:1。C 错误:传统 MPEG-1/2/4 中 B 帧不作为其他帧的参考(H.264 起才支持 B 参考)。D 正确:双向预测需要等未来参考帧编码完成,引入编码延迟。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L10-Q4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L10-Q4</span><span class="exercise-type">计算题</span> 已知 MPEG-1 中 I/P/B 帧的典型压缩比分别为 7:1、20:1、50:1。设一个 IBBPBBPBBP 序列(10 帧中 1 个 I、3 个 P、6 个 B),求平均压缩比。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong><br>
+- 每组 IBBPBBPBBP = 10 帧,1 I + 3 P + 6 B<br>
+- 用帧大小倒数加权:1/7 + 3/20 + 6/50 ≈ 0.1429 + 0.15 + 0.12 = 0.4129<br>
+- 原始数据量 / 压缩后数据量 = 10 / 0.4129 ≈ <strong>24.2:1</strong>(与讲义 "Avg ≈ 27:1" 量级一致)<br>
+<strong>解析</strong> 实际算的是"加权平均大小",再取倒数。注意各帧大小与其压缩比成反比:B 帧 2.5 kB、I 帧 18 kB、P 帧 6 kB,每 10 帧总大小 18+3×6+6×2.5 = 18+18+15 = 51 kB;原始 10 帧 18×10 = 180 kB → 180/51 ≈ 3.53 (但这样算的是 I 帧大小 18kB 对应 7:1,所以原始 1 帧 = 7×18 = 126 kB?) 实际上 18 kB 已经是压缩后大小,原始 = 7×18=126 kB。则 10 帧原始 = 1260 kB,压缩后 51 kB → <strong>≈ 24.7:1</strong>。与讲义 27:1 量级吻合。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L10-Q5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L10-Q5</span><span class="exercise-type">简答</span> 简述 I 帧、P 帧、B 帧的区别(包括参考关系、压缩率、典型用途)。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+- <strong>I 帧 (Intra)</strong>:独立编码,只去空间冗余,类似 JPEG;压缩率最低(7:1),但可独立解码、抗丢播、定期刷新。<br>
+- <strong>P 帧 (Predicted)</strong>:从前一个 I/P 帧做<strong>前向</strong>预测,1 个 MV;压缩率 20:1。<br>
+- <strong>B 帧 (Bi-directional)</strong>:从前后两个 I/P 帧做双向预测,最多 2 个 MV;压缩率 50:1;但增加编码延迟。<br>
+- 用途:I 帧用于随机访问/错误恢复;P 帧为主体;B 帧用于高压缩、非实时场景。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L10-Q6">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L10-Q6</span><span class="exercise-type">论述</span> 为什么 H.264/AVC 能在相同画质下比 MPEG-2 节省 50% 码率?请从预测、变换、熵编码三方面各举一项技术。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+- <strong>预测</strong>:H.264 引入可变块大小(4×4 到 16×16)、多达 9 种帧内方向预测、1/4 像素精度运动估计、多参考帧;而 MPEG-2 只能用 16×16 块、整像素 MV。<br>
+- <strong>变换</strong>:H.264 用 4×4 整数 DCT(避免浮点失配),可逐宏块自适应。<br>
+- <strong>熵编码</strong>:H.264 在 Baseline 用 CAVLC,在 Main/High 用 CABAC(上下文自适应二进制算术编码),压缩率显著优于 MPEG-2 的固定 Huffman。<br>
+- 综合上述技术,H.264 在同画质下码率约为 MPEG-2 的 50%。
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="L10-Q7">
+<div class="exercise-stem">
+<p><span class="exercise-qid">L10-Q7</span><span class="exercise-type">综合应用</span> 设计一个 VOD (Video on Demand) 点播系统:要求支持随机 seek、码率约 2 Mbps、抗网络抖动。请说明 GOP (Group of Pictures) 结构、I 帧间隔和 B 帧使用建议。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+- <strong>GOP 结构</strong>:典型 IBBPBBPBBPBBPBB(15 帧或 12 帧一个 GOP)。<br>
+- <strong>I 帧间隔</strong>:1 个 I 帧/秒(1×GOP=1s)→ 用户 seek 等待 ≤ 1s;网络丢包后下一 I 帧能快速恢复。<br>
+- <strong>B 帧使用</strong>:可大胆使用 2 个连续 B 帧,因为 VOD 不是实时(编码可在服务端预生成,延迟不敏感);同时获得 50:1 压缩。<br>
+- 抗抖动:加 buffer + ABR (Adaptive Bitrate) 切换;用 H.264/H.265 而非 MPEG-2,2 Mbps 即可达 DVD 画质。
+</div>
+</details>
+</div>
+</section>
+
+<!-- ============ 第 3 部分:Cheat Sheet ============ -->
+<section>
+<h2><span class="num">III.</span>Cheat Sheet · 一页速查</h2>
+
+<div class="cheat-card">
+<h3>关键公式</h3>
+<table>
+<thead><tr><th>名称</th><th>公式 / 形式</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>DCT 量化</td><td><code>F̂(u,v) = round(F(u,v) / Q(u,v))</code></td><td>JPEG 不可逆步骤,压缩主因</td></tr>
+<tr><td>质量因子 (qf≥50)</td><td><code>scaling = (100 - qf) / 50</code></td><td>越大→Q 越小→质量越高</td></tr>
+<tr><td>质量因子 (qf&lt;50)</td><td><code>scaling = 50 / qf</code></td><td>同上</td></tr>
+<tr><td>DPCM (DC)</td><td><code>d_i = DC_{i+1} - DC_i</code></td><td>相邻块 DC 差分</td></tr>
+<tr><td>MAD 准则</td><td><code>MAD(i,j) = (1/N²) Σ|T-R|</code></td><td>越小越相似</td></tr>
+<tr><td>搜索窗口大小</td><td><code>(2p+1) × (2p+1)</code></td><td>MV 搜索范围</td></tr>
+<tr><td>顺序搜索复杂度</td><td><code>O(p² N²)</code></td><td>全局最优但慢</td></tr>
+<tr><td>对数搜索复杂度</td><td><code>O(log p · N²)</code></td><td>准最优,廉价</td></tr>
+<tr><td>分层搜索复杂度</td><td><code>O(每级)</code></td><td>多分辨率,先粗后精</td></tr>
+<tr><td>压缩比</td><td><code>CR = 原始大小 / 压缩后大小</code></td><td>越大越好</td></tr>
+<tr><td>4:2:0 数据比</td><td>Y:Cb:Cr = 4:2:0 = 2:1:0</td><td>色度是亮度 1/2</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>关键数字 / 阈值</h3>
+<table>
+<thead><tr><th>项目</th><th>数值</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>JPEG 块大小</td><td>8×8 = 64 系数</td><td>DCT/量化/扫描的最小单位</td></tr>
+<tr><td>宏块 N (亮度)</td><td>16×16</td><td>H.261 起所有视频标准的运动估计单位</td></tr>
+<tr><td>宏块 N (4:2:0 色度)</td><td>8×8</td><td>色度降采样后与亮度同尺寸</td></tr>
+<tr><td>H.261 搜索 p</td><td>15</td><td>→ 31×31 窗口</td></tr>
+<tr><td>H.261 延迟上限</td><td>150 ms</td><td>实时双向会议</td></tr>
+<tr><td>H.261 码率</td><td>p×64 kbps, p=1..30</td><td>64 kbps ~ 1.92 Mbps</td></tr>
+<tr><td>MPEG-1 码率</td><td>≤ 1.5 Mbps</td><td>VCD 标准</td></tr>
+<tr><td>MPEG-1 SIF</td><td>352×240 (NTSC) / 352×288 (PAL)</td><td>源格式</td></tr>
+<tr><td>MPEG-4 码率</td><td>5 kbps ~ 10 Mbps</td><td>极宽适应</td></tr>
+<tr><td>qf 范围</td><td>1..100</td><td>100=最高质量</td></tr>
+<tr><td>I/P/B 压缩比</td><td>7:1 / 20:1 / 50:1</td><td>MPEG-1 典型值</td></tr>
+<tr><td>MPEG-1 平均压缩比</td><td>≈ 27:1</td><td>混合序列</td></tr>
+<tr><td>OPS @ 720×480/30fps/p=15</td><td>顺序 29.89G / 对数 1.25G / 分层 0.51G</td><td>详见 L09 表</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>JPEG vs JPEG2000</h3>
+<table>
+<thead><tr><th>维度</th><th>JPEG</th><th>JPEG2000</th></tr></thead>
+<tbody>
+<tr><td>变换</td><td>8×8 DCT</td><td>小波 (DWT)</td></tr>
+<tr><td>有损/无损</td><td>主要有损</td><td>统一框架,支持无损</td></tr>
+<tr><td>码流组织</td><td>顺序</td><td>分辨率/质量渐进</td></tr>
+<tr><td>复杂度</td><td>较低</td><td>较高</td></tr>
+<tr><td>推广度</td><td>极广</td><td>受专利/工具链限制</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>有损 vs 无损压缩</h3>
+<table>
+<thead><tr><th>维度</th><th>无损</th><th>有损</th></tr></thead>
+<tbody>
+<tr><td>失真</td><td>0</td><td>有(量化是主要来源)</td></tr>
+<tr><td>压缩比</td><td>低 (2-3:1)</td><td>高 (10-50:1)</td></tr>
+<tr><td>例子</td><td>Huffman, LZW, RLE</td><td>JPEG, MPEG, H.26x</td></tr>
+<tr><td>适用</td><td>文本/程序/医学</td><td>图像/视频/音频</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>帧内 vs 帧间预测</h3>
+<table>
+<thead><tr><th>维度</th><th>帧内 (Intra)</th><th>帧间 (Inter)</th></tr></thead>
+<tbody>
+<tr><td>冗余类型</td><td>空间</td><td>空间 + 时间</td></tr>
+<tr><td>参考</td><td>当前帧内部块</td><td>前/后帧</td></tr>
+<tr><td>工具</td><td>DCT + 量化</td><td>MC + DCT + 量化</td></tr>
+<tr><td>典型压缩比</td><td>低 (7:1)</td><td>高 (20-50:1)</td></tr>
+<tr><td>帧类型</td><td>I 帧</td><td>P/B 帧</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>H.26x vs MPEG-x 协议族对应关系</h3>
+<table>
+<thead><tr><th>视频标准</th><th>联合标准名</th><th>主要场景</th><th>年份</th></tr></thead>
+<tbody>
+<tr><td>H.261</td><td>—</td><td>ISDN 可视电话</td><td>1990</td></tr>
+<tr><td>MPEG-1</td><td>—</td><td>VCD 存储</td><td>1991</td></tr>
+<tr><td>MPEG-2</td><td>H.262</td><td>DVD / DTV</td><td>1995</td></tr>
+<tr><td>H.263</td><td>—</td><td>低码率可视电话</td><td>1995/96</td></tr>
+<tr><td>MPEG-4</td><td>H.264 = AVC</td><td>通用视频</td><td>2003</td></tr>
+<tr><td>H.265</td><td>HEVC</td><td>高清/4K</td><td>2013</td></tr>
+<tr><td>H.266</td><td>VVC</td><td>4K/8K/VR/AR</td><td>2020</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>JPEG 编码 5 大步骤</h3>
+<pre>
+1. RGB → YCbCr + 4:2:0 子采样
+2. 分块 8×8 → 2D DCT
+3. 均匀标量量化 (F̂ = round(F/Q))     ← 不可逆,主因
+4. ZigZag → DC 用 DPCM / AC 用 RLC
+5. 熵编码 (Huffman) + 文件打包 (SOI/EOI)
+</pre>
+<p style="font-size:0.92em; color:var(--ink-soft);">JPEG 解码:EOI → SOI 方向,依次为:熵解码 → 反 RLC/DPCM → 反 ZigZag → 反量化 → IDCT → 合并块 → YCbCr → RGB。</p>
+</div>
+
+<div class="cheat-card">
+<h3>H.261 I 帧编码</h3>
+<pre>
+分宏块 (16×16 Y + 8×8 Cb + 8×8 Cr)
+  └─ 每个 8×8 块:
+       DCT → 量化(宏块内 step_size 统一) → ZigZag → Huffman
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>H.261 P 帧编码</h3>
+<pre>
+对每个宏块:
+  1. ME 找 MV (顺序/对数/分层)
+  2. 用 MV 在参考帧 (已解码) 中取匹配块
+  3. 计算残差 = 当前块 - 预测块
+  4. 若残差大 → 跳过 MC, 按 I 块编码
+  5. 残差 → DCT → 量化 → ZigZag → Huffman
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>H.264/AVC 较 H.261 改进点</h3>
+<pre>
+1. 预测: 4×4 ~ 16×16 可变块, 9 种帧内方向, 1/4 像素, 多参考帧
+2. 变换: 4×4 整数 DCT (避免失配)
+3. 熵编码: CAVLC / CABAC (vs 固定 Huffman)
+</pre>
+</div>
+
+<div class="cheat-card">
+<h3>易混淆点 (Trap Map)</h3>
+<table>
+<thead><tr><th>混淆项</th><th>区分</th></tr></thead>
+<tbody>
+<tr><td>量化 vs 采样</td><td>采样是<strong>空间/时间</strong>离散化(决定信号保留);量化是<strong>幅度</strong>离散化(决定精度)</td></tr>
+<tr><td>DCT vs DFT</td><td>DCT 实数、无虚部、能谱更集中;DFT 复数;图像压缩几乎都用 DCT</td></tr>
+<tr><td>DPCM vs 差分编码</td><td>DPCM = 预测 + 量化 + 编码;一般"差分"只是减法</td></tr>
+<tr><td>ME vs MC</td><td>ME = 找 MV;MC = 用 MV 生成预测</td></tr>
+<tr><td>场 vs 帧</td><td>帧=完整一帧;场=隔行扫描的奇/偶数行(MPEG-1 不支持隔行,MPEG-2 起支持)</td></tr>
+<tr><td>CIF vs QCIF vs SIF</td><td>CIF=352×288, QCIF=176×144, SIF=352×240/288(MPEG-1)</td></tr>
+<tr><td>qf 越大 vs 质量越高</td><td>qf 大 → scaling 小 → Q 小 → 量化细 → 质量高。两者<strong>正相关</strong></td></tr>
+<tr><td>H.261 P 帧 vs H.264 P 帧</td><td>H.261 P 只能前向、整像素、单一参考;H.264 P 可多参考、1/4 像素、双向 (B)</td></tr>
+<tr><td>MPEG-4 ≠ H.264</td><td>MPEG-4 是协议族 (Part 1-27);H.264/AVC = MPEG-4 Part 10;MPEG-4 Part 2 (Visual) 是更早的 Simple/Advanced Simple Profile</td></tr>
+<tr><td>H.262 / H.264 / H.265 / H.266</td><td>分别 = MPEG-2 / MPEG-4 Part 10 (AVC) / MPEG-H Part 2 (HEVC) / MPEG-I Part 3 (VVC)</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="cheat-card">
+<h3>复习建议</h3>
+<ol>
+<li><strong>必背</strong>:JPEG 5 步、H.261 I/P 帧流程、MPEG I/P/B 区别、运动估计三种方法复杂度。</li>
+<li><strong>必会算</strong>:DPCM 差分、4:2:0 压缩后大小、qf→scaling、压缩比、OPS 估算。</li>
+<li><strong>必对比</strong>:JPEG vs JPEG2000、H.261 vs H.264、MPEG-1 vs MPEG-4、有损 vs 无损、帧内 vs 帧间。</li>
+</ol>
+</div>
+</section>
+
+</article>
+</main>
+
+<footer>
+<p>祝期末顺利 · 专注多媒体压缩 · 用编码讲故事</p>
+<p class="meta">L08-L10 复习专题 · 10 + 8 + 10 考点 · 8 + 7 + 7 习题 · 12 张 Cheat Sheet 卡片 · 期末冲刺</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const states = JSON.parse(localStorage.getItem('mastery') || '{}');
+  document.querySelectorAll('[data-mastery]').forEach(el => {
+    const key = el.dataset.mastery;
+    const cb = el.querySelector('input[type=checkbox]');
+    const lbl = el.querySelector('.mastery');
+    if (states[key] && cb) {
+      cb.checked = true;
+      if (lbl) lbl.classList.add('checked');
+    }
+    if (cb) {
+      cb.addEventListener('change', () => {
+        states[key] = cb.checked;
+        localStorage.setItem('mastery', JSON.stringify(states));
+        if (lbl) lbl.classList.toggle('checked', cb.checked);
+      });
+    }
+  });
+});
+</script>
+
+</body>
+</html>

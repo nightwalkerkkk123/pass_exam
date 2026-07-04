@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>模拟期末试卷 · 100 分</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --measure: 72ch;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0;
+  background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased;
+}
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 1080px; margin: 0 auto; text-align: center; padding-bottom: var(--space-3); border-bottom: 1px solid var(--rule); }
+.masthead-title { font-family: var(--serif); font-size: var(--text-2xl); font-weight: 700; letter-spacing: 0.04em; margin-bottom: var(--space-1); }
+.masthead-sub { font-family: var(--serif); font-style: italic; font-size: var(--text-sm); color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.primary-nav { max-width: 1080px; margin: var(--space-3) auto 0; display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); justify-content: center; font-family: var(--sans); font-size: var(--text-sm); }
+.primary-nav a { color: var(--ink); text-decoration: none; padding: 2px 6px; border-bottom: 1px solid transparent; transition: all 0.15s ease; }
+.primary-nav a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.primary-nav a.active { color: var(--accent); font-weight: 700; }
+.nav-divider { color: var(--ink-mute); user-select: none; }
+main { max-width: 1080px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.02em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.02em; clear: both; }
+h2 .num { display: inline-block; font-size: 0.65em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); color: var(--ink); font-weight: 700; }
+h4 { font-size: var(--text-lg); margin: var(--space-5) 0 var(--space-2); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+pre { font-family: var(--mono); font-size: 0.88em; background: var(--paper-soft); border-left: 3px solid var(--accent); padding: var(--space-3) var(--space-4); overflow-x: auto; margin: var(--space-4) 0; line-height: 1.5; }
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+.tag { display: inline-block; font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 1px 8px; border-radius: 2px; margin-left: var(--space-2); vertical-align: middle; font-weight: 700; }
+.tag-high { background: var(--accent); color: var(--paper); }
+.tag-mid { background: var(--highlight); color: var(--paper); }
+.tag-low { background: var(--ink-mute); color: var(--paper); }
+.exam-point { background: var(--paper-soft); border-left: 4px solid var(--accent); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; position: relative; }
+.exam-point-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--space-2); font-family: var(--sans); font-size: var(--text-sm); }
+.exam-point-id { color: var(--accent); font-weight: 700; letter-spacing: 0.04em; }
+.exam-point h4 { margin-top: 0; margin-bottom: var(--space-2); font-size: var(--text-lg); }
+.exam-point dl { display: grid; grid-template-columns: 90px 1fr; gap: var(--space-1) var(--space-3); margin: var(--space-2) 0; font-size: 0.94em; }
+.exam-point dt { font-family: var(--sans); font-weight: 700; font-size: var(--text-sm); color: var(--accent); }
+.exam-point dd { margin: 0; }
+.exercise { background: var(--paper); border: 1px solid var(--rule); margin: var(--space-4) 0; }
+.exercise-qid { font-weight: 700; color: var(--accent); margin-right: var(--space-3); font-family: var(--sans); }
+.exercise-type { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-mute); background: var(--paper); padding: 1px 6px; border-radius: 2px; font-family: var(--sans); }
+.exercise-stem { padding: var(--space-4) var(--space-4) 0; font-size: var(--text-base); }
+.exercise-options { list-style: upper-alpha; padding-left: var(--space-6); margin: var(--space-3) var(--space-4); }
+.exercise-toggle { margin: var(--space-3) var(--space-4) var(--space-4); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.exercise-toggle summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--accent); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; list-style: none; padding: var(--space-2) 0; }
+.exercise-toggle summary::-webkit-details-marker { display: none; }
+.exercise-toggle summary::before { content: '▸ '; display: inline-block; margin-right: 4px; }
+.exercise-toggle[open] summary::before { content: '▾ '; }
+.exercise-answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.exercise-answer strong { color: var(--success); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.04em; text-transform: uppercase; display: block; margin-bottom: var(--space-1); }
+.mastery { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); color: var(--ink-soft); user-select: none; }
+.mastery input { cursor: pointer; }
+.mastery.checked { color: var(--success); }
+.cheat-card { background: var(--paper); border: 2px solid var(--ink); padding: var(--space-5); margin: var(--space-5) 0; break-inside: avoid; }
+.cheat-card h3 { margin-top: 0; border-bottom: 2px solid var(--ink); padding-bottom: var(--space-2); font-family: var(--serif); letter-spacing: 0.04em; text-transform: uppercase; font-size: var(--text-lg); }
+.cheat-card table { font-size: 0.9em; }
+article > p:first-of-type::first-letter { font-size: 3.2em; float: left; line-height: 0.9; margin: 0.05em var(--space-3) 0 0; font-weight: 700; color: var(--accent); }
+footer { max-width: 1080px; margin: var(--space-8) auto var(--space-6); padding: var(--space-5) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--serif); font-style: italic; color: var(--ink-soft); font-size: var(--text-sm); }
+footer .meta { font-family: var(--sans); font-style: normal; letter-spacing: 0.04em; text-transform: uppercase; font-size: 11px; color: var(--ink-mute); margin-top: var(--space-3); }
+@media (max-width: 720px) {
+  :root { --text-3xl: 32px; --text-2xl: 24px; --text-xl: 20px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  .exam-point dl { grid-template-columns: 1fr; }
+  article > p:first-of-type::first-letter { font-size: 2.6em; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 期末冲刺</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 第二讲至第十二讲</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="index.html">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="lectures/L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="lectures/L04-L05-视频与音频基础.html">L04-05</a>
+    <a href="lectures/L06-L07-压缩算法.html">L06-07</a>
+    <a href="lectures/L08-L10-压缩标准与视频压缩.html">L08-10</a>
+    <a href="lectures/L11-L12-检索与深度学习.html">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="cheat-sheet.html">速查表</a>
+    <a href="mock-exam.html" class="active">模拟卷</a>
+    <a href="error-list.html">易错清单</a>
+    <a href="sprint-plan.html">冲刺清单</a>
+    <a href="formulas.html">公式手册</a>
+    <a href="glossary.html">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">模拟期末试卷 · 100 分</h1>
+<p class="lede">5 大题型 / 26 道题 / 90 分钟 / 难度贴近真实期末</p>
+
+<!-- ============ 一、选择题 ============ -->
+<section>
+<h2><span class="num">I.</span>一、选择题(每题 1 分,共 10 分)</h2>
+
+<div class="exercise" data-mastery="exam-q1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">Q1</span><span class="exercise-type">单选</span> 一幅 1920×1080 的 24-bit RGB 图像,转为 YCbCr 4:2:0 后每像素字节数为?</p>
+<ul class="exercise-options">
+<li>A. 3 B/px</li><li>B. 2 B/px</li><li>C. 1.5 B/px</li><li>D. 1 B/px</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> 4:2:0 每 2×2 块 = Y(4)+Cb(1)+Cr(1) = 6 B / 4 = 1.5 B/px。
+<strong>涉及</strong> L03/L04/L08
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-q2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">Q2</span><span class="exercise-type">单选</span> 22.05 kHz 声音,按奈奎斯特定理最低采样率应为?</p>
+<ul class="exercise-options">
+<li>A. 22.05 kHz</li><li>B. 33.075 kHz</li><li>C. 44.1 kHz</li><li>D. 88.2 kHz</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> f_sample ≥ 2×f_max = 2×22.05 = 44.1 kHz(CD 标准)。
+<strong>涉及</strong> L05
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-q3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">Q3</span><span class="exercise-type">单选</span> Huffman 编码满足 η ≤ l̄ &lt; η+1,若某信源概率为 {1/2, 1/4, 1/8, 1/8},其熵为?</p>
+<ul class="exercise-options">
+<li>A. 1.5 bit/symbol</li><li>B. 1.75 bit/symbol</li><li>C. 2.0 bit/symbol</li><li>D. 2.5 bit/symbol</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> η = 1/2·1 + 1/4·2 + 1/8·3 + 1/8·3 = 0.5 + 0.5 + 0.375 + 0.375 = 1.75。
+<strong>涉及</strong> L06
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-q4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">Q4</span><span class="exercise-type">单选</span> JPEG 标准中,有损压缩的主要来源是?</p>
+<ul class="exercise-options">
+<li>A. RGB→YCbCr 变换</li><li>B. 8×8 DCT 变换</li><li>C. 均匀标量量化</li><li>D. Huffman 编码</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> DCT/RGB变换/Huffman 都可逆;只有量化 F̂ = round(F/Q) 不可逆。
+<strong>涉及</strong> L07/L08
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-q5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">Q5</span><span class="exercise-type">单选</span> H.261 中亮度宏块大小 N_Y 与 4:2:0 下色度宏块大小 N_C 分别是?</p>
+<ul class="exercise-options">
+<li>A. N_Y=8, N_C=8</li><li>B. N_Y=16, N_C=16</li><li>C. N_Y=16, N_C=8</li><li>D. N_Y=32, N_C=16</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> 亮度 16×16;4:2:0 色度水平/垂直各 2:1 → 8×8。
+<strong>涉及</strong> L09/L10
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-q6">
+<div class="exercise-stem">
+<p><span class="exercise-qid">Q6</span><span class="exercise-type">单选</span> 关于 SIFT 检测子使用 DoG 近似 LoG 的原因,正确的是?</p>
+<ul class="exercise-options">
+<li>A. DoG 精度更高</li><li>B. DoG 计算更简单</li><li>C. DoG 具有仿射不变性而 LoG 没有</li><li>D. DoG 在离散像素上更容易实现</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> DoG = 两个高斯图像相减,无需二阶微分,计算量大幅降低。
+<strong>涉及</strong> L11
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-q7">
+<div class="exercise-stem">
+<p><span class="exercise-qid">Q7</span><span class="exercise-type">单选</span> 对 32×32 输入用 10 个 5×5 卷积核、stride=1、padding=2,输出特征图尺寸?</p>
+<ul class="exercise-options">
+<li>A. 32×32×10</li><li>B. 28×28×10</li><li>C. 30×30×10</li><li>D. 32×32×5</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A
+<strong>解析</strong> (32 + 2×2 − 5)/1 + 1 = 32;深度 = 卷积核数 = 10。
+<strong>涉及</strong> L12
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-q8">
+<div class="exercise-stem">
+<p><span class="exercise-qid">Q8</span><span class="exercise-type">单选</span> 已知 qf=25,按 JPEG 公式 scaling_factor = ?</p>
+<ul class="exercise-options">
+<li>A. 0.5</li><li>B. 1.0</li><li>C. 2.0</li><li>D. 3.0</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> C
+<strong>解析</strong> qf&lt;50 时 scaling = 50/qf = 50/25 = 2.0。
+<strong>涉及</strong> L08
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-q9">
+<div class="exercise-stem">
+<p><span class="exercise-qid">Q9</span><span class="exercise-type">单选</span> ResNet 残差网络主要解决的问题是?</p>
+<ul class="exercise-options">
+<li>A. 梯度消失</li><li>B. 深度退化(训练误差随深度增加而增大)</li><li>C. 过拟合</li><li>D. 数据不足</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> B
+<strong>解析</strong> 残差结构让 F(x)=0 成为恒等映射,易学,可训练超深网络;不是解决梯度消失。
+<strong>涉及</strong> L12
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-q10">
+<div class="exercise-stem">
+<p><span class="exercise-qid">Q10</span><span class="exercise-type">单选</span> MPEG-1 I/P/B 帧的典型压缩比约为?</p>
+<ul class="exercise-options">
+<li>A. 7:1 / 20:1 / 50:1</li><li>B. 10:1 / 15:1 / 20:1</li><li>C. 5:1 / 10:1 / 15:1</li><li>D. 都是 7:1</li>
+</ul>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> A
+<strong>解析</strong> I 帧类似 JPEG (7:1),P 帧 20:1,B 帧 50:1(双向预测最高)。
+<strong>涉及</strong> L10
+</div>
+</details>
+</div>
+</section>
+
+<!-- ============ 二、填空题 ============ -->
+<section>
+<h2><span class="num">II.</span>二、填空题(每题 2 分,共 10 分)</h2>
+
+<div class="exercise" data-mastery="exam-t1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">T1</span><span class="exercise-type">填空</span> 一幅 800×600 的 24-bit 真彩色图像,转换为 8-bit 灰度图后数据量约为 _____ KB。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> 468.75 KB
+<strong>解析</strong> 800×600×1 = 480,000 B ≈ 468.75 KB。
+<strong>涉及</strong> L02
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-t2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">T2</span><span class="exercise-type">填空</span> 16-bit 量化的理论 SQNR 约为 _____ dB。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> 96 dB
+<strong>解析</strong> SQNR = 6.02 × 16 ≈ 96 dB(CD 音质)。
+<strong>涉及</strong> L05
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-t3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">T3</span><span class="exercise-type">填空</span> H.261 标准中,搜索窗口大小由 p 决定。当 p=15 时窗口为 _____ × _____ = _____ 个候选位置。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> 31 × 31 = 961
+<strong>解析</strong> (2p+1)² = 31² = 961。
+<strong>涉及</strong> L09/L10
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-t4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">T4</span><span class="exercise-type">填空</span> SIFT 描述子采用 _____ × _____ 分块,每块统计 _____ 个方向的梯度,共 _____ 维。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> 4 × 4 分块,8 个方向,共 128 维
+<strong>解析</strong> 4×4×8 = 128 维。
+<strong>涉及</strong> L11
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-t5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">T5</span><span class="exercise-type">填空</span> AlexNet 成功的关键因素包括:ReLU 激活函数解决了 sigmoid 的 _____ 问题;使用 Dropout 和 _____ 防止过拟合。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> 梯度消失;数据增强 (Data Augmentation)
+<strong>解析</strong> AlexNet 四大法宝:ReLU、Dropout、数据增强、双 GPU。
+<strong>涉及</strong> L12
+</div>
+</details>
+</div>
+</section>
+
+<!-- ============ 三、计算题 ============ -->
+<section>
+<h2><span class="num">III.</span>三、计算题(每题 6 分,共 30 分)</h2>
+
+<div class="exercise" data-mastery="exam-c1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">C1</span><span class="exercise-type">计算题</span> 一幅 256×256 的 8-bit 灰度图像,压缩前后 MSE = 100,求 PSNR (dB)。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong> PSNR ≈ 28.13 dB
+<strong>解析</strong> x_peak = 255, x²_peak = 65025;PSNR = 10·log10(65025/100) = 10·log10(650.25) ≈ 28.13 dB。
+<strong>涉及</strong> L07
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-c2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">C2</span><span class="exercise-type">计算题</span> 一段 1920×1080、30fps、4:2:0 的 HD 视频,求:<br>
+(1) 单帧数据量;<br>
+(2) 1 秒数据量 (MB);<br>
+(3) 与原始 RGB (3 B/px) 相比压缩比。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong><br>
+(1) 1920×1080×1.5 ≈ <strong>3.11 MB</strong><br>
+(2) 3.11 × 30 ≈ <strong>93.3 MB/s</strong><br>
+(3) RGB 原始 = 1920×1080×3×30 ≈ 186.6 MB/s;压缩比 = 186.6/93.3 = <strong>2:1</strong>
+<strong>解析</strong> 4:2:0 子采样已经带来 2:1 的视觉无损压缩。
+<strong>涉及</strong> L04
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-c3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">C3</span><span class="exercise-type">计算题</span> 用 Huffman 编码对符号 A=15, B=7, C=6, D=6, E=5(共 39 字符)编码,求:<br>
+(1) Huffman 平均码长 l̄;<br>
+(2) 理想熵 η;<br>
+(3) 与 8-bit 定长编码的压缩比 CR。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong><br>
+(1) l̄ = (1×15 + 3×7 + 3×6 + 3×6 + 3×5)/39 = 87/39 ≈ <strong>2.23 bit/symbol</strong><br>
+(2) η = −Σ pi·log2(pi) ≈ <strong>2.19 bit/symbol</strong><br>
+(3) CR = 8/2.23 ≈ <strong>3.59</strong>
+<strong>解析</strong> Huffman 树构造使 A 用 1 bit,其他用 3 bit。
+<strong>涉及</strong> L06
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-c4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">C4</span><span class="exercise-type">计算题</span> 对一个 224×224×3 的输入图像做卷积:第一层用 64 个 3×3 卷积核 (stride=1, padding=1);第二层用 128 个 3×3 卷积核 (stride=1, padding=1);第三层用 2×2 MaxPool (stride=2)。求每层输出尺寸和参数量。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong><br>
+C1 输出 = (224+2−3)/1+1 = 224 → <strong>224×224×64</strong>;参数 = (3×3×3+1)×64 = <strong>1,792</strong><br>
+C2 输出 = (224+2−3)/1+1 = 224 → <strong>224×224×128</strong>;参数 = (3×3×64+1)×128 = <strong>73,856</strong><br>
+P3 输出 = (224−2)/2+1 = 112 → <strong>112×112×128</strong>;参数 = <strong>0</strong>
+<strong>解析</strong> 池化层无参数;每个卷积核深度 = 输入通道数。
+<strong>涉及</strong> L12
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-c5">
+<div class="exercise-stem">
+<p><span class="exercise-qid">C5</span><span class="exercise-type">计算题</span> 一段 MPEG-1 视频采用 IBBPBBPBBP 序列(10 帧:1 I、3 P、6 B),I/P/B 压缩比为 7:1/20:1/50:1。求:<br>
+(1) 每 10 帧的"加权平均大小";<br>
+(2) 平均压缩比。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答案</strong><br>
+(1) 设原始 1 帧大小 = 1;则 I = 1/7, P = 1/20, B = 1/50;<br>
+总大小 = 1/7 + 3/20 + 6/50 = 0.1429 + 0.15 + 0.12 = <strong>0.4129</strong><br>
+(2) 平均压缩比 = 10/0.4129 ≈ <strong>24.2:1</strong>(与讲义 27:1 量级一致)
+<strong>解析</strong> 帧大小与压缩比成反比;平均压缩比 = 总原始大小 / 总压缩后大小。
+<strong>涉及</strong> L10
+</div>
+</details>
+</div>
+</section>
+
+<!-- ============ 四、简答题 ============ -->
+<section>
+<h2><span class="num">IV.</span>四、简答题(每题 5 分,共 20 分)</h2>
+
+<div class="exercise" data-mastery="exam-s1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">S1</span><span class="exercise-type">简答</span> 简述 RGB 不适合直接压缩而 YCbCr 适合压缩的 3 个原因。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+1. <strong>人眼特性</strong>:对亮度 (Y) 变化敏感,对色度 (Cb/Cr) 不敏感 → 可对色度粗处理;<br>
+2. <strong>解相关</strong>:YCbCr 各通道相关性远低于 RGB → 压缩效率高;<br>
+3. <strong>可分离压缩</strong>:可对 Cb/Cr 下采样 (4:2:0、4:2:2) 节省带宽,视觉影响小;<br>
+4. <strong>兼容电视系统</strong>:源自模拟电视(PAL 用 YUV、NTSC 用 YIQ),数字时代统一为 YCbCr。
+<strong>涉及</strong> L03/L04/L08
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-s2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">S2</span><span class="exercise-type">简答</span> 简述 Huffman 编码的构造步骤,并解释为什么 Huffman 码满足"唯一前缀性质"。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+1. 把所有符号按频次从大到小排序成表;<br>
+2. 取出频次最小的两个节点作为左右子树,新节点频次 = 两子节点之和;<br>
+3. 新节点插入表中保持有序;<br>
+4. 重复 2-3 直至表只剩一个节点(根);<br>
+5. 对每条边赋 0(左)/ 1(右),从根到叶的路径即码字。<br>
+<strong>唯一前缀性原因</strong>:码字对应二叉树的叶子节点,叶子无子女,因此任何码字都不是其他码字的前缀(前缀性),保证解码时即时匹配无歧义。
+<strong>涉及</strong> L06
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-s3">
+<div class="exercise-stem">
+<p><span class="exercise-qid">S3</span><span class="exercise-type">简答</span> 简述 JPEG 编码的 5 个主要步骤,并指出哪一步是不可逆的,为什么。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+1. <strong>RGB→YCbCr + 4:2:0 子采样</strong>(可逆 / 视觉无损):颜色空间解相关;<br>
+2. <strong>分块 8×8 + 2D DCT</strong>(无损可逆):把空间域变换到频率域,能量集中;<br>
+3. <strong>均匀标量量化 F̂(u,v) = round(F(u,v)/Q(u,v))</strong>(<strong>不可逆</strong>,是有损主因):除以步长并取整,丢失精度;<br>
+4. <strong>ZigZag 扫描 + DPCM(DC)/RLC(AC)</strong>(无损):把零聚在一起便于编码;<br>
+5. <strong>Huffman 熵编码</strong>(无损):去除统计冗余。
+<strong>涉及</strong> L07/L08
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-s4">
+<div class="exercise-stem">
+<p><span class="exercise-qid">S4</span><span class="exercise-type">简答</span> 试比较 AlexNet、VGG、GoogleNet、ResNet 四种典型 CNN 的核心创新与演进动机。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong>
+<table>
+<thead><tr><th>网络</th><th>年份</th><th>层数</th><th>核心创新</th><th>演进动机</th></tr></thead>
+<tbody>
+<tr><td>AlexNet</td><td>2012</td><td>8</td><td>ReLU + Dropout + Data Aug + 双 GPU</td><td>开启深度学习时代(top-5 错误率从 ~26% → 16%)</td></tr>
+<tr><td>VGG</td><td>2014</td><td>16-19</td><td>多个 3×3 小卷积核替代大卷积核</td><td>证明"变深"提升性能(top-5 16% → 7.3%)</td></tr>
+<tr><td>GoogleNet</td><td>2014</td><td>22</td><td>Inception 多尺度模块 + 1×1 降维 + 辅助分类器</td><td>解决 VGG 参数爆炸(138M → 5M,1/12 AlexNet)</td></tr>
+<tr><td>ResNet</td><td>2015</td><td>152</td><td>残差连接 <code>y=F(x)+x</code> 解决深度退化</td><td>突破深度瓶颈(top-5 6.7% → 3.57%)</td></tr>
+</tbody>
+</table>
+<strong>演进主线</strong>:深度↑ → 参数↓ → 解决退化 → 性能持续提升。
+<strong>涉及</strong> L12
+</div>
+</details>
+</div>
+</section>
+
+<!-- ============ 五、综合应用题 ============ -->
+<section>
+<h2><span class="num">V.</span>五、综合应用题(每题 10 分,共 20 分)</h2>
+
+<div class="exercise" data-mastery="exam-a1">
+<div class="exercise-stem">
+<p><span class="exercise-qid">A1</span><span class="exercise-type">综合应用</span> 给定一个远程视频监控系统的需求:分辨率 640×480、25 fps、低码率 (&lt; 64 kbps)、网络丢包率高、运动缓慢。请设计压缩方案,要求说明:<br>
+(1) 色度采样方案及理由;<br>
+(2) 帧类型选择及 I 帧间隔;<br>
+(3) 运动估计方法选择及理由;<br>
+(4) 估算原始数据量与压缩后数据量。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+1. <strong>色度采样</strong>:4:2:0(1.5 B/px),适合监控场景(人眼对色度不敏感 + 节省 50% 带宽)。<br>
+2. <strong>帧类型</strong>:I 帧 + P 帧(不用 B 帧——增加编码延迟且监控不要求双向预测)。I 帧间隔约 1 秒(抗丢包漂移)。<br>
+3. <strong>运动估计</strong>:<strong>分层 (Hierarchical) 搜索</strong>——复杂度最低(0.51×10⁹ vs 顺序 29.89×10⁹ OPS),适合缓慢运动场景,节省算力。<br>
+4. <strong>数据量估算</strong>:
+<ul>
+<li>原始:640×480×1.5×25 ≈ 11.5 MB/s ≈ 92 Mbps;</li>
+<li>压缩后 64 kbps;</li>
+<li>压缩比 ≈ 92 Mbps / 64 kbps ≈ <strong>1440:1</strong>(需 H.264/H.265 强压缩);</li>
+<li>实际方案:可采用 H.264 Baseline + 分层搜索 + 适度 GOP,2-3 Mbps 即可达监控可用画质。</li>
+</ul>
+<strong>涉及</strong> L04/L09/L10
+</div>
+</details>
+</div>
+
+<div class="exercise" data-mastery="exam-a2">
+<div class="exercise-stem">
+<p><span class="exercise-qid">A2</span><span class="exercise-type">综合应用</span> 设计一个基于内容的商品图像检索系统(百万级商品库),要求用户上传一张商品照片,系统在 1 秒内返回相似商品。请描述:<br>
+(1) 离线建库流程;<br>
+(2) 在线检索流程;<br>
+(3) 关键技术挑战与解决方案。</p>
+</div>
+<details class="exercise-toggle">
+<summary>显示答案与解析</summary>
+<div class="exercise-answer">
+<strong>答题要点</strong><br>
+1. <strong>离线建库流程</strong>:
+<ul>
+<li>商品库图像预处理(去噪、统一尺寸如 256×256);</li>
+<li>特征提取:局部特征 (SIFT/SURF) + 描述子(128 维);</li>
+<li>特征聚合:Bag-of-Words (BoW) 聚类 (K-means, K=1000) → 视觉词袋;</li>
+<li>高维索引:倒排索引(基于视觉词)+ LSH 哈希;</li>
+<li>存储特征库与索引。</li>
+</ul>
+2. <strong>在线检索流程</strong>:
+<ul>
+<li>用户上传查询图 → 预处理 → 提取 SIFT 特征;</li>
+<li>特征量化:SIFT 描述子映射到最近视觉词(NN 搜索);</li>
+<li>查询向量构造:直方图表示;</li>
+<li>倒排索引查询 → 候选集;</li>
+<li>重排序:RANSAC 几何一致性验证;</li>
+<li>返回 top-K 最相似商品。</li>
+</ul>
+3. <strong>关键技术挑战</strong>:
+<ul>
+<li><strong>语义鸿沟</strong>:相同商品外观差异大 → 用 CNN 深度特征替代 SIFT(迁移学习);</li>
+<li><strong>高维索引</strong>:128 维 + 百万库,KNN 太慢 → 用 ANN (近似最近邻) / LSH;</li>
+<li><strong>可扩展性</strong>:商品更新时增量构建索引;</li>
+<li><strong>效率 vs 精度</strong>:BoW + 倒排索引牺牲部分精度换速度。</li>
+</ul>
+<strong>涉及</strong> L11
+</div>
+</details>
+</div>
+</section>
+
+<!-- ============ 六、评分标准表 ============ -->
+<section>
+<h2><span class="num">VI.</span>六、评分标准表</h2>
+
+<table>
+<thead><tr><th>题型</th><th>题数</th><th>单题分</th><th>总分</th><th>评分要求</th></tr></thead>
+<tbody>
+<tr><td>选择题</td><td>10</td><td>1</td><td>10</td><td>每题 1 分,全对得分</td></tr>
+<tr><td>填空题</td><td>5</td><td>2</td><td>10</td><td>每空 1 分(关键数字 / 概念词)</td></tr>
+<tr><td>计算题</td><td>5</td><td>6</td><td>30</td><td>过程分 60% + 结果分 40%</td></tr>
+<tr><td>简答题</td><td>4</td><td>5</td><td>20</td><td>要点分(每点 1 分)+ 解释分</td></tr>
+<tr><td>综合应用题</td><td>2</td><td>10</td><td>20</td><td>方案合理性 + 关键参数 + 公式应用</td></tr>
+<tr><td><strong>合计</strong></td><td><strong>26</strong></td><td>—</td><td><strong>100</strong></td><td>≥ 60 分为合格;≥ 85 分为优秀</td></tr>
+</tbody>
+</table>
+</section>
+
+<!-- ============ 七、考试时间建议 ============ -->
+<section>
+<h2><span class="num">VII.</span>七、考试时间建议 (90 分钟)</h2>
+
+<table>
+<thead><tr><th>阶段</th><th>题型</th><th>建议时长</th><th>占总时长</th><th>策略建议</th></tr></thead>
+<tbody>
+<tr><td>第一阶段</td><td>选择 + 填空</td><td><strong>20 分钟</strong></td><td>22%</td><td>10 题选 + 5 题填 = 15 题,平均 1.3 分钟/题。选择题先做会的,标记难的后回头;填空题计算要准(数字常考)。</td></tr>
+<tr><td>第二阶段</td><td>计算题</td><td><strong>30 分钟</strong></td><td>33%</td><td>5 题 × 6 分 = 30 分,平均 6 分钟/题。计算题过程分 60%,所以<strong>必须写公式 → 代入 → 单位</strong>,即使最终算错也能拿过程分。</td></tr>
+<tr><td>第三阶段</td><td>简答题</td><td><strong>25 分钟</strong></td><td>28%</td><td>4 题 × 5 分 = 20 分,平均 6 分钟/题。简答题按要点答,每点 1-2 句解释,避免"只写关键词无解释"。</td></tr>
+<tr><td>第四阶段</td><td>综合应用题</td><td><strong>15 分钟</strong></td><td>17%</td><td>2 题 × 10 分 = 20 分,平均 7.5 分钟/题。先写"总体方案"再分点答关键参数,最后做数据量估算。</td></tr>
+<tr><td><strong>合计</strong></td><td>—</td><td><strong>90 分钟</strong></td><td>100%</td><td>前 80 分钟答完,留 10 分钟检查单位、公式、计算</td></tr>
+</tbody>
+</table>
+
+<h3>答题策略心法</h3>
+<ul>
+<li><strong>先易后难</strong>:选择题先扫一遍,把拿不准的标记跳过,做完其他题再回头。</li>
+<li><strong>过程分必拿</strong>:计算题哪怕最终答案算错,公式 + 代入正确也有 60% 分。</li>
+<li><strong>单位常考</strong>:b vs B、KB vs KiB、dB 是否带单位,这些易错点占 4-6 分。</li>
+<li><strong>关键词保命</strong>:简答题"解相关"、"心理视觉冗余"、"双向预测"等术语必写。</li>
+<li><strong>预留 10 分钟</strong>:检查 PSNR 公式是 10·log10 还是 20·log10,卷积公式 padding 是 2p 还是 p。</li>
+</ul>
+</section>
+
+</article>
+</main>
+
+<footer>
+<p>模拟期末试卷 · 100 分 · 26 道题</p>
+<p class="meta">5 大题型 · 26 道题 · 90 分钟 · 难度贴近真实期末 · 祝期末顺利</p>
+</footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const states = JSON.parse(localStorage.getItem('mastery') || '{}');
+  document.querySelectorAll('[data-mastery]').forEach(el => {
+    const key = el.dataset.mastery;
+    const cb = el.querySelector('input[type=checkbox]');
+    const lbl = el.querySelector('.mastery');
+    if (states[key] && cb) {
+      cb.checked = true;
+      if (lbl) lbl.classList.add('checked');
+    }
+    if (cb) {
+      cb.addEventListener('change', () => {
+        states[key] = cb.checked;
+        localStorage.setItem('mastery', JSON.stringify(states));
+        if (lbl) lbl.classList.toggle('checked', cb.checked);
+      });
+    }
+  });
+});
+</script>
+
+</body>
+</html>
