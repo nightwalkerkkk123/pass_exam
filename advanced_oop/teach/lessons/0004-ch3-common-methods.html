@@ -253,7 +253,7 @@ System.out.println(set.contains(new Point(1, 2)));</code></pre>
     summary.scrollIntoView({ behavior: 'smooth' });
   });
 
-  resetBtn.addEventListener({}, function () {
+  resetBtn.addEventListener('click', function () {
     form.reset();
     cards.forEach(function (c) {
       var exp = c.querySelector('.explanation');
