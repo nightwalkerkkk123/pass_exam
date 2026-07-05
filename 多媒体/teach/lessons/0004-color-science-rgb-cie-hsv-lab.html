@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0004 · 颜色科学 · RGB / CIE / HSV / Lab</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0004 · L03</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">颜色科学:RGB / CIE / HSV / Lab</h1>
+<p class="lede">同一个"红",相机怎么记、显示器怎么发光、印刷机怎么调墨、算法怎么分割、科学家怎么量色差——五个场景,催生了五套坐标系。这一节把它们摆到一起,讲清"为什么一个颜色需要这么多种说法"。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>同一个地点,可以用<strong>经纬度</strong>(全球统一、绝对)、<strong>门牌号</strong>(人用、方便找)、也可以用<strong>快递分拣码</strong>(机器用、方便处理)来描述。它们指的是同一个点,只是<strong>为不同用途服务</strong>。颜色空间就是颜色的这几套"地址系统":RGB 是设备发光的物理配方,HSV 是人调色的手感,Lab 是测量色差的标准尺,CIE XYZ 则是那个"全球统一的经纬度"——所有转换都要经过它中转。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>颜色从哪来:光谱与人眼</h2>
+<p>颜色不是物体的固有属性,而是<strong>光</strong>与<strong>人眼</strong>共同作用的结果。可见光是波长在 <strong>400 nm ~ 700 nm</strong> 的电磁波;每段波长上有多少能量,画成曲线就是<strong>光谱能量分布</strong> E(λ)(SPD)。</p>
+<p>关键在人眼这一侧:视网膜上有三种视锥细胞,分别对<strong>红、绿、蓝</strong>最敏感。任何复杂的光谱进到眼里,都被压缩成<strong>三个数</strong>(三种视锥的响应量)。这就是"三色理论"——也是为什么显示器只用 RGB 三种光就能骗过眼睛,重现几乎所有颜色。</p>
+<p><strong>这解释了一切颜色空间的根:颜色本质是三维的</strong>,所以所有颜色空间都是三个分量(CMYK 的 K 是为省墨额外加的)。</p>
+</section>
+
+<section>
+<h2><span class="num">2.</span>四套核心坐标系</h2>
+<div class="def">
+  <dl>
+    <dt>RGB(加性颜色模型)</dt>
+    <dd>红、绿、蓝三种光相加混合,越加越亮,全开为白。用于相机采集、屏幕显示、图像存储。<span class="alias">是"发光"设备的物理配方——但它是设备相关的:同一组 RGB 值在不同屏幕上颜色略有差异。</span></dd>
+    <dt>CIE XYZ(标准基色空间)</dt>
+    <dd>为解决 RGB 配色曲线出现<strong>负值</strong>(现实中无法"减去一束光")的问题,CIE 用线性变换造出三个<strong>虚拟原色</strong> X、Y、Z,使配色函数全为正。其中 <strong>Y = 亮度</strong>(等于光视效率曲线 V(λ)),X、Z 负责描述色彩本身。<span class="alias">设备无关的国际标准;是 RGB↔Lab 转换的必经中转站。</span></dd>
+    <dt>HSV(色相/饱和度/明度)</dt>
+    <dd>H 色相(0~360°,红黄绿…绕一圈)、S 饱和度(0~1,鲜艳↔灰)、V 明度(0~1,亮↔暗)。<span class="alias">贴近人"描述颜色"的直觉:想调更鲜就加 S,想调更亮就加 V。图像分割、OpenCV 算法常用。</span></dd>
+    <dt>L*a*b*(CIELAB)</dt>
+    <dd>L* 亮度(0 黑~100 白)、a*(绿−到红+)、b*(蓝−到黄+)。按<strong>韦伯定理</strong>设计,使得<strong>数值上等距 ≈ 视觉上等距</strong>。<span class="alias">视觉均匀:两点欧氏距离≈人眼感受的色差。色差计算、印刷质检的标准。</span></dd>
+  </dl>
+</div>
+<p><strong>色度图与色域(高频考点)。</strong>CIE 把 XYZ 归一化投影成二维<strong>色度图</strong>(马蹄形),边界是纯光谱色的<strong>光谱轨迹</strong>,白点在 (1/3, 1/3)。<strong>色域(Gamut)</strong>指某设备/颜色空间能准确表示的颜色子集——在色度图上是一个三角形(RGB 三顶点围出)。落在三角形外的颜色叫<strong>超色域(out-of-gamut)</strong>,设备无法显示,只能沿"该色→白点"连线与色域边界的交点做近似。这就是为什么照片打印出来常和屏幕上不完全一样:<strong>印刷的 CMYK 色域 ≠ 屏幕的 RGB 色域</strong>。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>横向对比:各颜色空间为何而生</h2>
+<p>不要死记参数,抓住每一行的"核心用途"——那就是它存在的理由。</p>
+<table>
+<thead><tr><th>颜色空间</th><th>定义 / 通道</th><th>典型用途</th><th>优点 / 缺点</th></tr></thead>
+<tbody>
+<tr><td><strong>RGB</strong></td><td>加性;R 红 / G 绿 / B 蓝(0~1 或 0~255)</td><td>相机、屏幕显示、图像存储</td><td>+ 直连硬件、通用入口<br>− 设备相关;不贴近人感知</td></tr>
+<tr><td><strong>CIE XYZ</strong></td><td>虚拟原色;Y=亮度,X/Z 描述色彩</td><td>颜色标准、跨空间中转</td><td>+ 设备无关的绝对标准<br>− 不直观,人不会直接用它调色</td></tr>
+<tr><td><strong>HSV</strong></td><td>H 色相° / S 饱和度 / V 明度</td><td>调色、图像分割、算法(OpenCV)</td><td>+ 符合"调颜色"直觉、易分离色相<br>− 非视觉均匀;设备相关</td></tr>
+<tr><td><strong>L*a*b*</strong></td><td>L 亮度 / a 绿-红 / b 蓝-黄</td><td>色差计算、色彩度量、印刷质检</td><td>+ 视觉均匀,距离≈色差;设备无关<br>− 计算复杂,不能直接驱动硬件</td></tr>
+<tr><td><strong>CMY(K)</strong></td><td>减性;C=−R,M=−G,Y=−B,K 黑</td><td>打印机、印刷、墨水</td><td>+ 匹配"油墨吸收光"的物理;K 省墨省钱<br>− 色域比 RGB 窄,屏↔纸有色差</td></tr>
+</tbody>
+</table>
+<p><strong>加性 vs 减性(易混):</strong>RGB 是<strong>加性</strong>(光相加,越加越亮,叠满是白);CMY 是<strong>减性</strong>(油墨从白光里"减掉"某色,越涂越暗,叠满近黑)。青(C)吸收红、品红(M)吸收绿、黄(Y)吸收蓝——所以 C=−R、M=−G、Y=−B。理论上 C+M+Y 叠出黑,但油墨叠黑既贵又发污,故印刷额外加一支纯黑墨 <strong>K</strong>,即 CMYK。</p>
+</section>
+
+<section>
+<h2><span class="num">4.</span>一个能算的转换:RGB ↔ CMY</h2>
+<p>RGB→CMY 是课上唯一给出闭式公式的转换(在归一化到 [0,1] 的前提下),简单到可以直接考:</p>
+<div class="worked">
+  <div class="worked-head">例题:把 RGB 转成 CMY</div>
+  <div class="worked-body">
+    <p>某像素归一化后 R=0.2, G=0.6, B=1.0(偏蓝),求其 CMY 值。</p>
+    <ol>
+      <li>套公式 <code>C = 1 − R</code> → C = 1 − 0.2 = <strong>0.8</strong></li>
+      <li><code>M = 1 − G</code> → M = 1 − 0.6 = <strong>0.4</strong></li>
+      <li><code>Y = 1 − B</code> → Y = 1 − 1.0 = <strong>0.0</strong></li>
+    </ol>
+    <div class="result"><strong>结果:</strong>CMY = (0.8, 0.4, 0.0)。意义自洽——该色很蓝,而蓝=白−黄,所以<strong>黄墨 Y=0</strong>(不需要吸收蓝);同时青墨 C 最高,因为要大量吸收红。反向转换同理:<code>R=1−C</code> 等。</div>
+  </div>
+</div>
+<p>注意:HSV、Lab 与 RGB 的转换不是这种一行公式(Lab 还必须经 XYZ 中转),期末一般<strong>不要求手算</strong>,只考概念辨析和这条 CMY 公式。</p>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1</span>
+  <p>下列关于颜色空间的说法,<strong>错误</strong>的是?</p>
+  <ol class="opts">
+    <li>RGB 是加性模型,是设备相关的</li>
+    <li>CIE XYZ 是设备无关的标准,常作为不同颜色空间转换的中转</li>
+    <li>CMY 是减性模型,C、M、Y 分别对应 −R、−G、−B</li>
+    <li>HSV 是视觉均匀空间,两点欧氏距离等于人眼感知的色差</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:D</strong>
+      <p><strong>视觉均匀</strong>是 <strong>L*a*b*(CIELAB)</strong> 的特性(按韦伯定理设计,距离≈色差),不是 HSV。HSV 只是贴近人"调色"的直觉,并不满足"数值等距=视觉等距"。A、B、C 均正确:RGB 加性且设备相关,XYZ 是中转标准,CMY 减性且 =−R/−G/−B。<br>
+      <em>套路:</em>"视觉均匀 / 色差计算"这类关键词,几乎总是指向 Lab。</p>
+    </div>
+  </details>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 2</span>
+  <p>照片在屏幕上看很鲜艳,打印出来却发暗、偏色。用色域(gamut)概念解释,最恰当的是?</p>
+  <ol class="opts">
+    <li>打印机分辨率不够,像素太少</li>
+    <li>CMYK 印刷色域比 RGB 屏幕色域窄,部分屏幕颜色超出印刷色域,只能近似</li>
+    <li>Lab 空间不支持打印</li>
+    <li>光谱轨迹是马蹄形,所以颜色会失真</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B</strong>
+      <p>色域是某设备能准确表示的颜色子集。屏幕的 RGB 色域与打印机的 CMYK 色域在色度图上是<strong>两个不同大小的三角形</strong>,CMYK 通常更窄。屏幕上那些落在 RGB 色域内、却在 CMYK 色域<strong>之外</strong>的鲜艳色就是<strong>超色域颜色</strong>,打印时只能沿"该色→白点"连线映射到色域边界做近似,于是发暗偏色。A 是分辨率问题(与色域无关),D 只描述了色度图形状但没解释色差成因。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 进入 <a href="0005-ycbcr-gamma-correction.html">0005 · YCbCr 与伽玛校正</a>:把颜色从"给人看"转到"给压缩用"——亮度与色度分离,正是 JPEG 与视频压缩的第一步,也是综合论述题的主场。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0004 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

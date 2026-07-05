@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0010 · 自适应 Huffman 编码</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0010 · L06</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">自适应 Huffman 编码</h1>
+<p class="lede">静态 Huffman 得把整篇文章读两遍——先数频率,再编码。可如果数据边到边编、根本不许你先看一眼呢?自适应 Huffman 就是为这种"一遍过"的场景而生。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>静态 Huffman 像是<strong>考前划重点</strong>:你得先把全书看完、统计出哪些词高频,才能定出一套最优代码表。而自适应 Huffman 像是<strong>边听课边记笔记</strong>:老师每讲一个词,你就把它的出现次数 +1,并随手调整你的速记符号——讲到后面,常出现的词自然拥有了更短的记号。你从来没有"预习",却让代码始终贴合当前的词频。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>核心定义</h2>
+<div class="def">
+  <dl>
+    <dt>自适应 Huffman 编码 (Adaptive / Dynamic Huffman Coding)</dt>
+    <dd>编码器和解码器<strong>不预先知道符号频率</strong>,而是从一棵空(或初始)编码树出发,<strong>每处理一个符号就实时更新</strong>这棵 Huffman 树。编码与解码<strong>各自独立</strong>地维护同一棵树,因此无需传输码表。<span class="alias">又称动态 Huffman,代表算法 FGK 与 Vitter。</span></dd>
+    <dt>兄弟性质 (Sibling Property)</dt>
+    <dd>Gallager 给出的判据:一棵二叉编码树是 Huffman 树<strong>当且仅当</strong>——把所有结点(含内部结点)按权值<strong>非递增</strong>排成一列时,每个结点都与它的兄弟相邻,且这个序列的权值单调不增。<span class="alias">这是"维护最优性"的检验标准:只要它成立,树就仍是最优的。</span></dd>
+    <dt>更新 (Update) 过程</dt>
+    <dd>读入一个符号后:①把该叶子的权值 +1;②<strong>沿路径向上到根</strong>,逐层检查兄弟性质是否被破坏;③若某结点的权值超过了序列中排在它前面的结点,就把它与那个结点<strong>交换位置</strong>,恢复排序;④继续把父结点权值 +1 并向上重复,直到根。新出现的符号则通过一个特殊的 <code>NYT</code>(Not-Yet-Transmitted,尚未传输)空叶子引入。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>静态 vs 自适应 Huffman</h2>
+<p>这是本节的考点核心。两者用的都是"频率越高、码字越短"的同一思想,区别全在<strong>频率从哪来、树何时建、码表要不要传</strong>:</p>
+<table>
+<thead><tr><th>比较项</th><th>静态 Huffman</th><th>自适应 Huffman</th></tr></thead>
+<tbody>
+<tr><td><strong>是否需先验频率</strong></td><td>需要——必须先扫全文统计频率</td><td>不需要——从零开始边编边学</td></tr>
+<tr><td><strong>扫描遍数</strong></td><td>两遍(先统计,再编码)</td><td>一遍(单遍 / 在线编码)</td></tr>
+<tr><td><strong>是否需传码表</strong></td><td>需要——解码端要拿到频率表/码表</td><td>不需要——收发两端各自实时重建同一棵树</td></tr>
+<tr><td><strong>时间复杂度</strong></td><td>建树 O(n log n)(n 为符号种类);编码 O(N)</td><td>每处理一个符号 O(树高)≈ O(log n),更新有额外开销</td></tr>
+<tr><td><strong>适用场景</strong></td><td>数据可整体预读、频率稳定</td><td>流式/实时数据、频率未知或随时间漂移</td></tr>
+</tbody>
+</table>
+</section>
+
+<section>
+<h2><span class="num">3.</span>为什么需要自适应</h2>
+<p>它并不是为了"压得更狠"——单纯从压缩率看,静态 Huffman 在已知频率时已是最优。自适应的价值全在<strong>约束条件</strong>下:</p>
+<ul>
+  <li><strong>无需预知频率。</strong>网络传输、实时采集的数据是"流",到来之前你根本无从统计。静态 Huffman 在这里直接失效,因为它连第一遍扫描都做不到。</li>
+  <li><strong>单遍编码(one-pass)。</strong>只扫一遍就能完成压缩,省掉了"统计一遍 + 编码一遍"里的第一遍,对超大文件或延迟敏感的场景是硬需求。</li>
+  <li><strong>省掉码表开销。</strong>静态 Huffman 必须把码表(或频率)一并发给解码端,短消息里这张表的开销可能盖过压缩收益。自适应两端各自重建,<strong>零码表传输</strong>。</li>
+  <li><strong>自动跟随频率漂移。</strong>树随数据动态调整,前半段和后半段词频不同也能各自贴合。</li>
+</ul>
+<p>代价是:实现更复杂,且每符号都要维护树、对<strong>误码更敏感</strong>——一旦某个 bit 出错,两端的树就分道扬镳,后续全乱。</p>
+</section>
+
+<section>
+<h2><span class="num">4.</span>编码–更新流程演示</h2>
+<div class="worked">
+  <div class="worked-head">例题 · 对 "a a b" 演示编码与更新</div>
+  <div class="worked-body">
+    <p>设初始树只有一个 <code>NYT</code> 空叶子(权值 0)。收发两端都从这里出发,亦步亦趋。为看清"更新"这一动作,我们重点跟踪权值与结点排序。</p>
+    <ol>
+      <li><strong>读入第 1 个 'a'(首次出现)。</strong>树里还没有 'a',于是先输出当前 <code>NYT</code> 的路径码(此刻在根,路径为空),再附上 'a' 的固定编码告诉解码端"这是新符号 a"。然后把 <code>NYT</code> 叶子<strong>分裂</strong>:左边留一个新的 <code>NYT</code>,右边挂上新叶子 'a'(权值 1),它们的父结点权值 1。</li>
+      <li><strong>读入第 2 个 'a'(已存在)。</strong>直接输出 'a' 当前的路径码(此时很短)。随后进入<strong>更新</strong>:'a' 的权值 1 → 2,再沿路径向上,把父结点权值也 +1。每一步都检查兄弟性质——本例结点少,排序未被破坏,<strong>无需交换</strong>。此刻 'a' 的权值已明显高于 <code>NYT</code>,树自动向"a 更短"的方向倾斜。</li>
+      <li><strong>读入 'b'(首次出现)。</strong>同第 1 步:输出当前 <code>NYT</code> 的路径码 + 'b' 的固定编码。再次分裂 <code>NYT</code>,挂上新叶子 'b'(权值 1)。</li>
+      <li><strong>此时若某个新符号的权值增长后超过了排在它前面的结点</strong>,就会触发<strong>结点交换</strong>以恢复非递增排序——这正是"兄弟性质"起作用的地方,保证每一步之后树都仍是当前频率下的最优 Huffman 树。</li>
+    </ol>
+    <div class="result">
+      <strong>关键结论:</strong>整个过程<strong>只读了一遍</strong>输入,也<strong>没有传任何码表</strong>。解码端拿到比特流后,执行与编码端<strong>完全相同</strong>的分裂与更新动作,便能同步重建出同一棵树,从而正确还原 "a a b"。这就是"边编边学"的全部秘密。
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题</span>
+  <p>下列关于<strong>自适应 Huffman</strong> 相对于<strong>静态 Huffman</strong> 优势的说法,哪一项是<strong>正确</strong>的?</p>
+  <ol class="opts">
+    <li>自适应 Huffman 的压缩率一定严格优于静态 Huffman</li>
+    <li>自适应 Huffman 无需预先统计符号频率,可单遍编码且无需传输码表</li>
+    <li>自适应 Huffman 不需要在编码器和解码器之间保持任何一致性</li>
+    <li>静态 Huffman 只需扫描数据一遍,而自适应需要两遍</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B</strong>
+      <p><strong>B 正确</strong>:自适应 Huffman 的三大标志性优势就是——不需先验频率、单遍(one-pass)编码、无需传码表(两端各自实时重建)。<br>
+      <strong>A 错</strong>:在频率已知时静态 Huffman 已是最优,自适应<em>不保证</em>压得更狠;它的价值在于适应"频率未知/流式"的约束,而非提升压缩率。<br>
+      <strong>C 错</strong>:恰恰相反,收发两端必须执行<em>完全相同</em>的更新动作、维护同一棵树,否则无法解码;这也是它对误码敏感的原因。<br>
+      <strong>D 错</strong>:说反了——<em>静态</em>需两遍(先统计再编码),<em>自适应</em>只需一遍。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> Huffman 家族到此为止。进入 <a href="0011-lzw-dictionary-coding.html">0011 · LZW 字典编码</a>,换一条思路:不靠频率,而是把重复出现的<strong>字符串</strong>存进字典、用短码代替——GIF 与早期压缩的功臣。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0010 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

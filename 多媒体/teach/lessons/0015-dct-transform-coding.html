@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0015 · DCT 变换编码</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0015 · L07</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">DCT 变换编码</h1>
+<p class="lede">DCT 本身一分信息都不丢——它只是换了个"坐标系"。真正的魔法在于:换过去之后,几乎全部能量都挤到了左上角那几个数上,后续压缩才有得压。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>想象你要打包一整衣柜的衣服。衣服本身没变(<strong>无损</strong>),但你先把它们<strong>按季节分类叠好</strong>——厚外套一摞、夏装一摞。分类后你会发现:90% 的体积集中在几摞常穿的衣服上,那些几乎不穿的可以真空压缩甚至扔掉。DCT 就是这个"分类"步骤:它不丢信息,只是把图像块里"变化缓慢的大块能量"和"变化剧烈的细节能量"分开,让绝大部分能量集中到少数几个低频系数上。真正"扔衣服"的是下一步的量化。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>关键定义</h2>
+<div class="def">
+  <dl>
+    <dt>变换编码 (Transform Coding)</dt>
+    <dd>先把信号从一个域(空间/像素域)<strong>可逆地变换</strong>到另一个域(频率域),使能量集中、样本间相关性被去除,再对变换系数做量化与熵编码的压缩框架。<span class="alias">流程:变换 → 量化 → 熵编码。变换这一步本身不压缩、不丢信息。</span></dd>
+    <dt>DCT (离散余弦变换)</dt>
+    <dd>把一组像素值表示成一系列不同频率余弦波的加权和,权重就是 DCT 系数。它是 JPEG 与 MPEG 视频的核心。<span class="alias">DCT 是线性、正交、完全可逆的变换,配套的逆变换叫 IDCT。</span></dd>
+    <dt>DC 系数 (直流系数)</dt>
+    <dd>频率为 0(<code>u=0</code>)的那个系数 <code>F(0)</code>,代表整个块的<strong>平均亮度</strong>——余弦波"零频率"就是一条水平直线。它通常是块里数值最大、最重要的系数。</dd>
+    <dt>AC 系数 (交流系数)</dt>
+    <dd>频率大于 0(<code>u&gt;0</code>)的所有系数,描述块内亮度<strong>怎样起伏变化</strong>:低频 AC 管大致明暗轮廓,高频 AC 管边缘与细节。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>为什么要"变换后再编码"</h2>
+<p>这是本讲最容易被问到"为什么"的地方。分三层理解,一步比一步深:</p>
+<table>
+<thead><tr><th>层次</th><th>问题</th><th>DCT 给的答案</th></tr></thead>
+<tbody>
+<tr><td><strong>1 去相关</strong></td><td>相邻像素高度相似(空间冗余),直接编码是在重复存储同样的信息。</td><td>DCT 去除样本间相关性,把冗余显式地暴露出来。</td></tr>
+<tr><td><strong>2 能量集中</strong></td><td>信息散布在 64 个像素上,无从取舍。</td><td>DCT 把绝大部分能量集中到左上角<strong>前几个</strong>系数,其余系数几乎都在 0 附近。</td></tr>
+<tr><td><strong>3 便于取舍</strong></td><td>要压缩就必须敢丢东西,但不能乱丢。</td><td>能量集中后,那些接近 0 的小系数一量化就归零,几乎不影响重建质量——人眼对高频不敏感。</td></tr>
+</tbody>
+</table>
+<p>换句话说:直接对像素量化,丢哪个都心疼,因为每个像素都携带差不多的信息。<strong>变换之后</strong>,信息被"重新分配":少数系数扛起了几乎全部能量,剩下一大片可以放心量化掉。这就是"先变换、后编码"的全部动机——用一次<strong>无损</strong>的坐标变换,换来后续压缩的"下手空间"。</p>
+
+<div class="intuition">
+  <span class="tag-label">务必记牢(与 0014 呼应)</span>
+  <p><strong>DCT 本身无损。</strong>它是线性正交变换,IDCT 能把系数精确还原成原始像素——理论上不损失任何信息。JPEG 的失真<strong>全部来自量化那一步</strong>(把系数除以量化表并取整,取整就回不去了)。所以考试里若问"JPEG 在哪一步产生损失",答案永远是<strong>量化</strong>,绝不是 DCT。</p>
+</div>
+</section>
+
+<section>
+<h2><span class="num">3.</span>1D DCT 公式与 DC 系数</h2>
+<p>对 <code>N=8</code> 个样本,一维 DCT 把输入 <code>f(i)</code> 变成新序列 <code>F(u)</code>:</p>
+<p style="text-align:center"><code>F(u) = C(u) · Σ<sub>i=0</sub><sup>N-1</sup> f(i) · cos[(2i+1)uπ / 2N]</code></p>
+<p>其中系数 <code>C(u)</code> 保证变换正交:<code>C(0)=√(1/N)</code>,<code>C(u)=√(2/N)</code>(<code>u&gt;0</code>)。当 <code>N=8</code> 时分母 <code>2N=16</code>,正是课件里那个 <code>(2i+1)uπ/16</code>。</p>
+<p>把 <code>u=0</code> 代进去:此时 <code>cos(0)=1</code>,求和退化为把 8 个样本直接相加。于是</p>
+<p style="text-align:center"><code>F(0) = C(0) · Σ f(i) = √(1/8) · (8 × 均值) = √8 · 均值</code></p>
+<p>这就证明了:<strong>DC 系数正比于该块所有样本的平均值</strong>。"直流"这个名字也由此而来——零频率的余弦就是一条常数直线,对应的正是"平均水平"。</p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 一个纯直流块的 DCT</div>
+  <div class="worked-body">
+    <p>设一行 8 个像素全都相等:<code>f = [100,100,100,100,100,100,100,100]</code>(一块毫无变化的平坦区域)。求它的 1D DCT 系数,并解释"能量集中"。</p>
+    <ol>
+      <li><strong>算 DC 系数 F(0)。</strong> <code>u=0</code> 时余弦项全为 1,故 <code>F(0)=C(0)·Σf(i)=√(1/8)·(100×8)=800/√8=800/2.828≈282.8</code>。也等于 <code>√8×均值=√8×100</code>,与公式一致。</li>
+      <li><strong>算 AC 系数 F(u), u&gt;0。</strong> 由于所有 <code>f(i)</code> 相等(记作常数 k),<code>F(u)=C(u)·k·Σ<sub>i</sub>cos[(2i+1)uπ/16]</code>。对每个 <code>u&gt;0</code>,这 8 个余弦值正负对称、恰好相加为 0。</li>
+      <li><strong>得到结果向量。</strong> <code>F = [282.8, 0, 0, 0, 0, 0, 0, 0]</code>。</li>
+      <li><strong>解读能量集中。</strong> 输入的全部"能量"原本摊在 8 个数上,变换后<strong>100% 集中到了单一的 DC 系数</strong>,7 个 AC 系数全为 0。后续只需存 1 个数而非 8 个——这正是压缩得以发生的根源。</li>
+    </ol>
+    <div class="result"><strong>结论:</strong>平坦块 → 只有 DC 非零,能量全在低频。真实图像块虽不会这么极端,但"大部分能量挤在左上角少数系数、其余接近 0"是普遍规律(课件中 8×8 块的 DCT 系数直方图显示绝大多数系数都在 0 附近)。而且注意:这一步<strong>没丢任何信息</strong>,对 <code>F</code> 做 IDCT 能精确还原出原来的 8 个 100。</div>
+  </div>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题</span>
+  <p>关于"为什么 JPEG 要先做 DCT 再编码",下列说法<strong>正确</strong>的是?</p>
+  <ol class="opts">
+    <li>DCT 会直接压缩数据量,是 JPEG 主要的信息损失来源。</li>
+    <li>DCT 本身无损,它把能量集中到少数低频系数,为后续量化"敢于丢弃小系数"创造了条件。</li>
+    <li>DCT 把图像从频率域变回空间域,方便人眼观看。</li>
+    <li>DCT 的作用是给每个像素单独编号,和压缩无关。</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B</strong>
+      <p><strong>B 正确。</strong>DCT 是线性可逆(正交)变换,本身不丢信息;它的价值在于<strong>去相关 + 能量集中</strong>——把大部分能量堆到左上角少数系数,使那些接近 0 的高频系数在量化时归零而几乎不损害画质。<br>
+      A 错:DCT 不压缩、不丢信息,损失来自<strong>量化</strong>(呼应 0014)。<br>
+      C 错:DCT 是空间域 → 频率域,方向反了,而且人眼看的是重建后的空间域图像。<br>
+      D 错:DCT 恰恰打破"逐像素"的表示,换成频率系数表示,正是为压缩服务。<br>
+      <em>解题套路:</em>凡把"损失"归给 DCT 的选项一律排除;凡强调"无损变换 + 能量集中"的就是正解。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 进入 <a href="0016-jpeg-pipeline.html">0016 · JPEG 压缩流水线</a>,把 DCT 接上量化、Zigzag、DPCM/RLC 与熵编码,看这一整条链路如何把一张图压小十倍。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0015 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

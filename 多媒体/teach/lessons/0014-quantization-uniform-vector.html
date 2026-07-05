@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0014 · 量化 · 均匀/非均匀 · 标量/向量</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0014 · L07</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">量化：均匀 / 非均匀 · 标量 / 向量</h1>
+<p class="lede">压缩为什么会"失真"?答案几乎全在这一步——量化。它是有损压缩里信息损失的<strong>主要来源</strong>,也是老师标红的重点。搞清楚它,JPEG、音频 PCM、率失真理论都能串起来。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>想象你要把身高填进表格,但表格只让你选"矮 / 中 / 高"三档。一个 176cm 的人被记成"高",还原时统一说成 180cm——这 4cm 的偏差就<strong>永远丢了</strong>。量化就是这么回事:把连续(或很多档)的取值,强行塞进<strong>少数几个代表值</strong>。档位越少,压得越狠,失真也越大。这个"塞"的动作<strong>不可逆</strong>,所以量化是有损压缩的失真根源。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>关键定义</h2>
+<div class="def">
+  <dl>
+    <dt>量化 (Quantization)</dt>
+    <dd>把连续或大集合的输入值,映射到一个<strong>小得多的离散输出集合</strong>的过程。它是有损压缩方案中"损失(loss)"的<strong>主要来源</strong>。<span class="alias">原始 {0,1,2,…,255} → 缩减为 {16,48,80,…,240} 这类少数代表值。</span></dd>
+    <dt>标量量化 (Scalar Quantization, SQ)</dt>
+    <dd><strong>逐个样本</strong>独立量化,一次处理一个数值。每个输入被单独映射到一个重建值。</dd>
+    <dt>向量量化 (Vector Quantization, VQ)</dt>
+    <dd>把若干个连续样本拼成一个 n 维<strong>向量</strong>,整体一次性量化。用一组 n 维<strong>码向量(code vector)</strong>作代表,所有码向量构成<strong>码本(codebook)</strong>。编码端找出与输入向量最接近的码向量,只输出它的<strong>索引</strong>;解码端用同一份码本按索引取回。<span class="alias">SQ 是 VQ 在 n=1 时的特例。</span></dd>
+    <dt>均匀量化 (Uniform Quantization)</dt>
+    <dd>把输入域划分成<strong>等间隔</strong>的区间(bin),间隔宽度处处相等。判决边界 bᵢ 与重建值 yᵢ 都均匀排布。</dd>
+    <dt>非均匀量化 (Nonuniform Quantization)</dt>
+    <dd>把输入域划分成<strong>不等间隔</strong>的区间——在信号出现概率高的地方分得更细,把"比特花在最需要的地方"。典型方法:Lloyd-Max 量化、压缩扩展量化(companded)。</dd>
+    <dt>量化步长 (Step Size, Δ)</dt>
+    <dd>均匀量化中每个区间的宽度,记作 Δ。Δ 越大→档位越少→压缩率越高、失真越大;Δ 越小→越精细、失真越小。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>两组对照:别把它们搞混</h2>
+<p>期末选择题最爱在这两组概念上设陷阱。注意:"均匀/非均匀"和"标量/向量"是<strong>两个正交的维度</strong>——前者说区间怎么分,后者说一次处理几个样本。</p>
+
+<h3>均匀 vs 非均匀量化</h3>
+<table>
+<thead><tr><th>维度</th><th>均匀量化</th><th>非均匀量化</th></tr></thead>
+<tbody>
+<tr><td>区间间隔</td><td>等间隔(宽度都是 Δ)</td><td>不等间隔</td></tr>
+<tr><td>核心思想</td><td>简单,不看数据分布</td><td>按概率分布分配精度,高概率区更细</td></tr>
+<tr><td>适用场景</td><td>输入近似均匀分布;JPEG 对 DCT 系数的量化</td><td>输入分布不均(如语音幅度小值居多);Lloyd-Max、μ律/A律压扩</td></tr>
+<tr><td>优劣</td><td>实现最简单,但对非均匀分布不最优</td><td>同比特下失真更小,但需知道/估计分布</td></tr>
+</tbody>
+</table>
+
+<h3>标量 vs 向量量化（真题高频选择题）</h3>
+<table>
+<thead><tr><th>维度</th><th>标量量化 SQ</th><th>向量量化 VQ</th></tr></thead>
+<tbody>
+<tr><td>处理单位</td><td>一次<strong>1 个</strong>样本(标量)</td><td>一次<strong>n 个</strong>样本拼成的向量</td></tr>
+<tr><td>代表值</td><td>单个重建值 yᵢ</td><td>n 维码向量,存于码本</td></tr>
+<tr><td>输出</td><td>每个样本的量化值</td><td>最近码向量的<strong>索引</strong></td></tr>
+<tr><td>压缩效果</td><td>较弱(忽略样本间相关性)</td><td>更强(利用样本间相关性,同码率下失真更低)</td></tr>
+<tr><td>代价 / 场景</td><td>实现简单、快;PCM、JPEG</td><td>需训练码本、编码需搜索最近向量,复杂度高;图像/语音编码</td></tr>
+</tbody>
+</table>
+<p><strong>一句话记忆:</strong>SQ 是"逐个量化",VQ 是"打包量化 + 查码本给编号"。VQ 用一组码向量替代 SQ 的一组标量重建值,靠利用样本间相关性,在相同码率下取得更低失真。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>为什么要设计量化器?为什么它必然丢信息?</h2>
+<p><strong>目的:</strong>用更少的比特表示信息。原始信号取值多、码字长;量化把取值数量砍到一个小集合,每个值用更短的码字表示,从而压缩数据量。这是有损压缩获得高压缩率的关键一步。</p>
+<p><strong>为什么必然损失信息:</strong>量化是一个<strong>多对一</strong>的映射——落在同一区间 [bᵢ₋₁, bᵢ) 内的所有不同输入,都被还原成<strong>同一个</strong>重建值 yᵢ。既然多个不同输入映射到同一输出,就<strong>无法从输出反推出原始输入</strong>,信息在这一步被抹平,不可逆。这就是"量化误差"的来源,也是它成为有损压缩失真主要来源的根本原因。</p>
+<p>衡量失真常用<strong>量化误差</strong> e = x − x̂(重建值与原值之差),以及对全体输入求平均的<strong>均方误差 MSE</strong>。要算 MSE 需要知道输入的概率分布。</p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 均匀量化:求量化输出与量化误差</div>
+  <div class="worked-body">
+    <p>某 8-bit 灰度值范围 [0, 256),用一个 <strong>8 档均匀量化器</strong>处理。已知量化步长 <strong>Δ = 32</strong>,采用<strong>中升(midrise)</strong>重建:每个区间取其<strong>中点</strong>作为重建值,即区间序号为 k(k=0,1,…,7)时,重建值 yₖ = (k + 0.5)·Δ。求输入 <strong>x = 100</strong> 与 <strong>x = 200</strong> 的量化输出及量化误差。</p>
+    <ol>
+      <li>先确定区间序号 k = ⌊x / Δ⌋(向下取整)。<br>
+      对 x=100:k = ⌊100 / 32⌋ = ⌊3.125⌋ = <strong>3</strong>。<br>
+      对 x=200:k = ⌊200 / 32⌋ = ⌊6.25⌋ = <strong>6</strong>。</li>
+      <li>代入重建公式 yₖ = (k + 0.5)·Δ 求量化输出。<br>
+      x=100 → y₃ = (3 + 0.5) × 32 = 3.5 × 32 = <strong>112</strong>。<br>
+      x=200 → y₆ = (6 + 0.5) × 32 = 6.5 × 32 = <strong>208</strong>。<br>
+      <span class="alias">注意这两个输出正是缩减集合 {16,48,80,112,144,176,208,240} 中的元素。</span></li>
+      <li>量化误差 e = x − x̂,取绝对值看偏差大小。<br>
+      x=100:e = 100 − 112 = <strong>−12</strong>,|e| = 12。<br>
+      x=200:e = 200 − 208 = <strong>−8</strong>,|e| = 8。</li>
+      <li>验证误差落在合理范围:中升量化器每个区间宽 Δ=32,重建值在中点,最大误差不超过 Δ/2 = 16。两个结果(12、8)都 ≤ 16,合理。</li>
+    </ol>
+    <div class="result"><strong>结论:</strong>x=100 量化为 <strong>112</strong>,误差 −12;x=200 量化为 <strong>208</strong>,误差 −8。若把 Δ 减半到 16(改成 16 档),最大误差降到 8,失真更小但需要更多比特——这就是率失真的权衡。</div>
+  </div>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1</span>
+  <p>关于标量量化(SQ)与向量量化(VQ),下列说法<strong>正确</strong>的是?</p>
+  <ol class="opts">
+    <li>SQ 一次处理一个向量,VQ 一次处理一个标量</li>
+    <li>VQ 把多个样本拼成向量整体量化,输出的是最近码向量在码本中的索引</li>
+    <li>VQ 是无损的,SQ 才有损</li>
+    <li>相同码率下 SQ 的失真通常比 VQ 更低</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B</strong>
+      <p>VQ 把 n 个连续样本拼成一个 n 维向量整体量化,编码端找最近的<strong>码向量</strong>,输出其<strong>索引</strong>,解码端用同一码本按索引取回。<br>
+      A 说反了——SQ 处理标量、VQ 处理向量。C 错——量化(无论 SQ/VQ)都是多对一映射,<strong>都有损</strong>。D 错——VQ 利用样本间相关性,相同码率下失真通常<strong>更低</strong>,这正是它比 SQ 更强的原因。</p>
+    </div>
+  </details>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 2</span>
+  <p>用步长 Δ = 16 的均匀中升量化器(重建值 yₖ = (k+0.5)·Δ,k=⌊x/Δ⌋)量化输入 x = 50,量化误差 e = x − x̂ 为?</p>
+  <ol class="opts">
+    <li>e = +2</li>
+    <li>e = −6</li>
+    <li>e = 0</li>
+    <li>e = +8</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B(e = −6)</strong>
+      <p>k = ⌊50 / 16⌋ = ⌊3.125⌋ = 3;重建值 x̂ = (3 + 0.5) × 16 = 3.5 × 16 = 56;误差 e = 50 − 56 = <strong>−6</strong>。<br>
+      <em>解题套路:</em>均匀量化三步走——① k=⌊x/Δ⌋ 定区间;② 代入重建公式求 x̂;③ e = x − x̂。误差绝对值必 ≤ Δ/2 = 8,选项里凡 |e|>8 的直接排除。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 量化通常不直接作用在像素上,而是先做<strong>变换</strong>把能量集中到少数系数,再对系数量化。进入 <a href="0015-dct-transform-coding.html">0015 · DCT 与变换编码</a>,看 JPEG 是怎么把量化用到刀刃上的。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0014 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

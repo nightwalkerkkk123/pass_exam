@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多媒体系统导论 · 真题与考点</title>
+<style>
+:root {
+  --paper: #f5efe4;
+  --paper-soft: #ebe3d3;
+  --paper-deep: #ddd2bb;
+  --ink: #1a1816;
+  --ink-soft: #4a4540;
+  --ink-mute: #7a7268;
+  --accent: #7c2233;
+  --accent-soft: #a14958;
+  --highlight: #c19a3e;
+  --success: #4a6e3a;
+  --danger: #a13e2a;
+  --rule: #c9bda5;
+
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 24px;
+  --text-2xl: 32px;
+  --text-3xl: 44px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  --measure: 72ch;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.site-header {
+  border-bottom: 1px solid var(--ink);
+  background: var(--paper);
+  padding: var(--space-5) var(--space-6) var(--space-3);
+}
+
+.masthead {
+  max-width: 1080px;
+  margin: 0 auto;
+  text-align: center;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--rule);
+}
+
+.masthead-title {
+  font-family: var(--serif);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: var(--space-1);
+}
+
+.masthead-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.primary-nav {
+  max-width: 1080px;
+  margin: var(--space-3) auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  justify-content: center;
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+}
+
+.primary-nav a {
+  color: var(--ink);
+  text-decoration: none;
+  padding: 2px 6px;
+  border-bottom: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.primary-nav a:hover {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.primary-nav a.active {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.nav-divider {
+  color: var(--ink-mute);
+  user-select: none;
+}
+
+main {
+  max-width: 1080px;
+  margin: var(--space-7) auto;
+  padding: 0 var(--space-6);
+}
+
+article {
+  max-width: var(--measure);
+  margin: 0 auto;
+}
+
+h1.title {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-3);
+  line-height: 1.15;
+  letter-spacing: 0.02em;
+}
+
+.lede {
+  font-size: var(--text-lg);
+  font-style: italic;
+  color: var(--ink-soft);
+  margin-bottom: var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+h2 {
+  font-size: var(--text-2xl);
+  margin: var(--space-7) 0 var(--space-4);
+  padding-bottom: var(--space-2);
+  border-bottom: 2px solid var(--ink);
+  letter-spacing: 0.02em;
+  clear: both;
+}
+
+h2 .num {
+  display: inline-block;
+  font-size: 0.65em;
+  vertical-align: super;
+  color: var(--accent);
+  margin-right: var(--space-3);
+}
+
+h3 {
+  font-size: var(--text-xl);
+  margin: var(--space-6) 0 var(--space-3);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+h4 {
+  font-size: var(--text-lg);
+  margin: var(--space-5) 0 var(--space-2);
+  font-weight: 700;
+}
+
+p { margin: var(--space-3) 0; }
+
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+
+strong { font-weight: 700; color: var(--ink); }
+em { font-style: italic; }
+code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+  background: var(--paper-soft);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-4) 0;
+  font-size: 0.94em;
+}
+
+th, td {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+th {
+  font-weight: 700;
+  background: var(--paper-soft);
+  border-bottom: 2px solid var(--ink);
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+tr:last-child td { border-bottom: none; }
+
+.tag {
+  display: inline-block;
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1px 8px;
+  border-radius: 2px;
+  margin-left: var(--space-2);
+  vertical-align: middle;
+  font-weight: 700;
+}
+
+.tag-high { background: var(--accent); color: var(--paper); }
+.tag-mid { background: var(--highlight); color: var(--paper); }
+.tag-low { background: var(--ink-mute); color: var(--paper); }
+
+.exam-point {
+  background: var(--paper-soft);
+  border-left: 4px solid var(--accent);
+  padding: var(--space-4) var(--space-5);
+  margin: var(--space-4) 0;
+  position: relative;
+}
+
+.exam-point-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-2);
+  font-family: var(--sans);
+  font-size: var(--text-sm);
+}
+
+.exam-point-id {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.exam-point h4 {
+  margin-top: 0;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-lg);
+}
+
+.exam-point dl {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-2) 0;
+  font-size: 0.94em;
+}
+
+.exam-point dt {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: var(--text-sm);
+  color: var(--accent);
+}
+
+.exam-point dd { margin: 0; }
+
+/* === Score bar (题型分值可视化) === */
+.score-bar {
+  display: flex;
+  width: 100%;
+  height: 34px;
+  border: 1px solid var(--ink);
+  margin: var(--space-4) 0 var(--space-2);
+  font-family: var(--sans);
+  font-size: 12px;
+  overflow: hidden;
+}
+.score-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--paper);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.score-seg.s-choice { background: var(--ink-mute); flex: 20; }
+.score-seg.s-short  { background: var(--highlight); flex: 10; }
+.score-seg.s-calc   { background: var(--accent); flex: 60; }
+.score-seg.s-essay  { background: var(--success); flex: 10; }
+.score-legend { font-family: var(--sans); font-size: var(--text-sm); color: var(--ink-soft); }
+
+footer {
+  max-width: 1080px;
+  margin: var(--space-8) auto var(--space-6);
+  padding: var(--space-5) var(--space-6);
+  border-top: 2px solid var(--ink);
+  text-align: center;
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+}
+
+footer p { margin: var(--space-1) 0; }
+
+footer .meta {
+  font-family: var(--sans);
+  font-style: normal;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--ink-mute);
+  margin-top: var(--space-3);
+}
+
+@media (max-width: 720px) {
+  :root {
+    --text-3xl: 32px;
+    --text-2xl: 24px;
+    --text-xl: 20px;
+  }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+  .primary-nav { font-size: 12px; gap: var(--space-2); }
+  .exam-point dl { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 真题与考点</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2024 春期末回忆卷 · 逐题映射讲次</div>
+  </div>
+  <nav class="primary-nav">
+    <a href="index.html">主页</a>
+    <span class="nav-divider">·</span>
+    <a href="lectures/L02-L03-图像数据与颜色.html">L02-03</a>
+    <a href="lectures/L04-L05-视频与音频基础.html">L04-05</a>
+    <a href="lectures/L06-L07-压缩算法.html">L06-07</a>
+    <a href="lectures/L08-L10-压缩标准与视频压缩.html">L08-10</a>
+    <a href="lectures/L11-L12-检索与深度学习.html">L11-12</a>
+    <span class="nav-divider">·</span>
+    <a href="past-exams.html" class="active">真题</a>
+    <a href="cheat-sheet.html">速查表</a>
+    <a href="mock-exam.html">模拟卷</a>
+    <a href="error-list.html">易错清单</a>
+    <a href="sprint-plan.html">冲刺清单</a>
+    <a href="formulas.html">公式手册</a>
+    <a href="glossary.html">术语词典</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">真题与考点</h1>
+<p class="lede">一份 2024 春的期末回忆卷,加上老师给的逐章重点。真题的价值不在题目本身,而在它反推出的复习权重——照着它分配时间,别平均用力。</p>
+
+<section>
+<h2><span class="num">I.</span>考试结构 · 100 分怎么分</h2>
+
+<p>真题回忆与老师<a href="../原始资料/期末资料/期末重点.txt">《期末重点》</a>口径一致,题型与分值固定如下:</p>
+
+<div class="score-bar">
+  <div class="score-seg s-choice">单选 20</div>
+  <div class="score-seg s-calc">计算 60</div>
+  <div class="score-seg s-short">简答 10</div>
+  <div class="score-seg s-essay">论述 10</div>
+</div>
+<p class="score-legend">条带宽度 = 分值占比。<strong>计算题一家独占 60 分</strong>,是绝对重心;其余三类合计 40 分。</p>
+
+<table>
+<thead><tr><th>题型</th><th>分值</th><th>题量</th><th>考什么</th></tr></thead>
+<tbody>
+<tr><td>单选</td><td>10 × 2 = 20</td><td>10</td><td>概念辨析(多媒体特征、无损音频编码、量化区分、预测器识别等)</td></tr>
+<tr><td>简答</td><td>2 × 5 = 10</td><td>2</td><td>概念及其理解(率失真理论、图像检索相关性)</td></tr>
+<tr><td>计算</td><td>4 × 15 = <strong>60</strong></td><td>4</td><td>JPEG、视频压缩(MV/MAD)、算术编码、图像检索指标</td></tr>
+<tr><td>综合论述</td><td>1 × 10 = 10</td><td>1</td><td>结合知识点展开(YCbCr 与色度二次采样)</td></tr>
+</tbody>
+</table>
+<p><strong>结论:</strong>把 70% 的练习时间投到计算题的四种题型上,拿满 60 分才是过线与高分的分水岭。</p>
+</section>
+
+<section>
+<h2><span class="num">II.</span>2024 春真题 · 逐题拆解</h2>
+<p>下面按原卷顺序还原,每题标注<strong>对应讲次</strong>与<strong>复习去处</strong>。原始回忆卷见 <a href="../原始资料/期末真题/《多媒体系统导论》期末回忆 (2024 春).md">期末真题/.md</a>(含 PDF)。</p>
+
+<h3>单选 (10 × 2 = 20 分)</h3>
+<table>
+<thead><tr><th>#</th><th>题干(回忆)</th><th>考点 → 讲次</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>文本处理软件的主要用途</td><td>多媒体应用软件 · <a href="lectures/L02-L03-图像数据与颜色.html">L01-02</a></td></tr>
+<tr><td>2</td><td>哪项<em>不</em>属于多媒体的基本特征</td><td>多媒体概念 · 第一章</td></tr>
+<tr><td>3</td><td>压缩音频需要考虑哪些因素</td><td>音频量化/传输 · <a href="lectures/L04-L05-视频与音频基础.html">L05</a></td></tr>
+<tr><td>4</td><td>哪项是音频的<strong>无损</strong>编码</td><td>无损 vs 有损 · <a href="lectures/L06-L07-压缩算法.html">L06</a></td></tr>
+<tr><td>5</td><td>求视频数据量,区分 MB 与 Mb</td><td>数据量单位(b/B 易错) · <a href="lectures/L04-L05-视频与音频基础.html">L04</a></td></tr>
+<tr><td>6</td><td>均匀标量量化中,输入信号哪个范围被等距分区</td><td>均匀量化 · <a href="lectures/L06-L07-压缩算法.html">L07</a></td></tr>
+<tr><td>7</td><td>数字音频获取与处理过程的<strong>顺序</strong></td><td>采样→量化→编码 · <a href="lectures/L04-L05-视频与音频基础.html">L05</a></td></tr>
+<tr><td>8</td><td>向量量化与标量量化的主要区别</td><td>VQ vs SQ · <a href="lectures/L06-L07-压缩算法.html">L07</a></td></tr>
+<tr><td>9</td><td>JPEG2000 相比 JPEG 的优势(离散小波)</td><td>JPEG2000/小波 · <a href="lectures/L08-L10-压缩标准与视频压缩.html">L08</a></td></tr>
+<tr><td>10</td><td>2D 对数搜索主要应用在何处</td><td>运动估计搜索算法 · <a href="lectures/L08-L10-压缩标准与视频压缩.html">L09</a></td></tr>
+</tbody>
+</table>
+
+<h3>简答 (2 × 5 = 10 分)</h3>
+<div class="exam-point">
+  <div class="exam-point-head"><span class="exam-point-id">简答 1</span><span class="tag tag-high">高频</span></div>
+  <h4>简述比率失真(率失真)理论</h4>
+  <dl>
+    <dt>讲次</dt><dd><a href="lectures/L06-L07-压缩算法.html">L07 有损压缩</a></dd>
+    <dt>要点</dt><dd>R(D) 曲线含义:给定失真上限 D,所需的最小码率 R;曲线下凸、单调下降;D=0 对应无损码率(即熵),D↑ 则 R↓。回答需画曲线并解释两端点。</dd>
+    <dt>去处</dt><dd><a href="formulas.html">公式手册</a> · <a href="index.html">主页主题 3(质量度量)</a></dd>
+  </dl>
+</div>
+<div class="exam-point">
+  <div class="exam-point-head"><span class="exam-point-id">简答 2</span><span class="tag tag-mid">中频</span></div>
+  <h4>图像检索中如何计算图像间内容的相关性</h4>
+  <dl>
+    <dt>讲次</dt><dd><a href="lectures/L11-L12-检索与深度学习.html">L11 CBIR</a></dd>
+    <dt>要点</dt><dd>提取特征(颜色直方图/纹理/SIFT)→ 定义距离度量(L1/L2/余弦/直方图交)→ 距离越小相关性越高;需满足非负/同一/对称/三角不等式。</dd>
+  </dl>
+</div>
+
+<h3>计算 (4 × 15 = 60 分) · 重心</h3>
+<div class="exam-point">
+  <div class="exam-point-head"><span class="exam-point-id">计算 1</span><span class="tag tag-high">必练</span></div>
+  <h4>JPEG:Zig-zag → RLC → 对 AC 分量 Huffman 编码</h4>
+  <dl>
+    <dt>讲次</dt><dd><a href="lectures/L08-L10-压缩标准与视频压缩.html">L08 JPEG</a></dd>
+    <dt>练法</dt><dd>给一个 8×8 量化后系数块 → 按 Zig-zag 展开成一维 → DC 用 DPCM、AC 用 (run, level) 游程 → 查 Huffman 表出码流。<a href="index.html">主页过程 1</a> 是标准 5 步。</dd>
+  </dl>
+</div>
+<div class="exam-point">
+  <div class="exam-point-head"><span class="exam-point-id">计算 2</span><span class="tag tag-high">必练</span></div>
+  <h4>视频压缩:求最优 MV 与对应 MAD;画 2D 对数搜索首轮位置</h4>
+  <dl>
+    <dt>讲次</dt><dd><a href="lectures/L08-L10-压缩标准与视频压缩.html">L09 运动补偿</a></dd>
+    <dt>练法</dt><dd><code>MAD = (1/N²)·Σ|T−R|</code>,在搜索窗内逐点算 MAD 取最小 → MV;2D 对数搜索首轮取中心 + 四个步长为 2^(⌈log2 p⌉−1) 的十字点。</dd>
+  </dl>
+</div>
+<div class="exam-point">
+  <div class="exam-point-head"><span class="exam-point-id">计算 3</span><span class="tag tag-high">必练</span></div>
+  <h4>算术编码:编码 + 解码</h4>
+  <dl>
+    <dt>讲次</dt><dd><a href="lectures/L06-L07-压缩算法.html">L06 无损压缩</a></dd>
+    <dt>练法</dt><dd>low=0/high=1,按符号概率逐步缩窄区间 → 输出落在最终区间内的最短二进制小数;解码反向定位符号。老师标为<strong>重点(压缩部分)</strong>,解压部分仅需了解。</dd>
+  </dl>
+</div>
+<div class="exam-point">
+  <div class="exam-point-head"><span class="exam-point-id">计算 4</span><span class="tag tag-high">必练</span></div>
+  <h4>图像检索指标:Recall / Precision / AP / mAP</h4>
+  <dl>
+    <dt>讲次</dt><dd><a href="lectures/L11-L12-检索与深度学习.html">L12 检索评价</a></dd>
+    <dt>练法</dt><dd>Precision=检出相关/检出总数;Recall=检出相关/全部相关;AP=按排序逐位置的 precision 平均;mAP=多查询 AP 的均值。给检索排序结果逐位置算。</dd>
+  </dl>
+</div>
+
+<h3>综合论述 (1 × 10 = 10 分)</h3>
+<div class="exam-point">
+  <div class="exam-point-head"><span class="exam-point-id">论述</span><span class="tag tag-high">高频</span></div>
+  <h4>YCbCr 与色度二次采样</h4>
+  <dl>
+    <dt>讲次</dt><dd><a href="lectures/L04-L05-视频与音频基础.html">L04</a> + <a href="lectures/L08-L10-压缩标准与视频压缩.html">L08</a></dd>
+    <dt>子问</dt><dd>(1) 4:4:4 / 4:2:2 / 4:2:0 哪个传输效率最高?→ <strong>4:2:0</strong>,画示意图并定量(4:2:0 = 1.5 B/px vs 4:4:4 = 3 B/px)。<br>(2) 4:2:0 如何发送数据、如何还原为 RGB?<br>(3) 前 4 像素 Cb/Cr 全保留,Y 只留 Y₀/Y₁,用插值重构 Y₂/Y₃。</dd>
+    <dt>去处</dt><dd><a href="index.html">主页主题 2(颜色空间)</a>;利用人眼对色度不敏感这一心理视觉冗余作答。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">III.</span>老师给的逐章重点 · 考频排序</h2>
+<p>下表整理自 <a href="../原始资料/期末资料/期末重点.txt">《期末重点》</a>(老师口径)。<strong>重点</strong>标记的直接对应计算/论述题命中区。</p>
+<table>
+<thead><tr><th>章</th><th>核心内容</th><th>权重</th></tr></thead>
+<tbody>
+<tr><td>一、二</td><td>多媒体概念、应用软件(偏概念)</td><td><span class="tag tag-low">选择</span></td></tr>
+<tr><td>三</td><td>颜色表示(灰度图)、文件格式(了解)</td><td><span class="tag tag-mid">中</span></td></tr>
+<tr><td>四</td><td>光谱/人眼视觉(了解)、Gamma 校正、颜色匹配函数、颜色空间转换、RGB↔CMYK、视频颜色模型</td><td><span class="tag tag-mid">中</span></td></tr>
+<tr><td>五</td><td><strong>色度二次采样(为何用、计算大小)</strong>、4K/8K、模拟 vs 数字接口、立体视觉</td><td><span class="tag tag-high">重点</span></td></tr>
+<tr><td>六</td><td>声音数字化(采样/量化/还原/奈奎斯特)、<strong>音频量化与传输(PCM/DPCM/DM/ADPCM,集中零点附近)</strong>、计算</td><td><span class="tag tag-high">重点</span></td></tr>
+<tr><td>七</td><td><strong>无损/有损压缩、熵、游程、变长编码、字典编码(重点)、算术编码(重点)</strong>、无损图像压缩、预测器</td><td><span class="tag tag-high">重点</span></td></tr>
+<tr><td>八</td><td>有损图像压缩(度量公式、率失真曲线点含义)、<strong>量化(均匀 vs 非均匀)</strong>、向量量化、<strong>变换编码 DCT(为何变换后再编码)</strong></td><td><span class="tag tag-high">重点</span></td></tr>
+<tr><td>九</td><td><strong>JPEG 全过程、Zig-zag 扫描的目的</strong></td><td><span class="tag tag-high">重点</span></td></tr>
+<tr><td>十</td><td>视频、<strong>运动补偿(重点)</strong>、不同编码方式优缺点;H.261 编解码、P 帧未必基于运动补偿;MPEG-1 帧序列</td><td><span class="tag tag-high">重点</span></td></tr>
+<tr><td>十一</td><td>前两节重点、后两节偏概念(MPEG 了解);编码方式对比</td><td><span class="tag tag-mid">中</span></td></tr>
+<tr><td>十二</td><td><strong>图像检索评价指标(重点)</strong></td><td><span class="tag tag-high">重点</span></td></tr>
+</tbody>
+</table>
+<p><strong>了解即可(不深挖):</strong>算术编码解压、小波编码、H.263 半像素预测;<strong>MPEG-1 之外的视频标准不看。</strong></p>
+</section>
+
+<section>
+<h2><span class="num">IV.</span>配套原始资料</h2>
+<p>以下为归档在 <a href="../原始资料/">../原始资料/</a> 的一手材料,复习时按需取用:</p>
+<table>
+<thead><tr><th>资料</th><th>用途</th></tr></thead>
+<tbody>
+<tr><td><a href="../原始资料/期末真题/">期末真题/</a></td><td>本页的原始出处(2024 春回忆 .md + .pdf)</td></tr>
+<tr><td><a href="../原始资料/期末资料/计算公式汇总四合一.pdf">计算公式汇总四合一.pdf</a></td><td>计算题(60 分)冲刺,配 <a href="formulas.html">公式手册</a> 一起过</td></tr>
+<tr><td><a href="../原始资料/期末资料/Final-Review.pdf">Final-Review.pdf / 2.pdf</a></td><td>系统性期末复习讲义</td></tr>
+<tr><td><a href="../原始资料/习题/">习题/</a></td><td>题目合集、习题整理、历次小测——刷题素材</td></tr>
+<tr><td><a href="../原始资料/期末资料/视频教程.txt">视频教程.txt</a></td><td>难点(色度采样/PCM/DPCM/LZW/算术编码/JPEG/运动补偿)的 B 站/YouTube 讲解外链</td></tr>
+<tr><td><a href="../原始资料/多媒体系统导论 教材与答案.md">教材与答案.md</a></td><td>教材+答案网盘链接(需外部下载)</td></tr>
+</tbody>
+</table>
+</section>
+
+</article>
+</main>
+
+<footer>
+<p>真题是复习的指南针,不是终点 · 🎯</p>
+<p class="meta">文档版本 v1.0 · 2026-07-05 · 真题接入复习</p>
+<p class="meta">依据:原始资料/期末真题(2024 春回忆) + 期末资料/期末重点</p>
+</footer>
+
+</body>
+</html>

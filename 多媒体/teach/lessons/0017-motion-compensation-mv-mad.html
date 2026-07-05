@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0017 · 运动补偿 · MV · MAD · 2D 对数搜索</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Matrices & ASCII grids */
+.matrix { font-family: var(--mono); font-size: 0.9em; background: var(--paper-soft); border: 1px solid var(--rule); padding: var(--space-3) var(--space-4); margin: var(--space-3) 0; white-space: pre; overflow-x: auto; line-height: 1.5; border-radius: 2px; }
+.matrix .cap { display: block; font-family: var(--sans); font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: var(--space-2); white-space: normal; }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0017 · L09</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">运动补偿 · MV · MAD · 2D 对数搜索</h1>
+<p class="lede">相邻两帧视频有 95% 是重复的。视频压缩的秘密,就是别再重画整帧——只记下"这块像素往哪儿挪了几格"。这一节把这个"挪了几格"的计算题拆到底,它值 15 分。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>把视频想成一叠只差一点点的幻灯片。一个人在草地上走,背景的草一动不动,只有他这一小块在往右移。<strong>没必要每帧都重画整片草地</strong>——只需说一句"上一帧那个人,这一帧整体向右挪了 3 个像素"。这句"向右挪 3 格"就是<strong>运动向量 MV</strong>;把画面切成小方块、逐块去找"挪了几格"的过程,就是<strong>运动估计</strong>。怎么判断哪个候选位置最像?靠 <code>MAD</code>——两块像素的平均差有多小。差越小越像,越像就越省。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>为什么要运动补偿:时间冗余</h2>
+<p>前面 JPEG 处理的是<strong>一张</strong>静止图,靠的是<strong>空间冗余</strong>(相邻像素相似)。视频多了一个维度——时间。连续帧之间高度相似,这叫<strong>时间冗余</strong>。若每帧都当独立图片编码,等于把几乎一样的草地画 30 遍/秒,浪费惊人。</p>
+<p>运动补偿的思路:当前帧(<strong>目标帧 Target</strong>)不从零画,而是<strong>参考</strong>已编码的邻帧(<strong>参考帧 Reference</strong>),只编码两者的<strong>差异</strong>。三步走:</p>
+<ol>
+  <li><strong>运动估计 (Motion Estimation)</strong>:为每个宏块找出它在参考帧里最像的位置,得到 MV。</li>
+  <li><strong>基于 MC 的预测</strong>:按 MV 从参考帧搬来"预测块"。</li>
+  <li><strong>求预测误差</strong>:目标块 − 预测块 = 残差,只编码这个残差(它接近 0,极易压缩)。</li>
+</ol>
+</section>
+
+<section>
+<h2><span class="num">2.</span>关键定义</h2>
+<div class="def">
+  <dl>
+    <dt>时间冗余 (Temporal Redundancy)</dt>
+    <dd>连续视频帧之间存在的信息重复。运动补偿正是为消除它而生。<span class="alias">对比:JPEG 消除的是同一张图内部的空间冗余。</span></dd>
+    <dt>宏块 (Macroblock)</dt>
+    <dd>把图像切成的 <code>N×N</code> 小方块,运动补偿以宏块为单位进行。<span class="alias">默认:亮度 Y 用 N=16;色度 Cb/Cr 在 4:2:0 下用 N=8。</span></dd>
+    <dt>运动向量 MV (Motion Vector)</dt>
+    <dd>参考帧中的匹配宏块相对目标宏块的<strong>位移</strong> <code>MV=(u,v)</code>。搜索限定在邻域内,水平/垂直位移都在 <code>[−p, p]</code>,构成一个 <code>(2p+1)×(2p+1)</code> 的<strong>搜索窗</strong>。</dd>
+    <dt>MAD (Mean Absolute Difference,平均绝对误差)</dt>
+    <dd>衡量两个宏块相似度的指标:<code>MAD(i,j) = (1/N²)·Σ|T(x,y) − R(x+i, y+j)|</code>。对宏块内 N² 个像素逐点求"目标−参考"的绝对差,求和再除以 N²。<span class="alias">越小越像。目标就是找到使 MAD 最小的 (i,j)。</span></dd>
+    <dt>运动估计 (Motion Estimation)</dt>
+    <dd>在搜索窗内寻找使 MAD 最小的位移 (i,j),把它定为该宏块的 MV=(u,v) 的整个过程。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">3.</span>怎么搜:三种方法对比</h2>
+<p>搜索窗里候选位置共 <code>(2p+1)²</code> 个,逐个算 MAD 太贵。于是有了由慢到快的三种搜索法:</p>
+<table>
+<thead><tr><th>方法</th><th>做法</th><th>计算量</th><th>结果</th></tr></thead>
+<tbody>
+<tr><td><strong>顺序搜索</strong><br>(全搜索)</td><td>遍历整个 (2p+1)² 窗内每个位置,逐个算 MAD 取最小</td><td><code>O(p²N²)</code></td><td><strong>最优</strong>(全局最小),但最慢</td></tr>
+<tr><td><strong>2D 对数搜索</strong></td><td>每轮只测少数几个"种子"点,找到最小后把中心移过去、步长减半,像二分那样收敛</td><td><code>O(log&nbsp;p · N²)</code></td><td>次优,但通常够好,快很多</td></tr>
+<tr><td><strong>分层搜索</strong></td><td>先在降采样的低分辨率图上粗估 MV,再逐层细化</td><td>最低</td><td>次优,最省</td></tr>
+</tbody>
+</table>
+<p>真题只考前两个:全搜索里的 <strong>MAD 计算与选最优 MV</strong>,以及 <strong>2D 对数搜索的第一轮位置</strong>。下面用一道例题把两者一次讲透。</p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题(真题核心 · 15 分)分步精解</div>
+  <div class="worked-body">
+    <p><strong>第一部分:算 MAD、选最优 MV。</strong>设宏块大小 <code>N=2</code>(即 N²=4,为便于手算取小值;真题里 N=16 时方法完全一样)。目标帧中的待匹配宏块为:</p>
+    <div class="matrix"><span class="cap">目标宏块 T</span> 12  10
+  8  14</div>
+    <p>运动估计已把候选缩到 3 个位移。从参考帧按每个候选 (i,j) 搬出对应宏块 R 如下:</p>
+    <div class="matrix"><span class="cap">候选 ① MV=(0,0) → 参考块 R₁</span>  4   5
+  6   3</div>
+    <div class="matrix"><span class="cap">候选 ② MV=(2,0) → 参考块 R₂</span> 12  11
+  9  14</div>
+    <div class="matrix"><span class="cap">候选 ③ MV=(0,2) → 参考块 R₃</span> 10   9
+ 11  10</div>
+    <p>用公式 <code>MAD = (1/N²)·Σ|T − R|</code>,N²=4,逐个算:</p>
+    <ol>
+      <li><strong>候选 ① (0,0):</strong> 逐点绝对差 = <code>|12−4|+|10−5|+|8−6|+|14−3|</code> = <code>8+5+2+11 = 26</code>。<br><code>MAD₁ = 26 / 4 = 6.5</code>。</li>
+      <li><strong>候选 ② (2,0):</strong> = <code>|12−12|+|10−11|+|8−9|+|14−14|</code> = <code>0+1+1+0 = 2</code>。<br><code>MAD₂ = 2 / 4 = 0.5</code>。</li>
+      <li><strong>候选 ③ (0,2):</strong> = <code>|12−10|+|10−9|+|8−11|+|14−10|</code> = <code>2+1+3+4 = 10</code>。<br><code>MAD₃ = 10 / 4 = 2.5</code>。</li>
+      <li><strong>比较取最小:</strong> <code>0.5 &lt; 2.5 &lt; 6.5</code>,候选 ② 的 MAD 最小。</li>
+    </ol>
+    <div class="result"><strong>最优 MV = (2, 0)</strong>,对应 <code>MAD = 0.5</code>。含义:这个宏块相对参考帧向 (2,0) 方向挪了 2 个像素,匹配后残差极小,压缩效率最高。</div>
+    <p style="margin-top:var(--space-5)"><strong>第二部分:画出 2D 对数搜索第一轮的搜索位置。</strong>设 <code>p=7</code>。初始步长 <code>step = 4</code>(取 ≥ p/2 的 2 的幂)。第一轮以中心 (0,0) 为基准,只测中心 + 上下左右四点,步长均为 step:</p>
+    <div class="matrix"><span class="cap">第一轮 5 个搜索位置(● 为候选,坐标 = (水平,垂直)偏移)</span>              (0,+4)
+                ●
+                |
+ (−4,0) ●———————●———————● (+4,0)
+              (0,0)
+                |
+                ●
+              (0,−4)</div>
+    <p>即第一轮测这 5 点:<code>(0,0)</code>、<code>(+4,0)</code>、<code>(−4,0)</code>、<code>(0,+4)</code>、<code>(0,−4)</code>。分别算 MAD,选出最小者作为新中心;<strong>下一轮把步长减半为 2</strong>,再以新中心测同样的"十字"5 点,如此迭代直到步长为 1。这就是"对数"之名的由来——每轮步长砍半,轮数约 <code>log₂ p</code>。</p>
+    <p class="alias" style="font-family:var(--sans);font-size:13px;color:var(--ink-mute)">注:部分课件把第一轮描述为 9 个种子点(3×3 网格)。本节按"十字 5 点"的经典 2D 对数搜索版本作答;若题目明确给出 9 点则按题目走,原理一致——每轮定最小、移中心、步长减半。</p>
+  </div>
+</div>
+
+<section>
+<h2><span class="num">4.</span>更宏观:这值多少分,又意味着什么</h2>
+<p>运动补偿是所有视频编码标准(H.261 / MPEG / H.264)的<strong>共同地基</strong>。理解了 MV 与 MAD,下一节的 I/P/B 帧、双向预测才有依托。考试里它是四道计算题之一,稳拿 15 分的关键在于:公式别背错(除以的是 <code>N²</code> 不是 N)、绝对值别漏、最后要明确写出"最优 MV = (?, ?)"这个结论。</p>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1 · MAD 计算</span>
+  <p>宏块大小 N=2。目标块 T = <code>[[5, 8],[6, 9]]</code>,某候选 MV=(1,0) 对应参考块 R = <code>[[5, 7],[8, 9]]</code>。该候选的 MAD 是多少?</p>
+  <ol class="opts">
+    <li>3</li>
+    <li>0.75</li>
+    <li>1.5</li>
+    <li>0</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B 0.75</strong>
+      <p>逐点绝对差 = <code>|5−5|+|8−7|+|6−8|+|9−9|</code> = <code>0+1+2+0 = 3</code>。再除以 N² = 2² = 4:<code>MAD = 3/4 = 0.75</code>。<br>
+      <em>陷阱:</em>选项 A(3)是没除 N² 的常见错误;选项 C 是错除以 N=2。记牢公式里除的是 <strong>N² = 4</strong>。</p>
+    </div>
+  </details>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 2 · 2D 对数搜索</span>
+  <p>2D 对数搜索,初始步长 step=4,第一轮以中心 (0,0) 测十字 5 点后,发现 (0,+4) 处 MAD 最小。那么<strong>第二轮</strong>的中心和步长分别是?</p>
+  <ol class="opts">
+    <li>中心仍为 (0,0),步长 4</li>
+    <li>中心移到 (0,+4),步长减半为 2</li>
+    <li>中心移到 (0,+4),步长翻倍为 8</li>
+    <li>中心移到 (0,+8),步长为 4</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B 中心移到 (0,+4),步长减半为 2</strong>
+      <p>2D 对数搜索的迭代规则:每轮找到最小 MAD 的位置后,<strong>把中心移到该位置</strong>,并<strong>把步长减半</strong>。所以新中心 = (0,+4),新步长 = 4/2 = 2。第二轮就以 (0,+4) 为心、按 ±2 再测十字 5 点。<br>
+      <em>要点:</em>步长只减不增(排除 C),中心一定跟着最小点走(排除 A),不会跳到 2×step 处(排除 D)。步长逐轮砍半,正是它比全搜索快得多的原因。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 有了 MV 与运动补偿,进入 <a href="0018-h261-mpeg-ipb-frames.html">0018 · H.261 与 MPEG · I/P/B 帧与双向预测</a>,看这些 MV 如何组织成一整套视频编码标准。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0017 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

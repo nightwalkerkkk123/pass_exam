@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0013 · 失真度量 MSE/PSNR 与率失真理论</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0013 · L07</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">失真度量 MSE/PSNR 与率失真理论</h1>
+<p class="lede">有损压缩必然丢东西——那"丢了多少"怎么量化?丢得越少要花多少码率?这一节把"失真"和"码率"这对冤家钉在一张曲线上。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>把一张照片压缩,好比把一段话转述给别人:转述得越简短(码率越低),失真就越大;想一字不差(失真为零),就得把原话完整背下来(码率最高)。<strong>率失真理论</strong>研究的正是这个权衡:你能容忍多大失真 <code>D</code>,就能算出至少需要多少码率 <code>R</code>。而 <strong>MSE/PSNR</strong> 则是给"失真到底有多大"打一个客观分数的尺子。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>关键定义</h2>
+<div class="def">
+  <dl>
+    <dt>均方误差 MSE (Mean Square Error, σ²<sub>d</sub>)</dt>
+    <dd>原始信号 <code>x</code> 与重建信号 <code>x̂</code> 之间误差平方的平均值:<code>MSE = (1/N)·Σ(x − x̂)²</code>。它是失真的<strong>能量</strong>度量,越小越好、单位是"数值平方",<strong>不是分贝</strong>。</dd>
+    <dt>峰值信噪比 PSNR (Peak Signal to Noise Ratio)</dt>
+    <dd>用信号的<strong>峰值</strong>(8-bit 图像为 255)对失真做归一化,再取对数换成分贝:<br>
+    <code>PSNR = 10·log₁₀(x²<sub>peak</sub> / MSE) = 10·log₁₀(255² / MSE)</code>。<span class="alias">PSNR 越<strong>大</strong>越好;它是评价图像/视频质量最常用的客观指标。</span></dd>
+    <dt>率失真函数 R(D) (Rate-Distortion Function)</dt>
+    <dd>给定一个可容忍的失真上限 <code>D</code>,<code>R(D)</code> 给出在"失真不超过 D"的前提下,对信源编码所需的<strong>最低码率</strong>(bit/符号)。它刻画了码率与失真之间理论上无法逾越的权衡边界。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>三把尺子:SNR vs PSNR vs MSE</h2>
+<p>考试爱把这三个量摆在一起辨析。核心区别:MSE 是原始误差能量,SNR/PSNR 是取了对数、单位为分贝的<strong>比值</strong>——区别只在分子用"信号方差"还是"信号峰值"。</p>
+<table>
+<thead><tr><th>指标</th><th>公式</th><th>单位/方向</th></tr></thead>
+<tbody>
+<tr><td><strong>MSE</strong> 均方误差</td><td><code>(1/N)·Σ(x − x̂)²</code></td><td>数值平方;越<strong>小</strong>越好</td></tr>
+<tr><td><strong>SNR</strong> 信噪比</td><td><code>10·log₁₀(σ²<sub>x</sub> / MSE)</code></td><td>dB;分子是信号<strong>方差</strong>;越大越好</td></tr>
+<tr><td><strong>PSNR</strong> 峰值信噪比</td><td><code>10·log₁₀(x²<sub>peak</sub> / MSE)</code></td><td>dB;分子是信号<strong>峰值²</strong>(如 255²);越大越好</td></tr>
+</tbody>
+</table>
+<p><strong>易错点:</strong>因为对数里的量是"能量比"(平方形式),系数是 <strong>10</strong> 而不是 20,对数底是 <strong>10</strong>(常用对数)。只有当公式写成"电压幅值之比"(未平方)时才会出现系数 20,例如 <code>SNR = 20·log₁₀(v<sub>signal</sub>/v<sub>noise</sub>)</code>——那是同一个式子把平方拿到 log 外面的结果。考场上只要盯住"平方 ↔ 系数 10,幅值 ↔ 系数 20"。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>率失真理论:码率与失真的权衡边界</h2>
+<p>率失真理论(Rate-Distortion Theory)给"用多少码率、换多少质量"提供了一个理论框架。它的主角是一条曲线 <code>R(D)</code>:</p>
+<ul>
+  <li><strong>横轴 D</strong>:允许的失真上限(如 MSE)。<strong>纵轴 R</strong>:达到该失真所需的最低码率。</li>
+  <li><strong>单调下降</strong>:允许的失真越大,需要的码率越低——想省码率,就得忍受更多失真。</li>
+  <li><strong>下凸 (convex)</strong>:曲线向下弯。越靠近"高质量"一端,每多降一点失真,码率的代价增长得越快(边际成本递增)。</li>
+  <li><strong>D = 0 的端点</strong>:失真为零即<strong>无损</strong>,此时 <code>R(0)</code> 等于信源的<strong>熵 H</strong>——这是无损压缩码率的理论下界,再也压不动了。</li>
+  <li><strong>D 足够大</strong>:失真大到可以"什么都不发",码率降到 0,曲线触及横轴。</li>
+</ul>
+
+<div class="def" style="border-style:dashed;">
+  <dl>
+    <dt>简答范式(可背)——"请简述率失真理论/R(D) 曲线的含义"</dt>
+    <dd>率失真理论研究<strong>码率 R 与失真 D 之间的权衡</strong>。率失真函数 <code>R(D)</code> 表示:在失真不超过给定上限 <code>D</code> 的前提下,对信源进行编码所需的<strong>最低码率</strong>。其 <code>R(D)</code> 曲线具有三个特征:①<strong>单调下降</strong>——容忍的失真越大,所需码率越低;②<strong>下凸</strong>——越接近高质量端,降低失真的码率代价越高;③当 <code>D = 0</code> 时对应<strong>无损压缩</strong>,此时码率等于信源的<strong>熵 H</strong>。它给出了任何编码方案都无法突破的理论极限,是有损压缩设计的基准。</dd>
+  </dl>
+</div>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 由 MSE 计算 PSNR</div>
+  <div class="worked-body">
+    <p>一幅 8-bit 灰度图像(像素取值 0–255),经有损压缩后重建,测得均方误差 <code>MSE = 100</code>。求其 PSNR。</p>
+    <ol>
+      <li>确定峰值:8-bit 图像最大像素值 <code>x<sub>peak</sub> = 255</code>,故 <code>x²<sub>peak</sub> = 255² = 65025</code>。</li>
+      <li>代入公式(注意系数是 <strong>10</strong>、底是 <strong>10</strong>,不是 20):<br><code>PSNR = 10·log₁₀(255² / MSE) = 10·log₁₀(65025 / 100)</code>。</li>
+      <li>算括号内比值:<code>65025 / 100 = 650.25</code>。</li>
+      <li>取常用对数:<code>log₁₀(650.25) ≈ 2.813</code>。</li>
+      <li>乘系数 10:<code>PSNR ≈ 10 × 2.813 ≈ 28.1 dB</code>。</li>
+    </ol>
+    <div class="result"><strong>结果:PSNR ≈ 28 dB。</strong>记住这个"锚点":<code>MSE = 100 → PSNR ≈ 28 dB</code>。若误用系数 20,会算出约 56 dB,整整差一倍——这正是阅卷常见扣分点。</div>
+  </div>
+</div>
+
+<section>
+<h2><span class="num">4.</span>为什么这节重要</h2>
+<p>失真度量和率失真理论是整个<strong>有损压缩</strong>(JPEG、MPEG、量化)的评价基石:没有 PSNR 就无法客观比较两种压缩算法孰优孰劣;没有 R(D) 就说不清"多花一倍码率究竟买回多少画质"。真题里,PSNR 常作为计算题的一小问,而率失真理论几乎是简答题的<strong>钉子户</strong>——本节的可背范式请务必吃透。下一节的"量化"正是产生失真的源头。</p>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1</span>
+  <p>某 8-bit 图像压缩后 <code>MSE = 255²/100 ≈ 650</code>(即比值 <code>255²/MSE = 100</code>)。其 PSNR 约为多少?</p>
+  <ol class="opts">
+    <li>10 dB</li>
+    <li>20 dB</li>
+    <li>40 dB</li>
+    <li>100 dB</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B 20 dB</strong>
+      <p>题目已给 <code>255²/MSE = 100</code>。直接代入 <code>PSNR = 10·log₁₀(100) = 10 × 2 = 20 dB</code>。<br>
+      <em>陷阱:</em>若错用系数 20,会得 40 dB(选项 C)——这就是"系数是 10 不是 20"的考点。凡对数里是"能量/平方比",系数一律取 10。</p>
+    </div>
+  </details>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 2</span>
+  <p>关于率失真函数 <code>R(D)</code>,下列说法<strong>错误</strong>的是?</p>
+  <ol class="opts">
+    <li>R(D) 随 D 增大而单调下降</li>
+    <li>D = 0 时 R(D) 等于信源的熵,对应无损压缩</li>
+    <li>R(D) 曲线是下凸的</li>
+    <li>D 越小所需码率越低,故高质量图像最省码率</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:D</strong>
+      <p>D 越小(要求越高质量),所需码率 R <strong>越高</strong>而非越低——高质量恰恰最<strong>费</strong>码率,D 说反了。A/B/C 都是 R(D) 曲线的正确特征:单调下降、D=0 处等于熵、下凸。<br>
+      <em>记忆钩:</em>"想清晰就掏钱"——失真越小(越清晰),码率账单越贵。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 失真从何而来?进入 <a href="0014-quantization-uniform-vector.html">0014 · 量化:均匀量化与矢量量化</a>,看有损压缩里"损失"的真正源头。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0013 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

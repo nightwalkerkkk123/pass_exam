@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0012 · 算术编码(编码 + 解码)</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0012 · L06</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">算术编码(编码 + 解码)</h1>
+<p class="lede">Huffman 给每个字符一段整数位的码字;算术编码则把<strong>整条消息</strong>压成 [0,1) 里的<strong>一个小数</strong>。这是 15 分计算题的正主——老师标为重点,编码部分务必手到擒来。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>把区间 <code>[0, 1)</code> 想成一把没有刻度、可以无限细分的尺子。每读入一个符号,你就<strong>只保留尺子上属于它的那一小段</strong>,然后把这一小段当成新尺子继续切。消息越长,保留下来的区间就越窄;最后随便报一个落在这段区间里的小数,对方就能顺着同样的规则把整条消息还原出来。<strong>一个数,编码一整句话。</strong></p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>核心概念</h2>
+<div class="def">
+  <dl>
+    <dt>算术编码 (Arithmetic Coding)</dt>
+    <dd>一种<strong>无损熵编码</strong>。把整条消息视为一个整体,映射为半开区间 <code>[a, b) ⊂ [0,1)</code> 内的一个实数。通常比 Huffman 更接近熵,因为它不受"每字符至少 1 位"的整数约束。<span class="alias">对照:Huffman 是"逐字符→整数位码字";算术是"整条消息→一个分数"。</span></dd>
+    <dt>概率区间 (Probability Range)</dt>
+    <dd>把 <code>[0,1)</code> 按各符号概率<strong>依次首尾相接</strong>地切成若干段,每个符号独占一段 <code>[Range_low, Range_high)</code>,段宽 = 该符号概率。</dd>
+    <dt>累积概率 (Cumulative Probability)</dt>
+    <dd>某符号区间的下界 <code>Range_low</code> = 排在它前面所有符号的概率之和;上界 <code>Range_high</code> = 下界 + 自身概率。它决定了每个符号"占尺子的哪一段"。</dd>
+  </dl>
+</div>
+
+<p>下面这张表是所有计算的起点——先按固定顺序把符号概率累加成区间。注意必须有一个<strong>终止符</strong>(这里用 <code>$</code>)来告诉解码器"消息到此结束"。</p>
+<table>
+<thead><tr><th>符号</th><th>概率 p</th><th>累积下界</th><th>区间 [Range_low, Range_high)</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>0.4</td><td>0</td><td>[0, 0.4)</td></tr>
+<tr><td>B</td><td>0.3</td><td>0.4</td><td>[0.4, 0.7)</td></tr>
+<tr><td>C</td><td>0.2</td><td>0.7</td><td>[0.7, 0.9)</td></tr>
+<tr><td>$ (终止符)</td><td>0.1</td><td>0.9</td><td>[0.9, 1.0)</td></tr>
+</tbody>
+</table>
+</section>
+
+<section>
+<h2><span class="num">2.</span>编码的递推公式</h2>
+<p>维护三个量:当前区间下界 <code>low</code>、上界 <code>high</code>、以及区间宽度 <code>range = high − low</code>。初始 <code>low = 0, high = 1, range = 1</code>。每读入一个符号 <code>s</code>,把当前区间按 <code>s</code> 的比例缩窄:</p>
+<div class="def">
+  <dl>
+    <dt>缩窄公式(最需要背的两行)</dt>
+    <dd><code>new_low = low + range × Range_low(s)</code><br>
+        <code>new_high = low + range × Range_high(s)</code><br>
+        然后更新 <code>range = new_high − new_low</code>。</dd>
+  </dl>
+</div>
+<p>直觉:在<strong>当前这段</strong>尺子内部,再按符号 <code>s</code> 的比例位置切出一小段。读完终止符后,区间不再变化,最后<strong>输出任意满足 <code>low ≤ code &lt; high</code> 的最短二进制小数</strong>即可。</p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 对 "ACB$" 编码(15 分核心题型)</div>
+  <div class="worked-body">
+    <p>用上表的概率区间,对序列 <code>A C B $</code> 逐符号编码。每一步都套那两行公式,列出 <code>low / high / range</code> 的变化:</p>
+    <ol>
+      <li><strong>初始化</strong>:<code>low = 0</code>,<code>high = 1</code>,<code>range = 1</code>。</li>
+      <li><strong>读入 A</strong>,区间 [0, 0.4):<br>
+        <code>low = 0 + 1 × 0 = 0</code><br>
+        <code>high = 0 + 1 × 0.4 = 0.4</code><br>
+        <code>range = 0.4</code>。当前区间 <code>[0, 0.4)</code>。</li>
+      <li><strong>读入 C</strong>,区间 [0.7, 0.9):<br>
+        <code>low = 0 + 0.4 × 0.7 = 0.28</code><br>
+        <code>high = 0 + 0.4 × 0.9 = 0.36</code><br>
+        <code>range = 0.08</code>。当前区间 <code>[0.28, 0.36)</code>。</li>
+      <li><strong>读入 B</strong>,区间 [0.4, 0.7):<br>
+        <code>low = 0.28 + 0.08 × 0.4 = 0.312</code><br>
+        <code>high = 0.28 + 0.08 × 0.7 = 0.336</code><br>
+        <code>range = 0.024</code>。当前区间 <code>[0.312, 0.336)</code>。</li>
+      <li><strong>读入 $</strong>(终止符),区间 [0.9, 1.0):<br>
+        <code>low = 0.312 + 0.024 × 0.9 = 0.3336</code><br>
+        <code>high = 0.312 + 0.024 × 1.0 = 0.336</code><br>
+        <code>range = 0.0024</code>。最终区间 <code>[0.3336, 0.336)</code>。</li>
+    </ol>
+    <p>汇总成阅卷老师想看的那张表:</p>
+    <table>
+    <thead><tr><th>读入符号</th><th>low</th><th>high</th><th>range</th></tr></thead>
+    <tbody>
+    <tr><td>(初始)</td><td>0</td><td>1.0</td><td>1.0</td></tr>
+    <tr><td>A</td><td>0</td><td>0.4</td><td>0.4</td></tr>
+    <tr><td>C</td><td>0.28</td><td>0.36</td><td>0.08</td></tr>
+    <tr><td>B</td><td>0.312</td><td>0.336</td><td>0.024</td></tr>
+    <tr><td>$</td><td>0.3336</td><td>0.336</td><td>0.0024</td></tr>
+    </tbody>
+    </table>
+    <p><strong>找最短二进制码字</strong>:要在 <code>[0.3336, 0.336)</code> 内找一个用最少小数位表示的二进制小数。逐位逼近——用 <code>k / 2ⁿ</code> 试:<br>
+    n=6 时步长 <code>1/64 ≈ 0.0156</code>,区间内需要 <code>0.3336×64 ≈ 21.35 ~ 0.336×64 ≈ 21.5</code>,其间没有整数 → 6 位不够。<br>
+    n=7 时步长 <code>1/128 ≈ 0.0078</code>,<code>0.3336×128 ≈ 42.7 ~ 0.336×128 ≈ 43.0</code>,取整数 <code>43</code> → <code>43/128 = 0.3359375</code>,落在区间内。</p>
+    <div class="result">
+      <strong>结果:</strong>最终区间 <code>[0.3336, 0.336)</code>,最短二进制码字 = <code>43/128 = 0.0101011</code>(即码流 <code>0101011</code>,共 7 位)。验证:<code>0.0101011₂ = 1/4 + 1/16 + 1/64 + 1/128 = 0.3359375</code>,确实 <code>0.3336 ≤ 0.3359375 &lt; 0.336</code> ✓
+    </div>
+  </div>
+</div>
+
+<section>
+<h2><span class="num">3.</span>解码:反着走一遍(了解即可)</h2>
+<p>老师说解压部分了解即可,但过一遍能帮你彻底看懂编码。解码器拿到小数 <code>value = 0.3359375</code>,用同一张概率表反向定位:每一步找出 <code>value</code> 落在哪个符号区间,输出该符号,再把 value "放大还原"回单位区间,公式:<br>
+<code>value ← (value − Range_low(s)) / p(s)</code>。</p>
+<table>
+<thead><tr><th>当前 value</th><th>落在区间</th><th>输出</th><th>还原 (value − low) / p</th></tr></thead>
+<tbody>
+<tr><td>0.3359375</td><td>[0, 0.4) → A</td><td><strong>A</strong></td><td>(0.3359375 − 0) / 0.4 = 0.83984375</td></tr>
+<tr><td>0.83984375</td><td>[0.7, 0.9) → C</td><td><strong>C</strong></td><td>(0.83984375 − 0.7) / 0.2 = 0.69921875</td></tr>
+<tr><td>0.69921875</td><td>[0.4, 0.7) → B</td><td><strong>B</strong></td><td>(0.69921875 − 0.4) / 0.3 = 0.99739…</td></tr>
+<tr><td>0.99739…</td><td>[0.9, 1.0) → $</td><td><strong>$</strong></td><td>终止符 → 停止</td></tr>
+</tbody>
+</table>
+<p>解出 <code>A C B $</code>,与原消息完全一致 ✓。注意第三步 <code>0.699… &lt; 0.7</code>,所以落在 B 而不是 C——这类"卡边界"判断是解码最容易出错的地方,务必用严格的半开区间 <code>[low, high)</code> 判断。</p>
+</section>
+
+<section>
+<h2><span class="num">4.</span>为什么它能赢 Huffman</h2>
+<p>Huffman 给每个符号分配<strong>整数位</strong>码字,当某符号概率很高(比如 0.9)时,理论上它只值 <code>−log₂0.9 ≈ 0.15</code> 位,可 Huffman 至少得给它 1 位——浪费。算术编码把整条消息合成一个分数,<strong>能逼近熵 η</strong>,不受整数位约束。代价是实现更复杂、要处理浮点精度。简答题里"为什么算术编码常优于 Huffman"就答这一句:<em>它对整条消息编码、用分数码字逼近熵,绕开了每符号至少 1 位的下限</em>。</p>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题</span>
+  <p>沿用本节概率表(A[0,0.4)、B[0.4,0.7)、C[0.7,0.9)、$[0.9,1.0)),对序列 <code>B A</code> 编码,读完这<strong>两个</strong>符号后的当前区间 <code>[low, high)</code> 是?</p>
+  <ol class="opts">
+    <li>[0.4, 0.7)</li>
+    <li>[0.28, 0.36)</li>
+    <li>[0.4, 0.52)</li>
+    <li>[0.4, 0.5)</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:C [0.4, 0.52)</strong>
+      <p>逐步套公式:<br>
+      初始 <code>low=0, high=1, range=1</code>。<br>
+      读入 <strong>B</strong>[0.4,0.7):<code>low = 0 + 1×0.4 = 0.4</code>,<code>high = 0 + 1×0.7 = 0.7</code>,<code>range = 0.3</code>。<br>
+      读入 <strong>A</strong>[0,0.4):<code>low = 0.4 + 0.3×0 = 0.4</code>,<code>high = 0.4 + 0.3×0.4 = 0.52</code>,<code>range = 0.12</code>。<br>
+      得 <code>[0.4, 0.52)</code>。<br>
+      <em>干扰项辨析:</em>A 是只读入 B 后的区间(漏了第二步);B 是例题里 "AC" 的区间(记错序列);D 是把 <code>0.3×0.4</code> 误算成 0.1。关键别忘了第二步的宽度要乘上<strong>当前 range</strong> 而非 1。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 无损压缩告一段落,进入有损压缩的度量:<a href="0013-distortion-psnr-rate-distortion.html">0013 · 失真度量·PSNR·率失真理论</a>,看"压得越狠、失真越大"这道权衡如何量化。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0012 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

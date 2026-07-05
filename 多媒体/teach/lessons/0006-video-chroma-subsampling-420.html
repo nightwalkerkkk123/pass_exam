@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0006 · 视频制式 · 色度二次采样 4:2:0</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0006 · L04</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">视频制式 · 色度二次采样 4:2:0</h1>
+<p class="lede">这一节直指综合论述题的命中区:为什么 4:2:0 传输效率最高、它怎么把数据发出去、接收端又怎么把它还原成一屏 RGB。三个数字要背进骨头里——3、2、1.5 字节/像素。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>你的眼睛对<strong>明暗</strong>敏感,对<strong>颜色</strong>迟钝——黑夜里你看得清物体的轮廓(亮度),却分不清它是深蓝还是墨绿(色度)。色度二次采样正是钻了这个空子:亮度 <code>Y</code> 一个不漏地全采,颜色 <code>Cb/Cr</code> 则偷偷少存一半甚至四分之三。人眼几乎察觉不到,数据量却直接砍掉一半。这是一种<strong>心理视觉冗余</strong>——不是丢了没用的信息,而是丢了"人看不出来"的信息。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>先分清两种扫描</h2>
+<p>模拟视频信号 <code>f(t)</code> 对随时间变化的画面逐点采样,采样有两种走法:</p>
+<div class="def">
+  <dl>
+    <dt>逐行扫描 (progressive scanning)</dt>
+    <dd>按顺序一行接一行扫完整幅图(一帧),第 1、2、3…行连续扫描。画质稳定,运动物体<strong>无锯齿</strong>。HDTV/现代显示器都用它。</dd>
+    <dt>隔行扫描 (interlaced scanning)</dt>
+    <dd>把一帧拆成两"场":先扫<strong>奇数行</strong>(1、3、5…)组成奇场,再扫<strong>偶数行</strong>(2、4、6…)组成偶场,靠视觉暂留合成一帧。省一半带宽,但快速运动时有锯齿/闪烁。老式模拟电视用它。</dd>
+    <dt>NTSC 与 PAL 制式</dt>
+    <dd><strong>NTSC</strong>(北美/日本):<code>30 fps</code>、60 场/秒、约 33.3 ms/帧。<strong>PAL</strong>(中国/欧洲):<code>25 fps</code>、50 场/秒、40 ms/帧。<span class="alias">记忆钩:PAL 慢一点(25),对应欧洲 50 Hz 市电;NTSC 快一点(30),对应北美 60 Hz。</span></dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>三种色度采样:J:a:b 记号</h2>
+<p>色度采样用 <code>J:a:b</code> 三个数字描述,基准是一个 <code>4×2</code> 的像素小块(J=4,两行):</p>
+<ul>
+  <li><strong>J</strong>:水平基准宽度,固定为 4 个像素。</li>
+  <li><strong>a</strong>:<strong>第一行</strong>每 4 个像素里,色度分量(Cb/Cr 各)的采样个数。</li>
+  <li><strong>b</strong>:<strong>第二行</strong>的色度采样个数。取 <code>a</code> 表示第二行照采;取 <code>0</code> 表示第二行<strong>不采</strong>,直接复用第一行的色度值。</li>
+</ul>
+<p>亮度 <code>Y</code> 永远逐像素全采——被砍的只有颜色。下表把三种方案摊开算清楚(以 8 个像素、即两行各 4 个像素为单位):</p>
+<table>
+<thead><tr><th>方案</th><th>Y 字节</th><th>Cb 字节</th><th>Cr 字节</th><th>合计 / 8 像素</th><th>每像素字节</th></tr></thead>
+<tbody>
+<tr><td><strong>4:4:4</strong></td><td>8</td><td>8</td><td>8</td><td>24 B</td><td><code>24 / 8 = 3</code> B/px</td></tr>
+<tr><td><strong>4:2:2</strong></td><td>8</td><td>4</td><td>4</td><td>16 B</td><td><code>16 / 8 = 2</code> B/px</td></tr>
+<tr><td><strong>4:2:0</strong></td><td>8</td><td>2</td><td>2</td><td>12 B</td><td><code>12 / 8 = 1.5</code> B/px</td></tr>
+</tbody>
+</table>
+<p>顺着数字读:4:4:4 每像素扛着 <code>Y+Cb+Cr = 3</code> 个字节;4:2:2 把色度水平方向减半(每 4 个像素只采 2 个 Cb、2 个 Cr),降到 2 B/px;4:2:0 更狠——第二行完全不采色度(b=0),水平和垂直方向色度<strong>都减半</strong>,降到 1.5 B/px。相对 4:4:4,4:2:0 直接省下 <code>(3-1.5)/3 = 50%</code> 的数据。</p>
+<div class="intuition">
+  <span class="tag-label">易错点</span>
+  <p>4:2:0 里那个 <code>0</code> <strong>不是</strong>"某个分量为零",而是指"第二行不单独采色度"。它和 4:1:1 都得到 1.5 B/px,但方式不同:4:1:1 是<strong>水平</strong>方向压到 1/4、垂直不动;4:2:0 是<strong>水平、垂直各减半</strong>。4:2:0 的色度分布更均匀,所以 JPEG、MPEG、H.264、HDTV 全都选它。</p>
+</div>
+</section>
+
+<section>
+<h2><span class="num">3.</span>4:2:0 的本质:每 2×2 块共享一组颜色</h2>
+<p>换个更好记的视角。把画面切成一个个 <code>2×2</code> 的小方块,每块 4 个像素。在 4:2:0 下:</p>
+<ul>
+  <li>4 个像素各自保留自己的亮度:<code>Y₀ Y₁ Y₂ Y₃</code>,共 <strong>4 个字节</strong>。</li>
+  <li>整个 2×2 块<strong>只存一个</strong> Cb 和一个 Cr(取平均或左上角值),共 <strong>2 个字节</strong>。</li>
+</ul>
+<p>于是每个 2×2 块 = <code>Y×4 + Cb×1 + Cr×1 = 6 字节</code>,平摊到 4 个像素:<code>6 / 4 = 1.5</code> B/px。和上一节的 12/8 完全一致,只是分块方式更直观——这也是真题要求"画示意图"时最好画的那张图。</p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 综合论述真题(核心)</div>
+  <div class="worked-body">
+    <p><strong>题目:</strong>4:4:4、4:2:2、4:2:0 三种色度采样,哪种传输效率最高?请定量说明每像素字节数;并解释 4:2:0 如何发送数据、接收端如何还原成 RGB。</p>
+    <ol>
+      <li><strong>4:4:4 定量。</strong>每个像素都带独立的 Y、Cb、Cr,各 1 字节:<code>1+1+1 = 3</code> B/px。这是不压缩的基准,数据量最大。</li>
+      <li><strong>4:2:2 定量。</strong>色度水平减半:每 4 个像素采 4 个 Y、2 个 Cb、2 个 Cr。以 8 像素算 <code>(8+4+4)/8 = 2</code> B/px。比 4:4:4 省 1/3。</li>
+      <li><strong>4:2:0 定量。</strong>用 2×2 块看:<code>Y×4 + Cb×1 + Cr×1 = 4+1+1 = 6</code> 字节 / 4 像素 = <code>6/4 = 1.5</code> B/px。比 4:4:4 省 50%。</li>
+      <li><strong>比效率下结论。</strong><code>4:4:4(3) &gt; 4:2:2(2) &gt; 4:2:0(1.5)</code>,每像素字节越少,同样带宽下能传的像素/帧率越多。故 <strong>4:2:0 传输效率最高</strong>,且因人眼对色度不敏感,画质几乎无损——这正是"心理视觉冗余"的应用。</li>
+      <li><strong>4:2:0 如何发送。</strong>发送端把 RGB 先转成 <code>YCbCr</code>;亮度平面 <code>Y</code> 按全分辨率逐像素发送;色度平面 <code>Cb/Cr</code> 在<strong>水平、垂直两个方向各降采样一半</strong>(每 2×2 块只发一组 Cb/Cr)。于是一帧发出去的是:一张全尺寸的 Y 图 + 两张 1/4 尺寸的 Cb、Cr 图。</li>
+      <li><strong>接收端如何还原 RGB。</strong>(a) <strong>色度上采样(chroma upsampling)</strong>:把 1/4 尺寸的 Cb/Cr 通过复制或插值放大回全分辨率——2×2 块内 4 个像素共用同一组 Cb/Cr,让每个像素都重新配上颜色。(b) 此时每像素都齐了 <code>Y、Cb、Cr</code>,再用逆变换公式算回 RGB(如 <code>R = Y + 1.402·(Cr−128)</code> 一类),即得可显示的彩色像素。</li>
+    </ol>
+    <div class="result">
+      <strong>答案要点:</strong>效率排序 <code>4:2:0(1.5) &gt; 4:2:2(2) &gt; 4:4:4(3)</code> 字节/像素,4:2:0 最高。发送 = 全采 Y + 色度水平垂直各减半;还原 = 色度上采样补回全分辨率 → 逐像素 YCbCr 逆变换回 RGB。答题时务必点出"人眼对色度不敏感"这一心理视觉冗余作为设计动机。
+    </div>
+  </div>
+</div>
+
+<section>
+<h2><span class="num">4.</span>为什么这事重要</h2>
+<p>4:2:0 不是某个冷门格式,而是<strong>整个数字视频世界的默认地基</strong>:JPEG 压图、MPEG-1、H.264、HDTV、你手机拍的每一段视频,几乎都在这套色度采样上。它把原始数据先砍掉一半,后续的 DCT、量化、熵编码才有得压。一句话:<strong>压缩从丢掉人看不见的颜色开始。</strong></p>
+<p>顺带记一个 HDTV 数据量口算,常和本题连考:1 秒 1080p、30 fps、4:2:0 视频 = <code>1920×1080×30×1.5 ≈ 93 MB</code>。那个 <code>1.5</code> 就是 4:2:0 的每像素字节数。</p>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1</span>
+  <p>在 4:4:4、4:2:2、4:2:0 三种色度采样中,<strong>传输效率最高</strong>(每像素字节数最少)的是哪一种?</p>
+  <ol class="opts">
+    <li>4:2:2,每像素 2 字节</li>
+    <li>4:4:4,每像素 3 字节</li>
+    <li>三者相同</li>
+    <li>4:2:0,每像素 1.5 字节</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:D 4:2:0,每像素 1.5 字节</strong>
+      <p>每像素字节数:4:4:4 = 3、4:2:2 = 2、4:2:0 = 1.5。字节越少、同带宽下传得越多,故 4:2:0 效率最高。它靠"色度水平垂直各减半 + 人眼对色度不敏感"实现近乎无损的压缩。</p>
+    </div>
+  </details>
+
+  <span class="selftest-label" style="display:block; margin-top:24px;">自测题 2</span>
+  <p>一段 4:2:0 视频,分辨率 <code>1920×1080</code>,帧率 30 fps。求 <strong>1 秒</strong>原始数据量(用每像素 1.5 字节计算)。</p>
+  <ol class="opts">
+    <li>约 62 MB</li>
+    <li>约 93 MB</li>
+    <li>约 186 MB</li>
+    <li>约 249 MB</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B 约 93 MB</strong>
+      <p>逐步算:<code>1920×1080 = 2,073,600</code> 像素/帧;每像素 1.5 字节 → <code>2,073,600×1.5 ≈ 3.11 MB</code>/帧;30 帧/秒 → <code>3.11×30 ≈ 93 MB</code>。<br>
+      <em>对照:</em>若用 4:4:4(3 B/px),结果翻倍到约 186 MB——这就是 4:2:0 省下的一半。别忘了先算一帧再乘帧率,顺序搞反容易漏乘 30。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 视频讲完亮度与色度的采样,接着进入声音世界:采样定理与量化。前往 <a href="0007-digital-audio-nyquist-pcm-sqnr.html">0007 · 数字音频·奈奎斯特·PCM·SQNR</a>,把音频数字化的计算题一次吃透。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0006 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>
