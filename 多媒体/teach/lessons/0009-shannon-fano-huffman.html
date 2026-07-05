@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0009 · Shannon-Fano 与 Huffman 编码</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0009 · L06</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">Shannon-Fano 与 Huffman 编码</h1>
+<p class="lede">熵告诉你"理论上最少需要多少比特",而 Huffman 告诉你"实际怎么逼近它"。这一节把最高频的计算题拆到骨头里:亲手搭一棵 Huffman 树,算出平均码长,再和熵掰一掰手腕。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>想象你要给一群人起代号,而且要用摩尔斯电码那样的"点划串"喊出来。经常被叫到的人(高频)你会给他一个<strong>短代号</strong>,难得出现一次的人给个<strong>长代号</strong>——这样平均下来喊得最省力。但有个坑:如果"张三 = 01",而"李四 = 011",那听到 <code>011</code> 你会先误判成张三。<strong>前缀码</strong>就是那条铁律:没有任何一个代号是另一个代号的开头,于是一串比特流从左往右读,能被唯一切开、绝不含糊。变长编码要省比特,又不能歧义,答案就是"按频率分配长度的前缀码"。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>核心定义</h2>
+<div class="def">
+  <dl>
+    <dt>前缀码 (Prefix Code / 前缀无关码)</dt>
+    <dd>任何一个码字都<strong>不是</strong>另一个码字的前缀。因此比特流无需分隔符即可被<strong>唯一解码</strong>。<span class="alias">Huffman 码天然满足此性质——这正是它能被机器解码的根基。</span></dd>
+    <dt>Shannon-Fano 编码 (自顶向下 top-down)</dt>
+    <dd>先按频率排序,再<strong>递归地把符号集切成两半</strong>(两半的频率之和尽量相等),一半标 0、一半标 1,直到每份只剩一个符号。<span class="alias">结果不错,但不保证最优。</span></dd>
+    <dt>Huffman 编码 (自底向上 bottom-up)</dt>
+    <dd>反复<strong>挑出两个最小频率</strong>合并成一棵子树,父节点频率 = 两子之和,插回队列保持有序;重复到只剩一个根。左枝标 0、右枝标 1,从根到叶的路径即码字。<span class="alias">可证明是"最小冗余码"——给定概率模型下最优。</span></dd>
+    <dt>平均码长 (Average Code Length)</dt>
+    <dd><code>l̄ = Σ pᵢ · lᵢ</code>,即每个符号出现概率 <code>pᵢ</code> 乘其码字长度 <code>lᵢ</code> 再求和,单位是"比特/符号"。<span class="alias">这就是计算题最终要求的那个数。</span></dd>
+    <dt>熵 (Entropy)</dt>
+    <dd><code>η = − Σ pᵢ · log₂ pᵢ</code>,信源每符号所含的平均信息量,是无损编码平均码长的<strong>理论下界</strong>。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>两种算法对比</h2>
+<p>选择题常问"哪种是自底向上""哪种保证最优",记住下表即可秒选:</p>
+<table>
+<thead><tr><th>维度</th><th>Shannon-Fano</th><th>Huffman</th></tr></thead>
+<tbody>
+<tr><td>构造方向</td><td>自顶向下(先分裂整体)</td><td>自底向上(先合并最小)</td></tr>
+<tr><td>核心操作</td><td>把集合切成频率近似相等的两半</td><td>取两个最小频率合并成子树</td></tr>
+<tr><td>是否前缀码</td><td>是</td><td>是</td></tr>
+<tr><td>是否最优</td><td>否(接近但不保证)</td><td><strong>是</strong>(最小冗余码)</td></tr>
+<tr><td>码字唯一性</td><td>不唯一(切分/标号可变)</td><td>不唯一(左右标号、并列频率次序可变)</td></tr>
+<tr><td>应用</td><td>早期,已被取代</td><td>JPEG、MPEG、传真机等</td></tr>
+</tbody>
+</table>
+<p><strong>提醒:</strong>"Huffman 码不唯一"是常见陷阱题——0/1 标在哪条枝、并列概率谁先合并都可以变,但<strong>平均码长 <code>l̄</code> 唯一确定</strong>。所以计算题最终对答案的是 <code>l̄</code>,不是具体码字。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>为什么变长编码能省比特</h2>
+<p>若用定长码给 6 个符号编码,每个都要 <code>⌈log₂6⌉ = 3</code> 比特,不论它多常见。变长编码的思路是:<strong>让高频符号占短码、低频符号占长码</strong>,用概率给码长"加权"。只要频率分布不均匀,加权平均后的 <code>l̄</code> 就能低于定长码。</p>
+<p>但省到什么程度有极限。Shannon 证明了无损编码的平均码长不可能低于熵 <code>η</code>;而 Huffman 作为最优前缀码,能把 <code>l̄</code> 卡进一个窄区间:</p>
+<div class="def" style="border-style:dashed;">
+  <code style="background:none;font-size:1.05em;">η ≤ l̄ &lt; η + 1</code>
+  <p style="margin:var(--space-2) 0 0;font-size:var(--text-sm);color:var(--ink-soft);">下界 <code>η</code> 是信息论极限,达不到更低;上界 <code>η+1</code> 保证 Huffman 最多比理论值多浪费不到 1 比特/符号。<strong>编码效率</strong> <code>= η / l̄</code>,越接近 1 越好。这条不等式是简答题和验算的黄金标尺。</p>
+</div>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 分步构建 Huffman 树并计算平均码长</div>
+  <div class="worked-body">
+    <p><strong>题目:</strong>信源有 6 个符号,概率分布如下。请构建 Huffman 编码,给出各码字,计算平均码长 <code>l̄</code>,并与熵 <code>η</code> 比较、求编码效率。</p>
+    <table>
+    <thead><tr><th>符号</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th></tr></thead>
+    <tbody>
+    <tr><td><strong>概率 pᵢ</strong></td><td>0.40</td><td>0.20</td><td>0.15</td><td>0.10</td><td>0.10</td><td>0.05</td></tr>
+    </tbody>
+    </table>
+    <ol>
+      <li><strong>升序排列。</strong>把 6 个概率从小到大排好,便于每次取最小两个:<br>
+      <code>F(0.05) &lt; D(0.10) = E(0.10) &lt; C(0.15) &lt; B(0.20) &lt; A(0.40)</code></li>
+
+      <li><strong>合并第 1 次:</strong>取最小两个 <code>F(0.05)</code> 与 <code>D(0.10)</code> → 父节点 <code>[FD]=0.15</code>。<br>
+      当前队列:<code>E(0.10), C(0.15), [FD](0.15), B(0.20), A(0.40)</code></li>
+
+      <li><strong>合并第 2 次:</strong>最小两个是 <code>E(0.10)</code> 与 <code>C(0.15)</code> → 父节点 <code>[EC]=0.25</code>。<br>
+      当前队列:<code>[FD](0.15), B(0.20), [EC](0.25), A(0.40)</code></li>
+
+      <li><strong>合并第 3 次:</strong>最小两个 <code>[FD](0.15)</code> 与 <code>B(0.20)</code> → 父节点 <code>[FDB]=0.35</code>。<br>
+      当前队列:<code>[EC](0.25), [FDB](0.35), A(0.40)</code></li>
+
+      <li><strong>合并第 4 次:</strong>最小两个 <code>[EC](0.25)</code> 与 <code>[FDB](0.35)</code> → 父节点 <code>[ECFDB]=0.60</code>。<br>
+      当前队列:<code>A(0.40), [ECFDB](0.60)</code></li>
+
+      <li><strong>合并第 5 次(收尾):</strong><code>A(0.40)</code> 与 <code>[ECFDB](0.60)</code> → <strong>根 = 1.00</strong>。树建成。</li>
+
+      <li><strong>赋码(左枝 0、右枝 1,从根到叶读路径)。</strong>约定每次合并中先取的较小节点为 0 枝、较大节点为 1 枝:
+        <ul>
+          <li>根:A = <code>0</code>,子树 [ECFDB] = <code>1</code></li>
+          <li>[ECFDB] 下:[EC] = <code>10</code>,[FDB] = <code>11</code></li>
+          <li>[EC] 下:E = <code>100</code>,C = <code>101</code></li>
+          <li>[FDB] 下:[FD] = <code>110</code>,B = <code>111</code></li>
+          <li>[FD] 下:F = <code>1100</code>,D = <code>1101</code></li>
+        </ul>
+        <table>
+        <thead><tr><th>符号</th><th>概率 pᵢ</th><th>码字</th><th>码长 lᵢ</th></tr></thead>
+        <tbody>
+        <tr><td>A</td><td>0.40</td><td><code>0</code></td><td>1</td></tr>
+        <tr><td>B</td><td>0.20</td><td><code>111</code></td><td>3</td></tr>
+        <tr><td>C</td><td>0.15</td><td><code>101</code></td><td>3</td></tr>
+        <tr><td>E</td><td>0.10</td><td><code>100</code></td><td>3</td></tr>
+        <tr><td>D</td><td>0.10</td><td><code>1101</code></td><td>4</td></tr>
+        <tr><td>F</td><td>0.05</td><td><code>1100</code></td><td>4</td></tr>
+        </tbody>
+        </table>
+        <em>验证前缀性:</em>没有任何码字是另一个的开头(如 <code>0</code> 之后不再有以 0 开头的码),解码无歧义。</li>
+
+      <li><strong>算平均码长</strong> <code>l̄ = Σ pᵢ·lᵢ</code>:<br>
+      <code>l̄ = 0.40×1 + 0.20×3 + 0.15×3 + 0.10×3 + 0.10×4 + 0.05×4</code><br>
+      <code>&nbsp;&nbsp;&nbsp;= 0.40 + 0.60 + 0.45 + 0.30 + 0.40 + 0.20 = 2.35</code> 比特/符号</li>
+
+      <li><strong>算熵</strong> <code>η = −Σ pᵢ·log₂ pᵢ</code>(用 <code>log₂0.4≈1.322</code>, <code>log₂0.2≈2.322</code>, <code>log₂0.15≈2.737</code>, <code>log₂0.1≈3.322</code>, <code>log₂0.05≈4.322</code>):<br>
+      <code>η = 0.4×1.322 + 0.2×2.322 + 0.15×2.737 + 2×(0.1×3.322) + 0.05×4.322</code><br>
+      <code>&nbsp;&nbsp;≈ 0.529 + 0.464 + 0.411 + 0.664 + 0.216 ≈ 2.28</code> 比特/符号</li>
+
+      <li><strong>比较并验算。</strong>检验不等式 <code>η ≤ l̄ &lt; η+1</code>:<code>2.28 ≤ 2.35 &lt; 3.28</code> ✓。编码效率 <code>= η / l̄ = 2.28 / 2.35 ≈ 97%</code>。</li>
+    </ol>
+    <div class="result">
+      <strong>结论:</strong>Huffman 码字如上表,平均码长 <code>l̄ = 2.35</code> 比特/符号,熵 <code>η ≈ 2.28</code>,满足 <code>η ≤ l̄ &lt; η+1</code>,编码效率约 <strong>97%</strong>——比定长码的 3 比特省了约 22%,且逼近理论极限。
+    </div>
+  </div>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题</span>
+  <p>某信源有 5 个符号,概率为 <code>A:0.4, B:0.3, C:0.1, D:0.1, E:0.1</code>。请构建 Huffman 树,计算其平均码长 <code>l̄</code>。下列哪个结果正确?</p>
+  <ol class="opts">
+    <li><code>l̄ = 1.9</code> 比特/符号</li>
+    <li><code>l̄ = 2.1</code> 比特/符号</li>
+    <li><code>l̄ = 2.3</code> 比特/符号</li>
+    <li><code>l̄ = 2.5</code> 比特/符号</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B &nbsp; l̄ = 2.1 比特/符号</strong>
+      <p><em>建树(每次合并最小两个):</em><br>
+      ① 升序:<code>C(0.1), D(0.1), E(0.1), B(0.3), A(0.4)</code><br>
+      ② 合并 <code>C(0.1)+D(0.1)=[CD]0.2</code> → 队列 <code>E(0.1),[CD]0.2,B(0.3),A(0.4)</code><br>
+      ③ 合并 <code>E(0.1)+[CD]0.2=[ECD]0.3</code> → 队列 <code>B(0.3),[ECD]0.3,A(0.4)</code><br>
+      ④ 合并 <code>B(0.3)+[ECD]0.3=0.6</code> → 队列 <code>A(0.4),0.6</code><br>
+      ⑤ 合并 <code>A(0.4)+0.6=1.0</code>,根建成。<br>
+      <em>赋码(左0右1):</em> <code>A=0</code>(1位)、<code>B=10</code>(2位)、<code>E=110</code>(3位)、<code>C=1110</code>(4位)、<code>D=1111</code>(4位)。<br>
+      <em>平均码长:</em> <code>l̄ = 0.4×1 + 0.3×2 + 0.1×3 + 0.1×4 + 0.1×4 = 0.4+0.6+0.3+0.4+0.4 = 2.1</code> 比特/符号。<br>
+      <em>验算:</em> 熵 <code>η ≈ 2.05</code>,满足 <code>2.05 ≤ 2.1 &lt; 3.05</code> ✓。注意:即便你把 0/1 标号或并列合并次序换一换,码字会变,但 <code>l̄</code> 仍是 2.1——所以选 B。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 进入 <a href="0010-adaptive-huffman.html">0010 · 自适应 Huffman 编码</a>:当信源概率事先未知、要边读边编时,Huffman 树如何动态生长与调整。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0009 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

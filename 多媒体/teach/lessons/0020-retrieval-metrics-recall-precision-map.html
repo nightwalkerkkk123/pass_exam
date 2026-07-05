@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0020 · 图像检索指标 · Recall / Precision / AP / mAP</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0020 · L12</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">图像检索指标:Recall / Precision / AP / mAP</h1>
+<p class="lede">检索系统吐出一串排序结果,好不好用两把尺子量:查得准不准(Precision)、该找的漏没漏(Recall)。而 AP 与 mAP,是把"排序好不好"压成一个数字的关键计算题——真题 15 分就藏在这里。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>你用一张鞋子照片去检索,系统返回 10 张图。<strong>Precision(查准率)</strong>问的是:"你捞上来的这一网,有几条是真鱼?"——返回结果里相关的比例。<strong>Recall(查全率)</strong>问的是:"池子里所有的鱼,你捞上来几成?"——所有相关图里被找到的比例。<br>
+  但一个好的检索系统,不只要"捞得准",还要把真鱼<strong>排在前面</strong>。<strong>AP</strong> 就是奖励"相关结果靠前"的分数,<strong>mAP</strong> 则是把多个查询的 AP 平均,给整个系统打一个总分。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>核心定义</h2>
+<div class="def">
+  <dl>
+    <dt>Precision 查准率</dt>
+    <dd>返回结果中<strong>真正相关</strong>的比例。公式 <code>P = 相关且被检出 / 被检出总数</code>。回答"我给你的东西里有多少是对的"。</dd>
+    <dt>Recall 查全率(召回率)</dt>
+    <dd>所有相关文档中<strong>被成功检出</strong>的比例。公式 <code>R = 相关且被检出 / 相关文档总数</code>。回答"该找的我找到了多少"。</dd>
+    <dt>AP 平均精度 (Average Precision)</dt>
+    <dd><strong>单个查询</strong>的评分。在每一个"相关文档出现的位置"上算一次 Precision,再把这些 Precision 求平均。<code>AP = (Σ 各相关位置处的 P) / 相关文档总数</code>。相关结果越靠前,AP 越高。</dd>
+    <dt>mAP 平均精度均值 (mean Average Precision)</dt>
+    <dd><strong>整个系统</strong>的评分。把所有查询各自的 AP 再求平均。<code>mAP = (Σ 各查询的 AP) / 查询个数</code>。是图像检索最常用的综合指标。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>为什么要 AP,而不只是 P 和 R</h2>
+<p>单看一个 Precision 数字有个盲区:它<strong>不关心相关结果排在第几位</strong>。返回 [相关, 不相关, 不相关, 相关] 和 [不相关, 相关, 相关, 不相关] 可能有相同的总 Precision,但前者把相关的排在首位,用户体验完全不同。</p>
+<table>
+<thead><tr><th>指标</th><th>关心什么</th><th>范围</th><th>粒度</th></tr></thead>
+<tbody>
+<tr><td><strong>Precision</strong></td><td>结果准不准</td><td>0~1</td><td>某个截断点</td></tr>
+<tr><td><strong>Recall</strong></td><td>漏没漏</td><td>0~1</td><td>某个截断点</td></tr>
+<tr><td><strong>AP</strong></td><td>相关结果是否<strong>靠前</strong></td><td>0~1</td><td>单个查询</td></tr>
+<tr><td><strong>mAP</strong></td><td>系统<strong>整体</strong>表现</td><td>0~1</td><td>全部查询</td></tr>
+</tbody>
+</table>
+<p>核心记忆:<strong>AP 只在"相关文档出现的那些位置"上取 Precision 来平均,分母是相关文档总数</strong>——这一句是全部计算的钥匙。相关的排得越靠前,前排位置的 Precision 越高,AP 就越大。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>逐位置计算的模板</h2>
+<p>拿到一列排好序的检索结果,按位置从上往下扫,维护两个计数器:</p>
+<ul>
+  <li><strong>被检出总数</strong> = 当前扫到的位置号(rank)。</li>
+  <li><strong>相关且被检出</strong> = 到目前为止遇到的相关文档个数。</li>
+</ul>
+<p>在<strong>每一行</strong>都能算出 <code>P = 相关数 / rank</code> 和 <code>R = 相关数 / 相关总数</code>。但算 AP 时,<strong>只挑"该行是相关文档"的那几个 P 值</strong>相加,除以相关总数。</p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 从排序结果算 AP 与 mAP(核心,15 分)</div>
+  <div class="worked-body">
+    <p><strong>查询 1:</strong>用一张查询图检索,数据库中与它<strong>相关的图共 5 张</strong>。系统返回前 10 个结果,标注如下(✔=相关,✗=不相关):</p>
+    <table>
+      <thead><tr><th>位置 rank</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th></tr></thead>
+      <tbody>
+        <tr><td>相关?</td><td>✔</td><td>✗</td><td>✔</td><td>✔</td><td>✗</td><td>✗</td><td>✔</td><td>✗</td><td>✗</td><td>✔</td></tr>
+      </tbody>
+    </table>
+    <ol>
+      <li><strong>标出相关文档所在位置。</strong>从表看:相关文档出现在 rank = <strong>1、3、4、7、10</strong>,共 5 个——正好等于相关总数 5,说明 5 张都被检出了。</li>
+      <li><strong>逐位置累计"相关数",在相关位置算 Precision。</strong> <code>P = 累计相关数 / rank</code>:
+        <table>
+          <thead><tr><th>rank</th><th>相关?</th><th>累计相关数</th><th>Precision = 相关/rank</th><th>Recall = 相关/5</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>✔</td><td>1</td><td><strong>1/1 = 1.000</strong></td><td>1/5 = 0.20</td></tr>
+            <tr><td>2</td><td>✗</td><td>1</td><td>1/2 = 0.500(不计入 AP)</td><td>1/5 = 0.20</td></tr>
+            <tr><td>3</td><td>✔</td><td>2</td><td><strong>2/3 = 0.667</strong></td><td>2/5 = 0.40</td></tr>
+            <tr><td>4</td><td>✔</td><td>3</td><td><strong>3/4 = 0.750</strong></td><td>3/5 = 0.60</td></tr>
+            <tr><td>5</td><td>✗</td><td>3</td><td>3/5 = 0.600(不计入)</td><td>3/5 = 0.60</td></tr>
+            <tr><td>6</td><td>✗</td><td>3</td><td>3/6 = 0.500(不计入)</td><td>3/5 = 0.60</td></tr>
+            <tr><td>7</td><td>✔</td><td>4</td><td><strong>4/7 = 0.571</strong></td><td>4/5 = 0.80</td></tr>
+            <tr><td>8</td><td>✗</td><td>4</td><td>4/8 = 0.500(不计入)</td><td>4/5 = 0.80</td></tr>
+            <tr><td>9</td><td>✗</td><td>4</td><td>4/9 = 0.444(不计入)</td><td>4/5 = 0.80</td></tr>
+            <tr><td>10</td><td>✔</td><td>5</td><td><strong>5/10 = 0.500</strong></td><td>5/5 = 1.00</td></tr>
+          </tbody>
+        </table>
+      </li>
+      <li><strong>只把相关位置(加粗行)的 Precision 相加。</strong> <code>1.000 + 0.667 + 0.750 + 0.571 + 0.500 = 3.488</code>。</li>
+      <li><strong>除以相关文档总数 5,得到查询 1 的 AP。</strong> <code>AP₁ = 3.488 / 5 = 0.698</code>。
+        <div class="result">查询 1 的 <strong>AP₁ ≈ 0.698</strong>。(注意:分母是相关总数 5,不是返回结果数 10。)</div>
+      </li>
+      <li><strong>查询 2 同法算 AP₂。</strong>设查询 2 相关文档共 <strong>3 张</strong>,返回结果中相关文档出现在 rank = 1、2、4:
+        <table>
+          <thead><tr><th>相关位置 rank</th><th>累计相关数</th><th>Precision</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>1</td><td>1/1 = 1.000</td></tr>
+            <tr><td>2</td><td>2</td><td>2/2 = 1.000</td></tr>
+            <tr><td>4</td><td>3</td><td>3/4 = 0.750</td></tr>
+          </tbody>
+        </table>
+        <code>AP₂ = (1.000 + 1.000 + 0.750) / 3 = 2.750 / 3 ≈ 0.917</code>。
+      </li>
+      <li><strong>把两个查询的 AP 求平均,得到 mAP。</strong> <code>mAP = (AP₁ + AP₂) / 2 = (0.698 + 0.917) / 2 = 1.615 / 2 ≈ 0.807</code>。
+        <div class="result">系统 <strong>mAP ≈ 0.807</strong>。查询 2 因为相关结果几乎全排在最前,AP 高达 0.917,把整体拉了上来——这正是 AP 奖励"靠前"的体现。</div>
+      </li>
+    </ol>
+  </div>
+</div>
+
+<section>
+<h2><span class="num">4.</span>易错点清单</h2>
+<ul>
+  <li><strong>AP 分母搞错</strong>:分母永远是<strong>相关文档总数</strong>,不是返回条数,也不是相关位置的个数(除非相关文档全被检出,二者才相等)。</li>
+  <li><strong>把不相关位置的 P 也加进去</strong>:AP 只累加"相关位置"处的 Precision。不相关行的 P 只用来理解曲线,不进求和。</li>
+  <li><strong>没被检出的相关文档</strong>:若某个相关文档没出现在返回列表里,它对应的 Precision 记为 <strong>0</strong>,但分母仍是相关总数——这会拉低 AP。</li>
+  <li><strong>mAP 和 AP 混用</strong>:AP 是单查询、mAP 是多查询平均。题目问哪个,分母就对应哪个。</li>
+</ul>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 · 算 AP</span>
+  <p>某查询相关文档<strong>共 4 张</strong>。系统返回前 8 个结果,相关文档出现在 <strong>rank = 2、3、5、8</strong>(其余为不相关)。该查询的 <strong>AP</strong> 最接近:</p>
+  <ol class="opts">
+    <li>0.500</li>
+    <li>0.567</li>
+    <li>0.633</li>
+    <li>0.750</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B ≈ 0.567</strong>
+      <p>只在相关位置算 Precision:<br>
+      rank 2 → 累计相关 1,<code>P = 1/2 = 0.500</code><br>
+      rank 3 → 累计相关 2,<code>P = 2/3 = 0.667</code><br>
+      rank 5 → 累计相关 3,<code>P = 3/5 = 0.600</code><br>
+      rank 8 → 累计相关 4,<code>P = 4/8 = 0.500</code><br>
+      求和 <code>0.500 + 0.667 + 0.600 + 0.500 = 2.267</code>,除以相关总数 4:<code>AP = 2.267 / 4 ≈ 0.567</code>。<br>
+      <em>陷阱:</em>D 选项 0.750 是"只看 rank 3 那个值"或误用分母的结果;A 0.500 是漏加了 rank 3 的贡献。记住:相关位置逐个算 P,求和再除以<strong>相关总数 4</strong>。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 进入 <a href="0021-cnn-conv-pooling-output-size.html">0021 · CNN 卷积/池化输出尺寸计算</a>,拿下第 12 讲深度学习那道 <code>(N+2P−F)/stride + 1</code> 的计算题。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0020 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

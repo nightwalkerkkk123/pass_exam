@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0016 · JPEG 完整流水线</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+
+/* 本讲专用:矩阵网格与之字扫描 */
+.matrix { font-family: var(--mono); font-size: 0.9em; }
+.matrix td, .matrix th { text-align: center; padding: var(--space-2); border: 1px solid var(--rule); }
+.matrix td.dc { background: var(--accent); color: var(--paper); font-weight: 700; }
+.matrix td.nz { background: var(--paper-deep); font-weight: 700; }
+.matrix td.z { color: var(--ink-mute); }
+.seqbox { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-3) var(--space-4); margin: var(--space-3) 0; overflow-x: auto; line-height: 1.9; }
+.seqbox .dc { color: var(--accent); font-weight: 700; }
+.seqbox .run { color: var(--success); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0016 · L08</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">JPEG 完整流水线</h1>
+<p class="lede">这是那道 15 分的大计算题。前几节我们已把 RGB→YCbCr、DCT、量化拆开练过;本节把最后三步——之字扫描、DC 差分、AC 游程——一次串成完整答卷,给你一套照抄就能得分的解题模板。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>量化后的 8×8 系数块像一张<strong>左上角写满字、右下角几乎空白</strong>的表格:能量都堆在左上(低频),右下角全是 0。若逐行读,0 会被一堆非零数打散;而<strong>之字(Zig-zag)扫描</strong>是沿对角线来回走,把"从最低频到最高频"顺序拉直——于是所有 0 自然滑到队尾,连成一条长长的零尾巴。后面的游程编码就靠这条尾巴"一句话交代完",这正是 JPEG 省空间的关键一招。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>JPEG 五步流水线</h2>
+<p>把整条压缩链背下来,大题第一问常直接考"写出 JPEG 编码步骤"。真题的计算重心在第 4、5 步,但前三步的名词不能漏。</p>
+<table>
+<thead><tr><th>步</th><th>操作</th><th>做了什么 / 为什么</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>RGB → YCbCr + 色度二次采样</td><td>分离亮度 Y 与色度 Cb/Cr;人眼对色度不敏感,4:2:0 先扔掉 3/4 色度信息。</td></tr>
+<tr><td>2</td><td>分 8×8 块做 <strong>2D DCT</strong></td><td>把空间像素变到频域,能量集中到少数低频系数(左上角)。</td></tr>
+<tr><td>3</td><td><strong>量化</strong> F̂(u,v)=round(F(u,v)/Q(u,v))</td><td>除以量化表并取整,高频被压成 0——JPEG <strong>有损、压缩的主来源</strong>。</td></tr>
+<tr><td>4</td><td><strong>之字扫描 + 游程编码</strong></td><td>Zig-zag 拉直系数;DC 用 DPCM 差分,AC 用 (run,level) 游程。<em>本节重点</em>。</td></tr>
+<tr><td>5</td><td><strong>熵编码</strong>(Huffman)</td><td>对 DC 差分和 AC 游程符号做变长编码,进一步无损压缩。</td></tr>
+</tbody>
+</table>
+<p>记忆口诀:<strong>换色 → 变频 → 量化 → 扫描游程 → 熵编码</strong>。前三步"有损",第 4、5 步"无损"。</p>
+</section>
+
+<section>
+<h2><span class="num">2.</span>四个关键定义</h2>
+<div class="def">
+  <dl>
+    <dt>Zig-zag 之字扫描</dt>
+    <dd>沿对角线来回,把 8×8 系数块按<strong>频率由低到高</strong>展开成 64 个数的一维序列。<span class="alias">目的:让左上低频集中在前、右下零系数集中在后,拉长零游程,喂给游程编码。</span></dd>
+    <dt>DC 系数与 AC 系数</dt>
+    <dd><strong>DC</strong> = F(0,0),块的平均亮度(直流分量);<strong>AC</strong> = 其余 63 个系数(交流分量)。二者<strong>分开编码</strong>。</dd>
+    <dt>DC 的 DPCM 差分</dt>
+    <dd>相邻块 DC 值接近,故只存差值 d = DC<sub>本块</sub> − DC<sub>前块</sub>(首块 d = DC 本身)。<span class="alias">Differential PCM,差分脉冲编码,用小数代替大数。</span></dd>
+    <dt>AC 的游程编码 RLC</dt>
+    <dd>把 AC 序列写成一串 <strong>(RUNLENGTH, VALUE)</strong>:VALUE 前面有几个连续 0(run),VALUE 是该非零值。末尾若全为 0,用 <strong>(0,0)=EOB</strong>(块结束)一次收尾。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">3.</span>为什么先做之字扫描</h2>
+<p>量化后的块长这样(下面例题会用到它):能量堆在左上,右下大片 0。假如<strong>逐行</strong>读,第一行读完非零值后马上撞上 0,下一行又冒出非零值,0 被切成好几段短游程——游程编码几乎占不到便宜。</p>
+<p>之字扫描换了个走法:它按"离左上角的对角线距离"由近及远地遍历,而对角线距离恰好对应 DCT 的<strong>频率高低</strong>。于是低频非零值全排在前面,一旦进入高频区就是连续的 0,直到块尾。<strong>一条长零尾巴</strong>用一个 EOB 就能表达完毕——这就是 Zig-zag 存在的唯一目的:<em>把二维的"零分布"重排成一维的"零聚集",最大化零游程长度。</em></p>
+<p>记住扫描的头几步走向:<code>(0,0)→(0,1)→(1,0)→(2,0)→(1,1)→(0,2)→(0,3)→…</code>,像沿反斜线来回折返。这个顺序背下来,考场上照着块填一维序列即可。</p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 15 分真题还原 · JPEG 第 4~5 步全流程</div>
+  <div class="worked-body">
+    <p>某图像块经 DCT 与量化后得到下面的 8×8 量化系数块。已知<strong>前一个块的 DC 系数为 38</strong>。请:①做之字扫描得一维序列;②对 DC 做 DPCM 差分;③对 AC 做游程编码 (run, level);④说明如何对 AC 结果做 Huffman 熵编码。</p>
+
+    <table class="matrix">
+      <tbody>
+        <tr><td class="dc">40</td><td class="nz">5</td><td class="nz">-1</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td></tr>
+        <tr><td class="nz">-3</td><td class="nz">2</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td></tr>
+        <tr><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td></tr>
+        <tr><td class="nz">-1</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td></tr>
+        <tr><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td></tr>
+        <tr><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td></tr>
+        <tr><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td></tr>
+        <tr><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td><td class="z">0</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:var(--text-sm);color:var(--ink-mute);"><span style="color:var(--accent);font-weight:700;">红</span> = DC(0,0);<strong>深色格</strong> = 非零 AC;浅色 0 是被量化压掉的高频。</p>
+
+    <ol>
+      <li><strong>之字扫描,展开成一维。</strong>
+        沿 Zig-zag 顺序取值:<code>(0,0)=40 → (0,1)=5 → (1,0)=-3 → (2,0)=0 → (1,1)=2 → (0,2)=-1 → (0,3)=0 → (1,2)=0 → (2,1)=0 → (3,0)=-1</code>,其后位置全是 0。
+        <div class="seqbox"><span class="dc">40</span>, 5, -3, 0, 2, -1, 0, 0, 0, -1, 0, 0, …, 0&nbsp;&nbsp;<span style="color:var(--ink-mute)">(共 64 个,后 54 个全 0)</span></div>
+        第 1 个是 <span class="dc">DC=40</span>,后面 63 个是 AC。注意零已被扫描聚拢到尾部,这正是之字扫描的功劳。
+        <table>
+          <thead><tr><th>序号</th><th>0(DC)</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10~63</th></tr></thead>
+          <tbody><tr><td>值</td><td>40</td><td>5</td><td>-3</td><td>0</td><td>2</td><td>-1</td><td>0</td><td>0</td><td>0</td><td>-1</td><td>全 0</td></tr></tbody>
+        </table>
+      </li>
+
+      <li><strong>DC 用 DPCM 差分。</strong>
+        本块 DC = 40,前块 DC = 38,故差值
+        <code>d = 40 − 38 = 2</code>。JPEG 只把这个 <strong>2</strong> 送去编码,而不是 40——相邻块亮度接近,差值远小于原值,更省位数。
+        <div class="result">DC 编码值 = <strong>2</strong>(若为首块则直接编码 40)。</div>
+      </li>
+
+      <li><strong>AC 用游程编码 (run, level)。</strong>
+        对 AC 序列 <code>5, -3, 0, 2, -1, 0, 0, 0, -1, 0…0</code> 从左到右扫,记录每个非零值前有几个连续 0:
+        <table>
+          <thead><tr><th>非零值</th><th>前导 0 个数 (run)</th><th>(run, level)</th></tr></thead>
+          <tbody>
+            <tr><td>5</td><td>0</td><td>(0, 5)</td></tr>
+            <tr><td>-3</td><td>0</td><td>(0, -3)</td></tr>
+            <tr><td>2</td><td>1</td><td>(1, 2)</td></tr>
+            <tr><td>-1</td><td>0</td><td>(0, -1)</td></tr>
+            <tr><td>-1</td><td>3</td><td>(3, -1)</td></tr>
+            <tr><td>—(其后全 0)</td><td>—</td><td><strong>(0, 0) = EOB</strong></td></tr>
+          </tbody>
+        </table>
+        <div class="seqbox">AC 游程结果:<span class="run">(0,5)</span> <span class="run">(0,-3)</span> <span class="run">(1,2)</span> <span class="run">(0,-1)</span> <span class="run">(3,-1)</span> <span class="run">(0,0)</span></div>
+        <div class="result">尾部 54 个 0 <strong>一个 EOB (0,0) 全部交代完</strong>——这就是零尾巴带来的压缩红利。</div>
+      </li>
+
+      <li><strong>对 AC 结果做 Huffman 熵编码。</strong>
+        每个 AC 符号进一步写成 <strong>(RUNLENGTH, SIZE, AMPLITUDE)</strong>:SIZE = 表示 |level| 所需的位数,AMPLITUDE 是该值的二进制码(<em>负数取正数的反码,以 0 开头即为负</em>)。
+        <table>
+          <thead><tr><th>(run, level)</th><th>SIZE</th><th>AMPLITUDE</th><th>(RUN, SIZE, AMP)</th></tr></thead>
+          <tbody>
+            <tr><td>(0, 5)</td><td>3</td><td>101</td><td>(0, 3, 101)</td></tr>
+            <tr><td>(0, -3)</td><td>2</td><td>00</td><td>(0, 2, 00)</td></tr>
+            <tr><td>(1, 2)</td><td>2</td><td>10</td><td>(1, 2, 10)</td></tr>
+            <tr><td>(0, -1)</td><td>1</td><td>0</td><td>(0, 1, 0)</td></tr>
+            <tr><td>(3, -1)</td><td>1</td><td>0</td><td>(3, 1, 0)</td></tr>
+            <tr><td>(0, 0) EOB</td><td>—</td><td>—</td><td>(0, 0)</td></tr>
+          </tbody>
+        </table>
+        规则:把 <strong>(RUNLENGTH, SIZE)</strong> 拼成一个字节(各 4 位)去查 Huffman 表得变长码,AMPLITUDE 直接附在后面原样发送(不再 Huffman)。DC 那边则用 (SIZE, AMPLITUDE):d=2 → SIZE=2、AMP=10 → <code>(2, 10)</code>,SIZE 查 DC 专用 Huffman 表。
+        <div class="result">最终码流 = DC 的 Huffman 码 + 各 AC 的 Huffman 码,即完成 JPEG 一个块的全部编码。</div>
+      </li>
+    </ol>
+  </div>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题</span>
+  <p>某 8×8 块之字扫描后的一维序列为(第一个数为 DC):<br>
+  <code>28, 3, 0, 0, -2, 0, 0, 0, 0, 4, 0, 0, …, 0</code>(其后全为 0)。<br>
+  请写出对 <strong>AC 部分</strong>的游程编码 (run, level),并以 EOB 收尾。下列哪一项正确?</p>
+  <ol class="opts">
+    <li>(0,3) (2,-2) (4,4) (0,0)</li>
+    <li>(1,3) (2,-2) (4,4) EOB</li>
+    <li>(0,3) (3,-2) (5,4) (0,0)</li>
+    <li>(0,3) (2,-2) (4,4) (1,0)</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:A (0,3) (2,-2) (4,4) (0,0)</strong>
+      <p>去掉首位 DC=28,AC 序列为 <code>3, 0, 0, -2, 0, 0, 0, 0, 4, 0…0</code>。逐个非零值数它前面的 0:<br>
+      • <strong>3</strong>:前面 0 个 0 → (0, 3)<br>
+      • <strong>-2</strong>:前面 2 个 0 → (2, -2)<br>
+      • <strong>4</strong>:前面 4 个 0 → (4, 4)<br>
+      • 其后全 0 → <strong>(0, 0) = EOB</strong><br>
+      B 把第一个 run 数错(3 前面没有 0,不是 1);C 把中间零个数多算了;D 结尾必须是 (0,0),不是 (1,0)。<br>
+      <em>易错提醒:</em>run 计的是<strong>该非零值之前紧邻的连续 0 个数</strong>,不是从块头累计;EOB 恒为 (0,0)。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> JPEG 处理的是<em>单张</em>图。视频还要吃掉帧与帧之间的时间冗余——进入 <a href="0017-motion-compensation-mv-mad.html">0017 · 运动补偿 · 运动矢量 MV 与 MAD</a>,拆解第二类 15 分计算题:块匹配求运动矢量。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0016 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

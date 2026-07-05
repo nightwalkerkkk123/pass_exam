@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0005 · YCbCr 与 Gamma 校正</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0005 · L03</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">YCbCr 与 Gamma 校正</h1>
+<p class="lede">同样是描述颜色,RGB 把红绿蓝一视同仁地存,而 YCbCr 却把"亮"和"彩"拆开——这一拆,正是 JPEG 与所有视频压缩省下大半比特的起点。再顺手补上一个屏幕天生"不老实"的秘密:Gamma。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>把一张彩色照片想成一幅<strong>素描 + 一层上色</strong>:素描(明暗轮廓)决定你能不能看清人脸、文字、边缘;上色(色彩)只是往里填颜料。人眼对素描极其敏锐,对上色却相当迟钝——把上色画糊一点你几乎看不出。<strong>YCbCr 就是把照片拆成"素描(Y)"和"两层上色(Cb、Cr)"</strong>,于是我们可以放心地把上色那两层压得很狠,画质却几乎不掉。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>三个关键定义</h2>
+<div class="def">
+  <dl>
+    <dt>YCbCr 颜色模型</dt>
+    <dd>把 RGB 经一个矩阵变换,重新组织成<strong>一个亮度分量 Y + 两个色度分量 Cb、Cr</strong> 的颜色空间。广泛用于 JPEG、数字视频、数字电视。<span class="alias">与模拟电视的 YUV 同源,YCbCr 是它的数字版本。</span></dd>
+    <dt>亮度 Y (Luminance) 与 色度 Cb / Cr (Chrominance)</dt>
+    <dd><strong>Y</strong>:图像的明暗信息,承载人眼最敏感的全部细节(轮廓、纹理、文字)。<strong>Cb</strong>:蓝色差(blue-difference),<strong>Cr</strong>:红色差(red-difference),只描述"颜色偏向",不含明暗。<span class="alias">口诀:Y 管"多亮",CbCr 管"偏什么色"。</span></dd>
+    <dt>Gamma 校正 (Gamma Correction)</dt>
+    <dd>显示设备(CRT/屏幕)发出的光强 <code>L</code> 与输入电压/信号 <code>V</code> 不是线性关系,而是幂律 <code>L = V<sup>γ</sup></code>(γ 约 2.2)。为抵消它,编码时先对信号做<strong>逆 Gamma 预校正</strong> <code>V' = V<sup>1/γ</sup></code>,使显示后看起来才"对"。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>RGB 与 YCbCr 的分工对照</h2>
+<table>
+<thead><tr><th>维度</th><th>RGB</th><th>YCbCr</th></tr></thead>
+<tbody>
+<tr><td>通道含义</td><td>红 / 绿 / 蓝三原色,地位对等</td><td>Y 亮度 + Cb / Cr 两路色度</td></tr>
+<tr><td>信息相关性</td><td>三通道高度相关(都含明暗)</td><td>去相关:明暗集中在 Y,颜色集中在 CbCr</td></tr>
+<tr><td>与人眼匹配</td><td>不区分敏感度</td><td>贴合人眼——对 Y 敏感,对 CbCr 迟钝</td></tr>
+<tr><td>能否安全压缩</td><td>压任一通道都伤画质</td><td>可只对 CbCr 做子采样/重压,画质几乎不掉</td></tr>
+<tr><td>主要用途</td><td>屏幕显示、相机采集、图像存储</td><td>JPEG 压缩、视频编码、数字电视传输</td></tr>
+</tbody>
+</table>
+</section>
+
+<section>
+<h2><span class="num">3.</span>为什么要用 YCbCr——考试要答的"为什么"</h2>
+<p>这是综合论述题的常客。别只背"分离亮度色度",要能顺着这条因果链讲下去:</p>
+<ol>
+  <li><strong>人眼特性不对称。</strong>人的视觉敏锐度对灰度(亮度)远高于对彩色。夜里能看清物体轮廓却分不清颜色,就是这个道理。</li>
+  <li><strong>RGB 无法利用这种不对称。</strong>红绿蓝三通道地位对等、且都掺着明暗信息(高度相关),你无法"只压颜色不压亮度"——压哪个都会糊掉细节。</li>
+  <li><strong>YCbCr 做了"去相关"重组。</strong>把明暗全部集中到 Y,把颜色单独装进 Cb、Cr。现在明暗和颜色被物理地分开存放。</li>
+  <li><strong>于是能对色度"开刀"而放过亮度。</strong>既然人眼对 CbCr 迟钝,就对它做<strong>色度子采样</strong>(如 4:2:0,下一讲)或用更粗的量化表压缩,而保留 Y 的全分辨率。</li>
+  <li><strong>结果:大幅省比特,主观画质几乎不降。</strong>这正是 JPEG、H.264 等一切压缩标准第一步都要 RGB→YCbCr 的根本原因。</li>
+</ol>
+<p>一句话收束:<strong>YCbCr 的价值不在"换个坐标系",而在把人眼的"偏心"变成可以直接兑现的压缩空间。</strong></p>
+</section>
+
+<section>
+<h2><span class="num">4.</span>Gamma:屏幕天生不老实</h2>
+<p>为什么单独讲 Gamma?因为它揭示一个反直觉的事实:<strong>你送给屏幕的数字 0.5,屏幕并不会发出 50% 的亮度。</strong></p>
+<p>显示器的光电响应是幂律关系 <code>L = V<sup>γ</sup></code>(γ≈2.2)。代入 V=0.5:<code>L = 0.5<sup>2.2</sup> ≈ 0.22</code>——本该"半亮"的信号,显示出来只有约 22% 亮度,画面整体偏暗、暗部被压死。</p>
+<p>解决办法不是去改屏幕,而是在<strong>编码/存储时先反向预校正</strong>:对每个信号取 <code>V' = V<sup>1/γ</sup></code>。这样信号经过屏幕的 γ 次方后,<code>(V<sup>1/γ</sup>)<sup>γ</sup> = V</code>,一升一降相互抵消,最终发出的光才与原始线性亮度成正比。这就是"逆 Gamma 校正"要在编码端先做的原因:<strong>用一个预失真去抵消设备的固有失真。</strong></p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · RGB → YCbCr 转换计算</div>
+  <div class="worked-body">
+    <p>已知 JPEG(全范围,8 bit)所用的转换公式:</p>
+    <p><code>Y &nbsp;= 0.299·R + 0.587·G + 0.114·B</code><br>
+       <code>Cb = 128 − 0.169·R − 0.331·G + 0.500·B</code><br>
+       <code>Cr = 128 + 0.500·R − 0.419·G − 0.081·B</code></p>
+    <p>求纯红色像素 <strong>(R, G, B) = (255, 0, 0)</strong> 对应的 (Y, Cb, Cr)。</p>
+    <ol>
+      <li>算亮度 Y:只有 R 非零 →<br><code>Y = 0.299×255 + 0 + 0 = 76.245 ≈ 76</code></li>
+      <li>算蓝色差 Cb:<br><code>Cb = 128 − 0.169×255 = 128 − 43.1 = 84.9 ≈ 85</code></li>
+      <li>算红色差 Cr:<br><code>Cr = 128 + 0.500×255 = 128 + 127.5 = 255.5 ≈ 255(截断到 255)</code></li>
+      <li>解读结果:Y=76 说明纯红其实"不太亮"(红对亮度贡献只占 0.299);Cr 冲到最大 255 说明"极度偏红";Cb=85 低于中值 128 说明"远离蓝"。</li>
+    </ol>
+    <div class="result"><strong>答案:(Y, Cb, Cr) = (76, 85, 255)。</strong>可见颜色信息几乎全落在 Cr 上,而亮度只由 Y 承担——正是这种"分工",让后续对 Cb/Cr 的子采样成为可能。</div>
+  </div>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1</span>
+  <p>JPEG 和视频压缩为什么在第一步要把 RGB 转成 YCbCr?最贴切的理由是:</p>
+  <ol class="opts">
+    <li>YCbCr 比 RGB 能表示更多种颜色</li>
+    <li>YCbCr 把明暗与颜色分离,而人眼对颜色迟钝,可对色度大幅压缩且画质几乎不降</li>
+    <li>屏幕只能显示 YCbCr,不能直接显示 RGB</li>
+    <li>YCbCr 占用的存储空间天生比 RGB 小</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B</strong>
+      <p>核心在<strong>去相关 + 匹配人眼偏心</strong>:Y 装明暗、CbCr 装颜色,而人眼对色度不敏感,于是能只压缩 CbCr(子采样/粗量化)而保留 Y,达到"省比特、画质几乎不掉"。<br>
+      A 错:YCbCr 与 RGB 表示的色域本质相同,只是坐标不同。C 错:屏幕原生用 RGB 驱动。D 错:同样精度下 YCbCr 本身并不更小,是"分离后才好压"带来了压缩,转换本身不省空间。</p>
+    </div>
+  </details>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 2</span>
+  <p>关于 Gamma 校正,下列说法正确的是:</p>
+  <ol class="opts">
+    <li>显示器光强与信号是线性关系,Gamma 校正只是为了好看</li>
+    <li>显示器响应为 L=V<sup>γ</sup> 呈非线性,故编码端先做逆校正 V<sup>1/γ</sup> 抵消其失真</li>
+    <li>Gamma 校正会增加图像的颜色数量</li>
+    <li>Gamma 校正是在显示器内部完成的,与编码无关</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B</strong>
+      <p>屏幕的光电响应是幂律 <code>L=V<sup>γ</sup></code>(γ≈2.2)而非线性——送 0.5 只发约 0.22 的光。为抵消,编码时先对信号取 <code>V<sup>1/γ</sup></code>,两次幂律相乘 <code>(V<sup>1/γ</sup>)<sup>γ</sup>=V</code>,还原线性亮度。A 错在"线性";C 与颜色数量无关;D 错在把校正完全归给显示器——关键的预校正发生在编码/存储端。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 既然 YCbCr 把颜色单独装进了 Cb、Cr,下一讲就来兑现这笔"红利":<a href="0006-video-chroma-subsampling-420.html">0006 · 色度子采样与 4:2:0</a>,看 4:4:4 / 4:2:2 / 4:2:0 各省多少存储,以及采样比怎么算。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0005 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0019 · CBIR:语义鸿沟·全局 vs 局部·SIFT</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0019 · L11</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">CBIR:语义鸿沟 · 全局 vs 局部 · SIFT</h1>
+<p class="lede">给机器看两张图片,它怎么知道"这两个是同一件商品"?答案不是理解画面的含义,而是把图片翻译成一串数字(特征),再用距离量出它们像不像。这一讲拆开这条流水线的前半段。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>你想在超市里找"和手机里这张照片一样的酸奶"。你不会去比较两瓶酸奶的"意义",而是比对<strong>可见的线索</strong>:瓶子的颜色分布、标签上的花纹、瓶盖的形状。计算机也一样——它把每张图压成一组可比较的数字(<strong>特征向量</strong>),再算两组数字之间的<strong>距离</strong>:距离越小,越像。整个"基于内容的检索"就建立在这个朴素想法上。而计算机永远看不懂"这是酸奶"这层含义,这道跨不过去的坎就叫<strong>语义鸿沟</strong>。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>为什么需要 CBIR:语义鸿沟</h2>
+<p>早期图像搜索靠人工打<strong>文本标签</strong>("狗""日落""红色")。但标签有两个致命问题:一张图内容太丰富,几个词说不清(意图鸿沟);而且计算机存的只是像素值,它根本不"理解"这些像素合起来是"一只狗"。这就把问题推到了基于内容的检索。</p>
+<div class="def">
+  <dl>
+    <dt>基于内容的多媒体检索 (CBIR, Content-Based Image Retrieval)</dt>
+    <dd>以用户提供的<strong>样例</strong>图像/视频/音频作为查询条件(<strong>Query by Example</strong>),系统自动提取内容特征,查找库中含有相同或相似内容的多媒体数据。区别于靠文字标签匹配的传统搜索。<span class="alias">典型应用:商品检索、地标识别、视频拷贝检测与版权保护。</span></dd>
+    <dt>语义鸿沟 (Semantic Gap)</dt>
+    <dd>计算机能提取的<strong>底层视觉特征</strong>(颜色、纹理、形状等像素级信息)与人类对图像的<strong>高层语义理解</strong>("这是一只在草地上奔跑的狗")之间存在的<strong>鸿沟</strong>。这是 CBIR 要突破的核心难题:两张语义相同的图(同一只狗的不同照片)底层特征可能差很远,两张语义无关的图底层特征却可能很近。</dd>
+  </dl>
+</div>
+<p><strong>CBIR 系统框架:</strong>离线阶段把库图像逐张做<em>特征提取 → 建索引</em>;在线阶段把查询图像做<em>特征提取 → 特征匹配 → 返回结果</em>。三大关键技术:<strong>特征提取、特征匹配、高维索引</strong>。这一讲聚焦前两者的地基——特征长什么样、怎么算距离。</p>
+</section>
+
+<section>
+<h2><span class="num">2.</span>两种特征:全局 vs 局部</h2>
+<p>把图片翻译成数字有两条思路:要么给<strong>整幅图</strong>算一个总的描述(全局),要么在图里挑一批<strong>显著的小点</strong>各算一个描述(局部)。</p>
+<div class="def">
+  <dl>
+    <dt>全局特征 (Global Feature)</dt>
+    <dd>从<strong>整幅图像</strong>抽取的底层视觉特征,主要有<strong>颜色、纹理、形状</strong>三类。最典型的例子是<strong>颜色直方图</strong>——统计整幅图里每种颜色出现了多少像素,得到一个描述"这张图整体是什么色调"的向量。计算简单、速度快。<span class="alias">软肋:无法应对遮挡、裁剪等"图像攻击",一旦局部被挡住或裁掉,整幅图的统计量就变了,难以保持不变性。</span></dd>
+    <dt>局部特征 (Local Feature)</dt>
+    <dd>从图像中<strong>具有代表性和显著性的局部结构</strong>(角点、斑点、区域)抽取的视觉不变量。先由<strong>检测子(Detector)</strong>找到这些特征点的位置,再由<strong>描述子(Descriptor)</strong>把每个点周围的图案编码成向量。理想的局部特征应满足:<strong>鲁棒性、区分性、提取的高效性</strong>。因为只看局部,即使图片被部分遮挡或裁剪,没被破坏的那些点依然能匹配上。</dd>
+  </dl>
+</div>
+<table>
+<thead><tr><th>维度</th><th>全局特征</th><th>局部特征</th></tr></thead>
+<tbody>
+<tr><td>描述对象</td><td>整幅图算一个向量</td><td>图中多个显著点,各算一个向量</td></tr>
+<tr><td>代表</td><td>颜色直方图、纹理、形状</td><td>Harris 角点、SIFT、SURF、MSER</td></tr>
+<tr><td>计算成本</td><td>低,快</td><td>高,特征点多(SIFT 约 3000 个)</td></tr>
+<tr><td>抗遮挡/裁剪</td><td><strong>差</strong>——局部变化污染整体统计</td><td><strong>好</strong>——未受损的点仍可匹配</td></tr>
+<tr><td>不变性</td><td>弱</td><td>强(视具体算法可抗旋转/尺度/仿射)</td></tr>
+</tbody>
+</table>
+<p><strong>一句话记忆:</strong>颜色直方图是<strong>全局特征</strong>的招牌;它简单但脆,挡一半就崩。局部特征贵,但抗打击。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>局部特征检测子:Harris vs SIFT/SURF</h2>
+<p>局部特征的第一步是"在哪儿设点"。<strong>Harris</strong> 是最经典的角点检测子:把一个小窗口在图上朝任意方向挪,若灰度都发生明显变化,说明这是个角点(平坦区怎么挪都不变,边缘只有垂直边缘方向挪才变)。它用图像微分矩阵 M 的角点响应函数 <code>R = det(M) − k·trace(M)²</code>(k≈0.04~0.06)来打分。</p>
+<p>但 Harris 有个要命的短板:<strong>不具有尺度不变性</strong>。同一个角,把图放大后,原来的小窗口再也框不住整个角结构,Harris 就检测不到它了。<strong>SIFT/SURF</strong> 正是为解决这个问题而生——它们在<strong>高斯尺度空间</strong>里同时搜索位置和尺度上的极值,所以图片缩放后依然能找到同一个特征点。</p>
+<table>
+<thead><tr><th>特性</th><th>Harris 角点</th><th>SIFT / SURF</th></tr></thead>
+<tbody>
+<tr><td>特征类型</td><td>角点</td><td>斑点(blob,尺度空间极值)</td></tr>
+<tr><td>光照不变</td><td>是</td><td>是</td></tr>
+<tr><td>旋转不变</td><td>是</td><td>是</td></tr>
+<tr><td><strong>尺度不变</strong></td><td><strong>否</strong>(单尺度)</td><td><strong>是</strong>(尺度空间搜索)</td></tr>
+<tr><td>仿射不变</td><td>否</td><td>否(仅 MSER 抗仿射)</td></tr>
+<tr><td>速度</td><td>快、简单</td><td>SIFT 慢(1~2s);SURF 是 SIFT 的 3~5 倍</td></tr>
+<tr><td>对噪声</td><td>对模糊/噪声敏感</td><td>较鲁棒</td></tr>
+</tbody>
+</table>
+<p>补充:给 Harris 套上尺度空间搜索就得到 <strong>Harris-Laplace</strong>,它就具备了尺度不变性——可见"尺度不变"这条性质来自尺度空间机制,而非角点本身。</p>
+
+<h3>SIFT:为什么是 128 维</h3>
+<div class="def">
+  <dl>
+    <dt>SIFT (Scale-Invariant Feature Transform)</dt>
+    <dd>Lowe 于 1999 年提出、2004 年完善的局部特征检测子 + 描述子。检测端在<strong>高斯差分金字塔(DoG)</strong>的尺度空间中检测局部极值作为特征点(用 DoG 近似 LoG 以减少计算量);描述端把特征点邻域旋转到主方向后做 <strong>4×4 分块、每块统计 8 个方向</strong>的梯度直方图,得到 <strong>4 × 4 × 8 = 128 维</strong>特征向量。<span class="alias">优点:抗旋转 + 抗尺度、独特性强。缺点:维数高、匹配代价大、实时性差、不抗仿射。</span></dd>
+  </dl>
+</div>
+<p>记住这条推导链而不是死记数字:<strong>4×4 个空间小块 × 每块 8 个梯度方向 = 128</strong>。常见陷阱是把它记成 4×8=32,或误以为 128 是"字节数"。作为对比,SURF 描述子是 4×4 分块 × 每块 4 种 Haar 统计量 = <strong>64 维</strong>,一半大小,所以更快。</p>
+</section>
+
+<section>
+<h2><span class="num">4.</span>如何计算两张图的相关性:特征 + 距离度量</h2>
+<p>这是真题<strong>简答题</strong>常问的"如何计算图像之间的相关性(相似性)"。答案是两步走,不要只答一半:</p>
+<div class="worked">
+  <div class="worked-head">简答答题框架:图像间相似性怎么算</div>
+  <div class="worked-body">
+    <ol>
+      <li><strong>特征提取</strong>——把每张图转成可比较的<strong>特征向量</strong>(全局用颜色直方图等;局部用 SIFT/SURF 等)。这一步把"图像"翻译成"数字",是能比较的前提。</li>
+      <li><strong>距离度量</strong>——定义一个<strong>距离函数 d(x,y)</strong> 计算两个特征向量的差别;距离越小越相似。CBIR 是<strong>相似性检索</strong>而非文本那样的精确匹配,所以必须靠距离来量化"像不像"。常用 L1(曼哈顿)、L2(欧氏)、余弦距离、马氏距离等。</li>
+    </ol>
+    <div class="result"><strong>结论:</strong>相关性 = 用合适的特征把图像向量化,再用合适的距离函数量出向量间的差异。答简答题时这两步都要写全。</div>
+  </div>
+</div>
+<p>一个"合格"的距离函数不是随便定义的,它必须满足<strong>四条数学性质</strong>(这也是选择/判断题的常客):</p>
+<table>
+<thead><tr><th>性质</th><th>公式</th><th>直觉</th></tr></thead>
+<tbody>
+<tr><td><strong>非负性</strong></td><td>d(x, y) ≥ 0</td><td>距离不可能是负的</td></tr>
+<tr><td><strong>同一性</strong></td><td>d(x, x) = 0</td><td>自己和自己距离为 0</td></tr>
+<tr><td><strong>对称性</strong></td><td>d(x, y) = d(y, x)</td><td>A 到 B 与 B 到 A 一样远</td></tr>
+<tr><td><strong>三角不等式</strong></td><td>d(x, k) + d(k, y) ≥ d(x, y)</td><td>绕道 k 只会更远,不会更近</td></tr>
+</tbody>
+</table>
+<p>把它和之前学的<strong>失真度量</strong>(L07)对照:那里用距离衡量"压缩后与原图的误差",这里用距离衡量"两张图内容像不像"——同一套数学工具,升级到了<strong>语义层</strong>的应用。得到距离后,常再套一个高斯核 <code>e^(−d²/2σ²)</code> 把"距离"翻译成 0~1 的"相似度"。</p>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1 · 特征辨析</span>
+  <p>下列关于全局特征与局部特征的说法,<strong>错误</strong>的是?</p>
+  <ol class="opts">
+    <li>颜色直方图是一种全局特征,从整幅图像统计得到</li>
+    <li>Harris 角点检测子具有尺度不变性,图像放大后仍能检测到同一角点</li>
+    <li>SIFT 描述子是 128 维,来自 4×4 分块每块 8 个方向</li>
+    <li>局部特征比全局特征更能抵抗遮挡和裁剪</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B</strong>
+      <p>Harris <strong>不具有</strong>尺度不变性——它是单尺度检测子,图像缩放后原窗口框不住角结构,就检测不到了。抗尺度的是 SIFT/SURF/MSER/Harris-Laplace。A(颜色直方图=全局特征)、C(SIFT 128 维=4×4×8)、D(局部特征抗遮挡)都正确。<br>
+      <em>陷阱:</em>凡见到"Harris 抗缩放/抗尺度"一律判错;Harris 只抗旋转和光照。</p>
+    </div>
+  </details>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 2 · 语义鸿沟</span>
+  <p>在 CBIR 中,"语义鸿沟(Semantic Gap)"最准确的含义是?</p>
+  <ol class="opts">
+    <li>不同图像格式(JPEG/PNG)之间难以互相转换的问题</li>
+    <li>计算机能提取的底层视觉特征与人类的高层语义理解之间的差距</li>
+    <li>查询图像分辨率与库图像分辨率不一致带来的匹配误差</li>
+    <li>特征向量维度过高导致索引速度慢的问题</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B</strong>
+      <p>语义鸿沟指<strong>底层视觉特征(颜色/纹理/形状等像素级信息)</strong>与<strong>人类高层语义理解("这是一只狗")</strong>之间的落差:两张语义相同的图特征可能差很远,语义无关的图特征却可能很近。它是 CBIR 要突破的核心难题。A 是格式问题、D 是索引效率(高维索引解决)、C 只是预处理细节,都不是语义鸿沟。<br>
+      <em>易混:</em>"意图鸿沟"指用户查询意图难用文本标签表达,和语义鸿沟并列但不同,别混为一谈。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 特征算出来、距离量完了,还要回答一个问题:检索系统到底"准不准"?进入 <a href="0020-retrieval-metrics-recall-precision-map.html">0020 · 检索性能评价:查全率·查准率·mAP</a>,拆解那道压轴计算题。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0019 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

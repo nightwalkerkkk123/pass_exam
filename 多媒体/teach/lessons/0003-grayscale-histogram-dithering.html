@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0003 · 灰度图 · 直方图 · 抖动</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0003 · L02</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">灰度图 · 直方图 · 抖动</h1>
+<p class="lede">同一张照片,可以用 24 位彩色存,也可以压成 8 位灰度或 8 位伪彩色,还能用一台只有黑墨的打印机"骗"出灰度。这一节把三件事讲透:怎么把颜色变成灰度、怎么用直方图看懂一张图、怎么用抖动把连续色调变成黑白点阵。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>把一张彩色照片想象成三层透明胶片叠在一起——红、绿、蓝各一层。<strong>灰度化</strong>就是把这三层按人眼的敏感度"加权拍扁"成一层黑白;人眼对绿最敏感、对蓝最迟钝,所以绿的权重最大、蓝最小。而<strong>抖动</strong>则相反:黑白打印机没有"灰",只能靠"在小方格里点多少个黑点"来假装出深浅——远看是灰,凑近看全是黑点。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>核心定义</h2>
+<div class="def">
+  <dl>
+    <dt>灰度图 (Gray-level Image)</dt>
+    <dd>只保留<strong>亮度(luminance)</strong>信息、丢弃色彩的图像。8 位灰度图每个像素用 1 字节存一个 0~255 的灰度值,0 为纯黑、255 为纯白。<span class="alias">转换公式:Gray = 0.299R + 0.587G + 0.114B。</span></dd>
+    <dt>直方图 (Histogram)</dt>
+    <dd>统计图像中<strong>每个灰度值(0~255)各出现了多少个像素</strong>,反映像素亮度的分布。横轴是灰度值、纵轴是像素个数。<span class="alias">Python:np.histogram / np.bincount。</span></dd>
+    <dt>颜色查找表 (Color Lookup Table, CLUT)</dt>
+    <dd>又称调色板 / 伪彩色。像素里不直接存 24 位颜色,而是存一个<strong>索引(index)</strong>,真正的颜色统一放在一张表里,用索引去查。<span class="alias">用小整数索引替代 3 字节颜色,靠近似换省空间。</span></dd>
+    <dt>抖动 (Dithering)</dt>
+    <dd>在只能输出黑/白(1 位)的设备上,用<strong>点的疏密图案</strong>来近似连续灰度的技术。核心思想:用空间分辨率换亮度分辨率。<span class="alias">Trade intensity resolution for spatial resolution。</span></dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>三种图像的数据量对比(为什么要压)</h2>
+<p>以 640×480 分辨率为例,记住这张表就能秒答"数据量关系"类计算题:</p>
+<table>
+<thead><tr><th>图像类型</th><th>每像素</th><th>字节数计算</th><th>大小</th></tr></thead>
+<tbody>
+<tr><td>24 位彩色 (RGB)</td><td>3 字节 (R+G+B 各 8 位)</td><td>640×480×3</td><td>900 KB</td></tr>
+<tr><td>8 位灰度</td><td>1 字节</td><td>640×480×1</td><td>300 KB</td></tr>
+<tr><td>8 位伪彩色 (查 CLUT)</td><td>1 字节索引</td><td>640×480×1 + 调色板</td><td>≈ 300 KB</td></tr>
+</tbody>
+</table>
+<p><strong>关键结论:</strong>24 位彩色每像素 3 字节,压成 8 位(灰度或伪彩色)每像素只剩 1 字节,数据量正好变成原来的 <strong>1/3</strong>。这就是思考题"512×512 的 24 位彩色转 8 位灰度后未压缩时数据量关系"的答案:灰度图是彩色图的三分之一。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>是什么 · 为什么 · 怎么做</h2>
+
+<h3>灰度化:为什么权重不是各 1/3?</h3>
+<p><strong>是什么:</strong>把 R、G、B 三个通道加权求和成一个亮度值。<strong>为什么用 0.299 / 0.587 / 0.114:</strong>这不是随便取的,而是匹配<strong>人眼视锥细胞对不同波长的敏感度</strong>——人眼对绿光最敏感(权重 0.587 最大)、对蓝光最不敏感(0.114 最小)。若简单取平均 (R+G+B)/3,得到的灰度和人眼感受的明暗不符,绿色物体会显得偏暗。<strong>怎么做:</strong>逐像素代入公式、四舍五入取整。</p>
+
+<h3>直方图:为什么重要?</h3>
+<p><strong>是什么:</strong>把 0~255 每个灰度当成一个"桶",数一数落进每个桶的像素个数。<strong>为什么:</strong>它一眼暴露图像的曝光——像素都堆在左边说明整体偏暗(欠曝),堆在右边说明偏亮(过曝),分布均匀说明对比度好。<strong>怎么做:</strong>遍历所有像素,对其灰度值对应的计数器 +1。它也是构建 8 位伪彩色时"挑 256 种最常用颜色"的依据。</p>
+
+<h3>24 位 → 8 位:CLUT 与量化两条路</h3>
+<p>把 24 位彩色降到 8 位,有两种思路,都把每像素从 3 字节压到 1 字节:</p>
+<ul>
+  <li><strong>均匀量化(粗暴切分):</strong>把 RGB 立方体在每个维度上等分——R 取 3 位、G 取 3 位、B 取 2 位,拼成 8 位。简单但会产生<strong>边缘伪影(edge artifacts)</strong>,渐变处出现色带。</li>
+  <li><strong>颜色查找表 CLUT(挑常用色):</strong>先算直方图,选出图中<strong>最常出现的 256 种颜色</strong>放进一张表,每种颜色仍是 24 位;像素里只存 8 位索引去查表。颜色种类少时效果好得多。</li>
+</ul>
+
+<h3>抖动:黑白打印机怎么打出"灰"?</h3>
+<p><strong>问题:</strong>打印机只有黑墨,只能打"点"或"不打",没有灰。<strong>解法:</strong>把一个像素放大成一个 <em>n×n</em> 的方格(如 4×4),用<strong>抖动矩阵</strong>决定格内哪些点打黑。规则:<code>若 该像素亮度 &gt; 抖动矩阵对应位置的值,则打一个黑点</code>。亮度越低(越暗),超过阈值的格子越多、黑点越密,远看就越黑。这就是"用空间换亮度"——牺牲空间分辨率(一个像素占一片格子)换回亮度层次。</p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 灰度值计算 + 数据量换算</div>
+  <div class="worked-body">
+    <p><strong>题目:</strong>某像素颜色为 R=100, G=150, B=200。(1) 求其 8 位灰度值。(2) 一张 512×512 的 24 位彩色图转成 8 位灰度后,未压缩数据量是原来的几分之几?</p>
+    <ol>
+      <li>写出灰度转换公式:<code>Gray = 0.299R + 0.587G + 0.114B</code>。</li>
+      <li>代入 R=100, G=150, B=200,分项计算:<br>
+        0.299 × 100 = 29.9<br>
+        0.587 × 150 = 88.05<br>
+        0.114 × 200 = 22.8</li>
+      <li>三项求和:29.9 + 88.05 + 22.8 = <strong>140.75</strong>。</li>
+      <li>灰度值必须是 0~255 的整数,四舍五入得 <strong>141</strong>。</li>
+      <li>数据量:24 位彩色每像素 3 字节,8 位灰度每像素 1 字节。分辨率不变时,比值 = 1 字节 ÷ 3 字节 = <strong>1/3</strong>。即 512×512×3 B → 512×512×1 B。</li>
+    </ol>
+    <div class="result"><strong>答案:</strong>(1) 灰度值 ≈ <strong>141</strong>。 (2) 灰度图数据量是原 24 位彩色图的 <strong>1/3</strong>(即三分之一)。</div>
+  </div>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1</span>
+  <p>某像素 R=200, G=100, B=50,按公式 Gray = 0.299R + 0.587G + 0.114B 计算,其灰度值最接近下列哪个?</p>
+  <ol class="opts">
+    <li>150</li>
+    <li>124</li>
+    <li>117</li>
+    <li>200</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B ≈ 124</strong>
+      <p>0.299×200 = 59.8;0.587×100 = 58.7;0.114×50 = 5.7。求和 = 59.8 + 58.7 + 5.7 = <strong>124.2</strong>,四舍五入 124。<br>
+      <em>提醒:</em>权重次序是 R→0.299、G→0.587、B→0.114,别把 G 和 B 的权重记反——G 权重最大(人眼对绿最敏感)。</p>
+    </div>
+  </details>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 2</span>
+  <p>关于抖动(dithering)的目的,下列说法最准确的是?</p>
+  <ol class="opts">
+    <li>提高图像的色彩饱和度</li>
+    <li>在只能输出黑白两色的设备上,用点的疏密图案近似出连续灰度</li>
+    <li>把 8 位灰度图无损压缩成更小的文件</li>
+    <li>增加图像的空间分辨率使其更清晰</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B</strong>
+      <p>抖动的核心是<strong>用空间分辨率换亮度分辨率</strong>:1 位设备(如只有黑墨的打印机)无法直接表现灰度,便用一片 n×n 格子里黑点的多少来模拟深浅,远看成灰。A 是色彩问题、与抖动无关;C 抖动是有损近似而非无损压缩;D 恰恰相反——抖动是<strong>牺牲</strong>空间分辨率(一个像素占一片格子)来换取亮度层次。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 进入 <a href="0004-color-science-rgb-cie-hsv-lab.html">0004 · 颜色科学:RGB · CIE · HSV · Lab</a>,把"颜色"这件事从人眼视觉一路讲到色度图与各种颜色空间。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0003 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

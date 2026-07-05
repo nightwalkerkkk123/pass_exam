@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0008 · 信息熵与游程编码 RLC</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0008 · L06</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">信息熵与游程编码 RLC</h1>
+<p class="lede">压缩的本质,是把"你早就猜得到的东西"少写几个字。这一节先量化"意外程度"——信息熵,再看最朴素的一种去冗余手段:把连着重复的符号折叠成"个数 + 符号"。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>天气预报说"明天太阳照常升起",你几乎没获得任何信息——因为它<strong>本来就必然发生</strong>。可要是说"明天下陨石",这条消息信息量极大,因为它太意外了。<strong>越不可能发生的事,一旦发生,携带的信息量越大</strong>——这就是<strong>自信息</strong>。把一个信源里所有符号的自信息按概率加权平均,就得到<strong>信息熵</strong>:它衡量"平均每个符号有多让人意外",也正好是无损压缩每个符号平均最少要花的比特数。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>四个核心定义</h2>
+<div class="def">
+  <dl>
+    <dt>冗余 (Redundancy)</dt>
+    <dd>数据中"可以被预测、因而无需重复存储"的部分。压缩的本质就是<strong>去除冗余</strong>:时间冗余(视频帧间)、空间冗余(相邻像素)、频谱冗余(颜色分量间)、心理视觉冗余(人眼不敏感的细节)。<span class="alias">RLC 攻击的是"连续重复"这种最直白的空间/时间冗余。</span></dd>
+    <dt>自信息 (Self-information)</dt>
+    <dd>单个符号 <code>sᵢ</code> 携带的信息量,定义为 <code>I(sᵢ) = −log₂ pᵢ</code>,单位 bit。概率 <code>pᵢ</code> 越小,自信息越大;必然事件 <code>p=1</code> 时自信息为 0。</dd>
+    <dt>信息熵 (Entropy)</dt>
+    <dd>信源 S 中每个符号的<strong>平均信息量</strong>:<code>η = Σ pᵢ · I(sᵢ) = −Σ pᵢ · log₂ pᵢ</code>,单位 bit/symbol。<span class="alias">等概率分布时熵最大;某符号概率为 1 时熵为 0。</span></dd>
+    <dt>游程编码 (Run-Length Coding, RLC)</dt>
+    <dd>一种<strong>无损</strong>压缩:把一串<strong>连续重复</strong>的符号,替换成"重复次数 + 符号"这一个二元组。适合大片相同的数据(如传真、纯色区域)。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>自信息随概率怎么变</h2>
+<p>把 <code>I = −log₂ p</code> 代几个值进去,直觉马上清晰——概率减半,自信息就多 1 bit:</p>
+<table>
+<thead><tr><th>概率 p</th><th>自信息 −log₂ p (bit)</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>0</td><td>必然事件,毫无信息</td></tr>
+<tr><td>1/2</td><td>1</td><td>一次公平抛硬币</td></tr>
+<tr><td>1/4</td><td>2</td><td>更少见,信息更多</td></tr>
+<tr><td>1/8</td><td>3</td><td>越稀有越"值钱"</td></tr>
+<tr><td>→ 0</td><td>→ ∞</td><td>几乎不可能,一旦发生信息量爆炸</td></tr>
+</tbody>
+</table>
+</section>
+
+<section>
+<h2><span class="num">3.</span>为什么熵是无损压缩的下界</h2>
+<p>熵不是随便定义的数字,它是一道<strong>物理下限</strong>:任何无损编码,平均每个符号的码长 <code>l̄</code> 都不可能低于熵 <code>η</code>,即 <code>η ≤ l̄</code>。</p>
+<p>道理在于:要想缩短平均码长,就得给<strong>高概率符号短码、低概率符号长码</strong>。但码字不能随便短——任意无损前缀码受 Kraft 不等式约束 <code>Σ 2^(−lᵢ) ≤ 1</code>。在这个约束下让加权平均码长 <code>Σ pᵢ·lᵢ</code> 最小,最优解恰好是 <code>lᵢ = −log₂ pᵢ</code>,此时平均码长正好等于熵。</p>
+<p>可现实里码长必须是<strong>整数</strong>(Huffman 就是逐符号给整数位码),没法精确取到 <code>−log₂ pᵢ</code> 这种小数,所以只能 <code>l̄ ≥ η</code>,并且最优时满足 <code>η ≤ l̄ < η + 1</code>。这也解释了后面为什么算术编码(对整条消息编码、能逼近熵)常常胜过 Huffman。<strong>一句话:熵 = 消除每个符号平均不确定性所需的最少比特数。</strong></p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 A · 计算信息熵</div>
+  <div class="worked-body">
+    <p>信源 <code>S = {a, b, c}</code>,概率 <code>P = {0.5, 0.25, 0.25}</code>。求熵 <code>η</code>。</p>
+    <ol>
+      <li>写出公式:<code>η = −Σ pᵢ · log₂ pᵢ</code>。</li>
+      <li>逐项算自信息:<code>−log₂ 0.5 = 1</code>,<code>−log₂ 0.25 = 2</code>,<code>−log₂ 0.25 = 2</code>。</li>
+      <li>按概率加权求和:<code>η = 0.5×1 + 0.25×2 + 0.25×2</code>。</li>
+      <li>算出:<code>η = 0.5 + 0.5 + 0.5 = 1.5</code>。</li>
+    </ol>
+    <div class="result"><strong>结果:</strong> <code>η = 1.5 bit/symbol</code>。作对比:若用等长定长码,3 个符号要 <code>⌈log₂ 3⌉ = 2</code> bit/symbol——熵告诉我们理论上平均只需 1.5 bit,还有压缩空间。</div>
+  </div>
+</div>
+
+<div class="worked">
+  <div class="worked-head">例题 B · 游程编码 RLC</div>
+  <div class="worked-body">
+    <p>对字符串 <code>aaabbc</code> 做 RLC 编码,并算压缩效果。</p>
+    <ol>
+      <li>从左到右扫描,统计每段<strong>连续相同</strong>符号的长度:<code>aaa</code>(3 个 a)、<code>bb</code>(2 个 b)、<code>c</code>(1 个 c)。</li>
+      <li>把每段写成 <code>(次数, 符号)</code>:<code>(3,a) (2,b) (1,c)</code>。</li>
+      <li>对比长度:原始 6 个符号 → 编码后 3 个二元组。</li>
+    </ol>
+    <div class="result"><strong>结果:</strong> <code>aaabbc → (3,a)(2,b)(1,c)</code>。<br>提醒:RLC 只在<strong>重复多</strong>时才划算。若是 <code>abcabc</code> 这种毫无连续重复的串,RLC 反而会把 6 个符号变成 6 个二元组,越"压"越大——这正是它的边界情况。</div>
+  </div>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1</span>
+  <p>字母表 <code>S = {a, b, c, d}</code>,概率 <code>P = {1/2, 1/4, 1/8, 1/8}</code>。该信源的熵 <code>η</code> 是多少 bit/symbol?</p>
+  <ol class="opts">
+    <li>2.00</li>
+    <li>1.75</li>
+    <li>1.50</li>
+    <li>2.25</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B 1.75</strong>
+      <p>自信息分别为 <code>−log₂(1/2)=1</code>、<code>−log₂(1/4)=2</code>、<code>−log₂(1/8)=3</code>、<code>−log₂(1/8)=3</code>。<br>
+      加权求和:<code>η = 1/2×1 + 1/4×2 + 1/8×3 + 1/8×3 = 0.5 + 0.5 + 0.375 + 0.375 = 1.75</code>。<br>
+      <em>解题套路:</em>凡是 <code>1/2ⁿ</code> 这种概率,自信息就是整数 n,不用查对数表,心算即可。</p>
+    </div>
+  </details>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 2</span>
+  <p>对字符串 <code>WWWWWBBWBBB</code> 做游程编码,正确结果是?</p>
+  <ol class="opts">
+    <li>(5,W)(2,B)(1,W)(3,B)</li>
+    <li>(4,W)(2,B)(1,W)(3,B)</li>
+    <li>(5,W)(3,B)(3,B)</li>
+    <li>(W,5)(B,2)(W,1)(B,3)</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:A (5,W)(2,B)(1,W)(3,B)</strong>
+      <p>分段:<code>WWWWW</code>=5 个 W、<code>BB</code>=2 个 B、<code>W</code>=1 个 W、<code>BBB</code>=3 个 B。合起来 <code>(5,W)(2,B)(1,W)(3,B)</code>。<br>
+      B 项:数错了,W 是 4 个不是 5 个;C 项:漏掉了中间那个单独的 W,把两段 B 错误合并;D 项:本题约定"次数在前、符号在后",顺序写反。<br>
+      <em>易错点:</em>中间夹的<strong>单个</strong>符号也必须单独成一段,不能和前后同类符号合并。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 熵给出了"最少要花多少 bit"的理论下界,但没告诉我们<strong>具体怎么给每个符号分配码字</strong>去逼近它。进入 <a href="0009-shannon-fano-huffman.html">0009 · Shannon-Fano 与 Huffman 编码</a>,学两种把高频符号编成短码的变长编码算法。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0008 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

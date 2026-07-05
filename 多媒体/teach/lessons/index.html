@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多媒体系统导论 · 微课全集</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: var(--serif); font-size: var(--text-base); line-height: 1.65; -webkit-font-smoothing: antialiased; }
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 960px; margin: 0 auto; text-align: center; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-3); }
+.masthead-title { font-size: var(--text-2xl); font-weight: 700; letter-spacing: 0.04em; }
+.masthead-sub { font-family: var(--serif); font-style: italic; font-size: var(--text-sm); color: var(--ink-soft); letter-spacing: 0.08em; text-transform: uppercase; }
+.crumbs { max-width: 960px; margin: var(--space-3) auto 0; text-align: center; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+main { max-width: 960px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-xl); margin: var(--space-7) 0 var(--space-3); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); }
+h2 .mod { font-family: var(--sans); font-size: 12px; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-left: var(--space-3); font-weight: 700; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--space-3); margin: var(--space-4) 0; }
+.card { display: block; border: 1px solid var(--rule); background: var(--paper); padding: var(--space-3) var(--space-4); text-decoration: none; color: var(--ink); transition: all 0.15s ease; }
+.card:hover { border-color: var(--accent); box-shadow: 3px 3px 0 var(--paper-deep); transform: translate(-1px,-1px); }
+.card .no { font-family: var(--mono); font-size: 12px; color: var(--accent); font-weight: 700; }
+.card .t { font-weight: 700; display: block; margin: var(--space-1) 0; line-height: 1.35; }
+.card .lec { font-family: var(--sans); font-size: 11px; color: var(--ink-mute); letter-spacing: 0.04em; }
+.tag { display: inline-block; font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 0.06em; padding: 1px 6px; border-radius: 2px; margin-left: var(--space-1); vertical-align: middle; }
+.tag-star { background: var(--accent); color: var(--paper); }
+.tag-hi { background: var(--highlight); color: var(--paper); }
+.intro-box { background: var(--paper-soft); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; font-family: var(--sans); font-size: var(--text-sm); }
+.intro-box strong { color: var(--accent); }
+footer { max-width: 960px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+@media (max-width: 720px) { :root { --text-3xl: 30px; } main { padding: 0 var(--space-4); } }
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div class="masthead">
+    <div class="masthead-title">多媒体系统导论 · 微课全集</div>
+    <div class="masthead-sub">深圳大学 · 方山城 · 2026 春 · 21 节专题 · 一节一窄主题</div>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a> ·
+    <a href="../MISSION.md">学习目标</a>
+  </nav>
+</header>
+<main>
+<h1 class="title">微课全集</h1>
+<p class="lede">21 节按考点切分的专题微课。每节自成一体、含直觉类比·关键定义·例题·自测题。⭐ = 真题命中,建议优先。</p>
+
+<div class="intro-box">
+  <strong>怎么用:</strong>零基础按编号顺序刷(0001→0021,每节底部有「下一步」引导);冲刺则直奔 ⭐ 计算节 —— <strong>0016 JPEG · 0017 运动补偿 · 0012 算术编码 · 0020 检索指标</strong> 是四道 15 分计算题的主战场。
+</div>
+
+<h2>绪论 <span class="mod">Module 0 · L01</span></h2>
+<div class="grid">
+  <a class="card" href="0001-what-is-multimedia-exam-map.html"><span class="no">0001</span><span class="t">什么是多媒体 · 考试地图</span><span class="lec">L01 · 绪论</span></a>
+</div>
+
+<h2>图像与颜色 <span class="mod">Module A · L02–L03</span></h2>
+<div class="grid">
+  <a class="card" href="0002-pixel-bitmap-image-size.html"><span class="no">0002</span><span class="t">像素 · 位图 · 图像数据量计算<span class="tag tag-star">⭐</span></span><span class="lec">L02</span></a>
+  <a class="card" href="0003-grayscale-histogram-dithering.html"><span class="no">0003</span><span class="t">灰度图 · 直方图 · 抖动<span class="tag tag-star">⭐</span></span><span class="lec">L02</span></a>
+  <a class="card" href="0004-color-science-rgb-cie-hsv-lab.html"><span class="no">0004</span><span class="t">颜色科学:RGB/CIE/HSV/Lab<span class="tag tag-hi">高</span></span><span class="lec">L03</span></a>
+  <a class="card" href="0005-ycbcr-gamma-correction.html"><span class="no">0005</span><span class="t">YCbCr 与 Gamma 校正<span class="tag tag-hi">高</span></span><span class="lec">L03</span></a>
+</div>
+
+<h2>视频与音频 <span class="mod">Module B · L04–L05</span></h2>
+<div class="grid">
+  <a class="card" href="0006-video-chroma-subsampling-420.html"><span class="no">0006</span><span class="t">视频制式 · 色度二次采样 4:2:0<span class="tag tag-star">⭐论述</span></span><span class="lec">L04</span></a>
+  <a class="card" href="0007-digital-audio-nyquist-pcm-sqnr.html"><span class="no">0007</span><span class="t">数字音频 · 奈奎斯特 · SQNR<span class="tag tag-star">⭐</span></span><span class="lec">L05</span></a>
+</div>
+
+<h2>压缩理论 <span class="mod">Module C · L06–L07</span></h2>
+<div class="grid">
+  <a class="card" href="0008-entropy-rlc.html"><span class="no">0008</span><span class="t">信息熵与游程编码 RLC<span class="tag tag-star">⭐</span></span><span class="lec">L06</span></a>
+  <a class="card" href="0009-shannon-fano-huffman.html"><span class="no">0009</span><span class="t">Shannon-Fano 与 Huffman<span class="tag tag-star">⭐</span></span><span class="lec">L06</span></a>
+  <a class="card" href="0010-adaptive-huffman.html"><span class="no">0010</span><span class="t">自适应 Huffman</span><span class="lec">L06</span></a>
+  <a class="card" href="0011-lzw-dictionary-coding.html"><span class="no">0011</span><span class="t">LZW 字典编码(压缩+解压)<span class="tag tag-star">⭐</span></span><span class="lec">L06</span></a>
+  <a class="card" href="0012-arithmetic-coding.html"><span class="no">0012</span><span class="t">算术编码(编码+解码)<span class="tag tag-star">⭐计算</span></span><span class="lec">L06</span></a>
+  <a class="card" href="0013-distortion-psnr-rate-distortion.html"><span class="no">0013</span><span class="t">MSE/PSNR 与率失真理论<span class="tag tag-star">⭐简答</span></span><span class="lec">L07</span></a>
+  <a class="card" href="0014-quantization-uniform-vector.html"><span class="no">0014</span><span class="t">量化:均匀/非均匀·标量/向量<span class="tag tag-star">⭐</span></span><span class="lec">L07</span></a>
+  <a class="card" href="0015-dct-transform-coding.html"><span class="no">0015</span><span class="t">DCT 变换编码<span class="tag tag-star">⭐</span></span><span class="lec">L07</span></a>
+</div>
+
+<h2>压缩标准与视频 <span class="mod">Module D · L08–L10</span></h2>
+<div class="grid">
+  <a class="card" href="0016-jpeg-pipeline.html"><span class="no">0016</span><span class="t">JPEG 完整流水线<span class="tag tag-star">⭐计算</span></span><span class="lec">L08</span></a>
+  <a class="card" href="0017-motion-compensation-mv-mad.html"><span class="no">0017</span><span class="t">运动补偿 · MV · MAD · 2D 对数搜索<span class="tag tag-star">⭐计算</span></span><span class="lec">L09</span></a>
+  <a class="card" href="0018-h261-mpeg-ipb-frames.html"><span class="no">0018</span><span class="t">H.261 与 MPEG:I/P/B 帧<span class="tag tag-hi">高</span></span><span class="lec">L10</span></a>
+</div>
+
+<h2>检索与深度学习 <span class="mod">Module E · L11–L12</span></h2>
+<div class="grid">
+  <a class="card" href="0019-cbir-sift-features.html"><span class="no">0019</span><span class="t">CBIR:语义鸿沟·全局vs局部·SIFT</span><span class="lec">L11</span></a>
+  <a class="card" href="0020-retrieval-metrics-recall-precision-map.html"><span class="no">0020</span><span class="t">检索指标 Recall/Precision/AP/mAP<span class="tag tag-star">⭐计算</span></span><span class="lec">L12</span></a>
+  <a class="card" href="0021-cnn-conv-pooling-output-size.html"><span class="no">0021</span><span class="t">CNN:卷积·池化·输出尺寸计算<span class="tag tag-hi">高</span></span><span class="lec">L12</span></a>
+</div>
+
+</main>
+<footer>多媒体系统导论 · 微课全集 · 21 节 · 2026-07-05</footer>
+</body>
+</html>

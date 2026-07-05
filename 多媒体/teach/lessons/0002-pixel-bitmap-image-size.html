@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0002 · 像素·位图·图像数据量计算</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0002 · L02</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">像素 · 位图 · 图像数据量计算</h1>
+<p class="lede">一张数字图像,拆到底就是一张数字表格。搞清楚"一个格子占几个字节",这门课第一类计算题——图像未压缩存储量——就再也不会失分。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>把一张图像想成方格纸:每个小格子就是一个<strong>像素 (pixel)</strong>,格子里填的数字就是这个点的颜色。方格纸有多少行多少列,就是<strong>图像分辨率</strong>(如 512×512)。整张填满数字的方格纸,就是<strong>位图 (bitmap)</strong>——一个二维数组。而"这张图占多少空间",本质就是:<em>格子数 × 每个格子记几个字节</em>。全部计算题都从这一句展开。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>核心定义:从像素到位图</h2>
+<div class="def">
+  <dl>
+    <dt>像素 (Pixel)</dt>
+    <dd>图像的最小单位,一个点。它记录该位置的颜色/亮度值。<span class="alias">灰度图里一个像素是 0~255 的一个数;彩色图里是 (R, G, B) 三个数。</span></dd>
+    <dt>图像分辨率 (Image Resolution)</dt>
+    <dd>图像在水平和垂直方向上的像素数,写作 <code>宽 × 高</code>(如 <code>512 × 512</code>、<code>640 × 480</code>)。<strong>总像素数 = 宽 × 高</strong>。<span class="alias">分辨率越高,像素越多,数据量越大。</span></dd>
+    <dt>位图 (Bitmap)</dt>
+    <dd>表示图像的<strong>二维数组</strong>——每个数组元素就是一个像素值。"表示图像或图形的二维数组就称为位图。"</dd>
+    <dt>位平面 (Bitplane)</dt>
+    <dd>把一张 8-bit 图像看成 8 张 <strong>1-bit</strong> 图像的叠加:每个像素的第 <em>k</em> 位单独抽出来拼成一张平面,就是第 <em>k</em> 个位平面。<span class="alias">高位平面决定图像结构、形状与明暗;低位平面多为噪声与细纹。用于压缩、加密隐写、去噪。</span></dd>
+    <dt>24-bit 彩色图 (24-bit Color Image)</dt>
+    <dd>RGB 模型下 R(8-bit) + G(8-bit) + B(8-bit),<strong>每个像素占 3 个字节</strong>。可表示 256×256×256 ≈ <strong>1680 万</strong>种颜色,又称真彩色。<span class="alias">有些系统存成 32-bit(多 1 字节存特效/透明信息)。</span></dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>每种图像:一个像素占几个字节</h2>
+<p>数据量计算的全部秘密,就藏在下面这张"每像素字节数"表里。记住它,套公式即可:</p>
+<table>
+<thead><tr><th>图像类型</th><th>每像素位数</th><th>每像素字节数</th><th>数据量公式(字节)</th></tr></thead>
+<tbody>
+<tr><td>二值图像 (Binary / 1-bit)</td><td>1 bit</td><td>1/8 B</td><td><code>宽 × 高 ÷ 8</code></td></tr>
+<tr><td>8-bit 灰度图</td><td>8 bit</td><td>1 B</td><td><code>宽 × 高 × 1</code></td></tr>
+<tr><td><strong>24-bit 彩色图</strong></td><td>24 bit</td><td><strong>3 B</strong></td><td><code>宽 × 高 × 3</code></td></tr>
+<tr><td>32-bit 彩色图</td><td>32 bit</td><td>4 B</td><td><code>宽 × 高 × 4</code></td></tr>
+</tbody>
+</table>
+<p>由此立刻得到一个常考结论:同分辨率下,<strong>8-bit 灰度图的数据量是 24-bit 彩色图的 1/3</strong>(每像素 1 B vs 3 B)。这正是讲义思考题的答案。</p>
+<p>换算关系务必背牢:<code>1 Byte = 8 bit</code>、<code>1 KB = 1024 B</code>、<code>1 MB = 1024 KB</code>。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>bit 与 Byte:计算题最大的坑</h2>
+<p>题目常故意问"多少<strong>比特 (bit, b)</strong>"或"多少<strong>字节 (Byte, B)</strong>",两者差 8 倍。看讲义给的 640×480 标准例子,同一张图两种口径:</p>
+<table>
+<thead><tr><th>图像</th><th>按 bit 算</th><th>按 Byte 算</th></tr></thead>
+<tbody>
+<tr><td>640×480 · 8-bit 灰度</td><td>640×480×8 = 2,457,600 b = 2400 Kb</td><td>640×480×1 = 307,200 B = 300 KB</td></tr>
+<tr><td>640×480 · 24-bit 彩色</td><td>640×480×24 = 7,372,800 b = 7200 Kb</td><td>640×480×3 = 921,600 B = 900 KB</td></tr>
+</tbody>
+</table>
+<p><strong>避坑口诀:</strong>先看单位是小 <code>b</code> 还是大 <code>B</code>。乘位数(×8 / ×24)得到的是 <strong>bit</strong>;乘字节数(×1 / ×3)得到的是 <strong>Byte</strong>。答错单位,整道计算题清零。</p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 512×512 的 24-bit 彩色图未压缩数据量</div>
+  <div class="worked-body">
+    <p>求一张分辨率为 <code>512 × 512</code> 的 24-bit 彩色图像,未压缩时占多少字节?换算成 KB 是多少?</p>
+    <ol>
+      <li>算总像素数:<code>512 × 512 = 262144</code> 个像素。</li>
+      <li>确定每像素字节数:24-bit 彩色 = R+G+B = 3 个字节 / 像素。</li>
+      <li>套数据量公式:<code>512 × 512 × 3 = 786432</code> 字节 (B)。</li>
+      <li>换算成 KB(除以 1024):<code>786432 ÷ 1024 = 768</code> KB。</li>
+      <li>再换算成 MB(再除以 1024):<code>768 ÷ 1024 = 0.75</code> MB。</li>
+    </ol>
+    <div class="result">
+      <strong>结果:786432 B = 768 KB = 0.75 MB。</strong>与讲义"512×512 24-bit colour image = 0.75 MB"完全一致。<br>
+      若题目问的是 <strong>bit</strong>:<code>512 × 512 × 24 = 6,291,456 b</code>,正好是字节数的 8 倍——别把单位搞反。
+    </div>
+  </div>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题</span>
+  <p>一张分辨率为 <code>640 × 480</code> 的 24-bit 彩色图像,未压缩时的数据量是多少<strong>字节</strong>?</p>
+  <ol class="opts">
+    <li>307,200 B(≈ 300 KB)</li>
+    <li>921,600 B(≈ 900 KB)</li>
+    <li>7,372,800 B(≈ 7200 KB)</li>
+    <li>2,457,600 B(≈ 2400 KB)</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B 921,600 B(≈ 900 KB)</strong>
+      <p>24-bit 彩色每像素 3 字节,所以 <code>640 × 480 × 3 = 921,600 B = 900 KB</code>。<br>
+      <em>为什么其它是坑:</em> A(307,200)是把它当 8-bit 灰度(×1)算的;C(7,372,800)是按 <strong>bit</strong> 算的(×24),单位搞反了;D 是灰度图按 bit 算(×8)。<em>解题套路:</em>先认单位(B 还是 b),彩色乘 3、灰度乘 1;要 bit 就乘位数(24 或 8)。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 进入 <a href="0003-grayscale-histogram-dithering.html">0003 · 灰度图·直方图·抖动 (Dithering)</a>,看灰度图如何统计像素分布,以及只有黑墨的打印机怎么"打印"出灰阶。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0002 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0021 · CNN 基础 · 卷积·池化·输出尺寸计算</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0021 · L12</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">CNN 基础:卷积 · 池化 · 输出尺寸计算</h1>
+<p class="lede">上一讲我们手工设计特征(边缘、角点、SIFT);这一讲把"设计特征"这件苦差交给网络自己去学。整门课的最后一块拼图,也是计算题里最好拿分的一类——套公式即可。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>L11 里我们像老工匠:亲手雕出"该看哪里"的模板(梯度、SIFT 描述子),再拿去匹配。<strong>CNN 则像招进一批学徒</strong>——你不告诉它边缘长什么样,只给它成千上万张带标签的图和一个"错了就挨罚"的<strong>损失函数</strong>,它自己反复调整卷积核,直到底层学出边缘、中层学出纹理、高层学出"猫脸""车轮"。特征不再靠人拍脑袋,而是<strong>从数据里长出来的</strong>。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>三种积木:卷积层 · 池化层 · 全连接层</h2>
+<p>一个典型 CNN 就是这三种层<strong>交叉堆叠</strong>而成。先把每种积木的定义钉死:</p>
+<div class="def">
+  <dl>
+    <dt>卷积层 (Convolutional Layer)</dt>
+    <dd>用一个小的<strong>卷积核 / 滤波器</strong>(如 <code>3×3</code>)在输入图上滑动,逐位置做加权求和,产出一张<strong>特征图 (feature map)</strong>。两大法宝:<strong>局部关联</strong>(每个输出只连接输入的一小片)与<strong>参数共享</strong>(同一个核扫遍全图)——正是这两点把全连接网络"参数爆炸→过拟合"的病治好了。<span class="alias">stride 步长、padding 填充、depth 通道数是它的三个旋钮。</span></dd>
+    <dt>池化层 (Pooling Layer)</dt>
+    <dd>对特征图做<strong>下采样</strong>,只保留主要特征。<strong>Max pooling</strong>取窗口最大值,<strong>Average pooling</strong>取平均。作用:减少参数与计算量、防止过拟合、提升泛化。<span class="alias">池化<strong>没有可学参数</strong>——它只是缩图。</span></dd>
+    <dt>全连接层 (Fully Connected Layer)</dt>
+    <dd>相邻两层所有神经元<strong>两两相连</strong>,通常位于网络<strong>尾部</strong>,把提炼好的特征映射到类目得分。<span class="alias">整张网里<strong>参数量通常最大的就是它</strong>——VGG 的 138M 参数大多堆在这。</span></dd>
+    <dt>感受野 (Receptive Field)</dt>
+    <dd>某个输出神经元"能看到"的原始输入区域大小。越往深层,单个神经元的感受野越大,看到的东西越"全局"。<span class="alias">这就是为什么小卷积核多层堆叠能覆盖大范围——深度换视野。</span></dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>四座里程碑:经典网络对比</h2>
+<p>选择题与简答题常考"哪个网络先提出了什么"。记住下面这张纵向演进表——核心线索是<strong>越来越深、参数越来越省</strong>:</p>
+<table>
+<thead><tr><th>网络 (年份)</th><th>层数</th><th>参数量</th><th>关键特点</th></tr></thead>
+<tbody>
+<tr><td><strong>AlexNet</strong> (2012)</td><td>8 层<br>(5 卷积 + 3 全连接)</td><td>~60M</td><td>深度学习翻身之作;首用 <strong>ReLU</strong>、<strong>Dropout</strong>、数据增强、双 GPU;top-5 错误率骤降约 10 个百分点。</td></tr>
+<tr><td><strong>VGG</strong> (2014)</td><td>16–19 层</td><td><strong>138M</strong><br>(大多在 FC 层)</td><td>结构极简:全用 <code>3×3</code> 小卷积核堆叠加深;证明"深度"本身有用。参数最臃肿。</td></tr>
+<tr><td><strong>GoogleNet</strong> (2014)</td><td>22 层<br>(含池化 27 层)</td><td>~AlexNet 的 <strong>1/12</strong></td><td><strong>Inception 模块</strong>多尺度卷积;<code>1×1</code> 卷积降维省算力;<strong>去掉 FC 层</strong>;辅助分类器缓解梯度消失。</td></tr>
+<tr><td><strong>ResNet</strong> (2015)</td><td><strong>152 层</strong></td><td>—<br>(除输出无 FC)</td><td><strong>残差连接 (shortcut)</strong>:学"变化量"而非全量,使超深网络可训练;top-5 错误率降到 3.57%。</td></tr>
+</tbody>
+</table>
+</section>
+
+<section>
+<h2><span class="num">3.</span>CNN 为什么能"自动学特征"</h2>
+<p>回到 L11 的对比。<strong>手工特征</strong>(SIFT、HOG、颜色直方图)的流程是:人先定义"什么算特征"→ 提取 → 再喂给分类器。它的天花板由<strong>设计者的想象力</strong>决定,而且换个任务就得换一套特征。</p>
+<p><strong>CNN 把"特征提取"与"分类"合并成一条可端到端训练的管道。</strong>浅层卷积核自动收敛到边缘/颜色检测器,深层组合出物体部件——这套层级表示不是人写死的,而是被损失函数(交叉熵、MSE 等)一路反向传播"逼"出来的。数据越多、网络越深,它能学到的抽象层次越高。这就是为什么 2012 年 AlexNet 一出,手工特征时代基本落幕。</p>
+<p>代价也很清楚:CNN 是<strong>数据饥渴</strong>且<strong>算力昂贵</strong>的黑箱,可解释性远不如手工特征。考试里问"CNN 相比传统方法的优势/代价",答这两点即可。</p>
+</section>
+
+<section>
+<h2><span class="num">4.</span>两条必背公式</h2>
+<p>计算题的全部分数都藏在这两条式子里,务必背到条件反射:</p>
+<div class="def">
+  <dl>
+    <dt>① 卷积输出尺寸</dt>
+    <dd>设输入边长 <code>N</code>、卷积核边长 <code>F</code>、填充 <code>p</code>、步长 <code>s</code>,则输出特征图边长:<br>
+    <code>输出 = (N + 2p − F) / s + 1</code><br>
+    <span class="alias">无 padding 时 <code>p = 0</code>,退化为 <code>(N − F)/s + 1</code>。结果须为整数,否则说明尺寸/步长不匹配。</span></dd>
+    <dt>② 卷积层参数量</dt>
+    <dd>设卷积核 <code>F×F</code>、输入通道数 <code>C</code>、卷积核个数(输出通道)<code>K</code>,则:<br>
+    <code>参数量 = (F · F · C + 1) · K</code><br>
+    <span class="alias">那个 <code>+1</code> 是每个卷积核自带的一个<strong>偏置 bias</strong>。输出通道数 = 卷积核个数 <code>K</code>。</span></dd>
+  </dl>
+</div>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 · 输出尺寸 + 参数量一起算</div>
+  <div class="worked-body">
+    <p>输入图像 <code>32×32×3</code>(高×宽×通道),用 <code>10</code> 个 <code>5×5</code> 的卷积核,步长 <code>s=1</code>,填充 <code>p=2</code>。求输出特征图尺寸与该卷积层参数量。</p>
+    <ol>
+      <li>列出已知:<code>N=32</code>,<code>F=5</code>,<code>p=2</code>,<code>s=1</code>,输入通道 <code>C=3</code>,卷积核个数 <code>K=10</code>。</li>
+      <li>套公式①算输出边长:<code>(N + 2p − F)/s + 1 = (32 + 2×2 − 5)/1 + 1 = (32 + 4 − 5) + 1 = 31 + 1 = 32</code>。</li>
+      <li>拼上通道:输出通道数 = 卷积核个数 = <code>10</code>,故输出特征图为 <code>32×32×10</code>。(padding=2 恰好把尺寸"撑回"原大小,这也是 <code>p=(F−1)/2</code> 保持同尺寸的常用技巧。)</li>
+      <li>套公式②算参数量:每个核 <code>5×5×3 = 75</code> 个权重,加 1 个偏置 = <code>76</code>;共 <code>10</code> 个核。</li>
+      <li>合计:<code>(5×5×3 + 1) × 10 = 76 × 10 = 760</code> 个参数。</li>
+    </ol>
+    <div class="result"><strong>结论:</strong>输出特征图 <code>32×32×10</code>;该卷积层参数量 <code>760</code>。注意参数量与输入图多大<strong>无关</strong>(参数共享),这正是卷积省参数的根源。</div>
+  </div>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题</span>
+  <p>某卷积层输入为 <code>7×7</code>,卷积核 <code>3×3</code>,步长 <code>s=2</code>,填充 <code>p=1</code>。输出特征图的边长是多少?</p>
+  <ol class="opts">
+    <li><code>3</code></li>
+    <li><code>4</code></li>
+    <li><code>5</code></li>
+    <li><code>6</code></li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B　4</strong>
+      <p>直接代入公式①:<code>(N + 2p − F)/s + 1 = (7 + 2×1 − 3)/2 + 1 = (7 + 2 − 3)/2 + 1 = 6/2 + 1 = 3 + 1 = 4</code>。<br>
+      <em>易错点:</em>先算分子 <code>7+2−3=6</code>,再<strong>除以步长 2</strong> 得 3,最后<strong>才 +1</strong> 得 4。若忘记 padding(当 p=0)会算成 <code>(7−3)/2+1=3</code>,恰好落入干扰项 A——所以务必看清题目给没给 padding。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>全课完 →</strong> 12 讲微课到此收官——从像素、色彩、音频、压缩编码,一路到检索与 CNN。接下来别再单点练了,去做<strong>整卷自测</strong>:先用 <a href="../../exam-review/past-exams.html">真题与考点</a> 核对每类计算题的老师口径,再上 <a href="../../exam-review/mock-exam.html">模拟卷</a> 掐表实战一遍。祝你稳过这 100 分。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0021 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

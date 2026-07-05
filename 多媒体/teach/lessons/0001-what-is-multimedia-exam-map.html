@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0001 · 什么是多媒体 · 考试地图</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0001 · 绪论</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">什么是多媒体 · 考试地图</h1>
+<p class="lede">在钻进像素与压缩之前,先站到高处看一眼:这门课到底在研究什么,以及那张 100 分的卷子把分数藏在了哪里。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>一本纸质书只有一种"媒体"——文字。而一个网页可以同时有文字、图片、音频、视频,还能点击跳转、拖动进度条——这就是<strong>多媒体</strong>:多种媒体形式 + 你能与之<strong>交互</strong>。关键词不是"多",而是"多 + 集成 + 交互"。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>核心定义</h2>
+<div class="def">
+  <dl>
+    <dt>多媒体 (Multimedia)</dt>
+    <dd>文本、图形、图像、音频、视频等多种媒体形式的<strong>集成</strong>,并支持用户<strong>交互</strong>。<span class="alias">避免混淆:不是"多种文件",而是被集成、可交互的复合信息。</span></dd>
+    <dt>多媒体系统</dt>
+    <dd>能够采集、处理、存储、传输、展示多媒体信息,并允许用户交互的计算机系统(如远程教学系统、视频会议)。</dd>
+    <dt>线性 vs 非线性多媒体</dt>
+    <dd><strong>线性</strong>:内容按固定顺序播放,用户不控制进程(如影院电影)。<strong>非线性</strong>:用户可通过交互跳转(如网页、超文本)。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>多媒体的基本特征</h2>
+<p>真题选择题常考"哪项<strong>不</strong>属于多媒体的基本特征",记住下面四个正面特征即可反选:</p>
+<table>
+<thead><tr><th>特征</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td><strong>多样性</strong> (Diversity)</td><td>信息载体多样:文字/图/声/像等多种媒体。</td></tr>
+<tr><td><strong>集成性</strong> (Integration)</td><td>多种媒体被有机整合到一个系统中协同呈现,而非各自孤立。</td></tr>
+<tr><td><strong>交互性</strong> (Interactivity)</td><td>用户可主动控制、参与信息的呈现过程——多媒体区别于传统媒体的<strong>核心</strong>。</td></tr>
+<tr><td><strong>实时性</strong> (Real-time)</td><td>音频/视频等连续媒体对时间敏感,需实时处理与同步。</td></tr>
+</tbody>
+</table>
+<p>常见的干扰项——"唯一性""不可压缩性""静态性"——都不是多媒体特征,反而与之矛盾。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>考试地图:100 分藏在哪</h2>
+<p>这是整门课的复习指南针。真题(2024 春)与老师《期末重点》口径一致:</p>
+<table>
+<thead><tr><th>题型</th><th>分值</th><th>重心</th></tr></thead>
+<tbody>
+<tr><td>单选</td><td>10 × 2 = 20</td><td>概念辨析(本节 + 各讲定义)</td></tr>
+<tr><td>简答</td><td>2 × 5 = 10</td><td>率失真理论、图像检索相关性</td></tr>
+<tr><td><strong>计算</strong></td><td><strong>4 × 15 = 60</strong></td><td>JPEG · 运动补偿 · 算术编码 · 检索指标</td></tr>
+<tr><td>综合论述</td><td>1 × 10 = 10</td><td>YCbCr 与色度二次采样</td></tr>
+</tbody>
+</table>
+<p><strong>结论:</strong>计算题独占 60 分。本套微课把这四类计算题各拆成独立一节反复练——那才是通关的分水岭。完整逐题拆解见 <a href="../../exam-review/past-exams.html">真题与考点</a>。</p>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题</span>
+  <p>下列哪一项<strong>不</strong>属于多媒体的基本特征?</p>
+  <ol class="opts">
+    <li>集成性</li>
+    <li>交互性</li>
+    <li>唯一性</li>
+    <li>实时性</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:C 唯一性</strong>
+      <p>多媒体的四个基本特征是<strong>多样性、集成性、交互性、实时性</strong>。"唯一性"不是特征——恰恰相反,多媒体强调媒体形式的"多样"。A/B/D 都是正面特征,只有 C 是编造的干扰项。<br>
+      <em>解题套路:</em>这类"选非"题,先在脑中默念四个正面特征,凡不在列表里的就是答案。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 进入 <a href="0002-pixel-bitmap-image-size.html">0002 · 像素·位图·图像数据量计算</a>,开始第一类高频计算题:图像存储量。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0001 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

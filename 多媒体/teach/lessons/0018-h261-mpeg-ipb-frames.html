@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0018 · H.261 与 MPEG · I / P / B 帧</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0018 · L10</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">H.261 与 MPEG:I / P / B 帧</h1>
+<p class="lede">上一讲我们学会了怎么在两帧之间"找位移"(运动补偿)。这一讲把镜头拉远:一整段视频到底是怎么被切成 I / P / B 三类帧、又怎么被压到只剩几十分之一的?这是老师标注的<strong>重点</strong>。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>想象你要给朋友描述一段监控录像。第一帧你只能<strong>老老实实完整地画一遍</strong>(这就是 <strong>I 帧</strong>)。接下来几帧背景没怎么变,你只需说"和上一张比,那辆车往右挪了两格"(这就是 <strong>P 帧</strong>,只记差异)。更聪明的是:有些帧夹在两张已知帧中间,你可以<strong>同时参考前后两张</strong>来描述,记得更省(这就是 <strong>B 帧</strong>)。视频压缩的全部秘密,就是尽量少画"完整帧",多记"差异"。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>核心定义</h2>
+<div class="def">
+  <dl>
+    <dt>I 帧 (Intra-frame,帧内编码帧)</dt>
+    <dd>独立编码,<strong>不参考任何其他帧</strong>。只做空间冗余去除(DCT → 量化 → Zigzag → 熵编码),本质就是一张 JPEG。它是随机访问和纠错的锚点,通常每秒插入若干张。<span class="alias">别名:关键帧。压缩比最低(≈7:1),但可独立解码。</span></dd>
+    <dt>P 帧 (Predictive-frame,前向预测帧)</dt>
+    <dd>用<strong>前向预测</strong>从前一个已编码的 I 帧或 P 帧预测而来,同时去除空间冗余和时间冗余。每个宏块分配一个运动向量,编码"预测误差"。<span class="alias">注意:P 帧里的宏块<strong>未必都用运动补偿</strong>——见下文第 3 节。</span></dd>
+    <dt>B 帧 (Bidirectional-frame,双向预测帧)</dt>
+    <dd>MPEG 引入的第三种帧,支持<strong>双向运动补偿</strong>:每个宏块最多两个运动向量(一个来自前向、一个来自后向参考帧)。两个方向都匹配时,取两个匹配宏块的<strong>平均</strong>。压缩比最高(≈50:1),但 B 帧本身<strong>不被别人参考</strong>。</dd>
+    <dt>H.261</dt>
+    <dd>最早的数字视频压缩标准(1990 年成为国际标准),为 ISDN 上的可视电话/视频会议设计,码率 p×64 kbps(故又称 p*64)。只有 <strong>I 帧和 P 帧两种</strong>。它确立的"基于运动补偿的帧间压缩"原理被后续所有标准继承。</dd>
+    <dt>MPEG-1</dt>
+    <dd>1991 年批准,面向 CD/VCD 数字存储,码率约 1.5 Mbps。采用 SIF 格式、4:2:0 色度二次采样、仅非隔行。相对 H.261 的<strong>最大区别就是新增了 B 帧和双向运动补偿</strong>。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>I / P / B 三帧对照(必背)</h2>
+<p>这张表几乎覆盖了本讲所有辨析题和填空题。压缩比与典型大小按 MPEG-1 课件口径:</p>
+<table>
+<thead><tr><th>帧类型</th><th>参考方向</th><th>去除的冗余</th><th>典型大小</th><th>压缩比</th></tr></thead>
+<tbody>
+<tr><td><strong>I 帧</strong></td><td>不参考任何帧(独立)</td><td>仅空间冗余</td><td>18 kB</td><td>7:1</td></tr>
+<tr><td><strong>P 帧</strong></td><td>前向:参考前一个 I 或 P 帧</td><td>空间 + 时间冗余</td><td>6 kB</td><td>20:1</td></tr>
+<tr><td><strong>B 帧</strong></td><td>双向:同时参考前、后的 I/P 帧</td><td>空间 + 时间(双向)冗余</td><td>2.5 kB</td><td>50:1</td></tr>
+</tbody>
+</table>
+<p>记忆锚点:压缩比 <strong>7 → 20 → 50</strong> 逐级翻倍再翻倍,恰好对应"独立 → 单向 → 双向"参考能力的增强。平均一帧约 4.8 kB、整体约 27:1。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>H.261 编解码过程(重点)</h2>
+<h3>I 帧编码</h3>
+<p>对宏块中每个 8×8 块(亮度 Y 用 16×16 宏块,4:2:0 下 Cb/Cr 用 8×8):<code>DCT → 量化 → Zigzag 扫描 → 熵编码</code>。和 JPEG 流程一致。</p>
+<h3>P 帧编码</h3>
+<p>对目标帧中每个宏块:</p>
+<ol>
+  <li>用某种搜索方法(顺序/对数/分层)分配一个<strong>运动向量</strong>(H.261 中 p=15);</li>
+  <li>用参考宏块算出<strong>差值宏块</strong>(预测误差);</li>
+  <li>差值宏块的每个 8×8 块再走 <code>DCT → 量化 → Zigzag → 熵编码</code>。</li>
+</ol>
+<div class="intuition">
+  <span class="tag-label">真题陷阱 · P 帧未必用运动补偿</span>
+  <p>很多人以为"P 帧 = 运动补偿帧",这是错的。当某个宏块<strong>找不到足够好的匹配</strong>(预测误差超过可接受阈值)时,编码器会放弃预测,把这个宏块<strong>当作帧内宏块(intra-macroblock)直接编码</strong>——这叫<strong>非运动补偿宏块</strong>。所以"P 帧的编码一定基于运动补偿"这句话是<strong>错的</strong>:P 帧里可以混有帧内编码的宏块。</p>
+</div>
+<h3>为什么参考帧必须是"已解码帧"——防止漂移 (drift)</h3>
+<p>H.261 编码器内部有一个反馈环:运动估计所用的参考帧,不是原始输入帧,而是<strong>编码器自己解码重建后的帧</strong>(与 DPCM 同理)。</p>
+<div class="def">
+  <dl>
+    <dt>为什么?</dt>
+    <dd>解码端<strong>拿不到原始输入</strong>,它只有重建帧。如果编码端拿原始帧做参考、解码端拿重建帧做参考,两边的参考基准就不一致,误差会在一帧帧的预测链上<strong>逐帧累积、越漂越远</strong>——这就是<strong>漂移 (drifting)</strong>。让编码端也用"重建误差在环路里"作参考,保证两端参考帧完全相同,漂移就被消除。因此编解码器都需要一个缓冲区来保存参考帧。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">4.</span>MPEG-1 帧序列:显示顺序 ≠ 解码顺序</h2>
+<p>MPEG-1 在 H.261 的 I/P 基础上加入 B 帧。但 B 帧要参考它<strong>后面</strong>的 P/I 帧,而"后面的帧"必须先被解码出来——于是产生了一个关键现象:<strong>码流里帧的传输/解码顺序,和它们最终显示的顺序不一样</strong>。</p>
+
+<div class="worked">
+  <div class="worked-head">例题 · IBBPBBP… 的解码顺序与显示顺序</div>
+  <div class="worked-body">
+    <p>给定一段 MPEG-1 视频的<strong>显示顺序</strong>:</p>
+    <p style="text-align:center;font-family:var(--mono);"><code>I₁ B₂ B₃ P₄ B₅ B₆ P₇</code></p>
+    <p>问:编码器实际的<strong>编码/解码顺序</strong>是什么?为什么?</p>
+    <ol>
+      <li><strong>先解 I₁</strong>。它独立编码,谁都不依赖,第一个就绪。</li>
+      <li><strong>再解 P₄</strong>,而不是 B₂。因为 P₄ 只前向参考 I₁,现在 I₁ 已就绪,可以解出 P₄。</li>
+      <li><strong>回头解 B₂、B₃</strong>。它们双向参考"前面的 I₁"和"后面的 P₄"。此刻两个参考帧都已解出,B₂、B₃ 才能解码。</li>
+      <li><strong>解 P₇</strong>,它前向参考 P₄(已就绪)。</li>
+      <li><strong>解 B₅、B₆</strong>,双向参考 P₄ 与 P₇(都已就绪)。</li>
+    </ol>
+    <div class="result">
+      <strong>编码/解码顺序:</strong><code>I₁ P₄ B₂ B₃ P₇ B₅ B₆</code><br>
+      <strong>为什么:</strong>每个 B 帧的后向参考帧(P₄、P₇)必须<strong>先于该 B 帧解码</strong>。所以编码器把被参考的 I/P 帧提前,B 帧滞后——这正是显示顺序与解码顺序错位的根源。解码端解出后需重排缓冲,再按显示顺序输出。这也是 B 帧的两大代价之一:<strong>编解码依赖 + 额外时延</strong>,故不适合低时延应用(另一代价是双倍运动向量搜索计算量)。
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1</span>
+  <p>关于 MPEG-1 中的 P 帧,下列说法<strong>正确</strong>的是?</p>
+  <ol class="opts">
+    <li>P 帧独立编码,不参考任何其他帧</li>
+    <li>P 帧的每个宏块都必须通过运动补偿编码</li>
+    <li>P 帧可同时参考前一帧和后一帧</li>
+    <li>当某宏块找不到好的匹配时,可将其作为帧内宏块直接编码</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:D</strong>
+      <p>A 错:独立编码的是 I 帧。B 错:这是最常见的陷阱——P 帧<strong>未必</strong>每块都用运动补偿,匹配太差时会退化成<strong>非运动补偿宏块(帧内编码)</strong>,正是 D 描述的情形。C 错:双向参考是 B 帧的特权,P 帧只做<strong>前向</strong>预测。<br>
+      <em>套路:</em>看到"P 帧一定/必须运动补偿"直接判错。</p>
+    </div>
+  </details>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 2</span>
+  <p>某 MPEG-1 视频显示顺序为 <code>I B B P B B P</code>。其正确的<strong>解码顺序</strong>是?</p>
+  <ol class="opts">
+    <li>I B B P B B P</li>
+    <li>I P B B P B B</li>
+    <li>P I B B P B B</li>
+    <li>I P P B B B B</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B(I P B B P B B)</strong>
+      <p>B 帧双向参考前后的 I/P 帧,所以它的两个参考帧必须先解码。第一个 P 要参考 I(已就绪),故 P 提前到两个 B 之前;这两个 B 参考 I 和第一个 P,此时都已就绪才轮到它们。以此类推得 <code>I P B B P B B</code>。<br>
+      <em>核心原因:</em>参考帧必须先于被预测帧解码,这也解释了为什么显示顺序 ≠ 解码顺序。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 视频压缩告一段落。进入 <a href="0019-cbir-sift-features.html">0019 · 基于内容的图像检索:CBIR 与 SIFT 特征</a>,转向"多媒体信息检索"这条真题主线。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0018 · L10 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

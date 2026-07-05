@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0011 · LZW 字典编码(压缩 + 解压)</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+.tablewrap { overflow-x: auto; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0011 · L06</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">LZW 字典编码(压缩 + 解压)</h1>
+<p class="lede">Huffman 靠"字符出现频率"省位;LZW 换一个思路——它一边读一边把<strong>反复出现的字符串</strong>攒进一本字典,后面再遇到就只发一个短码。字典不用随文件传输,因为解压端会照同样的规则把它重新长出来。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>想象你和朋友发消息,反复要写"操作系统原理"。第一次你写全称,并约定"以后这个词就叫①"。之后你只发"①",对方查约定表就知道是什么。LZW 就是这样:<strong>压缩端每发现一个新的重复片段,就给它编一个号存进字典</strong>;而解压端只要<strong>按完全相同的规则</strong>,也能把这本字典一个字不差地重建出来——所以字典本身根本不用发送。这就是"动态字典"的精髓。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>核心定义</h2>
+<div class="def">
+  <dl>
+    <dt>LZW (Lempel-Ziv-Welch)</dt>
+    <dd>一种<strong>无损</strong>的、基于字典的压缩算法。用<strong>定长的码字</strong>去代表那些经常一起出现的<strong>变长字符串</strong>。GIF、TIFF、ZIP/PKZIP、WinRAR 等都用它。<span class="alias">关键:定长码字 ↔ 变长字符串。</span></dd>
+    <dt>字典 / 串表 (Dictionary / String Table)</dt>
+    <dd>一张"字符串 → 码字"的对照表。压缩和解压双方各自<strong>动态</strong>维护一份,并保证内容完全一致——所以字典不随数据传输。</dd>
+    <dt>初始字典</dt>
+    <dd>开始前先把所有<strong>单个字符</strong>放进字典,给定初始码字。本讲例子里只有三个字符:<code>A=1, B=2, C=3</code>。新码字从 4 开始递增。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>压缩算法(背下这段伪代码)</h2>
+<p>整个 LZW 压缩就是这段循环,考试时手推全靠它。<code>s</code> 是"当前已确认在字典里的前缀",<code>c</code> 是"下一个字符":</p>
+<div class="tablewrap">
+<table>
+<thead><tr><th>伪代码</th><th>大白话</th></tr></thead>
+<tbody>
+<tr><td><code>s = 第一个字符</code></td><td>先拿第一个字符当前缀</td></tr>
+<tr><td><code>c = 下一个字符</code></td><td>再读一个字符</td></tr>
+<tr><td><code>if (s+c) 在字典里: s = s+c</code></td><td>拼起来还认识 → 把前缀<strong>加长</strong>,继续贪心往后吃,不输出</td></tr>
+<tr><td><code>else: 输出 s 的码字;<br>把 s+c 加进字典(给新码);<br>s = c</code></td><td>拼起来<strong>不认识</strong> → 输出旧前缀 s 的码;把这个新串 s+c 记进字典;前缀<strong>重置</strong>为 c</td></tr>
+<tr><td><code>末尾: 输出 s 的码字</code></td><td>循环结束别忘了把最后攒的 s 也发出去</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>一句话记忆:</strong>能拼长就拼长(不输出),拼不动了就<strong>吐旧码 + 记新串 + 从当前字符重来</strong>。字典里新加的永远是"已输出的串 + 下一个字符",即比刚吐出去的那段多一个字符。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>例题(核心):对 <code>ABABBABCABABBA</code> 做 LZW</h2>
+
+<div class="worked">
+  <div class="worked-head">Part A · 压缩</div>
+  <div class="worked-body">
+    <p>初始字典 <code>A=1, B=2, C=3</code>,新码从 4 起。逐字符处理,每一行看 <code>s+c</code> 是否在字典里:</p>
+    <div class="tablewrap">
+    <table>
+    <thead><tr><th>步</th><th>s (当前前缀)</th><th>c (读入)</th><th>s+c 在字典?</th><th>输出码</th><th>新增字典项</th><th>新 s</th></tr></thead>
+    <tbody>
+    <tr><td>1</td><td>A</td><td>B</td><td>否 (AB)</td><td><strong>1</strong></td><td>AB=4</td><td>B</td></tr>
+    <tr><td>2</td><td>B</td><td>A</td><td>否 (BA)</td><td><strong>2</strong></td><td>BA=5</td><td>A</td></tr>
+    <tr><td>3</td><td>A</td><td>B</td><td>是 (AB=4)</td><td>—</td><td>—</td><td>AB</td></tr>
+    <tr><td>4</td><td>AB</td><td>B</td><td>否 (ABB)</td><td><strong>4</strong></td><td>ABB=6</td><td>B</td></tr>
+    <tr><td>5</td><td>B</td><td>A</td><td>是 (BA=5)</td><td>—</td><td>—</td><td>BA</td></tr>
+    <tr><td>6</td><td>BA</td><td>B</td><td>否 (BAB)</td><td><strong>5</strong></td><td>BAB=7</td><td>B</td></tr>
+    <tr><td>7</td><td>B</td><td>C</td><td>否 (BC)</td><td><strong>2</strong></td><td>BC=8</td><td>C</td></tr>
+    <tr><td>8</td><td>C</td><td>A</td><td>否 (CA)</td><td><strong>3</strong></td><td>CA=9</td><td>A</td></tr>
+    <tr><td>9</td><td>A</td><td>B</td><td>是 (AB=4)</td><td>—</td><td>—</td><td>AB</td></tr>
+    <tr><td>10</td><td>AB</td><td>A</td><td>否 (ABA)</td><td><strong>4</strong></td><td>ABA=10</td><td>A</td></tr>
+    <tr><td>11</td><td>A</td><td>B</td><td>是 (AB=4)</td><td>—</td><td>—</td><td>AB</td></tr>
+    <tr><td>12</td><td>AB</td><td>B</td><td>是 (ABB=6)</td><td>—</td><td>—</td><td>ABB</td></tr>
+    <tr><td>13</td><td>ABB</td><td>A</td><td>否 (ABBA)</td><td><strong>6</strong></td><td>ABBA=11</td><td>A</td></tr>
+    <tr><td>末</td><td>A</td><td>EOF</td><td>—</td><td><strong>1</strong></td><td>—</td><td>—</td></tr>
+    </tbody>
+    </table>
+    </div>
+    <div class="result">
+      <strong>输出码序列:1 2 4 5 2 3 4 6 1</strong>(共 9 个码)。原串 14 个字符 → 9 个码,压缩比 = 14 / 9 ≈ <strong>1.56</strong>。
+    </div>
+  </div>
+</div>
+
+<div class="worked">
+  <div class="worked-head">Part B · 解压(还原,验证无损)</div>
+  <div class="worked-body">
+    <p>解压端拿到 <code>1 2 4 5 2 3 4 6 1</code>,初始字典同样是 <code>A=1, B=2, C=3</code>。规则:每读一个码 <code>k</code>,先输出它对应的串 <code>entry</code>;若上一步的 <code>s</code> 不为空,就把 <code>s + entry[0]</code>(s 加 entry 的<strong>首字符</strong>)记进字典;然后 <code>s = entry</code>。</p>
+    <div class="tablewrap">
+    <table>
+    <thead><tr><th>步</th><th>s (上次串)</th><th>k (读码)</th><th>entry=输出</th><th>新增字典项 s+entry[0]</th><th>新 s</th></tr></thead>
+    <tbody>
+    <tr><td>1</td><td>NIL</td><td>1</td><td>A</td><td>—(s 为空,不加)</td><td>A</td></tr>
+    <tr><td>2</td><td>A</td><td>2</td><td>B</td><td>A+B = AB=4</td><td>B</td></tr>
+    <tr><td>3</td><td>B</td><td>4</td><td>AB</td><td>B+A = BA=5</td><td>AB</td></tr>
+    <tr><td>4</td><td>AB</td><td>5</td><td>BA</td><td>AB+B = ABB=6</td><td>BA</td></tr>
+    <tr><td>5</td><td>BA</td><td>2</td><td>B</td><td>BA+B = BAB=7</td><td>B</td></tr>
+    <tr><td>6</td><td>B</td><td>3</td><td>C</td><td>B+C = BC=8</td><td>C</td></tr>
+    <tr><td>7</td><td>C</td><td>4</td><td>AB</td><td>C+A = CA=9</td><td>AB</td></tr>
+    <tr><td>8</td><td>AB</td><td>6</td><td>ABB</td><td>AB+A = ABA=10</td><td>ABB</td></tr>
+    <tr><td>9</td><td>ABB</td><td>1</td><td>A</td><td>ABB+A = ABBA=11</td><td>A</td></tr>
+    </tbody>
+    </table>
+    </div>
+    <div class="result">
+      拼接所有 entry:<strong>A · B · AB · BA · B · C · AB · ABB · A = ABABBABCABABBA</strong>,与原串完全一致——<strong>无损</strong>还原成功。注意解压端重建出的字典 (AB=4, BA=5, ABB=6, BAB=7, BC=8, CA=9, ABA=10, ABBA=11) 与压缩端<strong>一模一样</strong>,这正是字典无需传输的原因。
+    </div>
+  </div>
+</div>
+
+<p><strong>压缩与解压的对称性:</strong>两边都在"输出一个已知串之后,才把'该串 + 下一个字符'加入字典"。压缩端的"下一个字符"是它当前正读到的 c;解压端的"下一个字符"是下一个 entry 的首字符。规则同源,字典自然同步。</p>
+</section>
+
+<section>
+<h2><span class="num">4.</span>手推 LZW 的三个易错点</h2>
+<ul>
+  <li><strong>输出的是"旧前缀"的码,不是拼接后的码。</strong>拼不动时先吐 <code>s</code> 的码,再登记 <code>s+c</code>。很多人错把新串的码当场输出了——但新串刚建,这一步不会用到它。</li>
+  <li><strong>新码字连续递增,别漏号也别跳号。</strong>从 4、5、6…依次给,顺序就是"字典项被创建的先后"。</li>
+  <li><strong>末尾那次输出别忘。</strong>循环靠 EOF 结束,但退出前 <code>s</code> 里还攒着东西,必须补输出一次(本例末尾的那个 <code>1</code>)。</li>
+</ul>
+</section>
+
+<div class="selftest">
+  <span class="selftest-label">自测题</span>
+  <p>初始字典为 <code>A=1, B=2</code>(新码从 3 起)。对输入串 <code>ABABABA</code> 做 LZW 压缩,输出的码序列是?</p>
+  <ol class="opts">
+    <li>1 2 3 4 5</li>
+    <li>1 2 3 5</li>
+    <li>1 2 4 5</li>
+    <li>1 3 5 2</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B  →  1 2 3 5</strong>
+      <p>逐步手推(s=前缀, c=读入):</p>
+      <ul>
+        <li>s=A, c=B:AB 不在 → 输出 <strong>1</strong>,加 AB=3,s=B</li>
+        <li>s=B, c=A:BA 不在 → 输出 <strong>2</strong>,加 BA=4,s=A</li>
+        <li>s=A, c=B:AB 在(3)→ s=AB</li>
+        <li>s=AB, c=A:ABA 不在 → 输出 <strong>3</strong>,加 ABA=5,s=A</li>
+        <li>s=A, c=B:AB 在(3)→ s=AB</li>
+        <li>s=AB, c=A:ABA 在(5)→ s=ABA</li>
+        <li>EOF → 输出 <strong>5</strong>(即 ABA 的码)</li>
+      </ul>
+      <p>所以输出 <strong>1 2 3 5</strong>:7 个字符压成 4 个码。<br>
+      <em>陷阱:</em>选 A 的人多输出了一个码,正是忘了"拼得动就继续吃、不输出";末尾 ABA 已成串,只发它的码 5,而不是拆成 3、1。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 进入 <a href="0012-arithmetic-coding.html">0012 · 算术编码(区间细分)</a>,换一种把"整条消息压成一个小数区间"的熵编码,真题里和 LZW 一样是高频计算题。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0011 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>

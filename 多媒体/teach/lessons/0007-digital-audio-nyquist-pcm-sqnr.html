@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0007 · 数字音频 · 奈奎斯特 · PCM · SQNR</title>
+<style>
+:root {
+  --paper: #f5efe4; --paper-soft: #ebe3d3; --paper-deep: #ddd2bb;
+  --ink: #1a1816; --ink-soft: #4a4540; --ink-mute: #7a7268;
+  --accent: #7c2233; --accent-soft: #a14958; --highlight: #c19a3e;
+  --success: #4a6e3a; --danger: #a13e2a; --rule: #c9bda5;
+  --serif: Georgia, "Times New Roman", "Source Han Serif SC", "Songti SC", "STSong", serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --mono: "SF Mono", Menlo, Consolas, "Courier New", monospace;
+  --text-sm: 14px; --text-base: 17px; --text-lg: 19px; --text-xl: 24px; --text-2xl: 32px; --text-3xl: 42px;
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
+  --measure: 70ch;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--serif); font-size: var(--text-base); line-height: 1.65;
+  text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+
+/* Header */
+.site-header { border-bottom: 1px solid var(--ink); background: var(--paper); padding: var(--space-5) var(--space-6) var(--space-3); }
+.masthead { max-width: 900px; margin: 0 auto; display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2); }
+.masthead-course { font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.masthead-lesson { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; color: var(--ink-mute); }
+.crumbs { max-width: 900px; margin: var(--space-3) auto 0; font-family: var(--sans); font-size: var(--text-sm); }
+.crumbs a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+.crumbs a:hover { color: var(--accent); }
+
+/* Main */
+main { max-width: 900px; margin: var(--space-7) auto; padding: 0 var(--space-6); }
+article { max-width: var(--measure); margin: 0 auto; }
+h1.title { font-size: var(--text-3xl); font-weight: 700; margin: 0 0 var(--space-3); line-height: 1.15; letter-spacing: 0.01em; }
+.lede { font-size: var(--text-lg); font-style: italic; color: var(--ink-soft); margin-bottom: var(--space-6); padding-bottom: var(--space-4); border-bottom: 1px solid var(--rule); }
+h2 { font-size: var(--text-2xl); margin: var(--space-7) 0 var(--space-4); padding-bottom: var(--space-2); border-bottom: 2px solid var(--ink); letter-spacing: 0.01em; }
+h2 .num { display: inline-block; font-size: 0.62em; vertical-align: super; color: var(--accent); margin-right: var(--space-3); }
+h3 { font-size: var(--text-xl); margin: var(--space-6) 0 var(--space-3); font-weight: 700; }
+p { margin: var(--space-3) 0; }
+a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent-soft); }
+a:hover { border-bottom-style: solid; }
+ul, ol { padding-left: var(--space-5); margin: var(--space-3) 0; }
+li { margin: var(--space-1) 0; }
+strong { font-weight: 700; }
+code { font-family: var(--mono); font-size: 0.92em; background: var(--paper-soft); padding: 1px 5px; border-radius: 3px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; margin: var(--space-4) 0; font-size: 0.94em; }
+th, td { padding: var(--space-2) var(--space-3); text-align: left; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-weight: 700; background: var(--paper-soft); border-bottom: 2px solid var(--ink); font-family: var(--sans); font-size: var(--text-sm); letter-spacing: 0.03em; text-transform: uppercase; }
+tr:last-child td { border-bottom: none; }
+
+/* === Intuition callout (直觉类比) === */
+.intuition { background: linear-gradient(0deg, var(--paper-soft), var(--paper-soft)); border: 1px solid var(--rule); border-left: 4px solid var(--highlight); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; border-radius: 2px; }
+.intuition .tag-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--highlight); display: block; margin-bottom: var(--space-2); }
+.intuition p:last-child { margin-bottom: 0; }
+
+/* === Definition card (关键定义) === */
+.def { background: var(--paper); border: 1px solid var(--ink); padding: var(--space-4) var(--space-5); margin: var(--space-4) 0; }
+.def dt { font-weight: 700; font-family: var(--sans); color: var(--accent); margin-top: var(--space-3); }
+.def dt:first-child { margin-top: 0; }
+.def dd { margin: var(--space-1) 0 0; }
+.def .alias { font-size: var(--text-sm); color: var(--ink-mute); font-style: italic; }
+
+/* === Worked example (例题分步) === */
+.worked { border: 2px solid var(--accent); margin: var(--space-5) 0; background: var(--paper); }
+.worked-head { background: var(--accent); color: var(--paper); font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: var(--space-2) var(--space-4); }
+.worked-body { padding: var(--space-4) var(--space-5); }
+.worked-body ol { counter-reset: step; list-style: none; padding-left: 0; }
+.worked-body ol > li { position: relative; padding-left: 2.4em; margin: var(--space-3) 0; }
+.worked-body ol > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 1.7em; height: 1.7em; background: var(--accent); color: var(--paper); border-radius: 50%; font-family: var(--sans); font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.worked .result { background: var(--paper-soft); border-left: 3px solid var(--success); padding: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+
+/* === Self-test (自测题) === */
+.selftest { border: 1px dashed var(--accent-soft); background: var(--paper); padding: var(--space-4) var(--space-5); margin: var(--space-5) 0; }
+.selftest-label { font-family: var(--sans); font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+.selftest ol.opts { list-style: upper-alpha; padding-left: var(--space-6); }
+.selftest details { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--rule); }
+.selftest summary { cursor: pointer; font-family: var(--sans); font-size: var(--text-sm); font-weight: 700; color: var(--accent); letter-spacing: 0.04em; list-style: none; }
+.selftest summary::-webkit-details-marker { display: none; }
+.selftest summary::before { content: '▸ 点击看答案与解释'; }
+.selftest details[open] summary::before { content: '▾ 答案与解释'; }
+.selftest .answer { margin-top: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--paper-soft); border-left: 3px solid var(--success); }
+.selftest .answer strong.ok { color: var(--success); font-family: var(--sans); text-transform: uppercase; font-size: var(--text-sm); }
+
+/* Next step */
+.nextstep { margin-top: var(--space-7); padding: var(--space-4) var(--space-5); border: 1px solid var(--rule); background: var(--paper-soft); font-family: var(--sans); font-size: var(--text-sm); }
+.nextstep strong { color: var(--accent); }
+
+footer { max-width: 900px; margin: var(--space-8) auto var(--space-6); padding: var(--space-4) var(--space-6); border-top: 2px solid var(--ink); text-align: center; font-family: var(--sans); font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-mute); }
+
+@media (max-width: 720px) {
+  :root { --text-3xl: 30px; --text-2xl: 23px; --text-xl: 19px; }
+  main { padding: 0 var(--space-4); margin: var(--space-5) auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="masthead">
+    <span class="masthead-course">多媒体系统导论 · 期末微课</span>
+    <span class="masthead-lesson">Lesson 0007 · L05</span>
+  </div>
+  <nav class="crumbs">
+    <a href="../../exam-review/index.html">复习主页</a> ·
+    <a href="../../exam-review/past-exams.html">真题与考点</a> ·
+    <a href="../CURRICULUM.md">课程计划</a>
+  </nav>
+</header>
+
+<main>
+<article>
+
+<h1 class="title">数字音频 · 奈奎斯特 · PCM · SQNR</h1>
+<p class="lede">声音是连续的空气波,计算机却只能存离散的 0 和 1。这一节把"连续变离散"拆成两个动作——采样与量化——再用三条公式把它变成能拿分的计算题。</p>
+
+<div class="intuition">
+  <span class="tag-label">直觉类比</span>
+  <p>想象你要用照相机拍下一根不停摆动的钟摆。<strong>采样</strong>就是"多久拍一张"——拍得太慢,你会误以为钟摆在慢慢倒退(这就是<strong>假频</strong>);<strong>量化</strong>就是"每张照片用几档灰度记录位置"——档位越多,记得越准。奈奎斯特定理回答第一个问题:一秒至少拍多少张才不会看错;SQNR 回答第二个:每多一档能精细多少。</p>
+</div>
+
+<section>
+<h2><span class="num">1.</span>核心定义</h2>
+<div class="def">
+  <dl>
+    <dt>采样 (Sampling)</dt>
+    <dd>把连续的时间轴切成一个个离散时刻,每隔固定间隔取一次幅度值。每秒取的次数叫<strong>采样率</strong> <code>f_sample</code>(单位 Hz)。典型语音音频 8kHz~48kHz。</dd>
+    <dt>量化 (Quantization)</dt>
+    <dd>把每个采样点的连续幅度值,归到有限个离散档位上。档位数由<strong>位深</strong> <code>N</code>(bit depth)决定:<code>N</code> 位可表示 <code>2^N</code> 个档位。</dd>
+    <dt>奈奎斯特定理 (Nyquist Theorem)</dt>
+    <dd>要无失真地恢复一个最高频率为 <code>f_max</code> 的信号,采样率必须满足 <code>f_sample ≥ 2·f_max</code>。<span class="alias">采样不足 → 出现假频(aliasing),把高频误判成不存在的低频。</span></dd>
+    <dt>PCM (脉冲编码调制)</dt>
+    <dd>Pulse Code Modulation。对采样后的信号直接量化并编码存储的最基本方式——就是"采样值本身"逐个记录。CD、WAV 都是 PCM。</dd>
+    <dt>DPCM (差分脉冲编码调制)</dt>
+    <dd>Differential PCM。不存采样值本身,而是存<strong>相邻采样点的差值</strong>。因为相邻声音变化小,差值分布更集中(直方图更尖),用更短的码字即可,达到压缩目的。ADPCM 是其自适应版本。</dd>
+    <dt>SQNR (量化信噪比)</dt>
+    <dd>Signal to Quantization Noise Ratio。衡量量化档位够不够细的指标。用位深 <code>N</code> 表示为 <code>SQNR ≈ 6.02·N dB</code>——每多 1 bit,信噪比约提升 6 dB。</dd>
+  </dl>
+</div>
+</section>
+
+<section>
+<h2><span class="num">2.</span>三条必背公式</h2>
+<table>
+<thead><tr><th>要算什么</th><th>公式</th><th>记忆锚点</th></tr></thead>
+<tbody>
+<tr><td>最低采样率</td><td><code>f_sample ≥ 2·f_max</code></td><td>"两倍最高频"——不到就出假频</td></tr>
+<tr><td>假频(采样不足时)</td><td><code>f_假 = f_sample − f_真</code></td><td>采样率减真实频率</td></tr>
+<tr><td>量化信噪比</td><td><code>SQNR ≈ 6.02·N (dB)</code></td><td>16bit → 96dB(CD 音质)</td></tr>
+<tr><td>音频数据量</td><td><code>采样率 × 位深 × 声道数 × 时长</code></td><td>单位是 bit,除 8 得字节</td></tr>
+</tbody>
+</table>
+<p><strong>声音三要素</strong>常出选择题,一并记牢:<strong>振幅</strong>决定响度(音量),<strong>频率</strong>决定音调,<strong>波形/频谱</strong>决定音色。人耳可听范围 20Hz~20kHz——这正是 CD 采样率取 44.1kHz(略大于 2×20kHz)的原因。</p>
+</section>
+
+<section>
+<h2><span class="num">3.</span>为什么是这三条?</h2>
+<p><strong>奈奎斯特为什么是"两倍"?</strong>一个正弦波的一个完整周期,至少要采到两个点(一个波峰、一个波谷)才能确定它的频率。采样率低于 2 倍最高频,高频波在两次采样之间"偷偷转了一整圈",系统看到的却是一条平缓的低频曲线——这就是假频。所以 <code>44.1kHz</code> 采样能覆盖 <code>22.05kHz</code> 以下的全部可听声音。</p>
+<p><strong>SQNR 里的 6.02 从哪来?</strong>推导自 <code>20·log10(2^N) = 20·N·log10(2) = 20·N×0.301 ≈ 6.02·N</code>。量化档位每翻一倍(多 1 bit),信号相对量化噪声的电压比就翻倍,而电压比翻倍 = 20·log10(2) ≈ 6.02 dB。这就是"每 bit 约 6 dB"的由来。8bit≈48dB(电话质量),16bit≈96dB(CD 质量)。</p>
+</section>
+
+<div class="worked">
+  <div class="worked-head">例题 1 · 奈奎斯特采样率</div>
+  <div class="worked-body">
+    <p>一段声音信号的最高频率成分为 <code>22.05 kHz</code>。(a) 为无失真恢复,采样率至少应取多少?(b) 若误用 <code>33.075 kHz</code> 采样,产生的假频是多少?</p>
+    <ol>
+      <li>套奈奎斯特定理:<code>f_sample ≥ 2·f_max = 2 × 22.05 = 44.1 kHz</code>。这正是 CD 的采样率。</li>
+      <li>判断 (b) 是否欠采样:要求 44.1kHz,实际只给 33.075kHz &lt; 44.1kHz,欠采样,必出假频。</li>
+      <li>套假频公式:<code>f_假 = f_sample − f_真 = 33.075 − 22.05 = 11.025 kHz</code>。</li>
+    </ol>
+    <div class="result"><strong>答案:</strong>(a) 至少 <code>44.1 kHz</code>;(b) 假频为 <code>11.025 kHz</code>——22.05kHz 的真实高音会被听成 11.025kHz 的假低音。</div>
+  </div>
+</div>
+
+<div class="worked">
+  <div class="worked-head">例题 2 · SQNR 与 CD 音质数据量</div>
+  <div class="worked-body">
+    <p>CD 音质规格:采样率 <code>44.1 kHz</code>、位深 <code>16 bit</code>、<strong>立体声(2 声道)</strong>。(a) 它的量化信噪比约多少 dB?(b) 存 1 秒未压缩音频需要多少数据量?</p>
+    <ol>
+      <li>SQNR 只看位深:<code>SQNR ≈ 6.02 × N = 6.02 × 16 ≈ 96.3 dB</code>,即约 96 dB——教材所说"16bit = CD 质量"就是这个数。</li>
+      <li>数据量套公式:<code>采样率 × 位深 × 声道数 × 时长</code>。</li>
+      <li>代入:<code>44100 × 16 × 2 × 1 = 1,411,200 bit</code>(即码率约 1411.2 kbps)。</li>
+      <li>换算字节:<code>1,411,200 ÷ 8 = 176,400 字节 ≈ 172.3 KB</code>(按 1KB=1024B)。</li>
+    </ol>
+    <div class="result"><strong>答案:</strong>(a) SQNR ≈ <code>96 dB</code>;(b) 1 秒约 <code>1.41 Mbit</code> = <code>176,400 字节 ≈ 172 KB</code>。这也解释了为何一张 CD(约 74 分钟)需要几百 MB——正是压缩(如 MP3)存在的理由。</div>
+  </div>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 1</span>
+  <p>某音频最高频率成分为 <code>4 kHz</code>(典型电话语音带宽)。根据奈奎斯特定理,能无失真恢复的<strong>最低采样率</strong>是?</p>
+  <ol class="opts">
+    <li>2 kHz</li>
+    <li>4 kHz</li>
+    <li>8 kHz</li>
+    <li>16 kHz</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:C 8 kHz</strong>
+      <p>奈奎斯特定理:<code>f_sample ≥ 2·f_max = 2 × 4 = 8 kHz</code>。所以电话系统采样率正是 8kHz。<br>
+      A(等于 f_max)、B(等于 f_max)都低于两倍,会欠采样出假频;D 虽满足条件但不是"最低",题目要的是下限。<br>
+      <em>陷阱提醒:</em>"最低"要取恰好等于 2 倍的那个值,不是随便一个够大的数。</p>
+    </div>
+  </details>
+</div>
+
+<div class="selftest">
+  <span class="selftest-label">自测题 2</span>
+  <p>若把量化位深从 <code>8 bit</code> 提升到 <code>16 bit</code>,量化信噪比 SQNR 大约<strong>提升</strong>多少?</p>
+  <ol class="opts">
+    <li>约 6 dB</li>
+    <li>约 48 dB</li>
+    <li>约 96 dB</li>
+    <li>提升一倍(翻番)</li>
+  </ol>
+  <details>
+    <summary></summary>
+    <div class="answer">
+      <strong class="ok">答案:B 约 48 dB</strong>
+      <p><code>SQNR ≈ 6.02·N</code>。8bit → 6.02×8 ≈ 48dB;16bit → 6.02×16 ≈ 96dB。<strong>提升量 = 96 − 48 = 48 dB</strong>。<br>
+      C(96dB)是 16bit 的<em>绝对值</em>而非提升量;A(6dB)是每增加 1bit 的提升;D 混淆了"档位数翻番"(那是每加 1bit 的事)与整体信噪比。<br>
+      <em>解题套路:</em>问"提升多少"就算差值 <code>6.02×(N₂−N₁)</code>;问"是多少"才算绝对值 <code>6.02×N</code>。</p>
+    </div>
+  </details>
+</div>
+
+<div class="nextstep">
+  <strong>下一步 →</strong> 音频要压缩、图像要压缩,压缩的理论底座是"信息量"。进入 <a href="0008-entropy-rlc.html">0008 · 信息熵 · 游程编码(RLC)</a>,搞懂"一段数据到底能压到多小"的下限。
+</div>
+
+</article>
+</main>
+
+<footer>多媒体系统导论 · Lesson 0007 · 2026-07-05 · 一节一窄主题</footer>
+
+</body>
+</html>
