@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>操作系统期末 · 速查复习地图（Ch1–6 全景）</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    /* 考试权重色系 —— 这张地图的组织脊梁 */
+    --hi:#c53030; --hi-bg:#fdecec; --hi-bd:#f3c4c4;
+    --mid:#b7791f; --mid-bg:#fdf6e9; --mid-bd:#ecd9ad;
+    --low:#5a6270; --low-bg:#eef1f5; --low-bd:#d6dbe3;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:1040px; margin:0 auto; padding:26px 22px 96px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  :focus-visible{outline:2px solid var(--blue2); outline-offset:2px; border-radius:4px}
+
+  /* ============ 顶部 HERO ============ */
+  header.hero{border-bottom:2px solid var(--ink); padding-bottom:20px; margin-bottom:8px}
+  .eyebrow{color:var(--blue); font-weight:800; letter-spacing:.14em; font-size:12px; text-transform:uppercase}
+  h1{font-size:30px; margin:8px 0 6px; letter-spacing:-.01em}
+  .lede{color:var(--muted); font-size:14.5px; margin:6px 0 0; max-width:66ch}
+  .metachips{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+  .chip{font-size:12.5px; padding:4px 11px; border-radius:20px; background:#fff; border:1px solid var(--line); color:var(--muted); font-weight:600}
+  .chip b{color:var(--ink)}
+
+  /* 题型分值条 —— 一眼看清分数在哪 */
+  .scorebar-wrap{margin:22px 0 6px}
+  .scorebar-title{font-size:13px; color:var(--muted); font-weight:700; margin-bottom:7px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px}
+  .scorebar{display:flex; height:46px; border-radius:9px; overflow:hidden; border:1px solid var(--line); font-size:12.5px; font-weight:700}
+  .seg{display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; padding:2px; text-align:center; line-height:1.15}
+  .seg small{font-weight:600; opacity:.9; font-size:10.5px}
+  .seg.select{background:#2b6cb0} .seg.fill{background:#3182ce} .seg.judge{background:#4a90c9}
+  .seg.short{background:var(--amber)} .seg.calc{background:var(--red)}
+  .thesis{font-size:13.5px; margin:10px 0 0; color:var(--ink)}
+  .thesis b.obj{color:var(--blue)} .thesis b.calc{color:var(--red)}
+
+  /* ============ 粘性工具条 ============ */
+  .topbar{position:sticky; top:0; z-index:20; background:rgba(247,248,251,.94); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line); margin:18px -22px 26px; padding:9px 22px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  .legend{display:flex; gap:12px; align-items:center; font-size:12px; color:var(--muted)}
+  .dot{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:4px; vertical-align:-1px}
+  .dot.hi{background:var(--hi)} .dot.mid{background:var(--mid)} .dot.low{background:var(--low)}
+  .nav{display:flex; gap:4px; flex-wrap:wrap; margin-left:auto}
+  .nav a{font-size:12.5px; padding:4px 10px; border-radius:16px; color:var(--blue); border:1px solid transparent}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+  .btn{font:inherit; font-size:12.5px; font-weight:700; border:1px solid var(--red); background:#fff; color:var(--red);
+    padding:5px 13px; border-radius:16px; cursor:pointer; transition:.15s}
+  .btn:hover{background:var(--hi-bg)}
+  .btn.on{background:var(--red); color:#fff}
+
+  /* ============ 分区标题 ============ */
+  h2.zone{font-size:21px; margin:40px 0 4px; border-left:5px solid var(--blue); padding-left:12px}
+  .zone-sub{color:var(--muted); font-size:13px; margin:0 0 16px; padding-left:17px}
+
+  /* ============ 章节全景网格（签名元素）============ */
+  .terr{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:14px}
+  .card{background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden;
+    box-shadow:0 1px 3px rgba(20,30,60,.05); display:flex; flex-direction:column}
+  .card .stripe{height:5px}
+  .card.hi .stripe{background:var(--hi)} .card.mid .stripe{background:var(--mid)}
+  .card .body{padding:14px 16px 16px}
+  .card .top{display:flex; justify-content:space-between; align-items:baseline; gap:8px}
+  .card .cno{font-size:12px; font-weight:800; letter-spacing:.05em}
+  .card.hi .cno{color:var(--hi)} .card.mid .cno{color:var(--mid)}
+  .card h3{font-size:17px; margin:2px 0 2px}
+  .card .tang{font-size:11.5px; color:var(--muted)}
+  .score{font-variant-numeric:tabular-nums; font-weight:800; font-size:15px; white-space:nowrap}
+  .card.hi .score{color:var(--hi)} .card.mid .score{color:var(--mid)}
+  .kdots{display:flex; flex-wrap:wrap; gap:5px; margin:11px 0 4px}
+  .kdot{font-size:11.5px; padding:3px 8px; border-radius:6px; background:var(--soft); color:var(--blue); border:1px solid #dbe7f5; font-weight:600}
+  .calcflag{display:inline-block; font-size:11.5px; font-weight:700; color:var(--red); background:var(--hi-bg); border:1px solid var(--hi-bd); border-radius:6px; padding:3px 8px; margin-top:8px}
+  .calcflag.none{color:var(--muted); background:var(--low-bg); border-color:var(--low-bd)}
+  .card .links{margin-top:11px; padding-top:10px; border-top:1px dashed var(--line); font-size:12.5px}
+  .card .links b{color:var(--muted); font-weight:600; font-size:11.5px}
+
+  /* ============ 计算大题军火库 ============ */
+  .arsenal{display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px}
+  .fcard{background:#fff; border:1px solid var(--line); border-radius:11px; padding:15px 16px; break-inside:avoid}
+  .fcard.must{border-color:var(--hi-bd); box-shadow:0 0 0 1px var(--hi-bd) inset}
+  .fhead{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px}
+  .fhead h3{font-size:15.5px; margin:0}
+  .badge{font-size:10.5px; font-weight:800; letter-spacing:.03em; padding:2px 7px; border-radius:5px}
+  .badge.must{background:var(--red); color:#fff}
+  .badge.ch{background:var(--soft); color:var(--blue); border:1px solid #dbe7f5}
+  .formula{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12.5px; line-height:1.65;
+    background:#f4f6fa; border:1px solid var(--line); border-radius:7px; padding:10px 12px; margin:8px 0; overflow-x:auto}
+  .formula .v{color:var(--purple)}
+  .fcard ul{margin:6px 0 0; padding-left:18px} .fcard li{margin:3px 0; font-size:13.5px}
+  .warn{background:#fffaf0; border:1px solid #f0d9a8; border-left:3px solid var(--amber); border-radius:6px;
+    padding:7px 10px; margin:9px 0 0; font-size:12.5px; color:#7a5a12}
+  .warn b{color:var(--amber)}
+  .flink{margin-top:9px; font-size:12.5px}
+
+  /* ============ 概念速查 ============ */
+  .cx{background:#fff; border:1px solid var(--line); border-radius:11px; padding:6px 18px 14px; margin:14px 0}
+  .cx h3{font-size:16px; margin:14px 0 4px; color:var(--blue); border-bottom:1px solid var(--line); padding-bottom:5px}
+  .cx ul{margin:8px 0; padding-left:20px}
+  .cx li{margin:5px 0; font-size:13.7px}
+  .cx li.trap{list-style:none; margin-left:-8px; background:var(--hi-bg); border:1px solid var(--hi-bd);
+    border-radius:6px; padding:5px 10px}
+  .cx li.trap::before{content:"⚠ 辨析　"; font-weight:800; color:var(--red); font-size:12px}
+  .tag{display:inline-block; font-size:10px; font-weight:800; padding:1px 5px; border-radius:4px; margin-right:6px; vertical-align:1px}
+  .tag.hi{background:var(--hi-bg); color:var(--hi); border:1px solid var(--hi-bd)}
+  .tag.mid{background:var(--mid-bg); color:var(--mid); border:1px solid var(--mid-bd)}
+  .tag.low{background:var(--low-bg); color:var(--low); border:1px solid var(--low-bd)}
+
+  /* ============ 易错雷区 ============ */
+  .mines{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:11px}
+  .mine{background:var(--hi-bg); border:1px solid var(--hi-bd); border-radius:9px; padding:11px 13px; break-inside:avoid}
+  .mine .q{font-weight:800; color:var(--hi); font-size:13.5px; margin-bottom:3px}
+  .mine .a{font-size:13px; color:var(--ink)}
+  .mine .a b{color:var(--hi)}
+
+  /* ============ 用法 / 冲刺路线 ============ */
+  .flow{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:6px 0 14px; font-size:13.5px}
+  .step{background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-weight:600}
+  .arrow{color:var(--muted); font-weight:800}
+  .examlinks{display:flex; flex-wrap:wrap; gap:8px; margin-top:8px}
+  .examlinks a{font-size:12.5px; padding:5px 11px; border:1px solid var(--blue); border-radius:16px; background:#fff}
+  .examlinks a:hover{background:var(--soft); text-decoration:none}
+
+  .note{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:8px; padding:12px 14px; margin:16px 0; font-size:13.5px}
+  .note b{color:var(--green)}
+
+  footer{margin-top:56px; padding-top:16px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px}
+  footer b{color:var(--ink)}
+
+  /* ============ 只看高频 过滤 ============ */
+  body.only-hi .w-mid, body.only-hi .w-low{display:none}
+  body.only-hi .card.mid{opacity:.4}
+
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} .btn,.nav a{transition:none} }
+  @media (max-width:520px){ h1{font-size:24px} .wrap{padding:20px 15px 80px} .topbar{margin-left:-15px; margin-right:-15px; padding-left:15px; padding-right:15px} }
+
+  /* ============ 打印 ============ */
+  @media print{
+    body{background:#fff; font-size:12px}
+    .topbar,.btn,.nav{display:none !important}
+    body.only-hi .w-mid, body.only-hi .w-low{display:revert !important}
+    body.only-hi .card.mid{opacity:1}
+    .card,.fcard,.mine,.cx{box-shadow:none}
+    .card,.fcard,.mine{break-inside:avoid}
+    h2.zone{break-after:avoid}
+    a{color:var(--ink)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ===================== HERO ===================== -->
+<header class="hero">
+  <p class="eyebrow">期末冲刺 · 全景速查地图 · 汤小丹《计算机操作系统》第4版</p>
+  <h1>操作系统期末速查地图</h1>
+  <p class="lede">一页看全整门课的「领土」：哪一章分多、四大计算题公式怎么写、哪些辨析题最容易咬人。<b>学校自命题</b>，覆盖第 1–6 章。考前照着它扫，不靠记忆瞎猜。</p>
+
+  <div class="metachips">
+    <span class="chip"><b>100</b> 分 · <b>46</b> 题</span>
+    <span class="chip">难度 basic <b>30%</b> / medium <b>50%</b> / hard <b>20%</b></span>
+    <span class="chip">学校自命题（<b>非 408</b>）</span>
+    <span class="chip">配套：<a href="./0001-overview-and-question-map.html">题型总览课 0001</a></span>
+  </div>
+
+  <div class="scorebar-wrap">
+    <div class="scorebar-title"><span>💰 分数在哪里（仿真期末卷分值结构）</span><span>点开对应大题看公式 ↓</span></div>
+    <div class="scorebar" role="img" aria-label="选择40分 填空20分 判断10分 简答10分 计算20分">
+      <div class="seg select" style="flex:40">选择 40<small>20×2</small></div>
+      <div class="seg fill" style="flex:20">填空 20<small>10×2</small></div>
+      <div class="seg judge" style="flex:10">判断 10<small>10×1</small></div>
+      <div class="seg short" style="flex:10">简答 10<small>2×5</small></div>
+      <div class="seg calc" style="flex:20">计算 20<small>4×5</small></div>
+    </div>
+    <p class="thesis">👉 <b class="obj">客观题（选择+填空+判断）＝ 70 分</b>：会背概念、认得辨析就能拿；<b class="calc">计算题 20 分 + 简答 10 分</b>：必须动手会算、会写。<b>先守住 70 分基本盘，再攻 4 道计算大题。</b></p>
+  </div>
+</header>
+
+<!-- ===================== 粘性工具条 ===================== -->
+<div class="topbar">
+  <div class="legend">
+    权重：<span><span class="dot hi"></span>高频</span>
+    <span><span class="dot mid"></span>中频</span>
+    <span><span class="dot low"></span>低频</span>
+  </div>
+  <button class="btn" id="filterBtn" aria-pressed="false">只看高频（考前一晚）</button>
+  <nav class="nav" aria-label="页内导航">
+    <a href="#map">章节全景</a>
+    <a href="#arsenal">计算军火库</a>
+    <a href="#concepts">概念速查</a>
+    <a href="#traps">易错雷区</a>
+    <a href="#howto">怎么用</a>
+  </nav>
+</div>
+
+<!-- ===================== 1. 章节全景网格 ===================== -->
+<h2 class="zone" id="map">① 章节全景 · 六块领土</h2>
+<p class="zone-sub">按分值权重上色。红＝高频主战场，橙＝中频。⚡ 标记＝本章藏着计算大题。卡片底部一键跳到对应微课。</p>
+
+<div class="terr">
+  <!-- Ch1 -->
+  <div class="card mid">
+    <div class="stripe"></div>
+    <div class="body">
+      <div class="top">
+        <div><div class="cno">第 1 章 · 中低频</div><h3>操作系统引论</h3><div class="tang">汤 Ch1</div></div>
+        <div class="score">5–10 分</div>
+      </div>
+      <div class="kdots">
+        <span class="kdot">四大特征</span><span class="kdot">OS类型/发展史</span><span class="kdot">五大功能+接口</span><span class="kdot">用户态/核心态</span>
+      </div>
+      <div class="calcflag none">无计算大题 · 选择/填空/简答为主</div>
+      <div class="links"><b>微课 </b><a href="./0001-overview-and-question-map.html">0001 总览+题型图</a></div>
+    </div>
+  </div>
+
+  <!-- Ch2 -->
+  <div class="card hi">
+    <div class="stripe"></div>
+    <div class="body">
+      <div class="top">
+        <div><div class="cno">第 2 章 · 高频</div><h3>进程管理</h3><div class="tang">汤 Ch2</div></div>
+        <div class="score">15–20 分</div>
+      </div>
+      <div class="kdots">
+        <span class="kdot">PV/信号量</span><span class="kdot">三态转换</span><span class="kdot">PCB/临界区</span><span class="kdot">进程vs线程</span>
+      </div>
+      <div class="calcflag">⚡ 计算大题：PV 操作（生产者-消费者 / 读者-写者）</div>
+      <div class="links"><b>微课 </b><a href="./0010-process-sync.html">0010 同步</a> · <a href="./0011-classic-sync.html">0011 经典同步</a> · <a href="./0012-process-thread-deadlock.html">0012 进程·线程</a></div>
+    </div>
+  </div>
+
+  <!-- Ch3 -->
+  <div class="card hi">
+    <div class="stripe"></div>
+    <div class="body">
+      <div class="top">
+        <div><div class="cno">第 3 章 · 高频</div><h3>处理机调度 + 死锁</h3><div class="tang">汤 Ch2–3</div></div>
+        <div class="score">15–20 分</div>
+      </div>
+      <div class="kdots">
+        <span class="kdot">银行家/安全序列</span><span class="kdot">调度算法+周转</span><span class="kdot">死锁4条件</span>
+      </div>
+      <div class="calcflag">⚡ 计算大题：调度周转 + 银行家算法</div>
+      <div class="links"><b>微课 </b><a href="./0002-scheduling-algorithms.html">0002 调度</a> · <a href="./0003-bankers-algorithm.html">0003 银行家</a> · <a href="./0012-process-thread-deadlock.html">0012 死锁</a></div>
+    </div>
+  </div>
+
+  <!-- Ch4 -->
+  <div class="card hi">
+    <div class="stripe"></div>
+    <div class="body">
+      <div class="top">
+        <div><div class="cno">第 4 章 · 高频</div><h3>存储器管理（含虚存）</h3><div class="tang">汤 Ch4 + Ch5</div></div>
+        <div class="score">15–20 分</div>
+      </div>
+      <div class="kdots">
+        <span class="kdot">分页地址变换</span><span class="kdot">FF/BF/WF</span><span class="kdot">分段vs分页/段页式</span><span class="kdot">页面置换</span><span class="kdot">Belady/抖动</span>
+      </div>
+      <div class="calcflag">⚡ 计算大题：分页地址变换 · 页面置换缺页率</div>
+      <div class="links"><b>微课 </b><a href="./0005-paging-fundamentals.html">0005 分页</a> · <a href="./0006-page-replacement.html">0006 页面置换</a></div>
+    </div>
+  </div>
+
+  <!-- Ch5 -->
+  <div class="card mid">
+    <div class="stripe"></div>
+    <div class="body">
+      <div class="top">
+        <div><div class="cno">第 5 章 · 中高频</div><h3>设备管理（磁盘 + I/O）</h3><div class="tang">汤 Ch6 + Ch8</div></div>
+        <div class="score">10–15 分</div>
+      </div>
+      <div class="kdots">
+        <span class="kdot">I/O四控制方式</span><span class="kdot">SPOOLing</span><span class="kdot">缓冲</span><span class="kdot">磁盘调度</span>
+      </div>
+      <div class="calcflag">⚡ 计算：磁盘调度（移动距离 / 访问时间）</div>
+      <div class="links"><b>微课 </b><a href="./0007-disk-scheduling.html">0007 磁盘调度</a> · <a href="./0008-io-system.html">0008 I/O 系统</a></div>
+    </div>
+  </div>
+
+  <!-- Ch6 -->
+  <div class="card hi">
+    <div class="stripe"></div>
+    <div class="body">
+      <div class="top">
+        <div><div class="cno">第 6 章 · 高频</div><h3>文件管理</h3><div class="tang">汤 Ch7</div></div>
+        <div class="score">15–20 分</div>
+      </div>
+      <div class="kdots">
+        <span class="kdot">成组链接法★</span><span class="kdot">混合索引</span><span class="kdot">三种物理结构</span><span class="kdot">FCB/inode</span><span class="kdot">位示图</span>
+      </div>
+      <div class="calcflag">⚡ 计算大题：成组链接法（老师单独布置）· 混合索引容量</div>
+      <div class="links"><b>微课 </b><a href="./0004-group-linking.html">0004 成组链接</a> · <a href="./0009-mixed-index.html">0009 混合索引</a> · <a href="./0022-index-allocation-visual.html">0022 可视化</a> · <a href="./0024-bitmap-bitops-visual.html">0024 位示图</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== 2. 计算大题军火库 ===================== -->
+<h2 class="zone" id="arsenal">② 计算大题军火库 · 公式照抄</h2>
+<p class="zone-sub">四道<span style="color:var(--red);font-weight:800">★必考</span>大题（PV / 调度+银行家 / 页面置换 / 成组链接）红框标出。公式逐字对齐 <code>算法速查表.md</code>；⚠ 处是「考试会咬人」的地方。</p>
+
+<div class="arsenal">
+
+  <!-- PV -->
+  <div class="fcard must">
+    <div class="fhead"><span class="badge must">★必考</span><span class="badge ch">Ch2</span><h3>PV 操作 / 信号量</h3></div>
+    <div class="formula">
+<span class="v">P(S)</span>：S-- ；若 S&lt;0 则本进程阻塞（申请资源）
+<span class="v">V(S)</span>：S++ ；若 S≤0 则唤醒一个阻塞进程（释放资源）
+S&gt;0 = 可用资源数 ； S&lt;0 = |S| 个进程正在等待</div>
+    <ul>
+      <li>互斥信号量初值 <b>=1</b>；同步/前趋信号量初值 <b>=0</b>；P、V 必成对。</li>
+      <li>生产者-消费者：<code>mutex=1, empty=n, full=0</code>；生产 <code>P(empty)→P(mutex)…V(mutex)→V(full)</code>。</li>
+      <li>读者-写者：读读并发、读写/写写互斥；第一个读者 P(rw)、最后一个读者 V(rw)。</li>
+    </ul>
+    <div class="warn"><b>⚠ 两个 P 不能颠倒</b>：必须「先资源 P(empty) 后互斥 P(mutex)」，颠倒会死锁。</div>
+    <div class="flink">→ <a href="./0010-process-sync.html">0010 同步</a> · <a href="./0011-classic-sync.html">0011 经典同步</a></div>
+  </div>
+
+  <!-- 调度 -->
+  <div class="fcard must">
+    <div class="fhead"><span class="badge must">★必考</span><span class="badge ch">Ch3</span><h3>进程/作业调度计算</h3></div>
+    <div class="formula">
+周转时间 = 完成时间 − 到达时间
+带权周转 = 周转时间 ÷ <span class="v">服务时间</span>（分母是运行时间！）
+平均(带权)周转 = 各进程之和 ÷ 进程数
+响应比(HRRN) = 1 + 等待时间 ÷ 服务时间</div>
+    <ul>
+      <li>FCFS 按到达序；SJF 选最短作业；RR 时间片轮转；HRRN 选响应比最高。</li>
+      <li>SJF / HRRN <b>非抢占</b>：上了 CPU 就跑到完，中途更短的不打断。</li>
+    </ul>
+    <div class="warn"><b>⚠ 带权周转的分母</b>是「服务时间(运行时间)」，不是周转时间；相等时按到达先后。</div>
+    <div class="flink">→ <a href="./0002-scheduling-algorithms.html">0002 调度算法</a></div>
+  </div>
+
+  <!-- 银行家 -->
+  <div class="fcard must">
+    <div class="fhead"><span class="badge must">★必考</span><span class="badge ch">Ch3</span><h3>银行家算法 + 安全序列</h3></div>
+    <div class="formula">
+Need = Max − Allocation
+收到 Request 时： ① Request ≤ Need ② Request ≤ Available
+③ 试分配 ④ 跑安全性算法找安全序列
+安全性：Work=Available；反复找 Need[i]≤Work 的进程，
+        令其完成 Work += Allocation[i]，全部完成 = 安全</div>
+    <ul>
+      <li>口诀：<b>Request ≤ Need ≤ (原)Available</b>。找到安全序列才真分配，否则回退等待。</li>
+      <li>安全态<b>一定不死锁</b>；不安全态<b>未必</b>死锁但有风险。</li>
+    </ul>
+    <div class="flink">→ <a href="./0003-bankers-algorithm.html">0003 银行家算法（含 P0–P4 例题）</a></div>
+  </div>
+
+  <!-- 分页地址 -->
+  <div class="fcard">
+    <div class="fhead"><span class="badge ch">Ch4</span><h3>分页地址变换 + 快表 EAT</h3></div>
+    <div class="formula">
+页号 = 逻辑地址 ÷ 页大小（整除）
+页内偏移 = 逻辑地址 % 页大小（取余）
+物理地址 = 物理块号 × 页大小 + 页内偏移
+EAT = (访存+查快表)×命中率 + (2×访存+查快表)×(1−命中率)</div>
+    <ul><li>页大小是 2 的幂 → 高位=页号、低位=偏移，直接位截取，不用真做除法。</li></ul>
+    <div class="warn"><b>⚠ 看题面</b>：若说「快表与访存并行」或「不计快表时间」，EAT 公式相应删项。</div>
+    <div class="flink">→ <a href="./0005-paging-fundamentals.html">0005 分页基础</a></div>
+  </div>
+
+  <!-- 页面置换 -->
+  <div class="fcard must">
+    <div class="fhead"><span class="badge must">★必考</span><span class="badge ch">Ch4–5</span><h3>页面置换缺页率</h3></div>
+    <div class="formula">
+缺页率 = 缺页(调入)次数 ÷ 总访问次数
+OPT 淘汰「将来最久不用」｜ FIFO 淘汰「最先进入」
+LRU 淘汰「最近最久未用」｜ CLOCK 扫描淘汰访问位=0</div>
+    <ul>
+      <li>做题：画物理块表逐个访问，不在内存就缺页并按判据淘汰；<b>首次装入也算缺页</b>。</li>
+      <li><b>Belady 异常（块变多、缺页反增）只出现在 FIFO</b>；LRU/OPT 是堆栈类，绝不出现。</li>
+    </ul>
+    <div class="flink">→ <a href="./0006-page-replacement.html">0006 页面置换 + Belady</a></div>
+  </div>
+
+  <!-- 磁盘 -->
+  <div class="fcard">
+    <div class="fhead"><span class="badge ch">Ch5</span><h3>磁盘调度 + 访问时间</h3></div>
+    <div class="formula">
+磁盘访问时间 = 寻道时间 + 旋转延迟 + 传输时间
+旋转延迟(平均) = 半圈 = 1 ÷ (2 × 转速)
+传输时间 = 读取字节数 ÷ 传输速率
+FCFS｜SSTF 最近优先｜SCAN 电梯｜C-SCAN 单向到端跳回</div>
+    <ul><li>移动总距离：按算法定顺序，累加相邻磁道差的绝对值。</li></ul>
+    <div class="warn"><b>⚠ 看题面</b>：SCAN/C-SCAN 是否走到物理端点再折返、C-SCAN 回跳是否计距离，题目说了算；SSTF 会饿死两端。</div>
+    <div class="flink">→ <a href="./0007-disk-scheduling.html">0007 磁盘调度</a></div>
+  </div>
+
+  <!-- 混合索引 -->
+  <div class="fcard">
+    <div class="fhead"><span class="badge ch">Ch6</span><h3>混合索引 · 最大文件大小</h3></div>
+    <div class="formula">
+N = 块大小 B ÷ 地址项大小 A （每块能存的块号数）
+最大文件 = D×B + I1·N·B + I2·N²·B + I3·N³·B
+UNIX 例：B=4KB,A=4B,D=10,N=1024
+       = 40KB + 4MB + 4GB + 4TB</div>
+    <ul><li>直接地址给小文件（一步到）；一/二/三级间接给大文件（多翻几张清单）。</li></ul>
+    <div class="warn"><b>⚠ 别套记忆数</b>：本课速查表用 <b>D=10</b>（不是王道常见的 13）。一律按老师给的 D / N 代入。</div>
+    <div class="flink">→ <a href="./0009-mixed-index.html">0009 混合索引</a> · <a href="./0023-indirect-block-twohops.html">0023 间接块</a></div>
+  </div>
+
+  <!-- 成组链接 -->
+  <div class="fcard must">
+    <div class="fhead"><span class="badge must">★必考</span><span class="badge ch">Ch6</span><h3>成组链接法（空闲块）</h3></div>
+    <div class="formula">
+分配1块：栈顶 count&gt;1 → 弹栈顶块号, count--
+        count==1（该块记着下一组）→ 先读入下一组到栈, 再分配该块
+回收1块：栈未满 → 压栈顶, count++
+        栈满 → 当前整组写入被回收块, 该块成新组首(count=1)</div>
+    <ul><li>栈里<b>第一个数是「块数」不是块号</b>；本仓库例题栈顶在右。</li></ul>
+    <div class="warn"><b>⚠ 对齐老师课件</b>：速查表/总框架均未写此法，上面按汤4版标准。老师<b>每年换数重考</b>，务必用老师范例 1–9 的写法。</div>
+    <div class="flink">→ <a href="./0004-group-linking.html">0004 成组链接法</a></div>
+  </div>
+
+  <!-- 动态分区 -->
+  <div class="fcard">
+    <div class="fhead"><span class="badge ch">Ch4</span><h3>动态分区 FF / NF / BF / WF</h3></div>
+    <div class="formula">
+FF 首次适应：空闲链按地址递增，取第一个够用的
+NF 循环首次：从上次结束处接着找
+BF 最佳适应：选最接近需求的最小块 → 留大量小碎片
+WF 最坏适应：选最大块切 → 很快无大块可用</div>
+    <ul><li>内碎片＝分配单位内的零头（分页/固定分区）；外碎片＝散碎凑不出大块（连续/分段），可用<b>紧凑</b>消除。</li></ul>
+    <div class="flink">→ 见 <a href="./0005-paging-fundamentals.html">0005</a> 对照分页；连续分配为老师习题常客。</div>
+  </div>
+
+</div>
+
+<!-- ===================== 3. 概念速查 ===================== -->
+<h2 class="zone" id="concepts">③ 概念速查 · 一行一考点</h2>
+<p class="zone-sub">选择/填空/判断的弹药库。<span style="color:var(--red);font-weight:700">⚠ 辨析</span> 行是最容易设坑的地方。点上方「只看高频」可把中低频折起来，考前一晚只扫红标 <span class="tag hi">高</span>。</p>
+
+<div class="cx">
+  <h3>第 1 章 · 操作系统引论</h3>
+  <ul>
+    <li class="w-mid"><span class="tag mid">中</span>OS 定义：管理/控制软硬件资源、合理组织流程、方便用户使用的系统软件（关键词：<b>有效·合理·方便</b>）。</li>
+    <li class="w-hi"><span class="tag hi">高</span><b>四大特征</b>：并发（宏观同时·微观交替）、共享、虚拟（时分/空分复用）、异步。<b>并发是核心</b>。</li>
+    <li class="trap w-hi"><b>并发 vs 并行</b>：并发＝同一时间<b>间隔</b>内交替（单 CPU 可）；并行＝同一<b>时刻</b>真正同时（需多核）。</li>
+    <li class="trap w-mid">共享分两类：<b>互斥共享</b>（临界资源，如打印机）与<b>同时访问</b>（如磁盘/只读代码）。并发与共享互为存在条件。</li>
+    <li class="w-mid"><span class="tag mid">中</span><b>五大功能</b>：处理机、存储器、设备、文件管理 + 用户接口。接口三类：命令 / 程序(系统调用) / 图形。</li>
+    <li class="trap w-mid"><b>系统调用</b>是用户程序取得 OS 服务的<b>唯一途径</b>（库函数 ≠ 系统调用）。</li>
+    <li class="trap w-mid"><b>用户态 vs 核心态</b>：特权指令（启动 I/O、置 PSW、开关中断）只能核心态执行；经 trap（访管指令）陷入切换。</li>
+    <li class="w-low"><span class="tag low">低</span>发展史：单道批处理→多道批处理（利用率高、无交互）→分时（交互及时）→实时（及时+可靠）。</li>
+    <li class="trap w-low">设计首要目标：批处理→<b>吞吐量/周转</b>；分时→<b>响应时间</b>；实时→<b>及时性/可靠性</b>。</li>
+  </ul>
+
+  <h3>第 2 章 · 进程管理</h3>
+  <ul>
+    <li class="w-hi"><span class="tag hi">高</span>进程＝程序的一次执行，是<b>资源分配与调度的基本单位</b>；有动态/并发/独立/异步性。</li>
+    <li class="trap w-mid">程序 vs 进程：程序<b>静态永久</b>，进程<b>动态暂时</b>；一个程序可对应多个进程。</li>
+    <li class="w-hi"><span class="tag hi">高</span><b>PCB</b> 是进程存在的<b>唯一标志</b>，创建进程即创建 PCB。</li>
+    <li class="w-hi"><span class="tag hi">高</span>三态：<b>就绪</b>(除 CPU 外资源齐)、<b>运行</b>(占 CPU)、<b>阻塞</b>(等事件，给 CPU 也不能跑)。</li>
+    <li class="trap w-hi"><b>两条不可能转换</b>：阻塞→运行（必先经就绪）、就绪→阻塞（就绪不占 CPU，不会去等 I/O）。</li>
+    <li class="trap w-mid">阻塞是进程<b>自己</b>调 block（主动）；唤醒由<b>别的</b>进程调 wakeup（被动）。</li>
+    <li class="trap w-hi"><b>进程 vs 线程</b>：进程＝资源分配单位；线程＝<b>CPU 调度单位</b>，切换开销小、共享进程资源。</li>
+    <li class="w-mid"><span class="tag mid">中</span>临界资源：一次只允许一个进程用；临界区：访问它的那段代码。</li>
+    <li class="trap w-mid">同步四准则：空闲让进、忙则等待、<b>有限等待</b>(防饥饿)、<b>让权等待</b>(等待时放 CPU、防忙等)。</li>
+    <li class="w-low"><span class="tag low">低</span>进程通信三类：共享存储、消息传递(send/receive)、管道(半双工字节流)。</li>
+  </ul>
+
+  <h3>第 3 章 · 处理机调度 + 死锁</h3>
+  <ul>
+    <li class="w-mid"><span class="tag mid">中</span>三级调度：作业(高级，频率最低)、中级(内外存对换/挂起)、进程(低级，最频繁)。</li>
+    <li class="w-mid"><span class="tag mid">中</span>指标：CPU 利用率、吞吐量、周转、带权周转、等待、响应时间。</li>
+    <li class="trap w-mid">周转(批处理关心) vs 响应时间(分时关心)；带权周转反映短作业被长作业拖累程度（≥1，越接近 1 越好）。</li>
+    <li class="w-mid"><span class="tag mid">中</span>RR 时间片：过大退化为 FCFS，过小切换开销大；多级反馈队列公认较优。</li>
+    <li class="w-hi"><span class="tag hi">高</span><b>死锁四必要条件</b>：互斥、请求与保持、不可剥夺、循环等待。破坏任一即可预防。</li>
+    <li class="trap w-hi"><b>必要 ≠ 充分</b>：死锁 ⇒ 四条件全成立；四条件成立<b>未必</b>死锁。</li>
+    <li class="trap w-mid">循环等待 ≠ 死锁：资源每类<b>仅 1 个</b>实例时「有环 ⟺ 死锁」；多实例时有环未必死锁。</li>
+    <li class="trap w-mid"><b>预防 vs 避免</b>：预防＝事先破坏条件(限制强)；避免＝不破坏条件、每次分配前判断是否进入不安全态(银行家)。</li>
+    <li class="w-mid"><span class="tag mid">中</span>死锁处理四策略：预防 / 避免 / 检测与解除 / 鸵鸟不处理。</li>
+  </ul>
+
+  <h3>第 4 章 · 存储器管理（含虚存）</h3>
+  <ul>
+    <li class="trap w-mid"><b>静态 vs 动态重定位</b>：静态＝装入时改地址、程序不可移；动态＝运行时由<b>重定位寄存器</b>转换、可移可换出。<b>虚存必须用动态</b>。</li>
+    <li class="w-hi"><span class="tag hi">高</span>分页：逻辑分页、内存分页框，两者<b>等大</b>、离散装入，页表做映射。</li>
+    <li class="trap w-hi"><b>内碎片 vs 外碎片</b>：分页只有<b>内</b>碎片；连续分配/分段只有<b>外</b>碎片（可用紧凑消除）。</li>
+    <li class="trap w-hi"><b>分页 vs 分段</b>：页＝物理单位/定长/对用户透明/<b>一维</b>；段＝逻辑单位/变长/用户可见/<b>二维(段号,段内偏移)</b>；分段便于共享保护。</li>
+    <li class="w-mid"><span class="tag mid">中</span>段页式：先分段再分页，地址(段号,页号,偏移)，查段表+页表共两次访存，配快表。</li>
+    <li class="w-hi"><span class="tag hi">高</span>虚存基于<b>局部性</b>：时间局部性(刚访问的再访问)+空间局部性(邻近将被访问)。</li>
+    <li class="trap w-hi"><b>请求分页页表字段</b>（填空高频）：页号、物理块号、<b>状态位 P</b>、<b>访问字段 A</b>、<b>修改位 M/脏位</b>、外存地址。</li>
+    <li class="trap w-mid">缺页中断是<b>内部中断(异常)</b>，处理完<b>重执行原指令</b>（不是下一条），一条指令可能触发多次。</li>
+    <li class="trap w-mid">抖动(Thrashing)：进程太多、分到块太少→频繁换入换出；用<b>工作集</b>控制并发度来防。</li>
+  </ul>
+
+  <h3>第 5 章 · 设备管理（磁盘 + I/O）</h3>
+  <ul>
+    <li class="w-hi"><span class="tag hi">高</span>I/O 四控制方式（CPU 越管越少）：程序直接控制(轮询忙等)→中断驱动→DMA→通道。</li>
+    <li class="trap w-hi"><b>中断 vs DMA vs 通道</b>：中断以<b>字</b>为单位；DMA 以<b>块</b>为单位(一块中断一次)；通道以<b>一组块/通道程序</b>为单位(一批才中断一次)。</li>
+    <li class="w-mid"><span class="tag mid">中</span>缓冲：缓和 CPU 与 I/O 速度差；单缓冲不能全并行，双缓冲可并行，缓冲池供多设备共享。</li>
+    <li class="trap w-mid"><b>SPOOLing(假脱机)</b>：用磁盘输入井/输出井把<b>独占设备虚拟成共享设备</b>（典型：打印机排队）。</li>
+    <li class="w-mid"><span class="tag mid">中</span>磁盘访问时间＝寻道+旋转延迟+传输；<b>寻道(移臂)才是优化重点</b>。</li>
+    <li class="trap w-mid">SSTF 平均寻道短但<b>两端饥饿</b>；SCAN 到端才折返、C-SCAN 到端<b>跳回</b>不反向服务。</li>
+  </ul>
+
+  <h3>第 6 章 · 文件管理</h3>
+  <ul>
+    <li class="w-mid"><span class="tag mid">中</span>逻辑结构(用户看)：有结构(记录式)/无结构(流式)；物理结构(磁盘看)：连续/链接/索引。</li>
+    <li class="trap w-hi"><b>三种物理结构</b>：连续＝随机访问快但有外碎片、难增长；隐式链接＝易增长但只能顺序访问、断一处全丢；<b>FAT 是「显式链接」不是索引</b>。</li>
+    <li class="w-hi"><span class="tag hi">高</span>索引分配：每文件一个索引块集中存所有块号，随机访问一步到、无外碎片；小文件浪费索引块。</li>
+    <li class="w-mid"><span class="tag mid">中</span>目录实现<b>按名存取</b>；FCB 一个＝一个目录项，FCB 集合＝目录。</li>
+    <li class="trap w-hi"><b>inode 内不含文件名！</b> 文件名只在目录项里；一个 inode 可被多个目录项指向(硬链接)。</li>
+    <li class="trap w-mid"><b>位示图</b>（老师口径 <b>0=空闲、1=已分配</b>）：块号 n=i×8+j；回收 i=n÷8, j=n mod 8。</li>
+    <li class="trap w-mid"><b>硬链接 vs 软链接</b>：硬链接共享 inode、count=0 才真删、不能跨文件系统；软链接存路径、可跨系统、<b>原文件删则悬空失效</b>。</li>
+  </ul>
+</div>
+
+<!-- ===================== 4. 易错雷区 ===================== -->
+<h2 class="zone" id="traps">④ 易错雷区 · 踩过的坑</h2>
+<p class="zone-sub">这些是最容易在选择/判断题上翻车的辨析点（含你历史记录里两次答错的）。考到就多停一拍。</p>
+
+<div class="mines">
+  <div class="mine"><div class="q">死锁：必要 ≠ 充分</div><div class="a">四条件是死锁的<b>必要</b>条件；四条件都成立<b>未必</b>死锁。（曾两次答错）</div></div>
+  <div class="mine"><div class="q">FIFO vs LRU / Belady</div><div class="a">FIFO 按<b>进入先后</b>淘汰、可能 Belady；LRU 按<b>最久未用</b>淘汰、绝无 Belady。</div></div>
+  <div class="mine"><div class="q">进程状态两条不可能转换</div><div class="a"><b>阻塞→运行</b>、<b>就绪→阻塞</b>不存在。就绪=等 CPU，阻塞=等其他事件。</div></div>
+  <div class="mine"><div class="q">分页 vs 分段</div><div class="a">分页=定长/一维/透明/只内碎片；分段=变长/<b>二维</b>/可见/只外碎片、利于共享。</div></div>
+  <div class="mine"><div class="q">请求分页页表字段</div><div class="a">状态位 P、访问字段 A、<b>修改位 M</b>、外存地址——填空常漏。</div></div>
+  <div class="mine"><div class="q">inode 不含文件名</div><div class="a">文件名只在<b>目录项</b>；inode 只存属性+地址，可被多名指向。</div></div>
+  <div class="mine"><div class="q">中断 / DMA / 通道 的单位</div><div class="a">中断=<b>字</b>，DMA=<b>块</b>，通道=<b>一组块</b>；越往后 CPU 干预越少。</div></div>
+  <div class="mine"><div class="q">位示图 0/1 含义</div><div class="a">本课老师口径 <b>0=空闲、1=已分配</b>（有的教材相反，认老师的）。</div></div>
+  <div class="mine"><div class="q">硬链接 vs 软链接</div><div class="a">硬链接 count=0 才删、不跨系统；软链接存路径、<b>原文件删则失效</b>。</div></div>
+  <div class="mine"><div class="q">两个 P 不能颠倒</div><div class="a">先 P(资源) 后 P(mutex)；颠倒（先互斥后资源）会<b>死锁</b>。</div></div>
+  <div class="mine"><div class="q">SSTF 会饥饿 / SCAN 折返</div><div class="a">SSTF 两端易饿死；SCAN 到端才折返、C-SCAN 到端跳回不反向服务。</div></div>
+  <div class="mine"><div class="q">系统调用 / 特权指令</div><div class="a">系统调用是取得 OS 服务<b>唯一途径</b>；特权指令<b>只能核心态</b>执行。</div></div>
+</div>
+
+<!-- ===================== 5. 怎么用 ===================== -->
+<h2 class="zone" id="howto">⑤ 怎么用这张地图 · 冲刺路线</h2>
+<div class="flow">
+  <span class="step">① 看微课懂原理</span><span class="arrow">→</span>
+  <span class="step">② 做对应章节测试</span><span class="arrow">→</span>
+  <span class="step">③ 错题回微课回炉</span><span class="arrow">→</span>
+  <span class="step">④ 限时刷仿真期末卷</span>
+</div>
+<div class="examlinks">
+  <a href="../exams/README.html">📋 题库总览</a>
+  <a href="../exams/ch01-test.html">Ch1 测试</a>
+  <a href="../exams/ch02-test.html">Ch2 测试</a>
+  <a href="../exams/ch03-test.html">Ch3 测试</a>
+  <a href="../exams/ch04-test.html">Ch4 测试</a>
+  <a href="../exams/ch05-test.html">Ch5 测试</a>
+  <a href="../exams/ch06-test.html">Ch6 测试</a>
+  <a href="../exams/final-test.html">⏱ 仿真期末卷（120 分钟）</a>
+</div>
+
+<div class="note">
+<b>三段式冲刺（据你的 MISSION）：</b>先用<b>章节全景</b>确认哪块分多、先攻高频四章（2/3/4/6）；再把<b>计算军火库</b>的公式练到闭眼能写；最后用<b>易错雷区</b>+<b>只看高频</b>过一遍客观题辨析。守住 70 分客观基本盘，拿下 4 道计算大题 = 稳过线。
+</div>
+
+<footer>
+  <p><b>口径与出处：</b>公式逐字对齐 <code>textbook/算法速查表.md</code> 与 <code>0_总框架.md</code>；概念对齐各章 <code>总览.md</code> / 老师课件；题型分值来自 <code>exams/final-test.html</code> 与 <code>0001</code> 题型地图。</p>
+  <p><b>三处「以老师课件为准」：</b>① 混合索引本课用 <b>D=10</b>（非王道 13）；② 缺页 EAT 为简化式（按题目给的时间项取用）；③ 成组链接法两源未收录，已按汤4版标准填，务必对齐老师范例 1–9。</p>
+  <p style="margin-top:8px">第 13 号 · 操作系统期末速查地图 · 覆盖 Ch1–6 · 生成于 2026-07-08 · 配套主清单见 <code>learning-records/0000-复习主清单-from-scratch.md</code></p>
+</footer>
+
+</div>
+
+<script>
+  (function(){
+    var btn = document.getElementById('filterBtn');
+    if(!btn) return;
+    btn.addEventListener('click', function(){
+      var on = document.body.classList.toggle('only-hi');
+      btn.classList.toggle('on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.textContent = on ? '显示全部考点' : '只看高频（考前一晚）';
+    });
+  })();
+</script>
+</body>
+</html>

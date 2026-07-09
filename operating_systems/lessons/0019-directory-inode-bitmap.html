@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 19 课 · 目录与 inode(inode 不含文件名)· 位示图</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --l-app:#eef4fb; --l-appb:#9cc2e8;
+    --l-os:#fef3e2;  --l-osb:#e8b86a;
+    --l-hw:#e6f4ea;  --l-hwb:#9ad0ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+
+  /* ===== 签名交互件:三层夹心 ===== */
+  .sandwich{max-width:600px; margin:6px auto 0; display:flex; flex-direction:column; gap:0}
+  .layer{border:2px solid #ccc; border-radius:10px; padding:12px 14px 14px; position:relative; transition:.18s; background:#fff}
+  .layer .layertag{position:absolute; top:-11px; left:14px; font-size:12px; font-weight:700; background:#fff; padding:0 6px; color:var(--muted)}
+  .applayer{border-color:var(--l-appb); background:var(--l-app)}
+  .oslayer{border-color:var(--l-osb); background:var(--l-os); cursor:pointer}
+  .hwlayer{border-color:var(--l-hwb); background:var(--l-hw)}
+  .oslayer.hl{box-shadow:0 0 0 4px rgba(232,184,106,.45); transform:scale(1.015)}
+  .apps,.hws{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px}
+  .app,.hw{font-size:13.5px; padding:6px 10px; border-radius:8px; border:1px solid #cbd2dd; background:#fff; cursor:pointer; transition:.15s; user-select:none}
+  .app:hover,.hw:hover{transform:translateY(-1px); box-shadow:0 2px 6px rgba(20,30,60,.12)}
+  .app.hl{background:var(--blue); color:#fff; border-color:var(--blue)}
+  .hw{cursor:default}
+  .hw.hl{background:var(--green); color:#fff; border-color:var(--green); transform:scale(1.06)}
+  .oscore{font-weight:800; font-size:17px; color:var(--amber); text-align:center; margin-top:2px}
+  .ossub{text-align:center; font-size:12.5px; color:#8a6d3b; margin-top:2px}
+  .gap{margin:6px auto; text-align:center; font-size:12.5px; color:#aab; font-weight:600;
+    padding:4px 10px; border-radius:20px; transition:.18s; letter-spacing:.02em}
+  .gap.up.hl{background:#e7f0fb; color:var(--blue)}
+  .gap.down.hl{background:#e6f4ea; color:var(--green)}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 4px}
+  @media print{ body{background:#fff} .btn{display:none} }
+
+  /* ===== 本课签名件:目录项 ⇄ inode 拆分演示 ===== */
+  .split{display:flex; gap:16px; flex-wrap:wrap; align-items:flex-start; margin-top:8px}
+  .col{flex:1 1 260px; min-width:250px}
+  .coltitle{font-weight:800; font-size:14px; margin-bottom:6px; text-align:center}
+  .coltitle.dir{color:var(--blue)}
+  .coltitle.ino{color:var(--amber)}
+  /* 目录:每行一个目录项 <文件名, inode号> */
+  .dirbox{border:2px solid var(--l-appb); background:var(--l-app); border-radius:10px; padding:8px}
+  .dentry{display:flex; align-items:center; justify-content:space-between; gap:8px;
+    background:#fff; border:1px solid #cbd2dd; border-radius:8px; padding:7px 10px; margin:6px 0;
+    cursor:pointer; transition:.15s; user-select:none}
+  .dentry:hover{transform:translateY(-1px); box-shadow:0 2px 6px rgba(20,30,60,.12)}
+  .dentry.hl{background:var(--blue); border-color:var(--blue)}
+  .dentry.hl .fname, .dentry.hl .inoref{color:#fff}
+  .dentry.newborn{animation:pop .5s ease}
+  @keyframes pop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+  .fname{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; font-weight:700; color:var(--ink)}
+  .inoref{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12.5px; color:var(--amber); font-weight:700; white-space:nowrap}
+  .dcol-h{display:flex; justify-content:space-between; font-size:11.5px; color:var(--muted); padding:0 10px 2px}
+  /* inode 表 */
+  .inobox{border:2px solid var(--l-osb); background:var(--l-os); border-radius:10px; padding:8px}
+  .inode{background:#fff; border:1px solid #e8b86a; border-radius:8px; padding:8px 10px; margin:6px 0; transition:.18s}
+  .inode.hl{box-shadow:0 0 0 4px rgba(232,184,106,.45); border-color:var(--amber)}
+  .inode-h{font-weight:800; font-size:13.5px; color:var(--amber); margin-bottom:4px}
+  .inode table{margin:2px 0; font-size:12px}
+  .inode td{border:none; padding:2px 4px}
+  .inode td:first-child{color:var(--muted); white-space:nowrap; width:42%}
+  .inode td:last-child{font-family:"SF Mono",Menlo,Consolas,monospace; font-weight:600}
+  .lc{font-weight:800; color:var(--green)}
+  .lc.bump{animation:bump .6s ease}
+  @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.5); color:var(--red)}100%{transform:scale(1)}}
+  .noname{color:var(--red); font-weight:800; font-size:12px; background:#fff0f0; border:1px dashed var(--red);
+    border-radius:6px; padding:3px 7px; margin-top:5px; display:none}
+  .inode.hl .noname{display:inline-block; animation:pop .4s ease}
+  .ctrlrow{margin-top:12px}
+  /* 位示图小示意 */
+  .bmgrid{display:inline-grid; grid-template-columns:repeat(8, 30px); gap:3px; margin:6px 0}
+  .bit{width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; font-weight:700; border-radius:5px;
+    border:1px solid #cbd2dd}
+  .bit.free{background:#eafaf0; color:var(--green)}
+  .bit.used{background:#fdeaea; color:var(--red)}
+  .bmlabel{font-size:11.5px; color:var(--muted)}
+  .warnbox{background:#fff0f0; border:1px solid #f3b7b7; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 19 课 · Ch7 文件管理 · 零基础可视化 · S16</p>
+  <h1>目录与 inode(inode 不含文件名)· 位示图</h1>
+  <p class="sub">这一课只钉牢一个高频陷阱:<b>文件名不在 inode 里</b>。先动手点一张图看它,再上术语。配合 <a href="./0013-exam-cheatsheet-map.html">速查地图</a> 使用。</p>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> 文件名住在<b>目录项</b>里(目录每一行 = <code>&lt;文件名, inode号&gt;</code>);文件的<b>其余全部属性</b>——类型、权限、所有者、大小、时间、链接计数、物理块指针——全住在 <b>inode</b> 里。<b>inode 里没有文件名</b>(高频陷阱!)。正因为“名”与“身份”分了家,<b>改名、硬链接、共享</b>才都那么轻。另外:空闲磁盘块用<b>位示图</b>管理,约定 <b>0 = 空闲、1 = 已分配</b>。
+</div>
+
+<!-- ===================== 1. 直觉图(签名件) ===================== -->
+<h2>🖼 1. 直觉图:「目录项 ⇄ inode 拆分演示」</h2>
+<p class="hint">左边是一个<b>目录</b>(每行一个目录项 <code>&lt;文件名, inode号&gt;</code>);右边是 <b>inode 表</b>(每个 inode 装满属性,<b>唯独没有文件名</b>)。</p>
+<div class="panel">
+<div class="hint">👇 <b>先点左边任一个文件名</b>,看它连到哪个 inode、inode 里都有什么(注意那条红字);再试试下面两个按钮:</div>
+
+<div class="split">
+  <!-- 目录列 -->
+  <div class="col">
+    <div class="coltitle dir">📖 目录(目录文件)</div>
+    <div class="dcol-h"><span>文件名</span><span>inode 号</span></div>
+    <div class="dirbox" id="dirbox"></div>
+  </div>
+
+  <!-- inode 列 -->
+  <div class="col">
+    <div class="coltitle ino">🪪 inode 表</div>
+    <div class="inobox" id="inobox"></div>
+  </div>
+</div>
+
+<div class="ctrlrow">
+  <button class="btn" id="btnRename">✏️ 重命名(report.txt → 年报.txt)</button>
+  <button class="btn" id="btnLink">🔗 给 #12 创建硬链接(backup.txt)</button>
+  <button class="btn reset" id="btnReset">↺ 复位</button>
+</div>
+
+<div class="readout" id="splitReadout">← 先点左边一个文件名试试</div>
+</div>
+
+<div class="warnbox">
+<b>❌ 全课最该记住的一句:</b> inode 里<b>没有文件名</b>。文件名<b>只</b>存在目录项里。inode 只管“这个文件是谁、多大、在磁盘哪儿、有几个名字指着它(链接计数)”——它不知道自己叫什么。
+</div>
+
+<!-- ===================== 2. 具体例子 ELI5 ===================== -->
+<h2>🧸 2. 具体例子:身份证档案 vs 外号</h2>
+<div class="eli5">
+<b>🧸 5 岁也懂的比喻:</b> <b>inode</b> 像一个人的<b>身份证档案</b>——记着出生日期、住址、指纹、身高……但<b>档案上偏偏不写“外号”</b>。<br>
+<b>文件名</b>像这个人的<b>外号</b>,写在<b>通讯录(目录)</b>里,通讯录每一行是“外号 → 档案编号”。<br>
+• 给这个人<b>起个新外号</b>(= 硬链接):只是通讯录多加一行,指向<b>同一份档案</b>,档案本身<b>一个字都不用复制</b>,只把档案上“有几个人叫我”的计数 +1。<br>
+• <b>改外号</b>(= 重命名):只改通讯录那一行,<b>档案原封不动</b>。<br>
+一句话:<b>名字写在通讯录,身份写在档案;档案里从不写名字</b>——这就是“inode 不含文件名”。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2>⚖️ 3. 对照表:两张表钉牢重点</h2>
+
+<h3>对照一:目录项 vs inode(谁装什么)</h3>
+<table>
+<tr><th>比什么</th><th>目录项(在目录里)</th><th>inode(索引结点)</th></tr>
+<tr><td>装不装文件名</td><td><b>装</b>文件名</td><td><b>不装</b>文件名 ❌(重点)</td></tr>
+<tr><td>核心内容</td><td><code>&lt;文件名, inode号&gt;</code>,就这两样</td><td>类型 / 权限 / 所有者 / 大小 / 时间戳 / <b>链接计数</b> / 物理块指针</td></tr>
+<tr><td>大小</td><td>很小(只放名 + 号)</td><td>较大(装满属性)</td></tr>
+<tr><td>作用</td><td>把“名字”映射到“inode 号”</td><td>描述文件本体:是谁、多大、在磁盘哪儿</td></tr>
+</table>
+<p class="hint">查找一个文件的完整路线:<b>①在目录里逐行比文件名</b> → 命中后拿到 <b>inode 号</b> → <b>②按号读出 inode</b> → 从 inode 拿到属性和物理块位置 → ③再去读数据块。</p>
+
+<h3>对照二:传统 FCB vs 拆分后(目录项 + inode)</h3>
+<table>
+<tr><th>比什么</th><th>传统 FCB(文件名 + 属性全塞一起)</th><th>拆分后(目录项 + inode)</th></tr>
+<tr><td>目录项里放什么</td><td>文件名 + 一大堆属性,全在一起</td><td>只留 <code>&lt;文件名, inode号&gt;</code></td></tr>
+<tr><td>单个目录项大小</td><td><b>大</b>(教材例:约 <b>46 字节</b>)</td><td><b>小</b>(教材例:约 <b>16 字节</b>)</td></tr>
+<tr><td>一个 4KB 块能放几条</td><td>约 <b>89 个</b></td><td>约 <b>256 个</b></td></tr>
+<tr><td>查找时的磁盘 IO</td><td><b>多</b>(每读一屏目录项,顺带把没用的属性也读进来)</td><td><b>少</b>(一次 IO 读到更多目录项,比名更快)</td></tr>
+<tr><td>共享方不方便</td><td>难(属性绑死在名旁边)</td><td>易(多目录项指同一 inode,只加链接计数)</td></tr>
+</table>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2>📖 4. 是什么:精确定义(对齐教材口径)</h2>
+
+<div class="key">
+<b>FCB(文件控制块 / 目录项):</b> 描述文件<b>属性、位置、控制信息</b>的数据结构。每个文件对应<b>一个 FCB</b>;FCB 的集合就是<b>文件目录</b>;而目录本身也被组织成一个文件,叫<b>目录文件</b>。
+</div>
+
+<p><b>FCB 里通常有哪些信息:</b></p>
+<table>
+<tr><th>类别</th><th>内容</th></tr>
+<tr><td>文件名</td><td>用户给文件起的名字</td></tr>
+<tr><td>物理位置</td><td>文件存在磁盘哪些块</td></tr>
+<tr><td>逻辑 / 物理结构</td><td>顺序 / 索引…,连续 / 链接 / 索引分配…</td></tr>
+<tr><td>属性</td><td>大小、建立 / 修改时间、权限、所有者</td></tr>
+<tr><td>其他控制信息</td><td>共享计数 / 链接计数 等</td></tr>
+</table>
+
+<div class="key">
+<b>inode(索引结点):</b> 把 FCB <b>拆成两半</b>——<b>文件名</b>放到<b>目录项</b>里,<b>其余全部描述信息</b>(属性 / 物理地址 / 时间 / 权限 / 链接计数 / 物理块指针)放到 <b>inode</b> 里。于是目录项 = <code>&lt;文件名, inode号&gt;</code>,每个 inode 有<b>唯一编号</b>。<br>
+<b>⚠️ inode 不含文件名,文件名只在目录项里(重点考点)。</b><br>
+好处:① 目录项变小 → 查找 IO 少;② 便于<b>共享</b>(多个目录项指同一 inode,只需增加链接计数);③ <b>改名 / 移动只改目录项</b>,inode 不动。
+</div>
+
+<h3>目录结构:三种(会问区别)</h3>
+<table>
+<tr><th>结构</th><th>特点</th><th>解决 / 遗留</th></tr>
+<tr><td><b>单级目录</b></td><td>全系统一张目录表</td><td>简单,但<b>不能重名</b>、查找慢 → 已淘汰</td></tr>
+<tr><td><b>两级目录</b></td><td>主目录 MFD + 每个用户一张 UFD</td><td>解决<b>不同用户</b>之间的重名</td></tr>
+<tr><td><b>多级(树形)目录</b></td><td>现代系统。<b>绝对路径</b>从根 <code>/</code> 开始;<b>相对路径</b>从当前目录开始</td><td>彻底解决重名 + 便于分类管理</td></tr>
+</table>
+
+<h3>目录查询方式</h3>
+<table>
+<tr><th>方式</th><th>说明</th></tr>
+<tr><td><b>线性检索</b></td><td>在目录里<b>逐个比对文件名</b>,命中拿 inode 号(最常用)</td></tr>
+<tr><td><b>Hash 检索</b></td><td>用文件名算哈希直接定位,<b>更快</b></td></tr>
+<tr><td>目录缓存</td><td>把常用目录项缓存在内存,加速查找</td></tr>
+</table>
+
+<div class="key">
+<b>位示图法(管理空闲磁盘块):</b> 用一张<b>二进制位表</b>,表里每个物理块对应<b>一个 bit</b>,记录该块用没用。<b>约定:0 = 空闲、1 = 已分配</b>(教材 / 老师口径,<b>别记反</b>)。<br>
+• <b>分配</b>:扫描找到一个值为 <b>0</b> 的位 → <b>块号 = 行号 × 每行位数 + 列号</b> → 把该位置 <b>1</b>。<br>
+• <b>回收</b>:由块号反推 → <b>行号 = 块号 ÷ 每行位数、列号 = 块号 mod 每行位数</b> → 把该位置 <b>0</b>。<br>
+优点:占空间极小(1 块只占 1 bit),可<b>整张缓存进内存</b>;分配 / 回收快;也<b>容易找连续块</b>。
+<span class="hint">(位运算级别的代码实现——如 <code>balloc</code> 怎么用位操作找 0 位——见 <a href="./0024-bitmap-bitops-visual.html">第 24 课</a>;本课只记考试口径。)</span>
+</div>
+
+<div class="panel">
+<p class="hint">🔢 位示图一眼看:约定 <b>0=空闲(绿)、1=已分配(红)</b>。假设每行 8 位,下面第 1 行第 2 列这个绿格(行号 <code>i=1</code>、列号 <code>j=2</code>)对应块号 = <code>1×8 + 2 = 10</code>。</p>
+<div class="bmlabel">↓ 第 0 行(块 0~7)</div>
+<div class="bmgrid" id="bmrow0"></div>
+<div class="bmlabel">↓ 第 1 行(块 8~15)</div>
+<div class="bmgrid" id="bmrow1"></div>
+</div>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2>❓ 5. 为什么:一层层往下挖</h2>
+
+<div class="panel">
+<h3>第 1 层:为什么要<b>目录</b>?</h3>
+<p>为了<b>按名存取</b>。你只想记住 <code>report.txt</code> 这个名字,<b>不想记它在磁盘第几块</b>。目录把“<b>文件名 ↔ 物理位置</b>”对应起来:你说名字,系统替你查到位置。顺带它还允许<b>重名</b>(不同目录下)、支持<b>共享</b>(多个名字指同一份数据)。</p>
+
+<h3>第 2 层:为什么把 FCB 拆成“<b>目录项 + inode</b>”?</h3>
+<p>因为传统 FCB 把文件名和一大堆属性<b>塞在一起</b>。可是<b>查找文件时只需要比文件名</b>——那堆属性此刻<b>白占磁盘 IO</b>。拆开后,目录项只留 <code>&lt;名, inode号&gt;</code> 变得很小 → <b>一次 IO 能读到更多目录项</b> → 比名比得更快。顺带还解决了共享:<b>多个名字指同一个 inode</b> 即可。</p>
+
+<h3>第 3 层:为什么 inode <b>一定不能</b>含文件名?</h3>
+<p>这是本课的核心“为什么”。<b>如果 inode 里含文件名</b>,那么:<br>
+• <b>硬链接就废了</b>——两个名字想共享同一份数据、同一个 inode,可 inode 里却写着某一个名字,矛盾;<br>
+• <b>改名也得动 inode</b>——本该只改目录一行,却要去改文件本体的描述块。<br>
+把“<b>名</b>”抽到目录项、把“<b>身份</b>”留在 inode,<b>名与身份彻底解耦</b>——这才是<b>硬链接、改名、共享</b>都如此轻量的根本原因。</p>
+
+<h3>(补)位示图的两个“为什么”</h3>
+<p>• <b>为什么 0 表示空闲?</b> 这是教材 / 老师口径的<b>约定</b>,做题一律按“<b>0=空闲、1=已分配</b>”,别自己记反。<br>
+• <b>为什么位示图省空间?</b> 因为<b>1 块只占 1 bit</b>。哪怕 1TB 的盘、4KB 的块,位示图也只要约 <b>32MB</b>,<b>整张都能缓存在内存里</b>,分配 / 回收才快。</p>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2>✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>下面哪一项,<b>inode 里不包含</b>?</p>
+<p>
+A. 文件名<br>
+B. 文件大小<br>
+C. 文件的物理块指针<br>
+D. 访问权限
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 这是全课最核心的陷阱——<b>inode 不含文件名</b>,文件名只在目录项里。B(大小)、C(物理块指针)、D(权限)都实打实住在 inode 里,是最常见的干扰项:很多人会想当然地以为“文件名当然在 inode 里”,恰恰错。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>采用 inode 后,<b>目录项</b>的结构是?</p>
+<p>
+A. 文件名 + 全部属性<br>
+B. 只有 inode 号,没有文件名<br>
+C. <code>&lt;文件名, inode号&gt;</code><br>
+D. 只有文件名,没有 inode 号
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 拆分后目录项只留 <code>&lt;文件名, inode号&gt;</code> 两样。A 是<b>传统 FCB</b>的样子(没拆);B 少了文件名——那样就没法“按名查找”了;D 少了 inode 号——那样查到名也找不到文件本体。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>给一个文件<b>改名</b>,系统真正改动的是?</p>
+<p>
+A. 复制一份新的 inode<br>
+B. 文件的所有数据块<br>
+C. 位示图里对应的那一位<br>
+D. 目录项(inode 原封不动)
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 文件名只在目录项里,改名<b>只改目录项那一行</b>,inode 一个字节都不用动——所以改名极快。A/B 都是“大动干戈”式的错误想象;C 是空闲块管理的事,和改名无关。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>位示图中,<b>0</b> 表示什么?(注意老师口径)</p>
+<p>
+A. 该块<b>已分配</b><br>
+B. 该块<b>空闲</b><br>
+C. 该块<b>损坏</b><br>
+D. 该块<b>被锁定</b>
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 本教材 / 老师口径:<b>0 = 空闲、1 = 已分配</b>,做题一律按此。A 是最毒的陷阱项——正好记反(有些资料确实反着定义,但<b>本课考试按 0=空闲</b>)。C、D 都不是位示图这一个 bit 能表达的含义。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 5</h3>
+<p>位示图里某位于<b>第 i 行、第 j 列</b>,它对应的<b>块号</b> = ?</p>
+<p>
+A. <code>i × 每行位数 + j</code><br>
+B. <code>i + j</code><br>
+C. <code>j × 每行位数 + i</code><br>
+D. <code>i × j</code>
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 块号 = <b>行号 × 每行位数 + 列号</b> = <code>i × 每行位数 + j</code>。反推(回收)时:行号 = 块号 ÷ 每行位数、列号 = 块号 mod 每行位数。B(直接相加)、C(行列写反)、D(相乘)都算不出正确块号。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>说清楚:<b>为什么 inode 里不含文件名?</b>这一点对<b>硬链接</b>意味着什么?(提示:名与身份解耦 → 多个名字才能共享同一个 inode)</li>
+<li>说清楚:用<b>位示图分配一个块</b>的完整步骤(提示:扫到一个 0 位 → 块号 = 行×每行位数+列 → 把该位置 1)。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">两题都能顺口说出来 → 你是真懂了。第 1 题卡壳,回第 1 节再点一遍“创建硬链接”按钮;第 2 题卡壳,回第 4 节看那张位示图小图。</p>
+</div>
+
+<footer>
+第 19 课 · Ch7 文件管理 · 目录与 inode(inode 不含文件名)· 位示图<br>
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课</a> ·
+位运算级实现 → <a href="./0024-bitmap-bitops-visual.html">第 24 课(位示图位运算 balloc)</a>
+</footer>
+
+</div>
+
+<script>
+// ================= 签名交互件:目录项 ⇄ inode 拆分演示 =================
+
+// 初始数据:目录项列表 + inode 表(inode 故意不含文件名)
+var INIT_DENTRIES = [
+  { fname:'report.txt', ino:12 },
+  { fname:'photo.jpg',  ino:7  }
+];
+var INIT_INODES = {
+  12: { type:'普通文件', perm:'rw-r--r--', owner:'zihao', size:'4 KB',  mtime:'07-08 10:20', links:1, blocks:'#100,#101' },
+  7:  { type:'普通文件', perm:'rw-r--r--', owner:'zihao', size:'2 MB',  mtime:'07-06 21:03', links:1, blocks:'#204~#711' }
+};
+
+// 可变状态(复位时深拷贝还原)
+var dentries, inodes;
+
+var dirbox      = document.getElementById('dirbox');
+var inobox      = document.getElementById('inobox');
+var splitReadout= document.getElementById('splitReadout');
+
+function deepReset(){
+  dentries = INIT_DENTRIES.map(function(d){ return { fname:d.fname, ino:d.ino }; });
+  inodes = {};
+  Object.keys(INIT_INODES).forEach(function(k){
+    var s = INIT_INODES[k];
+    inodes[k] = { type:s.type, perm:s.perm, owner:s.owner, size:s.size, mtime:s.mtime, links:s.links, blocks:s.blocks };
+  });
+}
+
+// 渲染目录列
+function renderDir(newbornIdx){
+  dirbox.innerHTML = '';
+  dentries.forEach(function(d, i){
+    var el = document.createElement('div');
+    el.className = 'dentry' + (i === newbornIdx ? ' newborn' : '');
+    el.dataset.ino = d.ino;
+    el.dataset.idx = i;
+    el.innerHTML = '<span class="fname">'+d.fname+'</span>'
+                 + '<span class="inoref">→ inode #'+d.ino+'</span>';
+    el.addEventListener('click', function(){ selectEntry(parseInt(el.dataset.idx,10)); });
+    dirbox.appendChild(el);
+  });
+}
+
+// 渲染 inode 列(唯独没有文件名)
+function renderInodes(){
+  inobox.innerHTML = '';
+  // 按号排序稳定显示
+  Object.keys(inodes).map(Number).sort(function(a,b){return a-b;}).forEach(function(num){
+    var n = inodes[num];
+    var el = document.createElement('div');
+    el.className = 'inode';
+    el.dataset.ino = num;
+    el.innerHTML =
+      '<div class="inode-h">🪪 inode #'+num+'</div>'
+      + '<table><tbody>'
+      + '<tr><td>类型</td><td>'+n.type+'</td></tr>'
+      + '<tr><td>权限</td><td>'+n.perm+'</td></tr>'
+      + '<tr><td>所有者</td><td>'+n.owner+'</td></tr>'
+      + '<tr><td>大小</td><td>'+n.size+'</td></tr>'
+      + '<tr><td>时间戳</td><td>'+n.mtime+'</td></tr>'
+      + '<tr><td>链接计数</td><td><span class="lc" data-lc="'+num+'">'+n.links+'</span></td></tr>'
+      + '<tr><td>物理块指针</td><td>'+n.blocks+'</td></tr>'
+      + '</tbody></table>'
+      + '<span class="noname">❌ 注意:inode 里没有文件名!</span>';
+    inobox.appendChild(el);
+  });
+}
+
+function clearHl(){
+  Array.prototype.forEach.call(dirbox.querySelectorAll('.dentry'), function(e){ e.classList.remove('hl'); });
+  Array.prototype.forEach.call(inobox.querySelectorAll('.inode'), function(e){ e.classList.remove('hl'); });
+}
+
+// 点某个文件名 → 高亮目录项 + 对应 inode + 弹红字
+function selectEntry(idx){
+  clearHl();
+  var d = dentries[idx];
+  var dEl = dirbox.querySelector('.dentry[data-idx="'+idx+'"]');
+  var iEl = inobox.querySelector('.inode[data-ino="'+d.ino+'"]');
+  if(dEl) dEl.classList.add('hl');
+  if(iEl) iEl.classList.add('hl');
+  splitReadout.innerHTML =
+    '目录项 <b>&lt;'+d.fname+', #'+d.ino+'&gt;</b> 只存了“名 + inode 号”;'
+    + '顺着 #'+d.ino+' 找到右边这个 inode,文件的<b>全部属性</b>(类型/权限/大小/时间/链接计数/物理块)都在这儿——'
+    + '<b style="color:var(--red)">但整个 inode 里没有“文件名”这一栏！</b>';
+}
+
+// 重命名:只改目录项里的文件名,inode 不动
+document.getElementById('btnRename').addEventListener('click', function(){
+  var idx = dentries.findIndex(function(d){ return d.fname === 'report.txt'; });
+  if(idx === -1){
+    splitReadout.innerHTML = '（report.txt 已被改名过了，先点“复位”再试一次~）';
+    return;
+  }
+  dentries[idx].fname = '年报.txt';
+  renderDir();
+  selectEntry(idx);
+  splitReadout.innerHTML =
+    '✏️ 已把 <b>report.txt</b> 改名为 <b>年报.txt</b>——注意:<b>只动了目录项这一行</b>,'
+    + '右边 inode #12 <b>一个字节都没变</b>(链接计数还是 1、物理块还是原来那些)。<b>改名只动目录项 → 所以改名很快。</b>';
+});
+
+// 创建硬链接:新增第二条目录项指向同一 inode,链接计数 +1
+document.getElementById('btnLink').addEventListener('click', function(){
+  var exists = dentries.some(function(d){ return d.fname === 'backup.txt'; });
+  if(exists){
+    splitReadout.innerHTML = '（backup.txt 这个硬链接已经建过了，先点“复位”再试一次~）';
+    return;
+  }
+  // 新增目录项,指向已存在的 inode #12
+  dentries.push({ fname:'backup.txt', ino:12 });
+  // 链接计数 1 -> 2
+  inodes[12].links += 1;
+  var newIdx = dentries.length - 1;
+  renderDir(newIdx);       // 让新行有 pop 动画
+  renderInodes();
+  // 高亮两条指向 #12 的目录项 + 该 inode,并给链接计数一个 bump 动画
+  clearHl();
+  Array.prototype.forEach.call(dirbox.querySelectorAll('.dentry[data-ino="12"]'), function(e){ e.classList.add('hl'); });
+  var iEl = inobox.querySelector('.inode[data-ino="12"]');
+  if(iEl) iEl.classList.add('hl');
+  var lc = inobox.querySelector('.lc[data-lc="12"]');
+  if(lc) lc.classList.add('bump');
+  splitReadout.innerHTML =
+    '🔗 目录里新增了一行 <b>&lt;backup.txt, #12&gt;</b>——它和原来的 <b>&lt;年报.txt/report.txt, #12&gt;</b> 指向<b>同一个 inode #12</b>,'
+    + '同时该 inode 的<b>链接计数 1 → 2</b>。<b>两个文件名、同一份数据</b>:正因为 <b style="color:var(--red)">inode 不含文件名</b>,同一份数据才能挂多个名字——<b>这就是硬链接。</b>';
+});
+
+// 复位
+document.getElementById('btnReset').addEventListener('click', function(){
+  deepReset();
+  renderDir();
+  renderInodes();
+  clearHl();
+  splitReadout.innerHTML = '↺ 已复位。← 再点左边一个文件名试试';
+});
+
+// 初始化
+deepReset();
+renderDir();
+renderInodes();
+
+// ================= 位示图小示意(第 4 节静态展示) =================
+// 约定 0=空闲(绿)、1=已分配(红)。演示第 0、1 两行(块 0~15)
+var BM = [
+  [1,1,0,1,0,0,1,0],   // 第 0 行:块 0~7
+  [0,0,0,1,0,1,0,0]    // 第 1 行:块 8~15
+];
+function renderBitRow(el, rowIdx){
+  var row = BM[rowIdx];
+  row.forEach(function(v, j){
+    var b = document.createElement('div');
+    b.className = 'bit ' + (v === 0 ? 'free' : 'used');
+    b.textContent = v;
+    b.title = '块号 ' + (rowIdx*8 + j) + ' · ' + (v===0 ? '空闲' : '已分配');
+    el.appendChild(b);
+  });
+}
+renderBitRow(document.getElementById('bmrow0'), 0);
+renderBitRow(document.getElementById('bmrow1'), 1);
+</script>
+</body>
+</html>

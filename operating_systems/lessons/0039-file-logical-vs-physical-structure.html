@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 39 课 · 文件的逻辑结构 vs 物理结构(用户视角 ⊥ 磁盘视角)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --l-app:#eef4fb; --l-appb:#9cc2e8;
+    --l-os:#fef3e2;  --l-osb:#e8b86a;
+    --l-hw:#e6f4ea;  --l-hwb:#9ad0ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+
+  /* ===== 签名交互件:逻辑 ⊥ 物理 双轴选择器 ===== */
+  .axisgrid{display:flex; gap:16px; flex-wrap:wrap; margin-top:4px}
+  .axiscol{flex:1 1 260px; border:2px solid #ccc; border-radius:10px; padding:12px 14px 14px; background:#fff}
+  .axiscol.logic{border-color:var(--l-appb); background:var(--l-app)}
+  .axiscol.phys{border-color:var(--l-osb); background:var(--l-os)}
+  .axiscol .coltag{font-size:13px; font-weight:800; margin-bottom:2px}
+  .axiscol.logic .coltag{color:var(--blue)}
+  .axiscol.phys .coltag{color:var(--amber)}
+  .axiscol .colsub{font-size:12.5px; color:var(--muted); margin-bottom:8px}
+  .axisbtns{display:flex; gap:8px; flex-wrap:wrap}
+  .axb{font-size:13.5px; padding:6px 12px; border-radius:8px; border:1px solid #cbd2dd; background:#fff; cursor:pointer; transition:.15s; user-select:none}
+  .axb:hover{transform:translateY(-1px); box-shadow:0 2px 6px rgba(20,30,60,.12)}
+  .axiscol.logic .axb.on{background:var(--blue); color:#fff; border-color:var(--blue)}
+  .axiscol.phys .axb.on{background:var(--amber); color:#fff; border-color:var(--amber)}
+  .perp{align-self:center; font-size:26px; font-weight:800; color:#aab; padding:0 2px}
+  .diagwrap{display:flex; gap:16px; flex-wrap:wrap; margin-top:14px}
+  .diagbox{flex:1 1 260px; border:1px dashed #cbd2dd; border-radius:10px; padding:12px; background:#fbfcfe; min-height:120px}
+  .diagbox .dtag{font-size:12.5px; font-weight:700; color:var(--muted); margin-bottom:8px}
+  .diagbox.logic .dtag{color:var(--blue)}
+  .diagbox.phys .dtag{color:var(--amber)}
+  /* 逻辑示意:字节格 / 记录块 */
+  .bytestrip{display:flex; flex-wrap:wrap; gap:0}
+  .bcell{width:22px; height:22px; border:1px solid var(--l-appb); background:#dbeafe; font-size:10px; display:flex; align-items:center; justify-content:center; color:#33507a}
+  .recstack{display:flex; flex-direction:column; gap:6px}
+  .recblk{border:1px solid var(--l-appb); background:#dbeafe; border-radius:5px; padding:4px 8px; font-size:12px; color:#33507a}
+  .recblk b{color:var(--blue)}
+  /* 物理示意:磁盘块 */
+  .disk{display:flex; flex-wrap:wrap; gap:6px; align-items:flex-start; position:relative}
+  .blk{width:34px; height:34px; border:1px solid #cbb27a; background:#fff; border-radius:5px; font-size:11px; display:flex; align-items:center; justify-content:center; color:#8a6d3b; position:relative}
+  .blk.used{background:#fde9c8; border-color:var(--l-osb); font-weight:700}
+  .blk.idx{background:#e9d5ff; border-color:#c4a5ec; color:#6b46c1; font-weight:700}
+  .blk.arrow::after{content:"→"; position:absolute; right:-9px; top:8px; color:var(--amber); font-weight:800}
+  .physnote{font-size:12px; color:#8a6d3b; margin-top:8px}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 4px}
+  details{margin-top:8px}
+  summary{cursor:pointer; color:var(--blue); font-weight:600}
+  @media print{ body{background:#fff} .btn{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 39 课 · Ch7 文件管理 · 零基础可视化 · Ch6 地基</p>
+  <h1>文件的逻辑结构 vs 物理结构</h1>
+  <p class="sub">用户视角 ⊥ 磁盘视角:两条互相独立的轴。先动手把它们随便组合一遍,再上术语。配合 <a href="./0013-exam-cheatsheet-map.html">速查地图</a> 使用。</p>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> <b>逻辑结构</b>是“你(用户)怎么看这个文件”——它是<b>一串字节的流式文件</b>,还是<b>一条条记录的记录式文件</b>;<b>物理结构</b>是“OS 怎么把它摆到磁盘上”——<b>连续、链接,还是索引</b>。这是<b>两条互相独立的轴</b>:一个流式文件既可以连续存、也可以索引存。<b>别把它俩混成一件事。</b>
+</div>
+
+<!-- ===================== 1. 直觉图 ===================== -->
+<h2>🖼 1. 直觉图:「逻辑 ⊥ 物理」双轴选择器</h2>
+<p class="hint">👇 左边选<b>逻辑结构</b>(用户怎么看),右边选<b>物理结构</b>(OS 怎么摆到磁盘)。两栏<b>互不影响</b>,随便组合都成立(2×3 = 6 种)。每改一次,下面的结论和示意图都会跟着变。</p>
+<div class="panel">
+
+<div class="axisgrid">
+  <div class="axiscol logic">
+    <div class="coltag">📖 逻辑结构(用户怎么看)</div>
+    <div class="colsub">你把文件当成什么来读写</div>
+    <div class="axisbtns" id="logicBtns">
+      <div class="axb on" data-logic="stream">🌊 流式文件</div>
+      <div class="axb" data-logic="record">🗂️ 记录式文件</div>
+    </div>
+  </div>
+
+  <div class="perp">⊥</div>
+
+  <div class="axiscol phys">
+    <div class="coltag">💽 物理结构(OS 怎么摆到磁盘)</div>
+    <div class="colsub">OS 把它的数据块放在盘的哪里</div>
+    <div class="axisbtns" id="physBtns">
+      <div class="axb on" data-phys="contig">📦 连续</div>
+      <div class="axb" data-phys="link">🔗 链接</div>
+      <div class="axb" data-phys="index">📇 索引</div>
+    </div>
+  </div>
+</div>
+
+<div class="diagwrap">
+  <div class="diagbox logic">
+    <div class="dtag" id="logicDtag">📖 用户看到的样子</div>
+    <div id="logicDiag"></div>
+  </div>
+  <div class="diagbox phys">
+    <div class="dtag" id="physDtag">💽 磁盘上的摆法</div>
+    <div class="disk" id="physDiag"></div>
+    <div class="physnote" id="physNote"></div>
+  </div>
+</div>
+
+<div class="readout" id="axisReadout"></div>
+</div>
+
+<div class="key">
+<b>亲手验证到的事:</b> 无论左边选哪个,右边三种都能选;无论右边选哪个,左边两种都能选——<b>6 种组合全部合法</b>。这正说明:<b>“怎么读”(逻辑)和“怎么摆”(物理)是两条正交的轴,互不决定。</b>
+</div>
+
+<!-- ===================== 2. 具体例子 ===================== -->
+<h2>🧸 2. 具体例子:一本书(ELI5)</h2>
+<div class="eli5">
+<b>🧸 5 岁也懂的比喻:一本书。</b><br>
+<b>逻辑结构 = 你怎么读它:</b> 是“从头到尾一句接一句的<b>散文</b>”(🌊 流式,像小说),还是“一条条<b>词条</b>、每条各自独立”(🗂️ 记录式,像<b>字典</b>)?这是<b>你阅读的方式</b>。<br>
+<b>物理结构 = 这本书的纸页怎么装订在书架上:</b> 是“一整本连着放”(📦 连续)?是“每页夹一张纸条写着下一页在哪”(🔗 链接)?还是“前面有一张目录页写着每章在第几个抽屉”(📇 索引)?这是<b>书被摆放的方式</b>。<br>
+<b>关键:</b> 同一本散文,可以整本连放,也可以拆页用目录索引——<b>“怎么读”和“怎么摆”是两回事</b>,谁都不决定谁。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2>⚖️ 3. 对照表(照教材口径)</h2>
+
+<h3>对照一:逻辑结构的两大类</h3>
+<table>
+<tr><th>类别</th><th>是什么</th><th>特点 / 访问方式</th></tr>
+<tr>
+  <td><b>无结构 · 流式文件</b></td>
+  <td>一串<b>无结构的字符流</b>,<b>不划分记录</b>,整个文件就是一长条字节序列。</td>
+  <td>简单、灵活;按<b>字节 / 偏移量</b>访问。UNIX / Linux / Windows 的<b>普通文件大多是流式</b>。</td>
+</tr>
+<tr>
+  <td><b>有结构 · 记录式文件</b></td>
+  <td>由若干<b>记录</b>组成,每条记录是一组<b>数据项</b>的集合。</td>
+  <td>分两种:<br>• <b>定长记录</b>:每条一样长 → 可<b>随机访问</b>,直接算出第 i 条的位置;缺点是短记录会<b>浪费空间</b>。<br>• <b>变长记录</b>:每条长度不一 → <b>省空间</b>;但只能<b>顺序查找</b>,随机访问难。</td>
+</tr>
+</table>
+
+<h3>对照二:物理结构的三种(总览对照)</h3>
+<table>
+<tr><th>方式</th><th>怎么摆</th><th>优点</th><th>缺点</th></tr>
+<tr>
+  <td><b>📦 连续分配</b></td>
+  <td>占一组<b>连续的块</b>;目录只记<b>起始块号 + 长度</b>。</td>
+  <td><b>顺序和随机访问都快</b>(算一下就知道第 i 块在哪)。</td>
+  <td><b>外部碎片</b>;文件<b>动态增长困难</b>(旁边没空位就得整体搬家)。</td>
+</tr>
+<tr>
+  <td><b>🔗 链接分配</b></td>
+  <td>用<b>指针</b>把<b>离散的块</b>串成一条链。<br>隐式链接:指针藏在<b>块内</b>;显式链接:把指针集中到 <b>FAT 表</b>。</td>
+  <td><b>无外部碎片</b>;<b>易于动态增长</b>(找个空块挂上去就行)。</td>
+  <td><b>随机访问差</b>(要顺着链一个个走)。</td>
+</tr>
+<tr>
+  <td><b>📇 索引分配</b></td>
+  <td>每个文件配一个<b>索引块</b>,里面存下它<b>所有数据块的地址</b>。</td>
+  <td><b>随机访问快</b>(查索引表直接定位);<b>无外部碎片</b>。</td>
+  <td><b>小文件</b>索引块利用率低(为一两块也得配一整块索引);<b>大文件</b>要用多级 / 混合索引。</td>
+</tr>
+</table>
+
+<div class="key" style="font-size:13.5px">
+<b>范围说明:</b> 物理结构里“<b>混合索引最大文件大小</b>”的详细计算不在本课,本课只做总览对照。要算的去看 → <a href="./0022-index-allocation-visual.html">第 22 课(索引分配)</a>,以及第 9 课 / 第 23 课。
+</div>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2>📖 4. 是什么:精确定义(对齐教材)</h2>
+
+<div class="key">
+<b>文件定义:</b> 文件是具有<b>文件名</b>的<b>一组相关信息的集合</b>,存放在<b>外存</b>上,是<b>操作系统存储信息的基本单位</b>。
+</div>
+
+<p><b>文件属性(填空可能考):</b></p>
+<table>
+<tr><th>属性</th><th>含义</th></tr>
+<tr><td>文件名</td><td>用户按名存取用的标识。</td></tr>
+<tr><td>类型</td><td>普通文件 / 目录 / 设备文件等。</td></tr>
+<tr><td>大小</td><td>当前长度(字节数或块数)。</td></tr>
+<tr><td>物理位置</td><td>文件在外存上的存放地址。</td></tr>
+<tr><td>时间</td><td>创建 / 修改 / 访问时间。</td></tr>
+<tr><td>保护权限</td><td>谁可读 / 写 / 执行。</td></tr>
+<tr><td>其他标志位</td><td>只读、隐藏、系统等。</td></tr>
+</table>
+
+<p><b>文件系统的功能(简答):</b></p>
+<table>
+<tr><th>功能</th><th>做什么</th></tr>
+<tr><td>文件存储空间管理</td><td>管理外存空闲区,给文件分配 / 回收物理块。</td></tr>
+<tr><td>目录管理</td><td>实现<b>按名存取</b>(靠名字找到文件)。</td></tr>
+<tr><td>文件读写管理</td><td>完成对文件内容的读写操作。</td></tr>
+<tr><td>文件共享与保护</td><td>让多用户能共享,同时防止越权访问。</td></tr>
+<tr><td>操作接口</td><td>提供 <code>open / read / write / close</code> 等给用户 / 程序用。</td></tr>
+<tr><td>可靠性与安全性</td><td>防丢失、防破坏。</td></tr>
+</table>
+
+<p><b>两种结构的精确定义:</b></p>
+<table>
+<tr><th></th><th>逻辑结构</th><th>物理结构</th></tr>
+<tr><td>从谁的观点看</td><td>从<b>用户观点</b>出发看到的文件组织形式。</td><td>文件在<b>外存上的存储组织形式</b>。</td></tr>
+<tr><td>和什么有关</td><td>与存储介质的<b>物理特性无关</b>。</td><td>与存储介质特性、<b>外存分配方式</b>相关。</td></tr>
+<tr><td>用户能否操作</td><td>用户<b>可直接操作</b>(按自己方便的方式读写)。</td><td>对用户<b>透明</b>(用户感觉不到)。</td></tr>
+</table>
+
+<div class="key" style="font-size:13.5px">
+<b>补一个地基概念:</b> 外存分配的基本单位是<b>物理块</b>(也叫<b>簇</b>),常见大小 <b>512B / 1KB / 4KB</b>。物理结构讨论的“连续 / 链接 / 索引”,摆放的正是这些物理块。
+</div>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2>❓ 5. 为什么:逐层深挖 3 层</h2>
+
+<div class="panel">
+<h3>第 1 层:为什么要把“逻辑结构”和“物理结构”分开?</h3>
+<p>因为用户只想<b>按自己方便的方式读写文件</b>(逻辑视角),他根本<b>不该操心</b>这个文件在磁盘上是连着放还是散着放(物理视角)。OS 把物理细节<b>藏起来</b>,让用户只面对“文件内容”这个逻辑对象——这正是<b>“资源抽象”</b>的又一次体现(和第 14 课把磁盘块抽象成文件是同一件事)。</p>
+
+<h3>第 2 层:这两条轴为什么是<b>独立(正交)</b>的?</h3>
+<p>因为它俩管的是<b>两件不相干的事</b>:逻辑结构决定“<b>用户怎么访问内容</b>”,物理结构决定“<b>OS 怎么在盘上存放</b>”。一个流式文件可以连续存、也可以索引存;<b>改变物理摆法,完全不影响用户按字节读</b>——所以两条轴能<b>自由组合</b>,这就是第 1 节你亲手验证的 6 种组合都成立。</p>
+
+<h3>第 3 层:物理结构的选择在<b>权衡</b>什么?</h3>
+<p>核心权衡是<b>“随机访问速度 vs 碎片 / 动态增长”</b>:<br>
+• <b>连续</b>——访问最快,却有<b>外部碎片</b>、<b>难增长</b>;<br>
+• <b>链接</b>——<b>无碎片、易增长</b>,却<b>随机访问差</b>;<br>
+• <b>索引</b>——兼顾<b>随机访问和增长</b>,却对<b>小文件有额外开销</b>。<br>
+<b>没有万能解</b>,选哪种要看文件实际怎么被使用——这也是为什么三种方式都活着、教材要你全都掌握。</p>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2>✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>“从<b>用户观点</b>出发、和存储介质的物理特性<b>无关</b>”,说的是文件的哪种结构?</p>
+<p>
+A. 物理结构<br>
+B. 目录结构<br>
+C. <b>逻辑结构</b><br>
+D. 索引结构
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 逻辑结构 = 用户视角、与物理特性无关。A(物理结构)恰恰相反,它和存储介质、分配方式相关、对用户透明;B、D 是干扰项——目录结构讲的是文件之间怎么组织,索引结构是物理结构的一种,都不是“用户视角看单个文件”这层意思。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>UNIX / Linux 的<b>普通文件</b>,大多属于哪种逻辑结构?</p>
+<p>
+A. <b>无结构的流式文件</b><br>
+B. 定长记录的记录式文件<br>
+C. 变长记录的记录式文件<br>
+D. 索引式文件
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> UNIX / Linux / Windows 的普通文件大多是<b>无结构的流式文件</b>——一串字节流、不划分记录,按字节 / 偏移访问。B、C 是“有结构的记录式文件”的两个子类,不是普通文件的常态;D 混淆了轴——“索引”是<b>物理结构</b>,不是逻辑结构。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>“<b>无外部碎片、易于动态增长,但随机访问差</b>”,说的是哪种<b>物理结构</b>?</p>
+<p>
+A. 连续分配<br>
+B. 索引分配<br>
+C. 混合索引<br>
+D. <b>链接分配</b>
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 链接分配用指针把离散块串起来,所以<b>无外部碎片、易增长</b>,但要顺着链走,<b>随机访问差</b>。A(连续)正相反:随机访问快却有外部碎片、难增长;B、C(索引 / 混合索引)随机访问是<b>快</b>的,不符合“随机访问差”。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>关于<b>逻辑结构和物理结构的关系</b>,下面哪种说法正确?</p>
+<p>
+A. 逻辑结构决定物理结构,选了流式就必须连续存<br>
+B. <b>两者相互独立,同一逻辑结构可搭配不同物理结构</b><br>
+C. 流式文件必须连续存,记录式文件必须索引存<br>
+D. 物理结构决定逻辑结构,连续存的一定是流式文件
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 逻辑 ⊥ 物理,<b>互不决定</b>——一个流式文件既能连续存也能索引存(第 1 节你已亲手验证 6 种组合全成立)。A、D 都是“一个决定另一个”的经典陷阱,方向相反但都错;C 更是硬把某种逻辑结构绑死到某种物理结构上,同样是把两条独立的轴混成了一件事。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>用一句话分别说清<b>逻辑结构</b>和<b>物理结构</b>各是“谁的视角、看什么”。</li>
+<li>说出<b>逻辑结构的两大类</b>,以及记录式文件里<b>定长 vs 变长</b>在“能否随机访问”上的差别。</li>
+<li>说出<b>物理三种</b>在“<b>随机访问 vs 碎片 / 增长</b>”上各自的取舍,并解释为什么“逻辑结构和物理结构能自由组合”。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能顺口说出来 → 你是真懂了。哪题卡壳,回到对应小节,再回第 1 节把双轴选择器多切几遍。</p>
+</div>
+
+<footer>
+第 39 课 · Ch7 文件管理 · 文件的逻辑结构 vs 物理结构(用户视角 ⊥ 磁盘视角)<br>
+回速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课(速查地图)</a> ·
+物理结构细算 → <a href="./0022-index-allocation-visual.html">第 22 课(索引分配)</a> ·
+按名存取 → <a href="./0019-directory-inode-bitmap.html">第 19 课(目录与 inode)</a>
+</footer>
+
+</div>
+
+<script>
+// ================= 签名交互件:逻辑 ⊥ 物理 双轴选择器 =================
+var logicBtns = Array.prototype.slice.call(document.querySelectorAll('#logicBtns .axb'));
+var physBtns  = Array.prototype.slice.call(document.querySelectorAll('#physBtns .axb'));
+var logicDiag = document.getElementById('logicDiag');
+var logicDtag = document.getElementById('logicDtag');
+var physDiag  = document.getElementById('physDiag');
+var physNote  = document.getElementById('physNote');
+var readout   = document.getElementById('axisReadout');
+
+var state = { logic:'stream', phys:'contig' };
+
+var logicName = { stream:'流式文件', record:'记录式文件' };
+var physName  = { contig:'连续', link:'链接', index:'索引' };
+
+var logicRead = {
+  stream:'把整个文件当成<b>一长串字节</b>来读写(按偏移量随便定位到第几个字节)',
+  record:'把文件当成<b>一条条记录</b>来读写(一次处理一条完整记录)'
+};
+var physRead = {
+  contig:'把它的数据块<b>挨着摆成连续的一段</b>(记起始块+长度)',
+  link:'把它的数据块<b>散着放、用指针串成一条链</b>',
+  index:'把它的数据块<b>散着放,另用一个索引块记下所有块地址</b>'
+};
+
+// ---- 逻辑示意图 ----
+function drawLogic(){
+  if(state.logic === 'stream'){
+    logicDtag.innerHTML = '📖 用户看到:一长条字节流';
+    var s = '<div class="bytestrip">';
+    var labels = ['H','e','l','l','o',' ','W','o','r','l','d','!','\\n','.','.','.'];
+    for(var i=0;i<labels.length;i++){ s += '<div class="bcell">'+labels[i]+'</div>'; }
+    s += '</div><div class="physnote">无分隔、无记录,按<b>字节/偏移</b>访问</div>';
+    logicDiag.innerHTML = s;
+  } else {
+    logicDtag.innerHTML = '📖 用户看到:一条条记录';
+    logicDiag.innerHTML =
+      '<div class="recstack">'+
+      '<div class="recblk">记录 1 · <b>张三</b> 18 男</div>'+
+      '<div class="recblk">记录 2 · <b>李四</b> 20 女</div>'+
+      '<div class="recblk">记录 3 · <b>王五</b> 19 男</div>'+
+      '</div><div class="physnote">每条 = 一组数据项;定长可随机、变长顺序查</div>';
+  }
+}
+
+// ---- 物理示意图 ----
+function drawPhys(){
+  var html='';
+  if(state.phys === 'contig'){
+    physDtag.innerHTML = '💽 磁盘:连续的一段块';
+    // 磁盘 10 格,文件占 3~6
+    for(var i=0;i<10;i++){
+      var used = (i>=3 && i<=6);
+      html += '<div class="blk'+(used?' used':'')+'">'+i+'</div>';
+    }
+    physDiag.innerHTML = html;
+    physNote.innerHTML = '目录记:起始块=3,长度=4 → 挨着放。<b>访问快</b>,但会留外部碎片、难增长。';
+  } else if(state.phys === 'link'){
+    physDtag.innerHTML = '💽 磁盘:离散块用指针串成链';
+    // 文件占 1 -> 4 -> 7 -> 9
+    var chain = {1:'used',4:'used',7:'used',9:'used'};
+    var arrowFrom = {1:true,4:true,7:true};
+    for(var j=0;j<10;j++){
+      var cls='blk';
+      if(chain[j]) cls+=' used';
+      if(arrowFrom[j]) cls+=' arrow';
+      html += '<div class="'+cls+'">'+j+'</div>';
+    }
+    physDiag.innerHTML = html;
+    physNote.innerHTML = '链:块1→块4→块7→块9(指针在块内或 FAT)。<b>无碎片、易增长</b>,但随机访问要顺链走。';
+  } else {
+    physDtag.innerHTML = '💽 磁盘:索引块 + 散落的数据块';
+    // 索引块在 0, 数据块 2,5,8
+    var data = {2:true,5:true,8:true};
+    for(var k=0;k<10;k++){
+      if(k===0){ html += '<div class="blk idx">目录</div>'; continue; }
+      var c='blk'+(data[k]?' used':'');
+      html += '<div class="'+c+'">'+k+'</div>';
+    }
+    physDiag.innerHTML = html;
+    physNote.innerHTML = '紫色<b>索引块</b>记下 [2,5,8] → 查表直达。<b>随机访问快、无碎片</b>,小文件索引块有点浪费。';
+  }
+}
+
+function refresh(){
+  drawLogic();
+  drawPhys();
+  readout.innerHTML =
+    '你选的是【逻辑=<b>'+logicName[state.logic]+'</b>】+【物理=<b>'+physName[state.phys]+'</b>】——'+
+    '用户把它当 <b>'+logicName[state.logic]+'</b> 来读写('+logicRead[state.logic]+');'+
+    'OS 把它当 <b>'+physName[state.phys]+'</b> 摆在磁盘上('+physRead[state.phys]+')。'+
+    '<b>这两件事互不影响。</b>';
+}
+
+logicBtns.forEach(function(b){
+  b.addEventListener('click', function(){
+    logicBtns.forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    state.logic = b.dataset.logic;
+    refresh();
+  });
+});
+physBtns.forEach(function(b){
+  b.addEventListener('click', function(){
+    physBtns.forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    state.phys = b.dataset.phys;
+    refresh();
+  });
+});
+
+// 初始渲染(默认:流式 + 连续)
+refresh();
+</script>
+</body>
+</html>

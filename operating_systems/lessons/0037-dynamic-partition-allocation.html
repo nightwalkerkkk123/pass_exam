@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 37 课 · 连续分配 & 动态分区(FF/NF/BF/WF · 碎片 · 紧凑)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --l-app:#eef4fb; --l-appb:#9cc2e8;
+    --l-os:#fef3e2;  --l-osb:#e8b86a;
+    --l-hw:#e6f4ea;  --l-hwb:#9ad0ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+
+  /* ===== 签名交互件:三层夹心(沿用基座) ===== */
+  .sandwich{max-width:600px; margin:6px auto 0; display:flex; flex-direction:column; gap:0}
+  .layer{border:2px solid #ccc; border-radius:10px; padding:12px 14px 14px; position:relative; transition:.18s; background:#fff}
+  .layer .layertag{position:absolute; top:-11px; left:14px; font-size:12px; font-weight:700; background:#fff; padding:0 6px; color:var(--muted)}
+  .applayer{border-color:var(--l-appb); background:var(--l-app)}
+  .oslayer{border-color:var(--l-osb); background:var(--l-os); cursor:pointer}
+  .hwlayer{border-color:var(--l-hwb); background:var(--l-hw)}
+  .oslayer.hl{box-shadow:0 0 0 4px rgba(232,184,106,.45); transform:scale(1.015)}
+  .apps,.hws{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px}
+  .app,.hw{font-size:13.5px; padding:6px 10px; border-radius:8px; border:1px solid #cbd2dd; background:#fff; cursor:pointer; transition:.15s; user-select:none}
+  .app:hover,.hw:hover{transform:translateY(-1px); box-shadow:0 2px 6px rgba(20,30,60,.12)}
+  .app.hl{background:var(--blue); color:#fff; border-color:var(--blue)}
+  .hw{cursor:default}
+  .hw.hl{background:var(--green); color:#fff; border-color:var(--green); transform:scale(1.06)}
+  .oscore{font-weight:800; font-size:17px; color:var(--amber); text-align:center; margin-top:2px}
+  .ossub{text-align:center; font-size:12.5px; color:#8a6d3b; margin-top:2px}
+  .gap{margin:6px auto; text-align:center; font-size:12.5px; color:#aab; font-weight:600;
+    padding:4px 10px; border-radius:20px; transition:.18s; letter-spacing:.02em}
+  .gap.up.hl{background:#e7f0fb; color:var(--blue)}
+  .gap.down.hl{background:#e6f4ea; color:var(--green)}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 4px}
+  @media print{ body{background:#fff} .btn{display:none} }
+
+  /* ===== 本课签名件:动态分区分配模拟器 ===== */
+  .simbar{display:flex; flex-wrap:wrap; align-items:center; gap:2px; margin-bottom:10px}
+  .simlabel{font-size:13px; color:var(--muted); margin-right:6px; font-weight:700}
+  .rowtitle{font-size:13px; font-weight:700; color:var(--ink); margin:14px 0 4px}
+  .memtotal{font-size:12px; color:var(--muted); font-weight:400}
+  .freeRow{display:flex; flex-wrap:wrap; align-items:flex-end; gap:8px; padding:12px 10px;
+    background:#f4f7fb; border:1px solid var(--line); border-radius:8px; min-height:82px}
+  .fpart{flex:none; border:2px solid #9cc2e8; background:#eef4fb; border-radius:8px;
+    padding:8px 6px; text-align:center; transition:.18s; min-width:52px}
+  .fpart .fsize{font-weight:800; font-size:15px; color:var(--ink)}
+  .fpart .faddr{font-size:11px; color:var(--muted); margin-top:2px}
+  .fpart.sel{border-color:var(--amber)!important; background:#fff7ed!important;
+    box-shadow:0 0 0 4px rgba(183,121,31,.30); transform:translateY(-4px)}
+  .fpart.sel .fsize{color:var(--amber)}
+  .emptyfree{color:var(--muted); font-size:13px; padding:10px}
+  .jobRow{display:flex; flex-wrap:wrap; gap:8px; padding:8px 10px; background:#f4f7fb; border:1px solid var(--line); border-radius:8px}
+  .job{font-size:14px; font-weight:700; padding:6px 12px; border-radius:8px; border:1px solid #cbd2dd; background:#fff; color:var(--ink); transition:.15s}
+  .job.cur{background:var(--blue); color:#fff; border-color:var(--blue); box-shadow:0 2px 6px rgba(43,108,176,.3)}
+  .job.done{background:#e6f4ea; color:#93a598; border-color:#c7e2cf; text-decoration:line-through}
+  .readout.warn{color:var(--red)}
+  .readout.ok{color:var(--green)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 37 课 · Ch4 存储器管理 · 零基础可视化 · 高频补漏</p>
+  <h1>连续分配 &amp; 动态分区:FF / NF / BF / WF</h1>
+  <p class="sub">这一课只回答一件事:内存怎么整块整块地分给作业?先动手点一个模拟器,看四种“挑法”结果不一样,再上术语。配合 <a href="./0013-exam-cheatsheet-map.html">速查地图</a> 使用。</p>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> <b>连续分配</b>就是“给一个程序一整块<b>连着的</b>内存”;<b>动态分区</b>按作业大小<b>现切</b>一块给它,切来切去,分区之间会留下一些“太小、谁也用不上的小空隙”——这就是<b>外部碎片</b>。而 <b>FF / NF / BF / WF</b> 只是“从一堆空闲块里<b>挑哪一块</b>给它”的<b>四种挑法</b>而已。
+</div>
+
+<!-- ===================== 1. 直觉图 ===================== -->
+<h2>🖼 1. 直觉图:签名交互件「动态分区分配模拟器」</h2>
+<p class="hint">👇 先在上排选一种<b>算法</b>,再反复点【<b>分配下一个作业</b>】。看同样的内存、同样的作业队列,四种算法<b>挑中的分区完全不同</b>——尤其对比 FF 和 BF。</p>
+
+<div class="panel">
+  <div class="simbar">
+    <span class="simlabel">挑法:</span>
+    <button class="btn on" id="bFF" data-algo="FF">首次适应 FF</button>
+    <button class="btn"    id="bNF" data-algo="NF">循环首次 NF</button>
+    <button class="btn"    id="bBF" data-algo="BF">最佳适应 BF</button>
+    <button class="btn"    id="bWF" data-algo="WF">最坏适应 WF</button>
+  </div>
+
+  <div class="rowtitle">💾 空闲分区(按<b>地址</b>从左到右排列，宽度 ≈ 容量) <span class="memtotal" id="freeTotal"></span></div>
+  <div class="freeRow" id="freeRow"></div>
+
+  <div class="rowtitle">📋 作业队列(依次请求内存)</div>
+  <div class="jobRow" id="jobRow"></div>
+
+  <div style="margin-top:12px">
+    <button class="btn on" id="allocBtn">▶ 分配下一个作业</button>
+    <button class="btn reset" id="resetBtn">↺ 重置</button>
+  </div>
+
+  <div class="readout" id="simReadout">← 已选【首次适应 FF】。点【分配下一个作业】开始。</div>
+</div>
+
+<div class="key">
+<b>看懂这个模拟器,本节就懂一半了:</b> 每次分配都是“<b>从空闲块里挑一块 → 切一刀 → 剩下的还是空闲块</b>”。挑法不同,剩下的碎片形状就不同;切到最后,可能<b>空闲总量还够、却没有一整块装得下</b>——那就是外部碎片,只能靠“紧凑”来救。
+</div>
+
+<!-- ===================== 2. 具体例子 ===================== -->
+<h2>🧸 2. 具体例子(ELI5):停车场找车位</h2>
+<div class="eli5">
+<b>🧸 5 岁也懂的比喻:</b> 内存像<b>一排大小不一的空车位</b>,作业就是要停进来的车。四种“挑法”就是四种停车习惯:<br>
+• <b>FF 首次适应</b>——<b>从入口开始</b>,遇到第一个塞得下的车位就停进去(不挑,图快)。<br>
+• <b>NF 循环首次</b>——<b>从上次停车的地方接着往后找</b>,找到第一个够大的就停(不总从头挤在入口)。<br>
+• <b>BF 最佳适应</b>——专挑<b>刚好塞得下的最小车位</b>,把大车位省给大车(看着最“省”)。<br>
+• <b>WF 最坏适应</b>——专挑<b>最大的车位</b>停,想让剩下的空间<b>还够再停别的车</b>。
+</div>
+<div class="eli5">
+<b>🧸 那“外部碎片”是什么?</b> 车停久了、进进出出,车位之间会剩下一些<b>“太窄、任何车都停不进去”的缝</b>。把这些缝加起来其实能停好几辆车,可惜它们<b>东一条西一条、连不成一整块</b>——这些没法用的空隙,就叫<b>外部碎片</b>。想用它们,只能把已停的车<b>全部往一头挪、挪拢</b>,腾出一大块——这就是后面要讲的<b>紧凑</b>。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2>⚖️ 3. 对照表(照教材口径)</h2>
+
+<h3>对照一:三种「连续分配」方式</h3>
+<table>
+<tr><th>方式</th><th>怎么分</th><th>碎片情况</th><th>数据结构 / 特点</th></tr>
+<tr>
+  <td><b>单一连续分配</b></td>
+  <td>内存分成<b>系统区 + 用户区</b>,用户区只放<b>一道</b>作业</td>
+  <td>有<b>内部碎片</b></td>
+  <td><b>单道</b>、只用于单用户单任务;利用率极低</td>
+</tr>
+<tr>
+  <td><b>固定分区分配</b></td>
+  <td><b>预先</b>把内存划成<b>若干固定大小</b>的分区,<b>每区装一道</b>作业</td>
+  <td><b>有内部碎片、无外部碎片</b></td>
+  <td>用<b>分区说明表</b>登记每个分区的大小/起址/状态</td>
+</tr>
+<tr>
+  <td><b>动态分区分配</b></td>
+  <td>不预先划,<b>按作业大小现切</b>一块正好够用的</td>
+  <td><b>无内部碎片、有外部碎片</b></td>
+  <td>用<b>空闲分区表 / 空闲分区链</b>管理空闲区;要靠 FF/NF/BF/WF 挑块</td>
+</tr>
+</table>
+<p class="hint">💡 记忆钩子:<b>固定分区</b>=装不满一格 → <b>内</b>碎片;<b>动态分区</b>=格与格之间的缝 → <b>外</b>碎片。这是最爱考的一对辨析。</p>
+
+<h3>对照二:四种「动态分区分配算法」</h3>
+<table>
+<tr><th>算法</th><th>空闲链怎么排</th><th>怎么挑</th><th>优点</th><th>缺点</th></tr>
+<tr>
+  <td><b>FF 首次适应</b></td>
+  <td>按<b>地址递增</b></td>
+  <td>从低地址找<b>第一个</b>够用的</td>
+  <td>简单快;<b>优先用低地址</b>、保留高地址大块</td>
+  <td><b>低地址</b>越切越碎、生小碎片</td>
+</tr>
+<tr>
+  <td><b>NF 循环首次</b></td>
+  <td>按<b>地址递增</b>(成环)</td>
+  <td>从<b>上次结束的位置</b>继续往后找第一个够用的</td>
+  <td>空闲区<b>分布更均匀</b></td>
+  <td>会<b>分割高地址大块</b>、容易缺乏大的连续空闲区</td>
+</tr>
+<tr>
+  <td><b>BF 最佳适应</b></td>
+  <td>按<b>容量递增</b></td>
+  <td>选能装下里<b>最小</b>的那块</td>
+  <td>尽量<b>保留大块</b>给大作业</td>
+  <td>产生<b>大量难用的小碎片</b>;每次几乎要遍历整表</td>
+</tr>
+<tr>
+  <td><b>WF 最坏适应</b></td>
+  <td>按<b>容量递减</b></td>
+  <td>选<b>最大</b>的那块</td>
+  <td>剩下的碎片<b>较大、容易再被利用</b></td>
+  <td><b>很快耗尽大块</b>,大作业进不来</td>
+</tr>
+</table>
+<p class="hint">💡 排序口诀:FF/NF 按<b>地址</b>排,BF 按<b>大小从小到大</b>,WF 按<b>大小从大到小</b>。BF 和 WF 一“小”一“大”正好相反。</p>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2>📖 4. 是什么:精确定义(对齐教材)</h2>
+
+<div class="key">
+<b>内部碎片 vs 外部碎片(必考辨析):</b><br>
+• <b>内部碎片</b> = 分配给作业的<b>分区“内部”</b>没用上的空间(分区比作业大,多出来的塞在里面浪费掉)。<b>固定分区、分页</b>会有。<br>
+• <b>外部碎片</b> = 分区<b>与分区“之间”</b>那些太小、无法被利用的空闲块。<b>动态分区、连续分配</b>会有。
+</div>
+
+<p><b>动态分区的数据结构(怎么记住哪些是空闲的):</b></p>
+<table>
+<tr><th>结构</th><th>说明</th></tr>
+<tr><td><b>空闲分区表</b></td><td>用一张表登记每个空闲分区的<b>起始地址、大小、状态</b>。</td></tr>
+<tr><td><b>空闲分区链</b></td><td>用<b>链表</b>把所有空闲分区串起来,分配 / 回收时增删链上的结点。FF/NF/BF/WF 决定这条链<b>按什么顺序排</b>。</td></tr>
+</table>
+
+<div class="key">
+<b>紧凑(拼接)技术:</b> 当外部碎片攒多了、单块凑不出足够空间时,把内存里<b>所有正在运行的进程都搬动、使它们相邻</b>,从而把分散的多个小空闲分区<b>合并成一个大的连续空闲区</b>。<br>
+• <b>硬件前提</b>:必须有<b>动态重定位</b>支持,也就是<b>重定位寄存器</b>——因为进程被搬走了、物理地址变了,程序里的地址要能<b>跟着自动改</b>,否则一搬就跑飞。<br>
+• <b>代价</b>:移动进程要<b>耗大量 CPU</b>、还要<b>暂停</b>相关进程,很贵。<br>
+• <b>时机</b>:<b>分配失败时</b>做一次,或<b>定期</b>做。
+</div>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2>❓ 5. 为什么:逐层往下挖 3 层</h2>
+
+<div class="panel">
+<h3>第 1 层:为什么会有<b>外部碎片</b>?</h3>
+<p>因为动态分区是<b>反复地分配、回收</b>:每来一个作业就从某块空闲区切一刀,走了又还回来。切来切去,原本大而完整的空闲区被<b>剁得越来越零碎</b>。到后来,<b>空闲总量明明还够</b>(比如上面模拟器里剩了 959K),<b>却拼不出一整块</b> 426K 连续的地方——这些拼不起来的零头,就是外部碎片。</p>
+
+<h3>第 2 层:为什么要搞出<b>四种</b>算法?它们在权衡什么?</h3>
+<p>核心矛盾只有一句话:<b>“是把大块留住,还是把碎块用掉?”</b><br>
+• <b>BF</b> 想把大块留给大作业,于是每次挑最小的够用块——结果切出<b>一堆比谁都小、谁也用不上的碎渣</b>。<br>
+• <b>WF</b> 反过来,每次挑最大的、让剩余仍然可用——但<b>大块很快被用光</b>,后面来的大作业没地方去。<br>
+• <b>FF</b> 简单最快,但总从低地址挤,<b>低地址一带碎片扎堆</b>。<br>
+• <b>NF</b> 让分配点在内存里“转圈”,分布更均匀,但代价是<b>把高地址的大块也切开了</b>。<br>
+所以<b>没有一种绝对最优</b>——每种都在“留大块 / 用碎块 / 查得快 / 分布匀”之间做取舍,选哪种<b>看场景</b>。</p>
+
+<h3>第 3 层:为什么最后要靠<b>紧凑</b>?它贵在哪、凭什么能做?</h3>
+<p>再聪明的挑法也<b>消灭不了</b>外部碎片,只能推迟它。碎片攒够了,唯一的救法就是<b>把进程搬到一起、把空隙挤到一头</b>合并成大块——这就是紧凑。<br>
+<b>再问一句“凭什么能搬?”</b> → 进程一搬,它的<b>物理地址就变了</b>,程序里写死的地址会全部失效。所以必须有<b>动态重定位(重定位寄存器)</b>:CPU 每次访问时用“重定位寄存器里的新基址 + 逻辑地址”临时算出真实物理地址,进程搬到哪、基址改到哪,程序照跑不误。<br>
+<b>再问一句“所以呢?”</b> → 紧凑这么贵(搬进程、停 CPU),让人忍不住想:<b>与其费劲搬,不如干脆别要求“连续”</b>——把作业拆成小块<b>离散</b>地塞进内存,从根上消灭外部碎片。这正是下一步<b>分页 / 分段</b>的动机。</p>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2>✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p><b>最佳适应算法(BF)</b>的空闲分区链是按什么排列的、分配时又选哪一块?</p>
+<p>
+A. 按<b>地址递增</b>排列,选第一个够用的<br>
+B. 按<b>容量递减</b>排列,选最大的一块<br>
+C. 按<b>地址递减</b>排列,选最后一个够用的<br>
+D. 按<b>容量(大小)递增</b>排列,选能满足要求的<b>最小</b>分区
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> BF 的空闲链按<b>容量从小到大</b>排,这样从头找到第一个够用的就自然是“最小的够用块”。<br>
+陷阱:A 说的是 <b>FF</b>(按地址排);B 描述的是 <b>WF</b>(按容量递减、选最大)。<b>BF 是按“大小”排,不是按“地址”排</b>——这一点最容易记反。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p><b>动态分区</b>分配方式产生的,是内部碎片还是外部碎片?</p>
+<p>
+A. <b>内部碎片</b>——分配给作业的分区内部没用上的那块空间<br>
+B. <b>外部碎片</b>——分区与分区之间那些太小、装不下作业的空闲块<br>
+C. 两种都没有,动态分区不产生任何碎片<br>
+D. 只有固定分区才有碎片,动态分区完全没有碎片
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 动态分区按需现切,<b>不会</b>在分区内部留浪费(所以没有内部碎片),但反复切割会在<b>分区之间</b>留下零碎空隙 → <b>外部碎片</b>。<br>
+陷阱:A 正好是<b>内部碎片的定义</b>,专门用来骗把两者记反的人——那是<b>固定分区 / 分页</b>的毛病。C、D 都错:动态分区确实有(外部)碎片。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>“紧凑(拼接)”技术能够顺利进行,依赖的<b>硬件前提</b>是什么?</p>
+<p>
+A. <b>动态重定位</b>(重定位寄存器)<br>
+B. 更大的内存容量<br>
+C. 更快的 CPU 主频<br>
+D. 空闲分区表必须按大小排序
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 紧凑会<b>搬动进程</b>,进程的物理地址随之改变,必须靠<b>动态重定位(重定位寄存器)</b>在运行时用“新基址 + 逻辑地址”重新算出物理地址,程序才能照常跑。<br>
+陷阱:B、C 是硬件性能,和“能不能搬”无关;D 是<b>软件</b>层面的空闲链组织方式,不是紧凑的硬件前提。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>“<b>从上次查找结束的位置</b>继续往下找第一个够用的分区”,说的是哪种算法?</p>
+<p>
+A. 首次适应 FF<br>
+B. 最佳适应 BF<br>
+C. <b>循环首次适应 NF</b><br>
+D. 最坏适应 WF
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> NF(Next Fit)= 循环首次适应,每次<b>接着上次的位置</b>往后找(到头就绕回开头),好处是分布更均匀。<br>
+陷阱:A(FF)是<b>每次都从头(低地址)</b>开始找,这正是 NF 想避免的“低地址扎堆”;B/D 是按容量挑,不是“接着上次位置找”。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>不看屏幕,用<b>一句话各说清</b> FF / NF / BF / WF <b>各自怎么挑块</b>,以及 BF、WF 的空闲链<b>分别按什么排序</b>。</li>
+<li>说清<b>内部碎片</b>和<b>外部碎片</b>的区别,并各举一个会产生它的分配方式(内部→固定分区;外部→动态分区)。</li>
+<li>说出<b>紧凑</b>是干嘛的、<b>为什么非要动态重定位不可</b>,以及它为什么会引出“干脆用<b>离散分配(分页)</b>”的想法。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能顺口说出来 → 你是真懂了。哪题卡壳,回到对应小节,再去上面的模拟器点几下 FF 和 BF 对比着看。</p>
+</div>
+
+<footer>
+第 37 课 · Ch4 存储器管理 · 连续分配 &amp; 动态分区 · FF / NF / BF / WF · 碎片 · 紧凑<br>
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课(速查地图)</a> ·
+上游基础 → <a href="./0038-program-loading-relocation.html">第 38 课(装入·链接·重定位)</a> ·
+下一步 → <a href="./0005-paging-fundamentals.html">第 5 课(分页:离散分配)</a>
+</footer>
+
+</div>
+
+<script>
+// ================= 签名交互件:动态分区分配模拟器 =================
+// 初始空闲分区(按地址排列)：100K / 500K / 200K / 300K / 600K
+var INIT = [
+  {addr:0,    size:100},
+  {addr:100,  size:500},
+  {addr:600,  size:200},
+  {addr:800,  size:300},
+  {addr:1100, size:600}
+];
+var JOBS_INIT = [212, 417, 112, 426];
+var MEM_TOTAL = 1700; // 起址 0 ~ 1700K
+
+var algo = 'FF';
+var free = [];        // 当前空闲分区 {id, addr, size}
+var jobs = [];        // 作业队列
+var jobIndex = 0;     // 下一个待分配作业下标
+var nfPointer = 0;    // NF 的“上次结束位置”(地址)
+var selId = null;     // 本次被选中的分区 id(用于高亮)
+var uid = 0;
+
+var algoName = {FF:'首次适应 FF', NF:'循环首次适应 NF', BF:'最佳适应 BF', WF:'最坏适应 WF'};
+var algoRule = {
+  FF:'从低地址开始，找第一个够用的空闲分区',
+  NF:'从上次分配结束的位置往后找第一个够用的',
+  BF:'在所有够用的分区里挑“最小”的那块',
+  WF:'挑“最大”的那一块'
+};
+
+var elFreeRow  = document.getElementById('freeRow');
+var elJobRow   = document.getElementById('jobRow');
+var elReadout  = document.getElementById('simReadout');
+var elFreeTot  = document.getElementById('freeTotal');
+var algoBtns   = Array.prototype.slice.call(document.querySelectorAll('.simbar .btn'));
+
+// 五套配色，按地址顺序循环使用
+var PAL = [
+  ['#eef4fb','#9cc2e8'], // 蓝
+  ['#fef3e2','#e8b86a'], // 琥珀
+  ['#e6f4ea','#9ad0ad'], // 绿
+  ['#f3edfb','#c3a6e8'], // 紫
+  ['#fdeef0','#e89aa4']  // 红
+];
+
+function byAddr(a,b){ return a.addr - b.addr; }
+
+function reset(){
+  free = INIT.map(function(b){ return {id:++uid, addr:b.addr, size:b.size}; });
+  jobs = JOBS_INIT.slice();
+  jobIndex = 0;
+  nfPointer = 0;
+  selId = null;
+  render();
+  elReadout.className = 'readout';
+  elReadout.innerHTML = '← 已选【'+algoName[algo]+'】。点【分配下一个作业】开始。';
+}
+
+function totalFree(){
+  var t = 0;
+  for(var i=0;i<free.length;i++) t += free[i].size;
+  return t;
+}
+
+// —— 四种挑法：返回被选中的空闲块对象(引用)，挑不到返回 null ——
+function pick(job){
+  var s = free.slice().sort(byAddr), i;
+  if(algo === 'FF'){
+    for(i=0;i<s.length;i++) if(s[i].size >= job) return s[i];
+    return null;
+  }
+  if(algo === 'NF'){
+    for(i=0;i<s.length;i++) if(s[i].addr >= nfPointer && s[i].size >= job) return s[i];
+    // 找不到就绕回开头(环形)
+    for(i=0;i<s.length;i++) if(s[i].addr <  nfPointer && s[i].size >= job) return s[i];
+    return null;
+  }
+  if(algo === 'BF'){ // 容量最小的够用块(同容量取低地址)
+    var best = null;
+    for(i=0;i<s.length;i++){
+      if(s[i].size >= job){ if(best === null || s[i].size < best.size) best = s[i]; }
+    }
+    return best;
+  }
+  if(algo === 'WF'){ // 容量最大的块(同容量取低地址)
+    var big = null;
+    for(i=0;i<s.length;i++){
+      if(s[i].size >= job){ if(big === null || s[i].size > big.size) big = s[i]; }
+    }
+    return big;
+  }
+  return null;
+}
+
+function allocNext(){
+  if(jobIndex >= jobs.length){
+    elReadout.className = 'readout ok';
+    elReadout.innerHTML = '🎉 全部作业已分配完毕！可点【重置】或换一种算法重走一遍。';
+    return;
+  }
+  var job = jobs[jobIndex];
+  var blk = pick(job);
+
+  if(blk === null){
+    var tot = totalFree();
+    selId = null;
+    render();
+    elReadout.className = 'readout warn';
+    if(tot >= job){
+      elReadout.innerHTML =
+        '⚠️ 作业 <b>'+job+'K</b> → 【'+algoName[algo]+'】找不到能装下它的<b>单个</b>分区。'+
+        '但此刻空闲总量还有 <b>'+tot+'K</b>(≥ '+job+'K)——这就是<b>外部碎片</b>:总量够、却没有一整块连续的空间。'+
+        '<br>👉 此时需要做<b>紧凑</b>:把进程搬到一起，把零碎空闲区合并成一大块。';
+    }else{
+      elReadout.innerHTML = '⚠️ 空闲内存总量只剩 <b>'+tot+'K</b>，已不足以容纳作业 <b>'+job+'K</b>。';
+    }
+    return;
+  }
+
+  // 记录用于说明的信息(切割前)
+  var sorted = free.slice().sort(byAddr);
+  var pos = sorted.indexOf(blk) + 1;   // 地址序第几块
+  var before = blk.size;
+  var startAddr = blk.addr;
+
+  selId = blk.id;
+
+  // 切一刀：作业占前半(低地址)，余下变成更小的空闲块
+  var remain = before - job;
+  if(remain === 0){
+    // 正好用完 → 该分区消失
+    free = free.filter(function(b){ return b.id !== blk.id; });
+    selId = null; // 已消失，无处高亮
+  }else{
+    blk.addr = startAddr + job; // 余块移到作业之后
+    blk.size = remain;
+  }
+  if(algo === 'NF') nfPointer = startAddr + job; // NF：记住这次结束的位置
+
+  jobIndex++;
+  render();
+
+  elReadout.className = 'readout ok';
+  var tail = (remain === 0)
+    ? '正好用完 → 该分区消失。'
+    : '分配后该分区剩 <b>'+remain+'K</b> 空闲(起址移到 '+(startAddr+job)+'K)。';
+  elReadout.innerHTML =
+    '作业 <b>'+job+'K</b> →【'+algoName[algo]+'】'+algoRule[algo]+
+    ' → 选中<b>第 '+pos+' 块（'+before+'K，起址 '+startAddr+'K）</b> → '+tail;
+}
+
+function render(){
+  // —— 空闲分区 ——
+  elFreeRow.innerHTML = '';
+  var s = free.slice().sort(byAddr);
+  if(s.length === 0){
+    var em = document.createElement('div');
+    em.className = 'emptyfree';
+    em.textContent = '（没有空闲分区了）';
+    elFreeRow.appendChild(em);
+  }else{
+    for(var i=0;i<s.length;i++){
+      var b = s[i];
+      var d = document.createElement('div');
+      d.className = 'fpart' + (b.id === selId ? ' sel' : '');
+      d.style.width = Math.round(46 + b.size * 0.11) + 'px';
+      if(b.id !== selId){ // 选中块交给 .sel 配色，其余按调色板
+        var c = PAL[i % PAL.length];
+        d.style.background = c[0];
+        d.style.borderColor = c[1];
+      }
+      d.innerHTML = '<div class="fsize">'+b.size+'K</div><div class="faddr">起址 '+b.addr+'K</div>';
+      elFreeRow.appendChild(d);
+    }
+  }
+  elFreeTot.textContent = '｜空闲总量 ' + totalFree() + 'K（总内存 ' + MEM_TOTAL + 'K）';
+
+  // —— 作业队列 ——
+  elJobRow.innerHTML = '';
+  for(var j=0;j<jobs.length;j++){
+    var jd = document.createElement('div');
+    var cls = 'job';
+    if(j < jobIndex) cls += ' done';
+    else if(j === jobIndex) cls += ' cur';
+    jd.className = cls;
+    jd.textContent = jobs[j] + 'K';
+    elJobRow.appendChild(jd);
+  }
+}
+
+// —— 事件绑定 ——
+algoBtns.forEach(function(btn){
+  btn.addEventListener('click', function(){
+    algo = btn.dataset.algo;
+    algoBtns.forEach(function(x){ x.classList.remove('on'); });
+    btn.classList.add('on');
+    reset(); // 换算法即重置，按新算法重走
+  });
+});
+document.getElementById('allocBtn').addEventListener('click', allocNext);
+document.getElementById('resetBtn').addEventListener('click', reset);
+
+reset();
+</script>
+</body>
+</html>
