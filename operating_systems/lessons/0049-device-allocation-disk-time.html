@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 49 课 · Ch5 设备管理 · 设备分配 + 设备独立性 + 磁盘访问时间 ⚡计算大题</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .tmpl ol{margin:6px 0 0; padding-left:20px} .tmpl li{margin:3px 0}
+
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  .readout .step{display:block; margin:3px 0}
+  .readout .okc{color:var(--green)} .readout .badc{color:var(--red)}
+  .readout code{background:#e7f0fb}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 120px; min-width:110px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  /* 交互件专用 */
+  .calc{display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; margin:6px 0 4px}
+  .calc label{display:block; font-size:13px; color:var(--muted); margin-bottom:2px}
+  .calc input{width:100%; font:inherit; font-size:15px; padding:6px 8px; border:1px solid var(--line); border-radius:6px}
+  .calc input:focus{outline:none; border-color:var(--blue2)}
+  .split{display:flex; flex-wrap:wrap; gap:16px}
+  .split > .col{flex:1 1 300px; min-width:280px}
+  .lut td.hot{background:#fff7ed; font-weight:700; color:var(--amber)}
+  .lut td.okc{color:var(--green); font-weight:600}
+  .barrow{display:flex; gap:2px; height:20px; margin:8px 0 2px; border-radius:4px; overflow:hidden; border:1px solid var(--line)}
+  .barrow span{display:flex; align-items:center; justify-content:center; color:#fff; font-size:11px; white-space:nowrap; overflow:hidden}
+  .seg-ts{background:#c53030} .seg-tr{background:#3182ce} .seg-tt{background:#2f855a}
+  .legend{font-size:12px; color:var(--muted); margin:2px 0 0}
+  .legend i{display:inline-block; width:10px; height:10px; border-radius:2px; margin:0 4px 0 10px; vertical-align:baseline}
+
+  @media print{ body{background:#fff} .btn,.nav,.calc input{display:none} .panel{box-shadow:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 49 课 · Ch5 设备管理 · ⚡计算大题 + 概念辨析</p>
+  <h1>设备怎么分出去、用户怎么"不认物理设备"、磁盘一次访问要多久</h1>
+  <p class="sub">这一课只回答一件事：<b>系统靠哪几张表把设备分给进程（DCT/COCT/CHCT/SDT）、为什么用户只写"逻辑设备名"（设备独立性 + LUT）、以及磁盘访问时间 T<sub>a</sub> = T<sub>s</sub> + T<sub>r</sub> + T<sub>t</sub> 怎么一步步算</b>。计算部分是必考大题。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·计算器+LUT</a>
+    <a href="#s2">2·ELI5类比</a>
+    <a href="#s3">3·对照表</a>
+    <a href="#s4">4·是什么</a>
+    <a href="#s5">5·为什么</a>
+    <a href="#s6">6·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话先记住：</b> 平均旋转延迟 = <b>转一圈时间的一半</b>；磁盘访问时间 = 寻道 T<sub>s</sub> + 旋转延迟 T<sub>r</sub> + 传输 T<sub>t</sub>，<b>三段一段都不能漏</b>；设备独立性 = 用户只写"逻辑设备名"，靠 <b>LUT</b> 这层间接映射到真正的物理设备。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线：设备管理这几件事怎么串起来</h2>
+<p class="hint">别把下面这些当成孤立知识点——它们回答的是同一件事：进程要用设备，OS 怎么把设备安全、灵活、高效地交出去，以及交出去后一次磁盘 I/O 到底花多少时间。</p>
+<div class="flow">
+  <div class="fnode"><b>① 进程要 I/O</b>进程发请求，但它不该直接碰硬件</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>② 设备分配</b>OS 查 SDT→DCT→COCT→CHCT 四张表，依次分设备、控制器、通道</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>③ 别写死物理设备</b>进程若认准某台设备，坏一台就跑不了</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>④ 设备独立性</b>用逻辑设备名 + LUT 映射，灵活 + 容错（I/O 重定向）</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>⑤ 磁盘要多久</b>分到磁盘后，一次访问 = T<sub>s</sub>+T<sub>r</sub>+T<sub>t</sub></div>
+</div>
+<p class="hint">下一课 <a href="./0007-disk-scheduling.html">第 7 课·磁盘调度</a> 解决的是"多个请求排队时先服务谁"——那是在本课 T<sub>s</sub> 上做优化。</p>
+
+<!-- ===================== 1. 签名交互件 ===================== -->
+<h2 id="s1">🖼 1. 先看画面：磁盘访问时间计算器 + LUT 映射表</h2>
+<div class="eli5">
+<b>🧸 一句话：</b> 磁盘一次读数据像"从旋转的唱片上取一段音轨"——先把唱针挪到对的圈（寻道），再等这段音轨转到唱针底下（旋转延迟），最后趁它经过时读走（传输）。三步加起来才是总时间。
+</div>
+
+<div class="panel">
+  <div class="hint">👇 改任意输入框，下方立刻按公式分步算出 T<sub>r</sub>、T<sub>t</sub>、总时间 T<sub>a</sub>，并画出三段占比条。</div>
+  <div class="calc">
+    <div>
+      <label for="ts">寻道时间 T<sub>s</sub>（ms）</label>
+      <input id="ts" type="number" value="8" min="0" step="0.1">
+    </div>
+    <div>
+      <label for="rpm">转速（r/min，转/分）</label>
+      <input id="rpm" type="number" value="6000" min="1" step="1">
+    </div>
+    <div>
+      <label for="ntrack">每道字节数 N（字节/道）</label>
+      <input id="ntrack" type="number" value="10000" min="1" step="1">
+    </div>
+    <div>
+      <label for="bread">要读字节数 b（字节）</label>
+      <input id="bread" type="number" value="5000" min="0" step="1">
+    </div>
+  </div>
+  <div class="barrow" id="bar" aria-hidden="true"></div>
+  <div class="legend"><i class="seg-ts"></i>T<sub>s</sub> 寻道<i class="seg-tr"></i>T<sub>r</sub> 旋转延迟<i class="seg-tt"></i>T<sub>t</sub> 传输</div>
+  <div class="readout" id="calcOut">← 改上面数字看逐步公式。</div>
+  <button class="btn reset" id="resetBtn" type="button">恢复默认例题</button>
+</div>
+
+<p class="hint">旁边这张 <b>LUT 逻辑设备表</b>演示"设备独立性"：进程始终只写逻辑名 <code>/dev/lp</code>，从不改一行代码；OS 却能在物理设备坏掉时，偷偷把它映射到另一台。</p>
+<div class="panel">
+  <div class="hint">👇 点按钮模拟"打印机1 突然故障"，看 OS 如何把逻辑名重定向到打印机2——这就是 I/O 重定向 + 容错。</div>
+  <table class="lut">
+    <tr><th>逻辑设备名（用户写的）</th><th>物理设备名（真硬件）</th><th>驱动程序入口</th></tr>
+    <tr><td><code>/dev/lp</code></td><td id="lpPhys">打印机 1</td><td id="lpDrv">drv_lp1</td></tr>
+    <tr><td><code>/dev/disk</code></td><td>磁盘 0</td><td>drv_disk0</td></tr>
+    <tr><td><code>/dev/tty</code></td><td>终端 3</td><td>drv_tty3</td></tr>
+  </table>
+  <button class="btn on" id="failBtn" type="button">打印机1 故障 → I/O 重定向 ▶</button>
+  <div class="readout" id="lutOut">← 进程代码写的永远是 <code>/dev/lp</code>，物理映射由 OS 说了算。</div>
+</div>
+
+<div class="key">
+<b>要点：</b> 转速给的是 r/min，先 <b>÷60 换成 r/s</b> 再套公式；平均 T<sub>r</sub> = 半圈时间 = 1/(2r)；传输速率 = r×N（一圈的字节数×每秒圈数），故 T<sub>t</sub> = b/(r×N)。设备独立性的全部魔法，就在 LUT 这一层"逻辑名→物理名"的间接映射里。<span style="font-size:12.5px;color:var(--muted)">（据 textbook/算法速查表.md、textbook/ch08_磁盘存储器管理.md、5_设备管理/ppt文本.md）</span>
+</div>
+
+<!-- ===================== 2. ELI5 ===================== -->
+<h2 id="s2">🧸 2. 讲人话：地址簿 与 取书三步</h2>
+<div class="eli5">
+<b>🧸 设备独立性像"通讯录昵称"：</b> 你手机里存的是"妈妈"，不是一串会变的电话号码。妈妈换号了，你只改通讯录里"妈妈"对应的号码，<b>所有拨号动作一个字都不用改</b>。这里"妈妈"= 逻辑设备名，真号码 = 物理设备名，通讯录 = LUT。
+</div>
+<div class="warnbox">
+<b>⚠️ 反例（没有它会怎样）：</b> 假如程序里写死"往 3 号打印机打印"。今天 3 号打印机卡纸报废，整段程序就<b>直接崩</b>——你得回去改代码、重新编译、重新部署。有了逻辑设备名 + LUT，运维只需把 <code>/dev/lp</code> 的映射从打印机3 改到打印机5，程序毫不知情照常跑。这就是"设备分配的灵活性"和"I/O 重定向"两大好处。<span style="font-size:12.5px">（据 5_设备管理/ppt文本.md：设备独立性两大好处）</span>
+</div>
+<div class="eli5">
+<b>🧸 磁盘访问像"图书馆取书三步"：</b> ①走到对的书架排（<b>寻道 T<sub>s</sub></b>，最慢、占大头）；②站定后等旋转书架把你要的那格转到面前（<b>旋转延迟 T<sub>r</sub></b>，平均等半圈）；③伸手把书抽出来（<b>传输 T<sub>t</sub></b>，读多少拿多少）。少算任何一步，答案就错。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2 id="s3">⚖️ 3. 对照表：四张分配表 & 逻辑 vs 物理设备名</h2>
+<div class="eli5"><b>🧸 一句话：</b> 分配一台设备，要一路查四张表，因为设备挂在控制器上、控制器挂在通道上，环环都得空闲才能真正分成功。</div>
+
+<h3>⚖️ 设备分配的四张数据结构（照 PPT 口径）</h3>
+<table>
+<tr><th>表</th><th>全称</th><th>每系统几张</th><th>记什么 / 作用</th></tr>
+<tr><td><b>SDT</b></td><td>系统设备表 System Device Table</td><td><b>全系统仅 1 张</b></td><td>登记<b>所有</b>设备，每个表目指向该设备的 DCT——分配的总入口</td></tr>
+<tr><td><b>DCT</b></td><td>设备控制表 Device Control Table</td><td>每台设备 1 张</td><td>记设备状态（忙/闲）、等待队列，并指向它所连的 COCT</td></tr>
+<tr><td><b>COCT</b></td><td>控制器控制表 COntroller Control Table</td><td>每个控制器 1 张</td><td>记控制器状态，并指向它所连的 CHCT</td></tr>
+<tr><td><b>CHCT</b></td><td>通道控制表 CHannel Control Table</td><td>每个通道 1 张</td><td>记通道状态——三级里最后一道</td></tr>
+</table>
+<div class="tmpl">
+<b>📐 分配流程（据 5_设备管理/ppt文本.md 幻灯片 163–164）：</b>
+<ol>
+<li>据（逻辑名映射出的）物理设备名，从 <b>SDT</b> 找到该设备的 <b>DCT</b> → 查设备忙否</li>
+<li>由 DCT 找到所连的 <b>COCT</b> → 查控制器忙否</li>
+<li>由 COCT 找到所连的 <b>CHCT</b> → 查通道忙否</li>
+<li>三者都空闲，才真正分配"设备 + 控制器 + 通道"；任一忙则挂等待队列</li>
+</ol>
+</div>
+
+<h3>⚖️ 逻辑设备名 vs 物理设备名</h3>
+<table>
+<tr><th>比什么</th><th>逻辑设备名</th><th>物理设备名</th></tr>
+<tr><td>谁在用</td><td>用户 / 应用程序写的（如 <code>/dev/lp</code>）</td><td>OS 内部真正的硬件编号（如 打印机1）</td></tr>
+<tr><td>会不会变</td><td>不变——程序一直用同一个名字</td><td>可能变——设备坏了就换一台</td></tr>
+<tr><td>靠什么连起来</td><td colspan="2" style="text-align:center"><b>LUT 逻辑设备表：逻辑名 → 物理名 → 驱动入口</b></td></tr>
+</table>
+<div class="key"><b>结论：</b> "设备独立性"这个能力 = 用户只认逻辑名 + OS 靠 LUT 做逻辑→物理的间接映射。多一层间接，就换来了灵活性和容错。</div>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2 id="s4">📖 4. 是什么：精确定义（对齐教材口径）</h2>
+
+<div class="key">
+<b>设备独立性（Device Independence）：</b> 应用程序<b>独立于</b>具体使用的物理设备——用户采用<b>逻辑设备名</b>来使用设备，由系统在实际使用时，实现<b>逻辑设备到物理设备的映射</b>。好处两条：① 设备分配时的灵活性；② 易于实现 I/O 重定向。<span style="font-size:12.5px;color:var(--muted)">（据 5_设备管理/ppt文本.md 幻灯片 153–155）</span>
+</div>
+
+<div class="key">
+<b>磁盘访问时间三段（据 textbook/算法速查表.md、ch08）：</b><br>
+① <b>寻道时间 T<sub>s</sub></b>：磁头从当前磁道移到目标磁道的时间 = 启动磁臂 s + 移动 n 个磁道 = s + m·n（占总时间 70% 以上）。<br>
+② <b>旋转延迟 T<sub>r</sub></b>：目标扇区转到磁头下的时间，<b>平均 = 磁盘转半圈</b> = 1/(2r)，其中 r 是<b>转/秒</b>（r/min ÷ 60）。<br>
+③ <b>传输时间 T<sub>t</sub></b>：把数据读/写完的时间 = 数据量 / 传输速率 = b/(r·N)，其中 N 是每道字节数、b 是要读字节数（因为传输速率 = 每秒转 r 圈 × 每圈 N 字节）。<br>
+<b>总时间 T<sub>a</sub> = T<sub>s</sub> + T<sub>r</sub> + T<sub>t</sub></b>。
+</div>
+
+<div class="tmpl">
+<b>📐 磁盘访问时间解题模板（4 步）：</b>
+<ol>
+<li>转速换算：r（转/秒）= 转速(r/min) ÷ 60。</li>
+<li>算 T<sub>r</sub> = 1/(2r)（半圈时间），别用整圈。</li>
+<li>算 T<sub>t</sub> = b/(r·N)，即 要读字节数 ÷（每秒 r 圈 × 每圈 N 字节）。</li>
+<li>相加：T<sub>a</sub> = T<sub>s</sub> + T<sub>r</sub> + T<sub>t</sub>，注意单位统一到 ms。</li>
+</ol>
+</div>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2 id="s5">❓ 5. 为什么：层层追问动机与边界</h2>
+<div class="panel">
+<p><b>第 1 层 · 为什么要设备独立性？</b><br>
+因为物理设备会变、会坏、会被别的进程占。如果程序把物理设备名写死，任何一次硬件变动都逼着改代码。加一层逻辑名，就把"程序"和"硬件"解耦——这正是 OS "无关性"设计目标（用户程序独立于具体设备）的落地。<span class="hint">（5_设备管理/ppt文本.md：设备管理目标"无关性"）</span></p>
+
+<p><b>第 2 层 · 为什么分配要查 SDT→DCT→COCT→CHCT 四张表，而不是一张？</b><br>
+因为一次真正的数据通路是"设备—控制器—通道"三级串联，缺一级都传不了数据。四张表把三级资源各自的忙闲、队列、连接关系拆开记录，分配时逐级检查、逐级预留，才能保证整条通路都空闲。任一级忙 → 进程挂到对应等待队列。</p>
+
+<p><b>第 3 层（边界）· 为什么旋转延迟取"半圈"而不是整圈或随机？</b><br>
+目标扇区在盘面上的位置是随机的：最好赶上刚到磁头下（约 0），最坏刚好错过要等整整一圈（1/r）。在均匀分布假设下，<b>平均等待 = 半圈 = 1/(2r)</b>。这是"平均"旋转延迟——考题不特别说明就用它。若题目问"最坏情况"才用整圈 1/r。同理传输时间：读满一整道 b=N 时，T<sub>t</sub>=N/(rN)=1/r 恰好等于转一圈，可作自检。</p>
+</div>
+<div class="warnbox">
+<b>⚠️ 三大失分点：</b> ① 忘记 r/min ÷60 换成 r/s；② 旋转延迟用了整圈（应是半圈 1/(2r)）；③ 漏掉 T<sub>t</sub> 或漏掉 T<sub>s</sub>——三段必须全加。
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="s6">✅ 6. 自测：先自己想，再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1 · 平均旋转延迟</h3>
+<p>磁盘的"平均旋转延迟时间"等于：</p>
+<p>
+A. 磁头移动一个磁道的时间<br>
+B. 磁盘转整整一圈的时间<br>
+C. 磁盘转一圈时间的一半<br>
+D. 数据量除以传输速率
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案：C。</b> 目标扇区位置随机，平均要等半圈，T<sub>r</sub>=1/(2r)。
+A 是寻道里"移动一个磁道"的量，属 T<sub>s</sub>；B 是最坏情况（整圈），不是"平均"；D 是传输时间 T<sub>t</sub> 的定义，不是旋转延迟。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2 · 设备独立性靠谁实现</h3>
+<p>操作系统实现"设备独立性"（逻辑设备名 → 物理设备名映射）依靠的数据结构是：</p>
+<p>
+A. SDT 系统设备表<br>
+B. LUT 逻辑设备表<br>
+C. DCT 设备控制表<br>
+D. CHCT 通道控制表
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案：B。</b> LUT（逻辑设备表）逐行记录"逻辑设备名→物理设备名→驱动程序入口"，正是这层间接映射带来设备独立性。
+A 的 SDT 登记全系统所有物理设备、是分配的总入口，不做逻辑名映射；C 的 DCT 记单台设备状态；D 的 CHCT 记通道状态——都不负责逻辑↔物理的翻译。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3 · 磁盘访问时间计算</h3>
+<p>某磁盘转速 6000 r/min，每道 10000 字节，平均寻道时间 8 ms。现要读 5000 字节，则平均访问时间 T<sub>a</sub> 约为：</p>
+<p>
+A. 8 ms<br>
+B. 13 ms<br>
+C. 16 ms<br>
+D. 18 ms
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案：D。</b> r=6000/60=100 转/秒。T<sub>r</sub>=1/(2×100)=0.005 s=5 ms；传输速率=100×10000=10<sup>6</sup> 字节/s，T<sub>t</sub>=5000/10<sup>6</sup>=0.005 s=5 ms；T<sub>a</sub>=8+5+5=<b>18 ms</b>。
+A 只算了寻道、漏了后两段；B 用了 7200 转那题的旋转延迟凑数、且漏 T<sub>t</sub>；C 少算了旋转延迟或传输之一。可用上面的计算器输入这组数验证。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4 · 哪张表全系统唯一</h3>
+<p>下列设备分配数据结构中，<b>整个系统只有一张</b>、作为设备分配总入口的是：</p>
+<p>
+A. SDT 系统设备表<br>
+B. DCT 设备控制表<br>
+C. COCT 控制器控制表<br>
+D. CHCT 通道控制表
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案：A。</b> SDT 全系统仅一张，登记所有设备、每个表目指向对应 DCT，分配就从它查起。
+B 的 DCT 每台设备一张；C 的 COCT 每个控制器一张；D 的 CHCT 每个通道一张——都不是全局唯一。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题（别打字，张嘴说）</h3>
+<ol>
+<li>用一句话说出：磁盘访问时间由哪三段组成，平均旋转延迟怎么算。</li>
+<li>不看屏幕，说清"设备独立性"是什么、靠哪张表实现、带来哪两个好处。</li>
+<li>复述分配一台设备要查的四张表顺序及各自"几张"。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能顺口说出 → 你真懂了。哪题卡壳，回到对应小节，再点一遍计算器 / LUT 交互件。</p>
+</div>
+
+<footer>
+第 49 课 · Ch5 设备管理 · 设备分配（SDT/DCT/COCT/CHCT）+ 设备独立性（LUT）+ 磁盘访问时间 T<sub>a</sub>=T<sub>s</sub>+T<sub>r</sub>+T<sub>t</sub><br>
+相关课 → 磁盘调度 FCFS/SSTF/SCAN：<a href="./0007-disk-scheduling.html">第 7 课</a> ·
+I/O 控制方式（中断/DMA/通道）：<a href="./0008-io-system.html">第 8 课</a>
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// 交互件 1：磁盘访问时间计算器
+//   输入：Ts(ms)、转速 rpm(r/min)、每道字节数 N、要读字节数 b
+//   计算（全部化到 ms）：
+//     r  = rpm/60                （转/秒）
+//     Tr = 1000/(2*r)            （半圈时间, ms）
+//     rate = r*N                 （传输速率, 字节/秒）
+//     Tt = b/rate*1000           （传输时间, ms）
+//     Ta = Ts + Tr + Tt
+// =============================================================
+var elTs   = document.getElementById('ts');
+var elRpm  = document.getElementById('rpm');
+var elN    = document.getElementById('ntrack');
+var elB    = document.getElementById('bread');
+var calcOut= document.getElementById('calcOut');
+var bar    = document.getElementById('bar');
+
+function fmt(x){
+  // 最多保留 4 位小数，去掉多余的尾零
+  if(!isFinite(x)) return '—';
+  var r = Math.round(x*10000)/10000;
+  return String(r);
+}
+
+function calc(){
+  var Ts  = parseFloat(elTs.value);
+  var rpm = parseFloat(elRpm.value);
+  var N   = parseFloat(elN.value);
+  var b   = parseFloat(elB.value);
+
+  if(!(Ts>=0) || !(rpm>0) || !(N>0) || !(b>=0)){
+    calcOut.innerHTML = '<span class="step badc">✘ 请填有效数字：寻道≥0，转速&gt;0，每道字节&gt;0，要读字节≥0。</span>';
+    bar.innerHTML = '';
+    return;
+  }
+
+  var r    = rpm/60;            // 转/秒
+  var Tr   = 1000/(2*r);        // ms
+  var rate = r*N;              // 字节/秒
+  var Tt   = b/rate*1000;      // ms
+  var Ta   = Ts + Tr + Tt;
+
+  calcOut.innerHTML =
+    '<span class="step">① 转速换算：r = ' + fmt(rpm) + ' ÷ 60 = <b>' + fmt(r) + '</b> 转/秒</span>' +
+    '<span class="step">② 旋转延迟（半圈）：T<sub>r</sub> = 1 / (2 × ' + fmt(r) + ') = <b>' + fmt(Tr) + ' ms</b></span>' +
+    '<span class="step">③ 传输速率 = r × N = ' + fmt(r) + ' × ' + fmt(N) + ' = <b>' + fmt(rate) + '</b> 字节/秒</span>' +
+    '<span class="step">④ 传输时间：T<sub>t</sub> = ' + fmt(b) + ' ÷ ' + fmt(rate) + ' = <b>' + fmt(Tt) + ' ms</b></span>' +
+    '<span class="step okc">⑤ 总时间：T<sub>a</sub> = T<sub>s</sub> + T<sub>r</sub> + T<sub>t</sub> = ' + fmt(Ts) + ' + ' + fmt(Tr) + ' + ' + fmt(Tt) + ' = <b>' + fmt(Ta) + ' ms</b></span>';
+
+  // 画三段占比条
+  var total = Ta>0 ? Ta : 1;
+  function seg(cls,val,label){
+    var pct = val/total*100;
+    if(pct < 0.01) return '';
+    var txt = pct>=12 ? label : '';
+    return '<span class="'+cls+'" style="width:'+pct+'%">'+txt+'</span>';
+  }
+  bar.innerHTML =
+    seg('seg-ts',Ts,'T<sub>s</sub>') +
+    seg('seg-tr',Tr,'T<sub>r</sub>') +
+    seg('seg-tt',Tt,'T<sub>t</sub>');
+}
+
+[elTs, elRpm, elN, elB].forEach(function(el){
+  el.addEventListener('input', calc);
+});
+
+document.getElementById('resetBtn').addEventListener('click', function(){
+  elTs.value=8; elRpm.value=6000; elN.value=10000; elB.value=5000; calc();
+});
+
+// =============================================================
+// 交互件 2：LUT 逻辑设备表 —— 演示设备独立性 / I/O 重定向
+// =============================================================
+var lpPhys = document.getElementById('lpPhys');
+var lpDrv  = document.getElementById('lpDrv');
+var lutOut = document.getElementById('lutOut');
+var failBtn= document.getElementById('failBtn');
+var failed = false;
+
+function renderLut(){
+  if(!failed){
+    lpPhys.textContent = '打印机 1';
+    lpDrv.textContent  = 'drv_lp1';
+    lpPhys.className = ''; lpDrv.className = '';
+    lutOut.innerHTML = '<span class="step">进程代码写的永远是 <code>/dev/lp</code>；此刻它映射到 <b>打印机 1</b>。</span>';
+    failBtn.textContent = '打印机1 故障 → I/O 重定向 ▶';
+    failBtn.classList.add('on');
+  }else{
+    lpPhys.textContent = '打印机 2';
+    lpDrv.textContent  = 'drv_lp2';
+    lpPhys.className = 'hot'; lpDrv.className = 'hot';
+    lutOut.innerHTML =
+      '<span class="step okc">✔ OS 把 <code>/dev/lp</code> 的物理映射改到 <b>打印机 2</b>（驱动换成 drv_lp2）。</span>' +
+      '<span class="step">进程代码<b>一行没改</b>，照样能打印 —— 这就是设备独立性带来的容错 / I/O 重定向。</span>';
+    failBtn.textContent = '恢复：打印机1 修好 ↩';
+    failBtn.classList.remove('on');
+  }
+}
+
+failBtn.addEventListener('click', function(){
+  failed = !failed;
+  renderLut();
+});
+
+// ===== 首屏渲染 =====
+calc();
+renderLut();
+</script>
+</body>
+</html>

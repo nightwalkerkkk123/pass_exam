@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 47 课 · Ch5 设备管理 · I/O 四级控制方式:一步步把 CPU 从苦力里解放出来</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  /* ===== 三种色块提示条:橙(直觉/ELI5)· 绿(要点)· 红(陷阱/警告) ===== */
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+
+  /* ===== 白卡容器:放交互件 / 自测题 ===== */
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  /* ===== 紫色解题模板盒 ===== */
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .tmpl ol{margin:6px 0 0; padding-left:20px} .tmpl li{margin:3px 0}
+
+  /* ===== 按钮 ===== */
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  /* ===== 表格 ===== */
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+
+  /* ===== 交互件回显区 ===== */
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  .readout .step{display:block; margin:3px 0}
+  .readout .okc{color:var(--green)} .readout .badc{color:var(--red)}
+  .readout code{background:#e7f0fb}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  /* ===== 顶部锚点导航 ===== */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* ===== 全局故事线:横向节点 + 箭头 ===== */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 120px; min-width:110px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  @media print{ body{background:#fff} .btn,.nav{display:none} .panel{box-shadow:none} }
+
+  /* ===== 本课签名交互件专用样式(在房屋令牌之上扩展) ===== */
+  .slider-row{display:flex; gap:22px; flex-wrap:wrap; align-items:center; margin:6px 0 10px}
+  .slider-row label{font-size:13px; color:var(--muted)}
+  .slider-row b{color:var(--blue)}
+  input[type=range]{vertical-align:middle}
+  .cmp{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:12px 0}
+  @media(max-width:660px){ .cmp{grid-template-columns:1fr 1fr} }
+  .col{border:1px solid var(--line); border-radius:8px; padding:10px; background:#fff}
+  .col h4{margin:0 0 4px; font-size:14px; color:var(--blue)}
+  .lbl{font-size:11px; color:var(--muted); margin:6px 0 2px}
+  .tl{display:flex; height:24px; border:1px solid var(--line); border-radius:4px; overflow:hidden; margin:1px 0}
+  .seg{display:flex; align-items:center; justify-content:center; font-size:10px; color:#fff; white-space:nowrap; overflow:hidden; padding:0 2px}
+  .seg.io{background:var(--red)}
+  .seg.free{background:var(--green)}
+  .seg.dev{background:var(--blue2)}
+  .tick{flex:0 0 3px; background:var(--ink)}
+  .meta{font-size:12px; color:var(--muted); margin:5px 0 0}
+  .meta b{color:var(--ink)}
+  .bar{height:14px; background:#eef1f6; border-radius:7px; overflow:hidden; margin-top:4px}
+  .bar>i{display:block; height:100%; background:linear-gradient(90deg,#c53030,#b7791f); min-width:3px}
+  .legend{font-size:12px; color:var(--muted); margin:8px 0 2px}
+  .swatch{display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:middle; margin:0 3px 0 10px}
+  @media print{ .slider-row{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 47 课 · Ch5 设备管理 · 零基础可视化 + 考点辨析</p>
+  <h1>I/O 四级控制方式:一步步把 CPU 从「搬运工」里解放出来</h1>
+  <p class="sub">这一课只回答一件事:程序查询 → 中断驱动 → DMA → 通道,每一级到底把 CPU 从 I/O 苦力里解放了多少?配合 <a href="./0008-io-system.html">I/O 系统层次</a> 一起看。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·可视化</a>
+    <a href="#s2">2·ELI5</a>
+    <a href="#s3">3·对照表</a>
+    <a href="#s4">4·是什么</a>
+    <a href="#s5">5·为什么</a>
+    <a href="#s6">6·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> 四种 I/O 控制方式是同一条主线——<b>把「谁来盯着数据搬运」这件苦差,一步步从 CPU 手里拿走</b>。传输单位越来越大(字 → 字 → 块 → 一批块),CPU 被打扰的次数越来越少(全程忙等 → 每字一次 → 每块一次 → 整批一次)。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:四种方式是被同一个问题逼出来的</h2>
+<p class="hint">别把这四个当成孤立名词——它们是「CPU 太宝贵,别让它干搬运杂活」这一个念头,一路逼出来的四代方案。</p>
+<div class="flow">
+  <div class="fnode warn"><b>①程序查询(忙等)</b>CPU 亲自搬每个字,还得一直问「好了没」,全程走不开</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>②中断驱动</b>设备传完一个字就中断通知,CPU 平时能干别的,每字仍打扰一次</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>③DMA</b>数据直接进内存不经 CPU,以「块」为单位,只在块首块尾打扰</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>④通道</b>一段通道程序管一批块,整个 I/O 序列只打扰 CPU 一次</div>
+</div>
+<p class="hint">来源:textbook/0_总框架.md §22.2–22.5;textbook/ch06_IO系统.md「I/O 控制方式」。</p>
+
+<!-- ===================== 1. 可视化(签名交互件) ===================== -->
+<h2 id="s1">🖼 1. 先看画面:四方式并排对比条</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 下面四列各是一条时间轴。<b style="color:var(--red)">红</b>=CPU 正被 I/O 拴住(忙等/处理中断),<b style="color:var(--green)">绿</b>=CPU 空出来干别的,<b style="color:var(--blue2)">蓝</b>=设备在传数据,<b>竖黑线 ▍</b>=一次「打扰 CPU」的中断。看红色怎么一路缩短——那就是 CPU 被解放的过程。
+</div>
+<div class="panel">
+  <div class="hint">👇 拖动滑块改「块数」和「每块字数」,四列的中断次数与「干预程度」条会实时重算。</div>
+  <div class="slider-row">
+    <label>数据块数 B = <b id="blkv">2</b>
+      <input type="range" id="blk" min="1" max="6" value="2"></label>
+    <label>每块字数 W = <b id="wpbv">3</b>
+      <input type="range" id="wpb" min="1" max="8" value="3"></label>
+    <label>共需传输 N = B×W = <b id="totv">6</b> 个字</label>
+  </div>
+  <div class="legend">
+    <span class="swatch" style="background:var(--red)"></span>CPU 忙 I/O
+    <span class="swatch" style="background:var(--green)"></span>CPU 空出来干别的
+    <span class="swatch" style="background:var(--blue2)"></span>设备在传
+    <span class="swatch" style="background:var(--ink)"></span>一次中断(打扰 CPU)
+  </div>
+  <div class="cmp" id="cmp"></div>
+  <div class="readout" id="ro">← 拖滑块看数字变化。</div>
+</div>
+<div class="key">
+<b>要点:</b> 传输单位「字 / 字 / 块 / 一批块」和打扰次数「全程 / N / B / 1」——这两行就是本课全部考点的骨架。DMA 和通道的「干预程度」条几乎贴地,而程序查询永远是满格红。
+</div>
+
+<!-- ===================== 2. ELI5 例子 + 反例 ===================== -->
+<h2 id="s2">🧸 2. 用「烧水」讲清四代方案</h2>
+<div class="eli5"><b>🧸 一句话:</b> 你要烧一壶水(设备在慢慢干活),问题是「烧水时你能不能去干别的」。</div>
+<table>
+<tr><th>方式</th><th>烧水时你在干嘛</th><th>被打扰几次</th></tr>
+<tr><td>①程序查询</td><td>你死盯着水壶,每隔一秒看一眼「开了没」,寸步不离——<b>啥也干不了</b></td><td>全程(忙等)</td></tr>
+<tr><td>②中断驱动</td><td>你去看书,但水每冒一个泡就响一声,你都得抬头看一眼再低头——<b>能看书但老被打断</b></td><td>每个泡一次(每字一次)</td></tr>
+<tr><td>③DMA</td><td>换成会自动装杯的机器,你只在「开机」和「装满一杯」时管一下,杯子中途不烦你</td><td>每杯一次(每块一次)</td></tr>
+<tr><td>④通道</td><td>雇了个助理,你只说一句「烧十壶、装满、摆好」,他全包,弄完喊你一声</td><td>整个任务一次</td></tr>
+</table>
+<div class="warnbox">
+<b>⚠️ 反例(没有它会怎样):</b> 如果一直停留在①程序查询——从终端敲一个字符约需 100 ms,而 CPU 把字符搬进缓冲区不到 0.1 ms。那 CPU 就有 <b>99.9 ms 白白忙等</b>。光是升级到②中断驱动,就能把 CPU 利用率<b>成百倍</b>提高。这就是为什么必须一代代往下走。<br><span class="hint">来源:5_设备管理/ppt文本.md §5.2.2(100 ms / 0.1 ms 例子)。</span>
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2 id="s3">⚖️ 3. 对照表:照教材口径逐维度辨析</h2>
+<div class="eli5"><b>🧸 一句话:</b> 考试最爱考「传输单位」和「CPU 干预程度」这两列,把它们背成一条竖线。</div>
+<table>
+<tr><th>对比维度</th><th>①程序查询</th><th>②中断驱动</th><th>③DMA</th><th>④通道</th></tr>
+<tr><td><b>数据传输单位</b></td><td>字 / 字节</td><td>字 / 字节</td><td>数据块</td><td>一组数据块(序列)</td></tr>
+<tr><td><b>CPU 干预程度</b></td><td>全程干预,忙等</td><td>每个字/字节中断一次</td><td>每个数据块中断一次</td><td>整个 I/O 序列中断一次</td></tr>
+<tr><td><b>数据走不走 CPU</b></td><td>经 CPU 搬</td><td>经 CPU 搬</td><td><b>不经 CPU,直入内存</b></td><td>不经 CPU,直入内存</td></tr>
+<tr><td><b>CPU 与设备并行?</b></td><td>不能(串行)</td><td>能</td><td>能(并行度更高)</td><td>能(CPU/通道/设备三者并行)</td></tr>
+<tr><td><b>额外硬件</b></td><td>无</td><td>中断控制器</td><td>DMA 控制器</td><td>通道(专门的 I/O 处理机)</td></tr>
+<tr><td><b>适用设备</b></td><td>低速简单设备</td><td>中低速字符设备(键盘/鼠标)</td><td>高速块设备(磁盘/网卡)</td><td>大型系统、高 I/O 负载</td></tr>
+</table>
+<p class="hint">来源:textbook/ch06_IO系统.md「四种方式对比表」;5_设备管理/ppt文本.md §5.2。</p>
+
+<div class="warnbox">
+<b>⚠️ 最高频易错:中断驱动 vs DMA(红框务必分清)</b><br>
+① <b>传输单位不同</b>:中断驱动以「<b>字/字节</b>」为单位,DMA 以「<b>数据块</b>」为单位。<br>
+② <b>打扰频率不同</b>:中断驱动<b>每传完一个字就中断一次</b>(N 个字 = N 次中断);DMA <b>只在一个块的开始和结束时</b>打扰 CPU,块内不打扰(B 个块 ≈ B 次中断)。<br>
+③ <b>数据走向不同</b>:中断驱动的数据还得<b>经 CPU</b> 从设备寄存器搬到内存;DMA 的数据<b>直接由设备送入内存(或反向)</b>,整块传送在 DMA 控制器控制下完成,<b>不经过 CPU</b>。<br>
+一句话记牢:<b>DMA 较中断驱动「又成百倍地减少了 CPU 对 I/O 的干预」</b>。<br>
+<span class="hint">来源:5_设备管理/ppt文本.md §5.2.3(「基本单位是数据块」「直接送入内存」「仅在开始和结束时需 CPU 干预」)。</span>
+</div>
+
+<!-- ===================== 4. 是什么(精确定义) ===================== -->
+<h2 id="s4">📖 4. 是什么:四条精确定义(对齐教材口径)</h2>
+
+<div class="key"><b>①程序查询(程序直接控制 / 轮询 Polling):</b> CPU 启动设备后<b>不断轮询查询设备状态寄存器</b>,直到设备就绪,再由 CPU 从/向数据寄存器搬一个字(节);CPU 全程忙等,与设备<b>完全串行</b>,不支持并行。<span class="hint">来源:ch06 §5.2.1;0_总框架.md §22.3。</span></div>
+
+<div class="key"><b>②中断驱动(Interrupt-Driven):</b> CPU 启动设备后<b>转去执行别的进程</b>;设备每传完一个字/字节就<b>发一次中断</b>,CPU 暂停手头工作、用极短时间处理中断(搬这个字)再返回。CPU 与设备<b>可并行</b>,但每字都要打扰一次。<span class="hint">来源:ch06 §5.2.2;5_设备管理/ppt文本.md §5.2.2。</span></div>
+
+<div class="key"><b>③DMA(Direct Memory Access,直接存储器访问):</b> 由<b>DMA 控制器</b>接管总线,在设备与内存之间<b>成块直接传输</b>数据。三大特点:传输<b>基本单位是数据块</b>;数据<b>直接在设备与内存间流动、不经 CPU</b>;<b>仅在一个(或多个)数据块传送的开始与结束时</b>才需 CPU 干预。<span class="hint">来源:5_设备管理/ppt文本.md §5.2.3;0_总框架.md §22.5。</span></div>
+
+<div class="key"><b>④通道(I/O Channel):</b> 一种<b>专门的 I/O 处理机</b>,有自己的指令(通道指令)。CPU 只需发一条「启动 I/O」并给出<b>通道程序首址</b>,通道就独立执行这段通道程序,控制一<b>批数据块</b>的传输;把 DMA「对一个数据块的干预」进一步<b>降为对一组数据块的干预</b>,实现 CPU、通道、设备三者并行,完成后才发一次中断。<span class="hint">来源:5_设备管理/ppt文本.md §5.1.3、§5.2.4;ch06 §5.2.4。</span></div>
+
+<!-- ===================== 5. 为什么(三层追问) ===================== -->
+<h2 id="s5">❓ 5. 为什么:层层追问这条演进主线</h2>
+<div class="panel">
+<p><b>第 1 层:为什么不能一直用程序查询?</b><br>
+因为 I/O 设备比 CPU 慢成千上万倍。程序查询让 CPU 全程忙等——一次终端输入 CPU 要空转 99.9 ms(见 §2 反例)。CPU 是全机最贵的资源,让它盯水壶是巨大浪费。<b>矛盾:CPU 快、设备慢,却要 CPU 陪着设备一起慢。</b></p>
+
+<p><b>第 2 层:中断驱动解决了忙等,为什么还不够?</b><br>
+中断驱动让 CPU 在等待期间能干别的,已经成百倍提高利用率。但它<b>仍以字为单位、每字中断一次</b>:面对磁盘这种一次要传几 KB 的高速块设备,会产生<b>海量中断</b>,光是「进/出中断」的上下文开销就把 CPU 淹没。<b>矛盾:解决了「等」,没解决「频繁被打断」。</b></p>
+
+<p><b>第 3 层:DMA 已经很好,为什么还要通道?边界在哪?</b><br>
+DMA 以块为单位、数据不经 CPU,已把干预降到「每块一次」。但一次 I/O 任务常是<b>一串块加控制逻辑</b>(如读多个不连续磁盘块),每块仍要 CPU 设一次 DMA。通道用一段<b>通道程序</b>把「这一批块怎么读、读到哪」全描述好,CPU 发一条指令就撒手,整批只中断一次,还能<b>三者并行</b>。<br>
+<b>边界/代价:</b>越往后 CPU 越省,但<b>硬件越贵越复杂</b>(中断控制器 → DMA 控制器 → 专门通道处理机)。所以普通 PC 用中断+DMA 足矣,通道多见于大型机/服务器。<b>这是一条「用硬件成本换 CPU 解放」的取舍曲线。</b><span class="hint">来源:5_设备管理/ppt文本.md §5.2.4「通道是 DMA 的发展……减少为对一组数据块……的干预」。</span></p>
+</div>
+
+<div class="tmpl">
+<b>📐 判题模板(遇到「这是哪种方式」3 步):</b>
+<ol>
+<li>看<b>传输单位</b>:字/字节 → ①或② ; 块 → ③ ; 一批块/有通道程序 → ④。</li>
+<li>看<b>CPU 干预</b>:全程忙等 → ① ; 每字中断 → ② ; 每块中断 → ③ ; 整批一次 → ④。</li>
+<li>看<b>数据走不走 CPU</b>:经 CPU 搬 → ①② ; 直入内存 → ③④。</li>
+</ol>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="s6">✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>关于「中断驱动」与「DMA」两种方式的区别,下列说法<b>正确</b>的是:</p>
+<p>
+A. 两者数据传输的基本单位都是数据块<br>
+B. 中断驱动的数据不经过 CPU,DMA 的数据要经过 CPU<br>
+C. 中断驱动以字/字节为单位、每传一个字中断一次;DMA 以数据块为单位、只在块的开始和结束时才打扰 CPU<br>
+D. DMA 每传一个字节就要中断 CPU 一次
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 这正是本课红框反复强调的分界线:传输单位(字 vs 块)+ 打扰频率(每字 vs 每块首尾)。<br>
+A 错:中断驱动是字/字节,不是块。<br>
+B 错:说反了——是 <b>DMA</b> 数据直入内存不经 CPU,中断驱动仍要 CPU 搬。<br>
+D 错:每字节中断一次是「中断驱动」的特征,DMA 是每块才中断一次。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>四种方式中,CPU 与 I/O 设备<b>完全串行、CPU 全程忙等无法做其他工作</b>的是:</p>
+<p>
+A. 程序查询(程序直接控制)方式<br>
+B. 中断驱动方式<br>
+C. DMA 方式<br>
+D. 通道方式
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 程序查询靠 CPU 不停轮询状态寄存器,CPU 被死死拴住,与设备串行。<br>
+B/C/D 都让 CPU 在等待期间去干别的(可并行),只是「被打扰的频率」不同:每字 / 每块 / 整批一次。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>相比 DMA,I/O「通道」方式最核心的进步是:</p>
+<p>
+A. 通道让数据第一次做到不经过 CPU 直接进内存<br>
+B. 通道把传输单位从「块」变回「字节」以提高精度<br>
+C. 通道不需要任何额外硬件,成本比 DMA 低<br>
+D. 通道用一段通道程序管理一批数据块,把「对一个块的干预」降为「对一组块的干预」,整个序列只打扰 CPU 一次
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 教材原话:通道是 DMA 的发展,把「以一个数据块为单位的干预,减少为对一组数据块……的干预」。<br>
+A 错:「数据不经 CPU 直入内存」是 DMA 就已实现的,不是通道首创。<br>
+B 错:通道传输单位更大(一批块),不是退回字节。<br>
+C 错:通道需要专门的 I/O 处理机,硬件成本最高、最复杂。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>某高速磁盘一次要连续传输若干个数据块,希望 CPU 尽量少被打扰、且数据不经过 CPU。<b>单看这次传输</b>,最合适的是:</p>
+<p>
+A. 程序查询方式,简单可靠<br>
+B. DMA 方式(以块为单位、直入内存、块首尾才干预)<br>
+C. 中断驱动方式,每个字节及时响应<br>
+D. 无论哪种方式,CPU 被打扰次数都一样
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 磁盘是高速块设备,DMA 以块为单位、数据直入内存、只在块首尾干预,正好对症(通道更强但题干只问单次块传输且未提通道硬件,DMA 是标准答案)。<br>
+A 错:程序查询忙等,高速设备下 CPU 浪费最严重。<br>
+C 错:中断驱动每字节中断一次,面对大块数据会产生海量中断。<br>
+D 错:打扰次数恰恰不同——全程 / N / B / 1,这正是四方式的分水岭。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>用一句话说出四种方式的<b>主线</b>(一步步把 CPU 从什么里解放出来)。</li>
+<li>不看屏幕,说出四方式各自的<b>传输单位</b>和<b>打扰 CPU 的次数</b>(字/字/块/一批块;全程/N/B/1)。</li>
+<li>用自己的话讲清<b>中断驱动和 DMA 到底差在哪</b>(单位、频率、数据走不走 CPU 三点)。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">✅ 通过条件:这三条都能顺口说出、且第 3 条能一口气讲全三个差异点 → 你是真懂了。哪条卡壳,回 §1 拖一遍滑块、回 §3 红框再看一眼。</p>
+</div>
+
+<footer>
+第 47 课 · Ch5 设备管理 · I/O 四级控制方式:程序查询 → 中断驱动 → DMA → 通道,一路解放 CPU<br>
+相关课 → <a href="./0008-io-system.html">第 08 课 · I/O 系统层次</a> ·
+<a href="./0028-xv6-device-interrupt-walkthrough.html">第 28 课 · xv6 设备中断源码</a> ·
+<a href="./0048-buffering-spooling.html">第 48 课 · 缓冲 / SPOOLing</a>
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// 签名交互件:四方式并排对比条。纯原生 JS,无外部依赖。
+// 模型(可手算复核):
+//   B = 块数, W = 每块字数, N = B*W = 总字数
+//   t_dev = 100 (设备传一个字的耗时,单位统一为"单位")
+//   c     = 1   (CPU 处理一次中断/干预的开销)
+//   参考基准 ref = N * t_dev  (= 程序查询下 CPU 全程忙等的耗时,最坏情况)
+//   各方式 "CPU 为 I/O 付出的代价 cost":
+//     程序查询: N*t_dev  (全程忙等,CPU 占满)          -> pct = 100%
+//     中断驱动: N*c      (每字中断一次,共 N 次)         -> pct = N/(N*100)*100 = 1%
+//     DMA:      B*c      (每块中断一次,共 B 次)         -> pct = B/(N*100)*100
+//     通道:     1*c      (整批只中断一次)               -> pct = 1/(N*100)*100
+//   pct 随级别单调下降:100% -> 1% -> B/N% -> 1/N%  = "从满到几乎空"。
+// =============================================================
+var elBlk = document.getElementById('blk');
+var elWpb = document.getElementById('wpb');
+var TDEV = 100, C = 1;
+
+// 设备行:一整条蓝色,表示设备在传 N 个字(四方式设备端耗时相同)
+function deviceRow(N){
+  return '<div class="tl"><div class="seg dev" style="flex:1">设备在传 '+N+' 字</div></div>';
+}
+// CPU 行:'busy' = 全红忙等(0 中断);数字 n = n 段绿色空闲 + n 个中断竖线
+function cpuRow(state){
+  if(state === 'busy'){
+    return '<div class="tl"><div class="seg io" style="flex:1">CPU 全程忙等·不空闲</div></div>';
+  }
+  var n = state, s = '<div class="tl">';
+  if(n <= 0){
+    s += '<div class="seg free" style="flex:1">CPU 空闲</div>';
+  } else {
+    for(var i=0;i<n;i++){
+      s += '<div class="seg free" style="flex:1">空闲</div><div class="tick" title="中断"></div>';
+    }
+  }
+  return s + '</div>';
+}
+
+function render(){
+  var B = +elBlk.value, W = +elWpb.value, N = B*W;
+  document.getElementById('blkv').textContent = B;
+  document.getElementById('wpbv').textContent = W;
+  document.getElementById('totv').textContent = N;
+
+  var ref = N * TDEV;
+  var methods = [
+    {name:'① 程序查询', unit:'字/字节', hits:'全程忙等(不中断,CPU 却占满)', cost:N*TDEV, cpu:'busy'},
+    {name:'② 中断驱动', unit:'字/字节', hits:N + ' 次中断(每字一次)', cost:N*C, cpu:N},
+    {name:'③ DMA',      unit:'数据块',  hits:B + ' 次中断(每块首尾)',   cost:B*C, cpu:B},
+    {name:'④ 通道',     unit:'一批块',  hits:'1 次中断(整批一次)',       cost:1*C, cpu:1}
+  ];
+
+  var html = '';
+  for(var i=0;i<methods.length;i++){
+    var m = methods[i];
+    var pct = m.cost / ref * 100;
+    var pctTxt = pct >= 10 ? pct.toFixed(0) : pct.toFixed(2);
+    html += '<div class="col">'
+      + '<h4>' + m.name + '</h4>'
+      + '<div class="lbl">设备(始终在传)</div>' + deviceRow(N)
+      + '<div class="lbl">CPU 状态 / 中断</div>' + cpuRow(m.cpu)
+      + '<div class="meta">传输单位:<b>' + m.unit + '</b></div>'
+      + '<div class="meta">打扰 CPU:<b>' + m.hits + '</b></div>'
+      + '<div class="lbl">干预程度(CPU 为 I/O 付出的代价,占最坏情况)</div>'
+      + '<div class="bar"><i style="width:' + Math.max(pct,3) + '%"></i></div>'
+      + '<div class="meta">代价 ≈ <b>' + m.cost + '</b> 单位　(' + pctTxt + '%)</div>'
+      + '</div>';
+  }
+  document.getElementById('cmp').innerHTML = html;
+
+  document.getElementById('ro').innerHTML =
+      '<span class="step">当前:B=' + B + ' 块 × W=' + W + ' 字/块 = <b>N=' + N + '</b> 个字。</span>'
+    + '<span class="step badc">✘ 程序查询:CPU 全程忙等,代价 <b>' + (N*TDEV) + '</b>(满格)。</span>'
+    + '<span class="step">◐ 中断驱动:打扰 <b>' + N + '</b> 次(每字一次)。</span>'
+    + '<span class="step">◑ DMA:打扰 <b>' + B + '</b> 次(每块一次)。</span>'
+    + '<span class="step okc">✔ 通道:整批只打扰 <b>1</b> 次——CPU 几乎被完全解放。</span>';
+}
+
+elBlk.addEventListener('input', render);
+elWpb.addEventListener('input', render);
+
+// ===== 首屏渲染 =====
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>操作系统 · 期末复习总门户 · 50 节微课导航</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb; --gray:#556;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:1040px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:16px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:27px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:40px 0 12px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:0 0 4px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top}
+  th{background:#eef2f8}
+
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+
+  /* ===== 顶部锚点导航 ===== */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* ===== 三步复习路径 ===== */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 180px; min-width:150px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:#fff; font-size:13.5px}
+  .fnode b{display:block; color:var(--blue); font-size:14px; margin-bottom:2px}
+  .farrow{align-self:center; color:#aab; font-weight:700; font-size:18px}
+
+  /* ===== 章节卡片网格 ===== */
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; margin:14px 0}
+  .card{background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px 18px; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .card .chhead{display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:8px; margin-bottom:8px}
+  .card .chhead .cnt{font-size:12px; color:var(--muted); font-weight:600}
+  .card ul{list-style:none; margin:0; padding:0}
+  .card li{padding:7px 0; border-bottom:1px dashed #eef0f4; font-size:14px}
+  .card li:last-child{border-bottom:none}
+  .card li .ttl{font-weight:600}
+  .card li .desc{display:block; color:var(--muted); font-size:12.5px; margin-top:1px}
+  .num{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12px; color:#99a; margin-right:4px}
+
+  /* ===== 类型徽章 ===== */
+  .badge{display:inline-block; font-size:11px; font-weight:700; line-height:1.4; padding:0 7px; border-radius:20px; margin-left:5px; vertical-align:middle; white-space:nowrap}
+  .b-concept{background:#e7f0fb; color:var(--blue)}
+  .b-algo{background:#e6f6ec; color:var(--green)}
+  .b-calc{background:#fdf0da; color:var(--amber)}
+  .b-src{background:#eceef2; color:var(--gray)}
+  .b-cram{background:#fde6e6; color:var(--red)}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+
+  @media print{
+    body{background:#fff} .nav{display:none}
+    .card{box-shadow:none; break-inside:avoid}
+    .grid{grid-template-columns:repeat(2,1fr)}
+    a{color:var(--ink)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">操作系统 · 学校自命题期末复习 · 课程总门户</p>
+  <h1>《操作系统》50 节微课 · 一门可导航的完整复习课</h1>
+  <p class="sub">Ch1 引论 → Ch2 进程 → Ch3 调度与死锁 → Ch4 存储 → Ch5 虚存 / 设备 → Ch6 文件，外加 xv6 源码与实验加餐。每节课只解决一个关键概念或一类题，可独立打开阅读。</p>
+  <nav class="nav">
+    <a href="#how">如何复习</a>
+    <a href="#ch1">Ch1 引论</a>
+    <a href="#ch2">Ch2 进程</a>
+    <a href="#ch3">Ch3 调度·死锁</a>
+    <a href="#ch4">Ch4 存储</a>
+    <a href="#ch5v">Ch5 虚存</a>
+    <a href="#ch5d">Ch5 设备</a>
+    <a href="#ch6">Ch6 文件</a>
+    <a href="#xv6">xv6·加餐</a>
+    <a href="#map">题型地图</a>
+    <a href="#calc">计算+雷区</a>
+  </nav>
+</header>
+
+<!-- ===================== 如何用这门课复习 ===================== -->
+<h2 id="how">🧭 如何用这门课复习：按考试路径走三步</h2>
+<div class="key">
+<b>一句话：</b> 不要从第 1 课顺读到第 50 课。按「先搭框架 → 再攻高频考点 → 最后刷题默写」三段式冲刺，时间不够就直接跳到第三步。
+</div>
+<div class="flow">
+  <div class="fnode"><b>① 先搭框架</b>用 <a href="./0001-overview-and-question-map.html">0001 总览与题型地图</a> + <a href="./0013-exam-cheatsheet-map.html">0013 速查地图</a> 建立全局，知道每章考什么、占多少分。</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>② 攻高频考点</b>照下面 8 张章节卡逐章过；概念课先看，算法/计算课重点练，五道大题所在课优先。</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>③ 刷题 + 默写</b>用「题型地图」按分值突击，再用 <a href="./0050-pv-pseudocode-drills.html">0050 PV 默写</a> 与四大计算题练手感。</div>
+</div>
+<p class="hint">徽章图例：
+  <span class="badge b-concept">概念</span> 理解型
+  <span class="badge b-algo">算法</span> 手推流程
+  <span class="badge b-calc">计算</span> 会算分
+  <span class="badge b-src">源码</span> xv6 精读
+  <span class="badge b-cram">冲刺</span> 考前突击/默写
+</p>
+
+<!-- ===================== 8 张章节卡 ===================== -->
+<div class="grid">
+
+  <!-- Ch1 -->
+  <div class="card" id="ch1">
+    <div class="chhead"><h3>Ch1 · 操作系统引论</h3><span class="cnt">5 课</span></div>
+    <ul>
+      <li><a href="./0001-overview-and-question-map.html"><span class="num">0001</span><span class="ttl">总览与题型地图</span></a><span class="badge b-cram">冲刺</span><span class="desc">全课起点：这门考试考什么、每章怎么分布、从哪切入。</span></li>
+      <li><a href="./0014-what-is-os.html"><span class="num">0014</span><span class="ttl">操作系统是什么</span></a><span class="badge b-concept">概念</span><span class="desc">OS 的定义、目标与作为「资源管理者」的两副面孔。</span></li>
+      <li><a href="./0015-os-features-concurrency.html"><span class="num">0015</span><span class="ttl">四大特征 · 并发共享虚拟异步</span></a><span class="badge b-concept">概念</span><span class="desc">并发 vs 并行，四特征互相依存，最爱出简答。</span></li>
+      <li><a href="./0016-syscall-kernel-user-mode.html"><span class="num">0016</span><span class="ttl">系统调用 · 内核态/用户态</span></a><span class="badge b-concept">概念</span><span class="desc">用户态到内核态的一次陷入，中断/异常/系统调用之别。</span></li>
+      <li><a href="./0013-exam-cheatsheet-map.html"><span class="num">0013</span><span class="ttl">考前速查地图</span></a><span class="badge b-cram">冲刺</span><span class="desc">全书结论压缩成一页，所有课的交叉索引中枢。</span></li>
+    </ul>
+  </div>
+
+  <!-- Ch2 -->
+  <div class="card" id="ch2">
+    <div class="chhead"><h3>Ch2 · 进程管理</h3><span class="cnt">6 课</span></div>
+    <ul>
+      <li><a href="./0042-process-state-transition.html"><span class="num">0042</span><span class="ttl">进程状态转换 + PCB + 控制原语</span></a><span class="badge b-concept">概念</span><span class="desc">五态/七态图怎么转、PCB 存什么、创建/阻塞/唤醒原语。</span></li>
+      <li><a href="./0043-ipc-and-threads.html"><span class="num">0043</span><span class="ttl">进程通信 IPC + 线程模型</span></a><span class="badge b-concept">概念</span><span class="desc">共享内存/消息传递/管道/信号，以及线程 vs 进程。</span></li>
+      <li><a href="./0010-process-sync.html"><span class="num">0010</span><span class="ttl">进程同步与互斥</span></a><span class="badge b-concept">概念</span><span class="desc">临界区、信号量 P/V 的语义，同步问题的根。</span></li>
+      <li><a href="./0011-classic-sync.html"><span class="num">0011</span><span class="ttl">经典同步问题</span></a><span class="badge b-algo">算法</span><span class="desc">生产者-消费者/读者-写者/哲学家，套路化解法。</span></li>
+      <li><a href="./0012-process-thread-deadlock.html"><span class="num">0012</span><span class="ttl">进程·线程·死锁串讲</span></a><span class="badge b-concept">概念</span><span class="desc">把三块高频概念连成一条线的复盘课。</span></li>
+      <li><a href="./0050-pv-pseudocode-drills.html"><span class="num">0050</span><span class="ttl">PV 信号量伪代码默写训练</span></a><span class="badge b-cram">冲刺</span><span class="desc">考场默写模板，把 P/V 结构练成肌肉记忆。</span></li>
+    </ul>
+  </div>
+
+  <!-- Ch3 -->
+  <div class="card" id="ch3">
+    <div class="chhead"><h3>Ch3 · 处理机调度与死锁</h3><span class="cnt">5 课</span></div>
+    <ul>
+      <li><a href="./0002-scheduling-algorithms.html"><span class="num">0002</span><span class="ttl">调度算法（FCFS/SJF/RR/优先级）</span></a><span class="badge b-algo">算法</span><span class="desc">周转时间/带权周转/等待时间的手算，大题常客。</span></li>
+      <li><a href="./0044-scheduling-levels-mlfq.html"><span class="num">0044</span><span class="ttl">三级调度 + 多级反馈队列 MFQ</span></a><span class="badge b-algo">算法</span><span class="desc">老师重点：MFQ 的队列升降规则与时间片翻倍。</span></li>
+      <li><a href="./0003-bankers-algorithm.html"><span class="num">0003</span><span class="ttl">银行家算法</span></a><span class="badge b-calc">计算</span><span class="desc">安全序列判定，五道大题之一，务必手推熟。</span></li>
+      <li><a href="./0045-deadlock-conditions-prevention.html"><span class="num">0045</span><span class="ttl">死锁四必要条件 + 预防</span></a><span class="badge b-concept">概念</span><span class="desc">互斥/占有等待/不剥夺/循环等待，破坏四条件。</span></li>
+      <li><a href="./0046-deadlock-detection-recovery.html"><span class="num">0046</span><span class="ttl">死锁检测与解除 + 资源图化简</span></a><span class="badge b-algo">算法</span><span class="desc">资源分配图化简法判死锁，避免与银行家混淆。</span></li>
+    </ul>
+  </div>
+
+  <!-- Ch4 -->
+  <div class="card" id="ch4">
+    <div class="chhead"><h3>Ch4 · 内存管理</h3><span class="cnt">5 课</span></div>
+    <ul>
+      <li><a href="./0005-paging-fundamentals.html"><span class="num">0005</span><span class="ttl">分页基础</span></a><span class="badge b-concept">概念</span><span class="desc">页/页框、页表、逻辑地址如何拆成页号+偏移。</span></li>
+      <li><a href="./0017-segmentation-vs-paging.html"><span class="num">0017</span><span class="ttl">分段 vs 分页 vs 段页式</span></a><span class="badge b-concept">概念</span><span class="desc">两种地址空间对照，段页式为什么两次查表。</span></li>
+      <li><a href="./0037-dynamic-partition-allocation.html"><span class="num">0037</span><span class="ttl">动态分区分配</span></a><span class="badge b-algo">算法</span><span class="desc">首次/最佳/最坏适应，外碎片与紧凑。</span></li>
+      <li><a href="./0038-program-loading-relocation.html"><span class="num">0038</span><span class="ttl">程序装入与重定位</span></a><span class="badge b-concept">概念</span><span class="desc">静态/动态重定位，编译-链接-装入三步。</span></li>
+      <li><a href="./0040-storage-calc-exam-cram.html"><span class="num">0040</span><span class="ttl">存储计算专项冲刺</span></a><span class="badge b-calc">计算</span><span class="desc">地址变换/页表大小/有效访问时间，一次算清。</span></li>
+    </ul>
+  </div>
+
+  <!-- Ch5 虚存 -->
+  <div class="card" id="ch5v">
+    <div class="chhead"><h3>Ch5 · 虚拟内存</h3><span class="cnt">2 课</span></div>
+    <ul>
+      <li><a href="./0018-virtual-memory-page-fault.html"><span class="num">0018</span><span class="ttl">虚拟内存与缺页</span></a><span class="badge b-concept">概念</span><span class="desc">局部性原理、请求分页、缺页中断处理流程。</span></li>
+      <li><a href="./0006-page-replacement.html"><span class="num">0006</span><span class="ttl">页面置换算法（OPT/FIFO/LRU）</span></a><span class="badge b-calc">计算</span><span class="desc">缺页次数手算 + Belady 异常，五道大题之一。</span></li>
+    </ul>
+  </div>
+
+  <!-- Ch5 设备 -->
+  <div class="card" id="ch5d">
+    <div class="chhead"><h3>Ch5 · 设备管理</h3><span class="cnt">5 课</span></div>
+    <ul>
+      <li><a href="./0008-io-system.html"><span class="num">0008</span><span class="ttl">I/O 系统总览</span></a><span class="badge b-concept">概念</span><span class="desc">I/O 软件的四个层次与整体结构。</span></li>
+      <li><a href="./0047-io-control-methods.html"><span class="num">0047</span><span class="ttl">I/O 四级控制方式</span></a><span class="badge b-concept">概念</span><span class="desc">程序查询/中断驱动/DMA/通道，CPU 介入度递减。</span></li>
+      <li><a href="./0048-buffering-spooling.html"><span class="num">0048</span><span class="ttl">缓冲区管理 + SPOOLing</span></a><span class="badge b-concept">概念</span><span class="desc">单/双/循环缓冲/缓冲池，假脱机把独占变共享。</span></li>
+      <li><a href="./0049-device-allocation-disk-time.html"><span class="num">0049</span><span class="ttl">设备分配 + 磁盘访问时间</span></a><span class="badge b-calc">计算</span><span class="desc">设备独立性，寻道+旋转+传输时间的计算。</span></li>
+      <li><a href="./0007-disk-scheduling.html"><span class="num">0007</span><span class="ttl">磁盘调度（FCFS/SSTF/SCAN）</span></a><span class="badge b-calc">计算</span><span class="desc">磁头移动总道数手算，五道大题之一。</span></li>
+    </ul>
+  </div>
+
+  <!-- Ch6 文件 -->
+  <div class="card" id="ch6">
+    <div class="chhead"><h3>Ch6 · 文件管理</h3><span class="cnt">8 课</span></div>
+    <ul>
+      <li><a href="./0039-file-logical-vs-physical-structure.html"><span class="num">0039</span><span class="ttl">文件逻辑 vs 物理结构</span></a><span class="badge b-concept">概念</span><span class="desc">先分清逻辑结构与物理分配，再谈具体方法。</span></li>
+      <li><a href="./0019-directory-inode-bitmap.html"><span class="num">0019</span><span class="ttl">目录 · inode · 位图</span></a><span class="badge b-concept">概念</span><span class="desc">文件系统三块骨架各管什么。</span></li>
+      <li><a href="./0020-ch6-file-allocation-presentation.html"><span class="num">0020</span><span class="ttl">文件分配方式串讲</span></a><span class="badge b-concept">概念</span><span class="desc">连续/链接/索引分配对照的讲解版。</span></li>
+      <li><a href="./0022-index-allocation-visual.html"><span class="num">0022</span><span class="ttl">索引分配可视化</span></a><span class="badge b-concept">概念</span><span class="desc">索引块如何把盘块号串起来，直观图解。</span></li>
+      <li><a href="./0023-indirect-block-twohops.html"><span class="num">0023</span><span class="ttl">多级索引：一次/二次间址</span></a><span class="badge b-calc">计算</span><span class="desc">间接块的两跳寻址，最大文件容量的算法。</span></li>
+      <li><a href="./0009-mixed-index.html"><span class="num">0009</span><span class="ttl">混合索引结构</span></a><span class="badge b-calc">计算</span><span class="desc">直接+一/二/三级间接，最大文件大小计算。</span></li>
+      <li><a href="./0024-bitmap-bitops-visual.html"><span class="num">0024</span><span class="ttl">位图与位运算可视化</span></a><span class="badge b-concept">概念</span><span class="desc">空闲盘块位图，字号/位号定位的位运算。</span></li>
+      <li><a href="./0004-group-linking.html"><span class="num">0004</span><span class="ttl">成组链接法</span></a><span class="badge b-algo">算法</span><span class="desc">空闲盘块管理的分配/回收流程，易错高频。</span></li>
+    </ul>
+  </div>
+
+  <!-- xv6 加餐 -->
+  <div class="card" id="xv6">
+    <div class="chhead"><h3>xv6 源码 · 实验加餐</h3><span class="cnt">15 课</span></div>
+    <ul>
+      <li><a href="./0024-xv6-syscall-walkthrough.html"><span class="num">0024</span><span class="ttl">xv6 系统调用源码走读</span></a><span class="badge b-src">源码</span><span class="desc">一次系统调用在 xv6 里的完整路径。</span></li>
+      <li><a href="./0025-xv6-fork-pcb-walkthrough.html"><span class="num">0025</span><span class="ttl">xv6 fork 与 PCB</span></a><span class="badge b-src">源码</span><span class="desc">proc 结构体如何对应课本 PCB。</span></li>
+      <li><a href="./0026-xv6-scheduler-walkthrough.html"><span class="num">0026</span><span class="ttl">xv6 调度器源码</span></a><span class="badge b-src">源码</span><span class="desc">scheduler/swtch 怎么切上下文。</span></li>
+      <li><a href="./0027-xv6-pagetable-walk-walkthrough.html"><span class="num">0027</span><span class="ttl">xv6 页表遍历</span></a><span class="badge b-src">源码</span><span class="desc">walk() 三级页表，落地课本分页。</span></li>
+      <li><a href="./0028-xv6-device-interrupt-walkthrough.html"><span class="num">0028</span><span class="ttl">xv6 设备中断</span></a><span class="badge b-src">源码</span><span class="desc">中断驱动 I/O 的真实实现。</span></li>
+      <li><a href="./0021-xv6-bmap-source-walkthrough.html"><span class="num">0021</span><span class="ttl">xv6 bmap 源码走读</span></a><span class="badge b-src">源码</span><span class="desc">混合索引在 bmap() 里的真身。</span></li>
+      <li><a href="./0035-lab1-concurrency-understand.html"><span class="num">0035</span><span class="ttl">Lab1 并发 · 理解</span></a><span class="badge b-src">源码</span><span class="desc">并发实验的原理拆解。</span></li>
+      <li><a href="./0036-lab1-concurrency-present.html"><span class="num">0036</span><span class="ttl">Lab1 并发 · 讲演</span></a><span class="badge b-src">源码</span><span class="desc">面向答辩的展示版。</span></li>
+      <li><a href="./0031-lab2-scheduler-understand.html"><span class="num">0031</span><span class="ttl">Lab2 调度器 · 理解</span></a><span class="badge b-src">源码</span><span class="desc">调度实验的实现要点。</span></li>
+      <li><a href="./0032-lab2-scheduler-present.html"><span class="num">0032</span><span class="ttl">Lab2 调度器 · 讲演</span></a><span class="badge b-src">源码</span><span class="desc">调度实验展示版。</span></li>
+      <li><a href="./0033-lab4-memory-understand.html"><span class="num">0033</span><span class="ttl">Lab4 内存 · 理解</span></a><span class="badge b-src">源码</span><span class="desc">内存实验的原理拆解。</span></li>
+      <li><a href="./0034-lab4-memory-present.html"><span class="num">0034</span><span class="ttl">Lab4 内存 · 讲演</span></a><span class="badge b-src">源码</span><span class="desc">内存实验展示版。</span></li>
+      <li><a href="./0029-lab5-file-understand.html"><span class="num">0029</span><span class="ttl">Lab5 文件 · 理解</span></a><span class="badge b-src">源码</span><span class="desc">文件实验的原理拆解。</span></li>
+      <li><a href="./0030-lab5-file-present.html"><span class="num">0030</span><span class="ttl">Lab5 文件 · 讲演</span></a><span class="badge b-src">源码</span><span class="desc">文件实验展示版。</span></li>
+      <li><a href="./0041-llm-serving-math.html"><span class="num">0041</span><span class="ttl">LLM 推理服务的数学（拓展）</span></a><span class="badge b-calc">计算</span><span class="desc">把 OS 资源调度思维迁到大模型服务，趣味加餐。</span></li>
+    </ul>
+  </div>
+
+</div>
+
+<!-- ===================== 考试题型地图 ===================== -->
+<h2 id="map">🗺 考试题型地图：按老师口径 + 分值突击</h2>
+<div class="eli5"><b>🧸 一句话：</b> 卷面结构固定——选择 15×2 + 简答 4×5 + 计算 4×10 + 伪代码 10 分 + 五道大题。想要哪个分值，就直接点对应课去练。</div>
+<table>
+<tr><th>题型 / 分值</th><th>考什么</th><th>直接练这几课</th></tr>
+<tr>
+  <td><b>选择题</b><br>15×2 = 30 分</td>
+  <td>覆盖全书概念辨析，四特征、状态转换、页/段、I/O 方式最爱考。</td>
+  <td><a href="./0014-what-is-os.html">0014</a> · <a href="./0015-os-features-concurrency.html">0015</a> · <a href="./0016-syscall-kernel-user-mode.html">0016</a> · <a href="./0042-process-state-transition.html">0042</a> · <a href="./0017-segmentation-vs-paging.html">0017</a> · <a href="./0047-io-control-methods.html">0047</a></td>
+</tr>
+<tr>
+  <td><b>简答题</b><br>4×5 = 20 分</td>
+  <td>四特征、死锁四条件、IPC 方式、缓冲/SPOOLing、设备独立性等「说清楚」型。</td>
+  <td><a href="./0015-os-features-concurrency.html">0015</a> · <a href="./0045-deadlock-conditions-prevention.html">0045</a> · <a href="./0043-ipc-and-threads.html">0043</a> · <a href="./0048-buffering-spooling.html">0048</a> · <a href="./0049-device-allocation-disk-time.html">0049</a></td>
+</tr>
+<tr>
+  <td><b>计算题</b><br>4×10 = 40 分</td>
+  <td>地址变换/页表、最大文件容量、磁盘访问时间、周转时间等纯手算。</td>
+  <td><a href="./0040-storage-calc-exam-cram.html">0040</a> · <a href="./0009-mixed-index.html">0009</a> · <a href="./0023-indirect-block-twohops.html">0023</a> · <a href="./0049-device-allocation-disk-time.html">0049</a> · <a href="./0002-scheduling-algorithms.html">0002</a></td>
+</tr>
+<tr>
+  <td><b>伪代码题</b><br>10 分</td>
+  <td>PV 信号量解经典同步问题，必须默写出规范结构。</td>
+  <td><a href="./0050-pv-pseudocode-drills.html">0050</a> · <a href="./0011-classic-sync.html">0011</a> · <a href="./0010-process-sync.html">0010</a></td>
+</tr>
+<tr>
+  <td><b>五道大题</b><br>（重头戏）</td>
+  <td>① 银行家 ② 调度 ③ 分页/分段 ④ 页面置换 ⑤ 磁盘调度。</td>
+  <td><a href="./0003-bankers-algorithm.html">银行家 0003</a> · <a href="./0002-scheduling-algorithms.html">调度 0002</a> · <a href="./0005-paging-fundamentals.html">分页 0005</a>/<a href="./0017-segmentation-vs-paging.html">0017</a> · <a href="./0006-page-replacement.html">置换 0006</a> · <a href="./0007-disk-scheduling.html">磁盘 0007</a></td>
+</tr>
+</table>
+
+<!-- ===================== 四大计算题 + 雷区 ===================== -->
+<h2 id="calc">📐 四大计算题 + 易错雷区速览</h2>
+<p class="hint">考前最后一晚，把这四类计算的模板各默写一遍，比读十页概念更管用。</p>
+<div class="tmpl">
+<b>📐 四大计算题（点课直达模板）：</b>
+<table style="margin-top:8px">
+<tr><th>计算类型</th><th>核心公式 / 步骤</th><th>直达课</th></tr>
+<tr><td>存储地址变换</td><td>逻辑地址 → 页号×页大小 + 偏移；有效访问时间 EAT。</td><td><a href="./0040-storage-calc-exam-cram.html">0040</a> · <a href="./0005-paging-fundamentals.html">0005</a></td></tr>
+<tr><td>最大文件容量</td><td>直接块 + 一/二/三级间接，逐级乘 (盘块/地址长度)。</td><td><a href="./0009-mixed-index.html">0009</a> · <a href="./0023-indirect-block-twohops.html">0023</a></td></tr>
+<tr><td>磁盘访问时间</td><td>寻道 + 旋转延迟 + 传输时间；磁头移动总道数。</td><td><a href="./0049-device-allocation-disk-time.html">0049</a> · <a href="./0007-disk-scheduling.html">0007</a></td></tr>
+<tr><td>调度与置换</td><td>周转/带权周转/等待时间；缺页次数与命中率。</td><td><a href="./0002-scheduling-algorithms.html">0002</a> · <a href="./0044-scheduling-levels-mlfq.html">0044</a> · <a href="./0006-page-replacement.html">0006</a></td></tr>
+</table>
+</div>
+<div class="warnbox">
+<b>⚠️ 易错雷区清单：</b>
+<ul style="margin:6px 0 0; padding-left:20px">
+<li><b>银行家 ≠ 死锁检测：</b>银行家是「避免」（事前试探安全序列），资源图化简是「检测」（事后判断），别混。见 <a href="./0003-bankers-algorithm.html">0003</a> / <a href="./0046-deadlock-detection-recovery.html">0046</a>。</li>
+<li><b>页面置换算法要写清缺页判定：</b>命中不算缺页，Belady 异常只出现在 FIFO。见 <a href="./0006-page-replacement.html">0006</a>。</li>
+<li><b>磁盘调度别忘起始磁头位置和方向：</b>SCAN/CSCAN 要不要到达边界，直接影响总道数。见 <a href="./0007-disk-scheduling.html">0007</a>。</li>
+<li><b>最大文件容量单位换算：</b>盘块大小与地址项长度先统一单位，别在 KB/B 上翻车。见 <a href="./0009-mixed-index.html">0009</a>。</li>
+<li><b>PV 默写顺序：</b>先判断信号量含义再写 P/V，互斥信号量初值为 1、资源信号量初值为个数。见 <a href="./0050-pv-pseudocode-drills.html">0050</a>。</li>
+</ul>
+</div>
+
+<footer>
+《操作系统》期末复习总门户 · 共 50 节微课（含两份 0024 编号）· 按 Ch1–Ch6 + xv6 加餐编排<br>
+从这里开始 → <a href="./0001-overview-and-question-map.html">0001 总览与题型地图</a> · 全书速查 → <a href="./0013-exam-cheatsheet-map.html">0013 速查地图</a> · 考前默写 → <a href="./0050-pv-pseudocode-drills.html">0050 PV 默写</a>
+</footer>
+
+</div>
+</body>
+</html>

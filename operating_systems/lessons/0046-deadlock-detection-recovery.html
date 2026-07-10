@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 46 课 · Ch3 处理机调度(死锁) · 死锁检测与解除 + 资源分配图化简法</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  /* ===== 三种色块提示条:橙(直觉/ELI5)· 绿(要点)· 红(陷阱/警告) ===== */
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+
+  /* ===== 白卡容器:放交互件 / 自测题 ===== */
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  /* ===== 紫色解题模板盒 ===== */
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .tmpl ol{margin:6px 0 0; padding-left:20px} .tmpl li{margin:3px 0}
+
+  /* ===== 按钮 ===== */
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  /* ===== 表格 ===== */
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+
+  /* ===== 交互件回显区 ===== */
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  .readout .step{display:block; margin:3px 0}
+  .readout .okc{color:var(--green)} .readout .badc{color:var(--red)}
+  .readout code{background:#e7f0fb}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  /* ===== 顶部锚点导航 ===== */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* ===== 全局故事线:横向节点 + 箭头 ===== */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 120px; min-width:110px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  /* ===== 资源分配图化简器(本课签名交互件)专用样式 ===== */
+  .rag-wrap{display:flex; flex-direction:column; gap:6px}
+  .rag-lab{font-size:12.5px; color:var(--muted); font-weight:600; margin-top:6px}
+  .rag-row{display:flex; flex-wrap:wrap; gap:10px; align-items:stretch}
+  .rnode{border:2px solid var(--blue2); border-radius:6px; padding:6px 10px; background:#fff; font-size:13px; min-width:110px; text-align:center; transition:.2s}
+  .rnode b{font-size:14px; color:var(--blue2)}
+  .rnode .inst{font-size:12px; color:var(--muted); display:block; margin-top:2px}
+  .pnode{border:2px solid var(--ink); border-radius:40px; padding:8px 14px; background:#fff; font-size:12.5px; min-width:150px; text-align:center; transition:.2s}
+  .pnode b{display:block; font-size:14px}
+  .pnode .st{font-size:11.5px; margin-top:3px; font-weight:700}
+  .pnode.cand{border-color:var(--green); background:#ecfdf5; box-shadow:0 0 0 3px #b7e4c7}
+  .pnode.cand .st{color:var(--green)}
+  .pnode.blocked{border-color:var(--red); background:#fdecec}
+  .pnode.blocked .st{color:var(--red)}
+  .pnode.reduced{border-color:#ccc; background:#f2f3f5; color:#aab; text-decoration:line-through}
+  .pnode.reduced .st{color:#aab}
+  .rag-edges{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12.5px; background:#fbfcfe; border:1px solid var(--line); border-radius:6px; padding:8px 10px}
+  .edge{margin:1px 0}
+  .edge.req{color:var(--amber)} .edge.alloc{color:var(--blue)}
+  .edge.gone{color:#c3c8d0; text-decoration:line-through}
+  .avail{font-weight:700; color:var(--purple); font-size:13.5px; margin-top:4px}
+
+  @media print{ body{background:#fff} .btn,.nav,#ragCtrl,#ragExPick{display:none} .panel{box-shadow:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 46 课 · Ch3 处理机调度(死锁) · 考前必刷 · 大题手法</p>
+  <h1>死锁检测与解除:资源分配图,一步步“化简”出真相</h1>
+  <p class="sub">这一课只回答一件事:给你一张资源分配图,怎么用“化简法”判断系统到底死没死锁,以及死了怎么救。配合 <a href="./0013-exam-cheatsheet-map.html">速查地图</a> 使用。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·化简器</a>
+    <a href="#s2">2·ELI5</a>
+    <a href="#s3">3·对照表</a>
+    <a href="#s4">4·是什么</a>
+    <a href="#s5">5·为什么</a>
+    <a href="#s6">6·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> 反复找一个“它要的资源现在都能给”的进程,让它跑完、把资源全还回去变成孤立点;<b>全部能变孤立 = 图可完全化简 = 无死锁</b>;<b>化不动、剩下一圈 = 不可完全化简 = 那些进程死锁</b>。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:处理死锁的四条路,本课站在最后一条</h2>
+<p class="hint">别把“检测”当孤立知识点——它是处理死锁四种策略里最后、也最“事后”的一条。</p>
+<div class="flow">
+  <div class="fnode"><b>① 预防</b>破坏四个必要条件之一(如一次分配全部、可剥夺、按序申请),最严</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>② 避免</b>银行家算法,分配<b>前</b>先算安全序列,不安全就不给</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>③ 检测(本课)</b>先让它跑,<b>事后</b>周期体检:画资源分配图→化简→判死锁</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>④ 解除(本课)</b>确诊后动手:剥夺资源 / 撤销进程 / 回退,挑代价最小的</div>
+</div>
+<p class="hint">口径:预防&避免是“事前不让它发生”,检测&解除是“先发生、再确诊、再救治”。<span>[textbook/ch03_处理机调度与死锁.md · 3.8;3_处理机调度/ppt文本.md · 幻灯片 346]</span></p>
+
+<!-- ===================== 1. 直觉可视化 + 签名交互件 ===================== -->
+<h2 id="s1">🖼 1. 先看画面:亲手把一张图“化简”到底</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 圆圈是进程、方框是资源;箭头从资源指向进程 = “已经分给你”(分配边),从进程指向资源 = “我还想要”(请求边)。化简 = 找一个“想要的现在货架上都有”的进程,让它拿到→跑完→把手里的全还回货架→它就没边了,变成孤立点。
+</div>
+<div class="panel">
+  <div class="hint">👇 点“化简一步”:系统会高亮它<b>这一步为什么选它</b>,然后消去它的所有边使其孤立;一直点到走不动,底部给出死锁判定。可切换两张示例图。</div>
+
+  <div id="ragExPick">
+    <button class="btn on" id="btnExA">示例A:货架够周转</button>
+    <button class="btn" id="btnExB">示例B:三进程抢成环</button>
+  </div>
+
+  <div class="rag-wrap" style="margin-top:10px">
+    <div class="rag-lab">资源结点(方框,数字=该类资源总实例数):</div>
+    <div class="rag-row" id="ragRes"></div>
+    <div class="rag-lab">进程结点(圆角框):</div>
+    <div class="rag-row" id="ragProc"></div>
+    <div class="rag-lab">当前所有边(灰色删除线 = 已化简/已消去):</div>
+    <div class="rag-edges" id="ragEdges"></div>
+    <div class="avail" id="ragAvail"></div>
+  </div>
+
+  <div id="ragCtrl" style="margin-top:12px">
+    <button class="btn on" id="btnStep">化简一步 ▶</button>
+    <button class="btn" id="btnAuto">自动跑完 ⏩</button>
+    <button class="btn reset" id="btnReset">重置 ↺</button>
+  </div>
+  <div class="readout" id="ragReadout"></div>
+</div>
+<div class="key">
+<b>要点:</b> 化简的唯一判据是——<b>“该进程当前请求的资源都能被满足”</b>(它请求的每类资源数 ≤ 当前空闲数)。满足就让它跑完释放,不满足就先跳过。<span>[3_处理机调度/ppt文本.md · 幻灯片 360]</span>
+</div>
+
+<!-- ===================== 2. ELI5 例子 + 反例 ===================== -->
+<h2 id="s2">🧸 2. 掰开揉碎:一个日常例子 + 一个反例</h2>
+<div class="eli5">
+<b>🧸 例子:</b> 车间里几个工友共用一批工具。资源分配图就是墙上那张“谁手里攥着哪把工具、谁伸手要哪把工具”的图。化简 = 你挨个看:<b>“张三还差的工具,货架上现在正好都有”</b> → 让张三干完活,把他手里的工具<b>全部还回货架</b> → 张三下班走人(变孤立点)。他一还,货架变多,可能李四本来卡着的活现在也能干了。所有人都能这样陆续下班 = 没死锁。
+</div>
+<div class="warnbox">
+<b>⚠️ 反例(如果没有检测会怎样):</b> 假如四个工友围成一圈,每人都攥着下一个人要的工具、又都伸手要上一个人手里的——谁也不肯先还,谁也拿不到。<b>没有“化简/检测”这套体检手段,系统只会看到 CPU 利用率悄悄掉到 0、一堆进程永久阻塞,却不知道这是死锁。</b>检测就是给系统做“事后确诊”的手段。<span>[textbook/ch03_处理机调度与死锁.md · 死锁检测算法]</span>
+</div>
+<p>上面交互件的<b>示例B</b>就是这个反例:P1→R2、P2→R3、P3→R1 首尾相接,三人抢成一个环,空闲资源全是 0,谁也化简不动 → 死锁。</p>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2 id="s3">⚖️ 3. 对照表:检测 vs 银行家,别再混</h2>
+<div class="eli5"><b>🧸 一句话:</b> 银行家是“打疫苗”(分配前先算,宁可不给也不让你进危险),检测是“看急诊”(先让你病,病了再查再治)。</div>
+<h3>⚖️ 检测化简 vs 银行家避免(照教材口径)</h3>
+<table>
+<tr><th>比什么</th><th>银行家算法(避免)</th><th>资源分配图化简(检测)</th></tr>
+<tr><td>时机</td><td><b>事前</b>:每次分配<b>前</b>做安全性检查</td><td><b>事后</b>:分配照给,周期性 / 阻塞时才体检</td></tr>
+<tr><td>核心动作</td><td>找一条<b>安全序列</b>,找不到就拒绝这次分配</td><td>反复<b>约简</b>可满足的进程,看图能否完全化简</td></tr>
+<tr><td>判据</td><td>Need ≤ Work 时假设它能跑完并释放</td><td>Request ≤ Work(空闲)时消其边使之孤立</td></tr>
+<tr><td>结论含义</td><td>“安全 / 不安全”(不安全≠已死锁)</td><td>“可完全化简 = 无死锁 / 否则有死锁”</td></tr>
+<tr><td>代价</td><td>每次分配都算,平时开销大,但不会死锁</td><td>可能真死锁;换来分配灵活,但要额外解除</td></tr>
+</table>
+<div class="key"><b>结论:</b> 两者算法骨架很像(都在“找一个能跑完的进程→释放→推下去”),<b>差别只在“什么时候做、做完拿去干嘛”</b>:银行家拿去决定“这次给不给”,化简拿去判定“已经死没死”。<span>[textbook/ch03_处理机调度与死锁.md · 3.7 银行家 / 3.8 检测]</span></div>
+<div class="warnbox"><b>⚠️ 易错陷阱:</b> “图里有环 = 死锁” <b>是错的!</b> 当每类资源只有 1 个实例时,有环才 ⇔ 死锁;若资源有<b>多个实例</b>,有环也可能不死锁(别的实例还能满足别人)。判死锁的正解永远是“<b>能否完全化简</b>”,不是“有没有环”。<span>[3_处理机调度/ppt文本.md · 幻灯片 350 “有环不一定导致死锁”]</span></div>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2 id="s4">📖 4. 是什么:精确定义 + 解除手段</h2>
+<div class="eli5"><b>🧸 一句话:</b> 把上面的直觉,换成能写进卷子的标准话。</div>
+
+<div class="key">
+<b>资源分配图(Resource Allocation Graph):</b> 用<b>圆圈</b>表示进程结点、<b>方框</b>表示一类资源(框内圆点 = 该类资源的一个实例);<b>请求边</b>由进程指向资源(进程请求该类资源一个实例)、<b>分配边</b>由资源指向进程(已分配一个实例给它)。<span>[3_处理机调度/ppt文本.md · 幻灯片 345;textbook/ch03 · 资源分配图组成]</span>
+</div>
+
+<div class="key">
+<b>化简法(约简步骤):</b> ⑴在图中找一个<b>“可获得它所需全部资源”</b>的进程结点 Pi(即它的请求当前都能满足),让它拿到资源跑完、<b>释放全部资源</b>,消去它的请求边与分配边,使之成为<b>孤立点</b>;⑵再找下一个这样的 Pj 重复;⑶直到没有可约简的进程。<span>[3_处理机调度/ppt文本.md · 幻灯片 347]</span>
+</div>
+
+<div class="key">
+<b>死锁定理:</b> 系统处于死锁状态的<b>充分必要条件</b>是——当且仅当其资源分配图是<b>不可完全化简的</b>。全部结点都能约简为孤立点 = 可完全化简 = 无死锁;化到最后<b>残留</b>的那些进程,就是处于死锁的进程。<span>[3_处理机调度/ppt文本.md · 幻灯片 353;textbook/ch03 · 死锁定理]</span>
+</div>
+
+<h3>🚑 死锁的解除(确诊之后怎么救)</h3>
+<div class="tmpl">
+<b>📐 三类解除手段 + 一条总原则:</b>
+<ol>
+<li><b>剥夺(抢占)资源</b>:从一个或多个死锁进程手里强行抢走足够资源,分给别人打破僵局。要考虑抢谁、抢的代价、别让被抢者饥饿。</li>
+<li><b>撤销进程</b>:终止一个或多个死锁进程,直到循环等待被打破;可全撤(代价最大),更常用的是<b>逐个撤、每次挑代价最小的</b>。</li>
+<li><b>进程回退(rollback)</b>:让进程回退到之前的某个安全检查点、交出那之后占的资源,再重新推进(需要系统保存历史状态)。</li>
+</ol>
+<b>总原则——代价最小</b>:撤销那些代价最小的进程,或使被撤销的进程数量最少。衡量代价常看:优先级低、已运行时间短、剩余时间长、占有资源少的,优先被撤。<span>[3_处理机调度/ppt文本.md · 幻灯片 364-365;textbook/ch03 · 死锁的解除]</span>
+</div>
+<p class="hint">口径提醒:检测与解除是“相互合作”的关系——检测负责确诊,解除负责收回资源。<span>[3_处理机调度/ppt文本.md · 幻灯片行 909]</span></p>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2 id="s5">❓ 5. 为什么这样判:层层追问</h2>
+<div class="eli5"><b>🧸 一句话:</b> 我们不是随便约简,每一步背后都有硬道理。</div>
+<div class="panel">
+<h3>第 1 层:为什么用“请求能否被满足”当判据?</h3>
+<p>因为一个进程只要能拿到它<b>还差</b>的资源,就一定能跑完;跑完必然<b>归还它占的一切</b>。所以“Request ≤ 空闲”这一步是一次<b>乐观推演</b>:假设它拿到就一定结束。能推到底,说明存在一个让所有进程都跑完的顺序,自然无死锁。</p>
+<h3>第 2 层:为什么化简顺序不影响最终结论?</h3>
+<p>因为“释放资源”只会让别的进程<b>更容易</b>被满足,绝不会更难。所以无论你先约简谁,可约简的机会只增不减——最终“能否完全化简”是<b>唯一确定</b>的。这就是为什么交互件里随便挑一个可满足的进程都行,结论一致。</p>
+<h3>第 3 层:为什么这是“事后”而不是“事前”?边界在哪?</h3>
+<p>银行家在分配<b>前</b>就问“分了会不会进入不安全状态”,宁可让进程等——代价是每次分配都要算、系统开销大。检测法反过来:<b>先允许系统陷进死锁</b>,再靠周期性(或 CPU 利用率骤降、进程久阻塞时)体检发现它,然后解除。换来的是分配灵活,代价是解除时一定有损失(剥夺/回退/撤销都要作废一部分工作)。这就是“打疫苗 vs 看急诊”的取舍。<span>[textbook/ch03 · 死锁检测的时机 / 死锁的解除]</span></p>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="s6">✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>在资源分配图化简法中,一个进程结点可以被约简(消去其边、变成孤立点)的条件是?</p>
+<p>
+A. 它当前没有持有任何资源<br>
+B. 它<b>请求的资源当前都能被满足</b><br>
+C. 它是优先级最高的进程<br>
+D. 它已经进入阻塞队列
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 化简的唯一判据就是“它请求的每类资源数 ≤ 当前空闲数”,满足才能让它跑完并释放。A 错:持有资源恰恰意味着它非孤立、正是可约简的候选,不持有不是条件。C 错:化简与优先级无关,顺序不影响结论。D 错:进入阻塞队列说明它的请求得不到满足,反而<b>不</b>能约简。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>关于“资源分配图可完全化简”,下列说法正确的是?</p>
+<p>
+A. 只要图中有环就一定不可完全化简<br>
+B. 化简顺序不同,可能得出不同的死锁结论<br>
+C. 图<b>可完全化简 ⇔ 系统无死锁</b><br>
+D. 不可完全化简说明系统总资源不足
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 这正是死锁定理:可完全化简当且仅当无死锁。A 错:资源多实例时“有环不一定死锁”,判据是能否完全化简而非有没有环。B 错:释放资源只会让别人更易满足,最终能否化简是唯一确定的,与顺序无关。D 错:不可化简是“互相等待成环”的结构问题,不等于总量不足——加不加资源都可能救不了当前僵局。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>死锁检测(化简法)与银行家算法的根本区别是?</p>
+<p>
+A. 检测是<b>事后</b>诊断,银行家是<b>事前</b>避免<br>
+B. 检测通过破坏四个必要条件之一来工作<br>
+C. 银行家允许系统先进入死锁、再解除<br>
+D. 两者都要求进程一次性申请全部资源
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 银行家在分配前算安全序列(避免/事前);化简在系统运行后周期体检判死锁(检测/事后)。B 错:破坏必要条件是“预防”策略,不是检测。C 错:说反了——是检测法允许先死锁再解除,银行家从不让系统进入不安全状态。D 错:“一次性申请全部”是预防里破坏“请求和保持”的手段,与这两者无关。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>解除死锁时,按“代价最小原则”撤销进程,通常优先撤销哪种进程?</p>
+<p>
+A. 持有资源最多的进程<br>
+B. 已运行时间很长、快要完成的进程<br>
+C. 正在等待 I/O 的进程<br>
+D. <b>优先级低、占有资源少、已运行时间短</b>的进程
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 代价最小 = 撤了不太可惜:优先级低、已运行时间短(重跑损失小)、占资源少的先撤。A 错:持有资源多的撤了确实能一次收回很多,但它往往也是投入大、代价高的,不是“代价最小”的首选。B 错:快完成的进程撤掉最可惜,前功尽弃。C 错:是否等 I/O 与撤销代价无直接关系。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>用一句话说出<b>死锁定理</b>:什么情况下系统死锁?</li>
+<li>不看屏幕,复述一遍<b>化简法的三步</b>,并说清“选一个进程约简”的判据是什么。</li>
+<li>说出死锁解除的<b>三类手段</b>和那条<b>总原则</b>;再说清它和银行家算法在“时机”上的区别。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能顺口说出来 → 你是真懂了。哪题卡壳,回到对应小节、再点一遍上面的化简器走一遍。</p>
+</div>
+
+<footer>
+第 46 课 · Ch3 处理机调度(死锁) · 资源分配图化简法 = 事后判死锁,可完全化简则无死锁<br>
+四条件 / 预防 → <a href="./0045-deadlock-conditions-prevention.html">第 45 课</a> ·
+银行家避免(事前) → <a href="./0003-bankers-algorithm.html">第 3 课</a> ·
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课</a>
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// 签名交互件:资源分配图分步化简器
+// 数据模型:资源有总实例数;进程有 alloc(持有) 与 req(请求)。
+// 空闲 available[R] = total[R] - Σ(未化简进程的 alloc[R])。
+// 可约简 = 未化简 且 对所有请求 req[R] <= available[R]。
+// 每步挑 order 里第一个可约简的进程,标记为已化简(它释放全部资源)。
+// 全部化简 → 无死锁;走不动且有残留 → 那些进程死锁。
+// =============================================================
+var examples = {
+  A: {
+    resources: { R1:{total:2}, R2:{total:1} },
+    procs: {
+      P1:{ alloc:{R1:1}, req:{R2:1} },
+      P2:{ alloc:{R1:1}, req:{} },
+      P3:{ alloc:{R2:1}, req:{R1:1} }
+    },
+    order:['P1','P2','P3'], rorder:['R1','R2']
+  },
+  B: {
+    resources:{ R1:{total:1}, R2:{total:1}, R3:{total:1} },
+    procs:{
+      P1:{ alloc:{R1:1}, req:{R2:1} },
+      P2:{ alloc:{R2:1}, req:{R3:1} },
+      P3:{ alloc:{R3:1}, req:{R1:1} }
+    },
+    order:['P1','P2','P3'], rorder:['R1','R2','R3']
+  }
+};
+
+var curEx='A', reduced={}, stepNo=1, finished=false, logHtml='';
+
+var elRes=document.getElementById('ragRes');
+var elProc=document.getElementById('ragProc');
+var elEdges=document.getElementById('ragEdges');
+var elAvail=document.getElementById('ragAvail');
+var elReadout=document.getElementById('ragReadout');
+
+function computeAvail(ex){
+  var av={};
+  for(var r in ex.resources) av[r]=ex.resources[r].total;
+  for(var i=0;i<ex.order.length;i++){
+    var p=ex.order[i];
+    if(reduced[p]) continue;
+    var a=ex.procs[p].alloc;
+    for(var r in a) av[r]-=a[r];
+  }
+  return av;
+}
+function reqSatisfiable(ex,p,av){
+  var req=ex.procs[p].req;
+  for(var r in req){ if(req[r]>av[r]) return false; }
+  return true;
+}
+function isReducible(ex,p,av){
+  return !reduced[p] && reqSatisfiable(ex,p,av);
+}
+function findCandidate(ex,av){
+  for(var i=0;i<ex.order.length;i++){
+    var p=ex.order[i];
+    if(isReducible(ex,p,av)) return p;
+  }
+  return null;
+}
+function fmtMap(m){
+  var parts=[]; for(var k in m) parts.push(k+'×'+m[k]);
+  return parts.length? parts.join(', ') : '(无)';
+}
+function fmtAvail(av){
+  var parts=[]; for(var r in av) parts.push(r+'='+av[r]);
+  return parts.join(', ');
+}
+function remaining(ex){
+  var out=[]; for(var i=0;i<ex.order.length;i++){ if(!reduced[ex.order[i]]) out.push(ex.order[i]); }
+  return out;
+}
+
+function render(){
+  var ex=examples[curEx];
+  var av=computeAvail(ex);
+  var cand=finished? null : findCandidate(ex,av);
+
+  // 资源结点
+  var rh='';
+  for(var i=0;i<ex.rorder.length;i++){
+    var r=ex.rorder[i];
+    rh+='<div class="rnode"><b>'+r+'</b><span class="inst">总 '+ex.resources[r].total+' · 空闲 '+av[r]+'</span></div>';
+  }
+  elRes.innerHTML=rh;
+
+  // 进程结点
+  var ph='';
+  for(var i=0;i<ex.order.length;i++){
+    var p=ex.order[i], cls='pnode', st='';
+    if(reduced[p]){ cls+=' reduced'; st='已化简 · 孤立点'; }
+    else if(p===cand){ cls+=' cand'; st='✔ 本步可化简'; }
+    else if(reqSatisfiable(ex,p,av)){ st='可满足(候选)'; }
+    else { cls+=' blocked'; st='✘ 阻塞(请求不满足)'; }
+    ph+='<div class="'+cls+'"><b>'+p+'</b>持有 '+fmtMap(ex.procs[p].alloc)+' · 请求 '+fmtMap(ex.procs[p].req)+'<span class="st">'+st+'</span></div>';
+  }
+  elProc.innerHTML=ph;
+
+  // 边列表
+  var eh='';
+  for(var i=0;i<ex.order.length;i++){
+    var p=ex.order[i], g=reduced[p]?' gone':'';
+    var a=ex.procs[p].alloc;
+    for(var r in a) eh+='<div class="edge alloc'+g+'">'+r+' ──分配──▸ '+p+'  (×'+a[r]+')</div>';
+    var q=ex.procs[p].req;
+    for(var r in q) eh+='<div class="edge req'+g+'">'+p+' ──请求──▸ '+r+'  (×'+q[r]+')</div>';
+  }
+  elEdges.innerHTML=eh;
+
+  elAvail.innerHTML='当前空闲资源向量 Work = { '+fmtAvail(av)+' }';
+  elReadout.innerHTML=logHtml || '<span class="step">← 点“化简一步”,看系统每一步为什么选它。</span>';
+}
+
+function log(cls,html){ logHtml+='<span class="step '+cls+'">'+html+'</span>'; }
+
+function stepOnce(){
+  if(finished) return false;
+  var ex=examples[curEx];
+  var av=computeAvail(ex);
+  var cand=findCandidate(ex,av);
+  if(cand){
+    log('okc','第 '+stepNo+' 步:选 <b>'+cand+'</b> —— 它请求 <code>'+fmtMap(ex.procs[cand].req)+'</code>,当前空闲 <code>{ '+fmtAvail(av)+' }</code> 都能满足,且它非孤立(还持有 '+fmtMap(ex.procs[cand].alloc)+')。让它跑完,消去它的请求边+分配边,释放 <code>'+fmtMap(ex.procs[cand].alloc)+'</code>,'+cand+' 变孤立点。');
+    reduced[cand]=true; stepNo++;
+    if(remaining(ex).length===0){
+      finished=true;
+      log('okc','✔ 全部进程都已化简为孤立点 → 资源分配图<b>可完全化简</b> → <b>系统无死锁</b>。');
+    }
+    render(); return true;
+  } else {
+    finished=true;
+    var left=remaining(ex);
+    if(left.length===0){ log('okc','✔ 已全部化简 → 无死锁。'); }
+    else {
+      var av2=computeAvail(ex);
+      log('badc','✘ 剩下 <b>'+left.join('、')+'</b> 全部阻塞:它们的请求在当前空闲 <code>{ '+fmtAvail(av2)+' }</code> 下都无法满足,谁都不肯先释放。图<b>不可完全化简</b> → <b>'+left.join('、')+' 处于死锁</b>。');
+    }
+    render(); return false;
+  }
+}
+
+function resetState(){ reduced={}; stepNo=1; finished=false; logHtml=''; render(); }
+function switchEx(k,ba,bb){
+  curEx=k; resetState();
+  ba.classList.add('on'); bb.classList.remove('on');
+}
+
+var btnA=document.getElementById('btnExA'), btnB=document.getElementById('btnExB');
+btnA.addEventListener('click', function(){ switchEx('A',btnA,btnB); });
+btnB.addEventListener('click', function(){ switchEx('B',btnB,btnA); });
+document.getElementById('btnStep').addEventListener('click', stepOnce);
+document.getElementById('btnAuto').addEventListener('click', function(){
+  var guard=0; while(!finished && guard<50){ stepOnce(); guard++; }
+});
+document.getElementById('btnReset').addEventListener('click', resetState);
+
+// ===== 首屏渲染 =====
+render();
+</script>
+</body>
+</html>

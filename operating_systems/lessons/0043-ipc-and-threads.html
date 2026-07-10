@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 43 课 · Ch2 进程管理 · 进程通信 IPC + 线程模型</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  /* ===== 三种色块提示条:橙(直觉/ELI5)· 绿(要点)· 红(陷阱/警告) ===== */
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+
+  /* ===== 白卡容器:放交互件 / 自测题 ===== */
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  /* ===== 紫色解题模板盒 ===== */
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .tmpl ol{margin:6px 0 0; padding-left:20px} .tmpl li{margin:3px 0}
+
+  /* ===== 按钮 ===== */
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  /* ===== 表格 ===== */
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+
+  /* ===== 交互件回显区 ===== */
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  .readout .step{display:block; margin:3px 0}
+  .readout .okc{color:var(--green)} .readout .badc{color:var(--red)}
+  .readout code{background:#e7f0fb}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  /* ===== 顶部锚点导航 ===== */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* ===== 全局故事线:横向节点 + 箭头 ===== */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 120px; min-width:110px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  /* ===== 本课交互件专用(沿用上面令牌,仅补布局) ===== */
+  .tabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px}
+  .diagram{display:flex; align-items:stretch; gap:8px; margin:14px 0; flex-wrap:wrap}
+  .procbox{flex:1 1 150px; min-width:130px; border:2px solid var(--blue); border-radius:10px; background:var(--soft);
+    padding:12px 10px; text-align:center; font-weight:700; color:var(--ink)}
+  .procbox small{display:block; font-weight:400; color:var(--muted); font-size:12px; margin-top:4px}
+  .channel{flex:1 1 170px; min-width:150px; border:2px dashed var(--amber); border-radius:10px; background:#fff7ed;
+    padding:12px 10px; text-align:center; font-weight:700; color:var(--amber)}
+  .channel small{display:block; font-weight:400; color:var(--muted); font-size:12px; margin-top:4px}
+  .conn{align-self:center; text-align:center; min-width:64px; font-size:12.5px; color:var(--blue); font-weight:700; line-height:1.3}
+  .whenline{margin-top:6px; font-size:14px; color:var(--green); font-weight:600}
+  .taghint{display:inline-block; font-size:12px; background:#ecfdf5; border:1px solid #b7e4c7; color:var(--green);
+    border-radius:12px; padding:1px 9px; margin-left:6px; vertical-align:middle}
+
+  /* 线程映射图 */
+  .tmap{margin:12px 0}
+  .trow{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:6px 0}
+  .tbox{min-width:64px; border:2px solid var(--blue2); border-radius:8px; background:#fff; padding:8px 6px;
+    text-align:center; font-weight:700; font-size:13.5px; color:var(--ink); transition:.15s}
+  .tbox.k{border-color:var(--purple); color:var(--purple)}
+  .tbox.blocked{border-color:var(--red); background:#fdecec; color:var(--red)}
+  .tbox.stall{border-color:var(--amber); background:#fff7ed; color:var(--amber)}
+  .tbox.run{border-color:var(--green); background:#ecfdf5; color:var(--green)}
+  .maplbl{text-align:center; font-size:12.5px; color:var(--muted); margin:2px 0}
+  .midarrow{text-align:center; color:#aab; font-weight:700; font-size:13px; margin:-2px 0}
+
+  @media print{ body{background:#fff} .btn,.nav,.tabs{display:none} .panel{box-shadow:none}
+    input[type=range]{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 43 课 · Ch2 进程管理 · 零基础可视化</p>
+  <h1>进程之间怎么说话?线程为什么被发明?——IPC 四类 + 线程三实现</h1>
+  <p class="sub">这一课只回答两件事:①两个各自独立的进程怎样交换数据(共享内存/消息/管道/信号);②进程太"重"了,于是有了线程,而线程有三种造法、各有生死软肋。配合 <a href="./0010-process-sync.html">同步课</a> 一起看。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·四类IPC交互件</a>
+    <a href="#s2">2·ELI5类比</a>
+    <a href="#s3">3·对照表</a>
+    <a href="#s4">4·是什么(定义)</a>
+    <a href="#s5">5·为什么(追问)</a>
+    <a href="#s6">6·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> <b>进程之间默认互相隔离(各有各的地址空间)</b>,想通信就得借一条"通道"——通道越贴近内存越快但越要自己加锁,越像邮政越省心但越费拷贝;而<b>线程</b>是把这层隔离在一个进程内部拆掉,让多个执行流<b>共享同一份地址空间</b>,代价是它的实现方式决定了"一个线程卡住会不会拖死全家"。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:这些点怎么串起来</h2>
+<p class="hint">别把 IPC 和线程当两个孤立话题——它们是"进程隔离"这一个设计逼出来的正反两面。</p>
+<div class="flow">
+  <div class="fnode"><b>进程隔离</b>每个进程有独立地址空间,天生互不可见(安全,但没法直接传数据)</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>要通信</b>于是造 4 种通道:共享内存 / 消息传递 / 管道 / 信号</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>进程太重</b>创建、切换都要换整套地址空间与资源,开销大</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>造线程</b>同进程内多执行流共享资源,切换只换少量寄存器</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>实现分歧</b>ULT/KLT/混合——决定"一个线程阻塞会不会拖垮整进程"</div>
+</div>
+
+<!-- ===================== 1. 交互件:四类 IPC + 线程模型 ===================== -->
+<h2 id="s1">🖼 1. 先看画面:四类 IPC 数据流 + 线程模型判定(签名交互件)</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 上半屏点 4 个标签,看两个进程框中间那条"通道"长什么样、什么时候该用它;下半屏切换线程实现,亲眼看"某个线程阻塞时,其它线程还能不能跑"。
+</div>
+
+<div class="panel">
+  <div class="hint">👆 上半:点标签切换 IPC 类型。看中间通道 + 底部"何时用"。</div>
+  <div class="tabs" id="ipcTabs">
+    <button class="btn on" data-ipc="shm">① 共享内存</button>
+    <button class="btn" data-ipc="msg">② 消息传递</button>
+    <button class="btn" data-ipc="pipe">③ 管道 pipe</button>
+    <button class="btn" data-ipc="sig">④ 信号 signal</button>
+  </div>
+  <div id="ipcTitle" style="font-weight:700;color:var(--blue);margin:6px 0"></div>
+  <div class="diagram" id="ipcDiagram"><!-- JS 渲染:进程框 + 通道 --></div>
+  <div class="whenline" id="ipcWhen"></div>
+</div>
+
+<div class="panel">
+  <div class="hint">👇 下半:先选线程实现(改变映射关系),再点某个用户线程让它"执行阻塞系统调用",看谁跟着停。</div>
+  <div class="tabs" id="modelTabs">
+    <button class="btn on" data-model="ULT">用户级线程 ULT(多对一)</button>
+    <button class="btn" data-model="KLT">内核级线程 KLT(一对一)</button>
+    <button class="btn" data-model="HYB">混合(多对多)</button>
+  </div>
+  <div class="maplbl" id="mapLabel"></div>
+  <div class="tmap">
+    <div class="maplbl">用户线程(应用看到的)</div>
+    <div class="trow" id="userRow"></div>
+    <div class="midarrow" id="mapArrow">↕ 映射到 ↕</div>
+    <div class="maplbl">内核线程 / 内核可调度实体(CPU 真正调度的)</div>
+    <div class="trow" id="kernRow"></div>
+  </div>
+  <div class="hint">点一个用户线程,模拟它调用 <code>read()</code> 等阻塞系统调用:</div>
+  <div id="blockBtns"></div>
+  <div class="readout" id="threadReadout">← 选实现 + 点一个用户线程,看阻塞判定。</div>
+  <div><button class="btn reset" id="resetThread">重置</button></div>
+</div>
+
+<div class="key">
+<b>要点:</b> 通道越靠近"共享内存",速度越快、越要你自己加锁;越靠近"消息/邮政",越省心自带同步、但越费拷贝。线程实现里:<b>只有 ULT(多对一)会因一个线程的阻塞系统调用而拖死整个进程</b>——这是全课第一考点。
+</div>
+
+<!-- ===================== 2. ELI5 具体例子 ===================== -->
+<h2 id="s2">🧸 2. 用生活例子彻底讲明白</h2>
+<div class="eli5">
+<b>🧸 IPC 四类 = 两个人怎么传话:</b><br>
+· <b>共享内存</b> = 你俩共用一块白板,谁都能直接写直接读。<u>最快</u>,因为不用中间人。但两人同时抢着写会覆盖彼此——所以<u>必须自己约定"谁先谁后"(加锁/信号量)</u>。<br>
+· <b>消息传递</b> = 你写好一封信 <code>send</code> 投进邮箱,对方 <code>receive</code> 取出来。<u>系统帮你排队、你不写完对方就取不到(自带同步)</u>,但信要被抄一遍进邮箱、再抄一遍给对方(<u>拷贝开销</u>)。<br>
+· <b>管道 pipe</b> = 一根单向水管,写进程往里灌字节流,读进程在另一头接。<u>半双工:同一时刻只能一个方向流</u>,常用于有亲缘关系的父子进程。<br>
+· <b>信号 signal</b> = 拍一下对方肩膀说"喂!"。<u>只送一个"编号"(比如 SIGKILL),不带具体内容</u>,用来异步打断/通知对方。
+</div>
+<div class="warnbox">
+<b>反例(如果没有 IPC 会怎样):</b> 进程 A 算出一个结果想给进程 B,可 A、B 各自的地址空间彼此看不见——A 写在自己内存里的变量,B 里同名变量是完全不同的另一块内存。没有 IPC,它们就是<b>两座没有桥的孤岛</b>,只能各干各的,协作(比如"计算进程 C 把数据交给打印进程 P")根本无从谈起。
+</div>
+<div class="eli5">
+<b>🧸 线程为什么出现:</b> 一个进程像一间装修好的房子(地址空间、打开的文件、内存映射全套家当)。要"多干几件事",老办法是<u>再盖一整栋房子(fork 新进程)</u>——又慢又占地,而且两栋房子之间还得架桥(IPC)才能说话。线程是<b>在同一间房子里多请几个人干活</b>:大家共用客厅、厨房、文件柜(共享地址空间与资源),各自只带一张自己的书桌(独立的栈、寄存器、PC)。换人干活(线程切换)只要挪一下书桌,不用重盖房子。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2 id="s3">⚖️ 3. 对照表:把最容易混的并排看</h2>
+
+<h3>⚖️ 3.1 共享内存 vs 消息传递(老师最爱考的辨析)</h3>
+<table>
+<tr><th>比什么</th><th>共享内存(共享存储器)</th><th>消息传递(send/receive)</th></tr>
+<tr><td>速度</td><td><b>最快</b>:直接读写同一块物理内存,无中间搬运</td><td>较慢:每条消息要经"用户→内核→用户"两次拷贝</td></tr>
+<tr><td>同步谁负责</td><td><b>你自己</b>:必须配信号量/锁,否则数据竞争</td><td><b>系统自带</b>:没消息时 receive 自动阻塞等待</td></tr>
+<tr><td>数据形式</td><td>任意结构,直接落在共享区</td><td>格式化的消息(message)/报文</td></tr>
+<tr><td>能否跨机</td><td>一般只限同一台机器</td><td>可跨机、跨网络(网络里消息又叫报文)</td></tr>
+<tr><td>一句话记</td><td>快,但锁要自己上</td><td>省心,但要付拷贝费</td></tr>
+</table>
+<div class="warnbox"><b>⚠️ 高频扣分点:</b> "共享内存最快"后面若不补一句"<b>但需要进程自己做同步(加锁)</b>",这题就是半对;"消息传递自带同步"后面若不点出"<b>但有数据拷贝开销</b>",同样不满分。两句话要成对背。<span class="hint">来源:textbook/ch02_进程的描述与控制.md §2.6;2_进程管理/ppt文本.md 消息传递/管道段</span></div>
+
+<h3>⚖️ 3.2 四类 IPC 速记表</h3>
+<table>
+<tr><th>方式</th><th>通道是什么</th><th>层次</th><th>特征/何时用</th></tr>
+<tr><td>共享内存</td><td>双方地址空间映射的同一内存区</td><td>可低可高</td><td>最快;需自己同步;同机大数据</td></tr>
+<tr><td>消息传递</td><td>内核消息队列 / 信箱</td><td>高级通信</td><td>自带同步、可跨机;有拷贝;分<b>直接</b>(直接发给进程)/<b>间接</b>(经信箱)</td></tr>
+<tr><td>管道 pipe</td><td>连接读写进程的共享文件</td><td>高级通信</td><td>半双工字节流;需互斥/同步/确认对方存在;首创于 UNIX</td></tr>
+<tr><td>信号 signal</td><td>一个信号编号</td><td>低级(通知)</td><td>异步通知/打断;不传数据内容</td></tr>
+</table>
+<div class="hint">来源:2_进程管理/ppt文本.md(2.6 进程通信:消息传递 / 管道 pipe / send-receive;2.2 中 exit 向父进程 send('completed')、子进程终止发信号给父进程);textbook/ch02_进程的描述与控制.md §2.6</div>
+
+<h3>⚖️ 3.3 进程 vs 线程</h3>
+<table>
+<tr><th>比较维度</th><th>进程</th><th>线程</th></tr>
+<tr><td>是什么单位</td><td>资源分配(拥有)的基本单位</td><td>独立调度和分派的基本单位</td></tr>
+<tr><td>拥有资源</td><td>拥有独立地址空间与系统资源</td><td>基本不拥有资源,<b>共享</b>所属进程的资源;只独占栈、寄存器、PC、TCB</td></tr>
+<tr><td>切换开销</td><td>大(要换地址空间、资源映射)</td><td>小(只换少量寄存器)</td></tr>
+<tr><td>通信</td><td>要走 IPC(隔离)</td><td>直接读写共享变量(但仍需加锁防竞争)</td></tr>
+</table>
+<div class="hint">来源:textbook/ch02_进程的描述与控制.md §2.7 线程与进程的比较表 / 线程的属性</div>
+
+<!-- ===================== 4. 是什么(定义) ===================== -->
+<h2 id="s4">📖 4. 是什么:精确定义(对齐教材口径)</h2>
+<div class="key">
+<b>进程通信(IPC):</b> 进程之间交换信息的机制。分三大类(教材口径):<b>共享存储器系统</b>(共享一块存储区,需同步机制控制读写)、<b>消息传递系统</b>(以格式化消息为单位,当前应用最广,分<b>直接通信</b>与<b>间接通信/信箱</b>)、<b>管道通信</b>(用连接读写进程的共享文件 pipe,以字符流传输,须提供互斥、同步、确认对方存在三种协调)。<span class="hint">textbook/ch02 §2.6;ppt文本.md 2.6.1/2.6.2</span>
+</div>
+<div class="key">
+<b>信号(signal):</b> 一种异步通知机制——一个进程向另一个进程(或内核向进程)发送一个"信号编号"来通知某事件发生(如子进程终止时向父进程发信号、<code>wait</code> 直到收到被捕获的信号)。它<b>只传递"发生了什么"这个编号,不携带数据内容</b>。<span class="hint">ppt文本.md 2.2:子程序执行完毕"发信号给等待它终止的父进程";wait 调用挂起直到"收到一个被其捕获的信号"</span>
+</div>
+<div class="key">
+<b>线程:</b> 进程内的一条执行流,是<b>独立调度和分派的基本单位</b>;它是"轻型实体",基本不拥有资源,只保有能独立运行的最小集(TCB、程序计数器 PC、寄存器、栈),而<b>共享所属进程的全部资源</b>。引入目的:减少并发执行的时空开销,提高并发性。<span class="hint">textbook/ch02 §2.7;ppt文本.md 2.7.1 线程的基本概念</span>
+</div>
+<div class="key">
+<b>三种线程实现:</b><br>
+· <b>内核支持线程 KST/KLT:</b> 线程的创建、撤销、调度都由内核完成,内核为每个内核线程维护上下文。<b>优点</b>:一个线程阻塞,内核可调度同进程其它线程;可多处理机并行。<b>缺点</b>:线程操作要陷入内核(用户态↔内核态),开销较大。<br>
+· <b>用户级线程 ULT:</b> 线程的创建、调度、同步全在用户空间完成,<b>内核完全感知不到线程存在,只调度进程</b>。<b>优点</b>:切换不入内核、极快,可自定义调度,甚至能跑在不支持线程的 OS 上。<b>缺点(致命)</b>:<b>一个线程执行阻塞系统调用,整个进程都被阻塞</b>;且同进程多线程不能真正在多处理机并行。<br>
+· <b>组合/混合方式:</b> 引入<b>轻量级进程 LWP</b> 作为中间层,一个进程有多个 LWP、每个 LWP 对接一个内核线程,用户级线程映射到 LWP 上运行——兼顾快切换与"一个阻塞不拖垮全部"。<span class="hint">textbook/ch02 §2.8 KST/ULT/组合方式</span>
+</div>
+
+<!-- ===================== 5. 为什么(层层追问) ===================== -->
+<h2 id="s5">❓ 5. 为什么:一层层追问动机与边界</h2>
+<div class="panel">
+<h3>第 1 层:为什么共享内存最快,却把同步甩给你?</h3>
+<p>因为它<b>没有中间人</b>——两个进程把同一块物理内存映射进各自地址空间,一方写,另一方立刻能读,数据"零搬运"。可正因为没有中间人替你排队,两个进程同时写就会互相覆盖(数据竞争)。速度的代价,就是<b>同步责任转嫁给程序员</b>:你得自己配信号量/锁(回到 <a href="./0010-process-sync.html">同步课</a> 的 P/V 操作)。</p>
+
+<h3>第 2 层:那消息传递凭什么"自带同步"?代价在哪?</h3>
+<p>因为通道由内核托管:消息进了内核队列,<b>没消息时 receive 会自动阻塞</b>,直到有消息才唤醒——"等对方"这件事内核替你做了,你不用手写锁。代价是数据要被拷贝两趟(发送方用户区→内核缓冲→接收方用户区),数据量大时这笔<b>拷贝开销</b>就显出来了。所以工程上:小而结构化的控制信息用消息,大块数据用共享内存。</p>
+
+<h3>第 3 层:为什么发明线程?进程"重"在哪?</h3>
+<p>进程是资源分配单位,创建/切换要建立或切换<b>整套地址空间、页表、打开文件表</b>等重家当;两个进程还彼此隔离,协作必须架 IPC。线程把"多执行流"塞进<b>同一个进程、同一份地址空间</b>:切换只需换 PC、寄存器、栈这点"随身物品",共享变量直接读写(省掉 IPC)。<b>进程是资源分配单位,线程是调度单位</b>——这句是分工的根。</p>
+
+<h3>第 4 层(边界·全课灵魂):为什么 ULT 一个线程阻塞会拖死整进程,KLT 不会?</h3>
+<p>关键在<b>谁在 CPU 调度眼里是一个单位</b>。ULT 下内核<b>看不见线程</b>,它眼里只有一个进程(多对一)。当某个 ULT 执行阻塞系统调用(如 <code>read</code>),内核只知道"<b>这个进程</b>发起了阻塞调用",于是把<b>整个进程</b>挂起——同进程里其它 ULT 明明能干活,也一起被冻住,因为它们没有独立的、内核可调度的身份。<br>
+KLT 下每个线程都有独立的内核线程身份(一对一),某个线程阻塞,内核挂起的只是<b>那一个内核线程</b>,立刻调度同进程的其它内核线程继续跑。<br>
+混合(多对多)用 LWP 做缓冲:阻塞会拖住共用同一 LWP/内核线程的那几个用户线程,但<b>其它 LWP 上的线程照跑</b>——所以只要还有别的内核线程活着,进程就不会整体停摆。<u>上面的交互件正是在算这件事:阻塞的用户线程 → 它绑定的内核线程 → 与它共用该内核线程的所有用户线程一起停,其余继续。</u></p>
+</div>
+<div class="warnbox"><b>⚠️ 一句话陷阱题口径:</b> "在用户级线程中,一个线程被阻塞会导致__?"——标准答案是"<b>整个进程被阻塞</b>"。若换成内核级线程,则"<b>只阻塞该线程,其它线程可继续</b>"。这一对必须能秒答。<span class="hint">textbook/ch02 §2.8 ULT 缺点①</span></div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="s6">✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>关于<b>共享内存</b>方式,下列说法最准确的是:</p>
+<p>
+A. 它速度最快,而且系统自动帮进程做好同步<br>
+B. 它必须经过内核两次拷贝,所以最慢<br>
+C. 它速度最快,但需要进程自己用信号量等机制做同步<br>
+D. 它只能用于有亲缘关系的父子进程
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 共享内存直接读写同一块物理内存,无中间搬运,是最快的 IPC;但正因没有中间人排队,必须由进程自己加锁/用信号量同步。<br>
+A 错在"系统自动做同步"——那是消息传递的特性,共享内存的同步要程序员自己负责;B 描述的是消息传递(两次拷贝),不是共享内存;D 描述的是管道 pipe 的典型使用场景,不是共享内存。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>在<b>用户级线程(ULT)</b>模型下,某进程中一个线程执行了阻塞式系统调用,结果是:</p>
+<p>
+A. 只有该线程阻塞,同进程其它线程继续运行<br>
+B. 整个进程被阻塞,同进程其它线程也无法运行<br>
+C. 内核立即把该进程分配到另一处理机并行运行其它线程<br>
+D. 该线程被强制终止,进程继续
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> ULT 下内核感知不到线程,只看到"进程"这一个调度单位(多对一);任一线程发起阻塞系统调用,内核就挂起整个进程,其它线程被连累。<br>
+A 是<b>内核级线程</b>的特性,不是 ULT;C 错在 ULT 的另一缺点恰恰是"同进程多线程不能真正在多处理机并行";D 阻塞不等于终止,系统调用完成后线程会恢复。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>与共享内存相比,<b>消息传递</b>方式的主要代价是:</p>
+<p>
+A. 无法实现进程间同步<br>
+B. 只能传输字符流,不能传结构化数据<br>
+C. 只能在单机内使用,不能跨网络<br>
+D. 每条消息需在用户区与内核区之间拷贝,带来拷贝开销
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 消息传递的通道由内核托管,数据要经"发送方用户区→内核缓冲→接收方用户区"拷贝,这就是它相对共享内存的额外开销。<br>
+A 正相反——消息传递恰恰<b>自带同步</b>(没消息时 receive 阻塞);B 描述的是管道 pipe(字节流);C 也说反了——消息传递<b>可以</b>跨机跨网络(报文),反倒是共享内存一般限同机。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>下列关于<b>管道 pipe</b> 的描述,正确的是:</p>
+<p>
+A. 它是半双工的字节流通道,常用于有亲缘关系的进程<br>
+B. 它以格式化消息为单位,分直接通信和间接通信<br>
+C. 它把同一块内存映射进两个进程,读写零拷贝<br>
+D. 它只发送一个信号编号,不传数据内容
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 管道是连接读写进程的共享文件,以字符(字节)流传输,半双工(同一时刻只一个方向),需提供互斥、同步、确认对方存在三种协调,常见于父子进程。<br>
+B 描述的是消息传递;C 描述的是共享内存;D 描述的是信号 signal。四类各归各位,别串。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)——达到即通过</h3>
+<ol>
+<li>用一句话说清:为什么"共享内存快但要自己加锁",而"消息传递省心但费拷贝"。</li>
+<li>不看屏幕,画出任意一种 IPC 的数据流(两个进程框 + 中间通道),并说出它"何时用"。</li>
+<li>复述:ULT、KLT、混合三种实现里,"一个线程阻塞会不会拖垮整进程",分别是什么结论、为什么。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)"><b>通过条件:</b> 三题都能顺口说出、且第 3 题能点破"内核是否把线程当独立调度单位"这个根因 → 本课过关。哪题卡壳,回到对应小节再点一遍交互件。</p>
+</div>
+
+<footer>
+第 43 课 · Ch2 进程管理 · 进程通信 IPC(共享内存/消息/管道/信号)+ 线程三实现(ULT/KLT/混合)<br>
+相关:进程·线程·死锁 → <a href="./0012-process-thread-deadlock.html">第 12 课</a> ·
+进程同步(P/V·信号量) → <a href="./0010-process-sync.html">第 10 课</a> ·
+xv6 上下文切换 → <a href="./0026-xv6-scheduler-walkthrough.html">第 26 课</a>
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// 交互件脚本:纯原生 JS,无外部依赖。class 切换 + innerHTML 渲染。
+// =============================================================
+
+// ---------- 上半:四类 IPC 数据流 ----------
+var IPC = {
+  shm: {
+    title: '① 共享内存(共享存储器)',
+    tag: '最快',
+    left: {name:'进程 P1', sub:'把结果写进共享区'},
+    mid:  {name:'共享内存区', sub:'同一块物理内存,映射进双方地址空间'},
+    right:{name:'进程 P2', sub:'直接从共享区读'},
+    connL:'写入 ⇄', connR:'⇄ 读取',
+    when:'✅ 何时用:同机、大量数据、要最快 —— 但必须自己配信号量/锁做同步'
+  },
+  msg: {
+    title: '② 消息传递(send / receive)',
+    tag: '自带同步',
+    left: {name:'进程 P1', sub:'send(P2, msg)'},
+    mid:  {name:'内核消息队列 / 信箱', sub:'内核托管:没消息时 receive 自动阻塞'},
+    right:{name:'进程 P2', sub:'receive(P1, msg)'},
+    connL:'send →', connR:'→ receive',
+    when:'✅ 何时用:结构化少量数据、要自带同步、可跨机 —— 但每条消息有拷贝开销;分直接/间接(信箱)'
+  },
+  pipe: {
+    title: '③ 管道 pipe(半双工字节流)',
+    tag: '半双工',
+    left: {name:'写进程', sub:'write(fd[1], ...)'},
+    mid:  {name:'pipe 共享文件', sub:'内核缓冲,以字节流传输'},
+    right:{name:'读进程', sub:'read(fd[0], ...)'},
+    connL:'字节流 →', connR:'→ 字节流',
+    when:'✅ 何时用:有亲缘关系(父子)进程、单向字节流 —— 半双工,同一时刻只一个方向;首创于 UNIX'
+  },
+  sig: {
+    title: '④ 信号 signal(异步通知)',
+    tag: '不传数据',
+    left: {name:'进程 P1', sub:'kill(P2, SIG)'},
+    mid:  {name:'信号编号', sub:'如 SIGKILL / 子进程终止通知父进程'},
+    right:{name:'进程 P2', sub:'被异步打断 / 捕获处理'},
+    connL:'发编号 →', connR:'→ 打断',
+    when:'✅ 何时用:异步事件通知 / 打断对方 —— 只送一个"编号",不传数据内容'
+  }
+};
+
+var ipcTitle = document.getElementById('ipcTitle');
+var ipcDiagram = document.getElementById('ipcDiagram');
+var ipcWhen = document.getElementById('ipcWhen');
+
+function renderIPC(key){
+  var d = IPC[key];
+  ipcTitle.innerHTML = d.title + ' <span class="taghint">' + d.tag + '</span>';
+  ipcDiagram.innerHTML =
+    '<div class="procbox">' + d.left.name + '<small>' + d.left.sub + '</small></div>' +
+    '<div class="conn">' + d.connL + '</div>' +
+    '<div class="channel">' + d.mid.name + '<small>' + d.mid.sub + '</small></div>' +
+    '<div class="conn">' + d.connR + '</div>' +
+    '<div class="procbox">' + d.right.name + '<small>' + d.right.sub + '</small></div>';
+  ipcWhen.textContent = d.when;
+}
+
+var ipcTabs = document.getElementById('ipcTabs').getElementsByTagName('button');
+for (var i=0; i<ipcTabs.length; i++){
+  ipcTabs[i].addEventListener('click', function(){
+    for (var j=0; j<ipcTabs.length; j++) ipcTabs[j].classList.remove('on');
+    this.classList.add('on');
+    renderIPC(this.getAttribute('data-ipc'));
+  });
+}
+
+// ---------- 下半:线程模型 + 阻塞判定 ----------
+// 4 个用户线程 T1..T4 映射到内核线程。map[i] = 用户线程 i 所绑定的内核线程下标。
+var MODELS = {
+  ULT: { label:'用户级线程 ULT · 多对一(4 : 1)——内核只看到进程,看不到线程',
+         map:[0,0,0,0], kcount:1 },
+  KLT: { label:'内核级线程 KLT · 一对一(4 : 4)——每个线程有独立内核身份',
+         map:[0,1,2,3], kcount:4 },
+  HYB: { label:'混合 · 多对多(4 : 2)——用户线程经 LWP 复用到多个内核线程',
+         map:[0,0,1,1], kcount:2 }
+};
+var curModel = 'ULT';
+
+var userRow = document.getElementById('userRow');
+var kernRow = document.getElementById('kernRow');
+var mapLabel = document.getElementById('mapLabel');
+var blockBtns = document.getElementById('blockBtns');
+var threadReadout = document.getElementById('threadReadout');
+
+function drawThreads(blockedUser){
+  var m = MODELS[curModel];
+  mapLabel.textContent = m.label;
+  // blockedUser: -1 表示未触发; 否则为用户线程下标
+  var blockedKernel = (blockedUser >= 0) ? m.map[blockedUser] : -1;
+
+  // 用户线程行
+  var uh = '';
+  for (var i=0; i<4; i++){
+    var cls = 'tbox';
+    if (blockedUser >= 0){
+      if (i === blockedUser) cls += ' blocked';
+      else if (m.map[i] === blockedKernel) cls += ' stall';
+      else cls += ' run';
+    }
+    uh += '<div class="' + cls + '">T' + (i+1) + '<div style="font-size:11px;font-weight:400">→K' + (m.map[i]+1) + '</div></div>';
+  }
+  userRow.innerHTML = uh;
+
+  // 内核线程行
+  var kh = '';
+  for (var k=0; k<m.kcount; k++){
+    var kc = 'tbox k';
+    if (blockedUser >= 0){
+      if (k === blockedKernel) kc += ' blocked';
+      else kc += ' run';
+    }
+    kh += '<div class="' + kc + '">K' + (k+1) + '</div>';
+  }
+  kernRow.innerHTML = kh;
+
+  // 阻塞按钮(每次重画,保证 data-model 正确)
+  var bh = '';
+  for (var b=0; b<4; b++){
+    bh += '<button class="btn" data-t="' + b + '">阻塞 T' + (b+1) + '(调 read)</button>';
+  }
+  blockBtns.innerHTML = bh;
+  var bbtns = blockBtns.getElementsByTagName('button');
+  for (var q=0; q<bbtns.length; q++){
+    bbtns[q].addEventListener('click', function(){
+      judge(parseInt(this.getAttribute('data-t'),10));
+    });
+  }
+}
+
+function judge(u){
+  var m = MODELS[curModel];
+  var bk = m.map[u];               // 阻塞用户线程绑定的内核线程
+  drawThreads(u);                  // 高亮
+
+  // 计算:与被阻塞用户线程共用同一内核线程的所有用户线程 → 一起停
+  var stalled = [], running = [];
+  for (var i=0; i<4; i++){
+    if (i === u) continue;
+    if (m.map[i] === bk) stalled.push('T'+(i+1));
+    else running.push('T'+(i+1));
+  }
+  var aliveKernels = m.kcount - 1; // 除被阻塞内核线程外还活着的内核线程数
+
+  var html = '';
+  html += '<span class="step">T'+(u+1)+' 调用阻塞系统调用 <code>read()</code> → 它绑定的内核线程 <b>K'+(bk+1)+'</b> 被内核挂起。</span>';
+
+  if (curModel === 'ULT'){
+    // 多对一:唯一内核实体被挂起 → 整进程停摆
+    html += '<span class="step badc">✗ ULT 多对一:内核只把整个进程当一个调度单位,唯一的 K1 一挂,'
+          + '<b>整个进程停摆</b> —— T1/T2/T3/T4 全部无法继续。这就是 ULT 的致命点。</span>';
+  } else {
+    if (stalled.length > 0){
+      html += '<span class="step">与它共用 K'+(bk+1)+' 的用户线程 <b>'+stalled.join('、')+'</b> 也被连累停下。</span>';
+    }
+    html += '<span class="step okc">✔ 还剩 <b>'+aliveKernels+'</b> 个内核线程('
+          + (running.length ? '承载 '+running.join('、') : '空闲')
+          + ')在运行 → <b>'+ (running.length ? running.join('、')+' 继续执行' : '其它内核线程仍可调度') +'</b>,进程不会整体停摆。</span>';
+    if (curModel === 'KLT'){
+      html += '<span class="step okc">(一对一:每个线程独立内核身份,阻塞只影响自己。)</span>';
+    } else {
+      html += '<span class="step okc">(混合/LWP:共用同一内核线程的会一起停,但其它 LWP 上的照跑。)</span>';
+    }
+  }
+  threadReadout.innerHTML = html;
+}
+
+var modelTabs = document.getElementById('modelTabs').getElementsByTagName('button');
+for (var t=0; t<modelTabs.length; t++){
+  modelTabs[t].addEventListener('click', function(){
+    for (var j=0; j<modelTabs.length; j++) modelTabs[j].classList.remove('on');
+    this.classList.add('on');
+    curModel = this.getAttribute('data-model');
+    drawThreads(-1);
+    threadReadout.innerHTML = '← 已切到 <b>'+MODELS[curModel].label.split(' ·')[0]+'</b>。点一个用户线程,看阻塞判定。';
+  });
+}
+document.getElementById('resetThread').addEventListener('click', function(){
+  drawThreads(-1);
+  threadReadout.innerHTML = '← 已重置。点一个用户线程模拟阻塞系统调用。';
+});
+
+// ===== 首屏渲染 =====
+renderIPC('shm');
+drawThreads(-1);
+</script>
+</body>
+</html>
