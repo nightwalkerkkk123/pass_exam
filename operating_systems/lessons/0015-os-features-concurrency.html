@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 15 课 · 四大特征 · 并发 vs 并行(高频辨析)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --tA:#3182ce; --tB:#2f855a; --tC:#b7791f;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  .btn.play{border-color:var(--green); color:var(--green); font-weight:700}
+  .btn.play:hover{background:#ecfdf5}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  details{margin:10px 0; background:#f4f7fc; border:1px solid var(--line); border-radius:8px; padding:6px 12px}
+  summary{cursor:pointer; font-weight:600; color:var(--blue); font-size:14px}
+  details[open]{background:#fff}
+  .quiz{margin:12px 0} .quiz p{font-weight:600; margin:4px 0}
+  .opt{display:block; padding:5px 0; font-size:14px; color:#334}
+  /* ---- 时间轴模拟器 ---- */
+  .modebar{display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:12px}
+  .tl{display:flex; flex-direction:column; gap:8px; margin-top:6px}
+  .lane{display:flex; align-items:center; gap:10px}
+  .lanelabel{width:96px; flex:none; font-size:13px; font-weight:600; color:var(--muted); text-align:right; line-height:1.2}
+  .lanelabel small{display:block; font-weight:400; font-size:11px; color:#9aa}
+  .track{display:grid; grid-template-columns:repeat(12,1fr); gap:3px; flex:1; min-width:0}
+  .cell{aspect-ratio:1; border-radius:4px; background:#eef1f6; border:1px solid #dde3ee;
+    display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:700;
+    color:#b9c0cc; transition:.12s}
+  .cell.lit{color:#fff; border-color:transparent; box-shadow:0 1px 3px rgba(20,30,60,.18)}
+  .cell.lit.tA{background:var(--tA)} .cell.lit.tB{background:var(--tB)} .cell.lit.tC{background:var(--tC)}
+  .cell.head{transform:scale(1.12); outline:2px solid var(--ink)}
+  .axis{display:flex; align-items:center; gap:10px; margin-top:2px; color:#9aa; font-size:12px}
+  .axis .lanelabel{color:transparent}
+  .axis .arrow{flex:1; border-top:1px dashed #c3cad6; position:relative; height:1px}
+  .tlreadout{margin-top:12px; font-size:14px; min-height:1.5em; color:var(--blue); font-weight:600}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-size:13px; color:#556; margin-top:10px}
+  .legend span{display:inline-flex; align-items:center; gap:5px}
+  .dot{width:12px; height:12px; border-radius:3px; display:inline-block}
+  .dot.tA{background:var(--tA)} .dot.tB{background:var(--tB)} .dot.tC{background:var(--tC)}
+  @media print{ body{background:#fff} .btn{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 15 课 · Ch1 引论 · 零基础可视化 · S02</p>
+  <h1>四大特征 · 并发 vs 并行(高频辨析)</h1>
+  <p class="sub">操作系统的四大基本特征里,<b>并发</b>是地基。这一课先让你<b>看见</b>并发和并行到底差在哪,再上术语。承接 <a href="./0014-what-is-os.html">第 14 课「什么是操作系统」</a>。</p>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> OS 有四大基本特征 —— <b>并发、共享、虚拟、异步</b>。其中<b>并发是最重要的</b>,其余三个都建立在并发之上。而“并发”最容易和“并行”搞混:<b>并发是“看起来同时”(靠飞快切换),并行是“真的同时”(靠多个 CPU)。</b>
+</div>
+
+<!-- ===================== 1. 直觉图 ===================== -->
+<h2>1. 🖼 直觉图:并发 vs 并行 时间轴模拟器</h2>
+<p>下面这条时间轴,横向是时间(从左往右流逝),每个方格是一个<b>时间片</b>。三个任务 <b style="color:var(--tA)">A</b>、<b style="color:var(--tB)">B</b>、<b style="color:var(--tC)">C</b> 用三种颜色。切换“单核 / 多核”,再点 <b>▶ 播放</b>,看方格从左往右逐格点亮。</p>
+
+<div class="panel">
+  <div class="modebar">
+    <span style="font-size:13px;color:var(--muted)">CPU 数量:</span>
+    <button class="btn on" id="mSingle">单核(1 个 CPU)</button>
+    <button class="btn" id="mMulti">多核(3 个 CPU)</button>
+    <span style="flex:1"></span>
+    <button class="btn play" id="mPlay">▶ 播放</button>
+    <button class="btn reset" id="mReset">清空</button>
+  </div>
+
+  <div class="tl" id="timeline"></div>
+
+  <div class="axis">
+    <div class="lanelabel">时间 →</div>
+    <div class="arrow"></div>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot tA"></i>任务 A</span>
+    <span><i class="dot tB"></i>任务 B</span>
+    <span><i class="dot tC"></i>任务 C</span>
+  </div>
+
+  <div class="tlreadout" id="tlReadout">选“单核”还是“多核”,再点 ▶ 播放,看点亮顺序。</div>
+</div>
+
+<div class="key">
+<b>看出门道了吗:</b> <b>单核</b> —— 只有一条 lane,A/B/C 在<b>同一条轨道上交替</b>点亮(同一时刻只有一个在跑,靠飞快切换制造“同时”的错觉),这叫<b>并发</b>。<b>多核</b> —— 有多条 lane,同一竖直时刻 A/B/C <b>并排一起点亮</b>(真的同时在跑),这叫<b>并行</b>,必须有多个 CPU/核。
+</div>
+
+<!-- ===================== 2. 具体例子 ===================== -->
+<h2>2. 🧸 具体例子:一个厨师 vs 三个厨师</h2>
+<div class="eli5">
+<b>🧸 5 岁也懂的比喻:</b> 你用一台<b>单核</b>电脑,一边听歌、一边下载、一边打字,感觉“三件事同时进行”。
+其实 CPU 在<b>毫秒级飞快地轮流</b>做:切给听歌一小会 → 切给下载一小会 → 切给打字一小会……
+切得太快,你眼睛根本察觉不到停顿,以为它们“同时”。这就是<b>并发</b>。<br><br>
+换个画面:<b>一个厨师</b>轮流炒 3 道菜(炒两下这锅、再炒两下那锅)= <b>并发</b>;
+<b>3 个厨师</b>各站一个灶、各炒一道菜 = <b>并行</b>。菜的道数一样,差别在<b>有几个“干活的人(CPU)”</b>。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2>3. ⚖️ 对照表:两张表钉死高频陷阱</h2>
+
+<h3>表 1 · 并发 vs 并行(考试最爱考)</h3>
+<table>
+<tr><th>比较维度</th><th style="color:var(--tA)">并发 Concurrency</th><th style="color:var(--purple)">并行 Parallelism</th></tr>
+<tr><td>时间尺度</td><td>同一<b>时间段(间隔)</b>内轮流交替发生</td><td>同一<b>时刻</b>真的一起发生</td></tr>
+<tr><td>宏观 / 微观</td><td><b>宏观上同时</b>,微观上交替</td><td>宏观、微观<b>都是同时</b></td></tr>
+<tr><td>需要几个 CPU</td><td><b>单个 CPU 就能实现</b>(靠时间片切换)</td><td>必须有<b>多个 CPU / 多核</b></td></tr>
+<tr><td>一句话</td><td>看起来同时(错觉)</td><td>真的同时(物理上)</td></tr>
+</table>
+
+<h3>表 2 · 四大基本特征一览</h3>
+<table>
+<tr><th>特征</th><th>含义</th><th>关键点 / 例子</th></tr>
+<tr><td><b>并发</b></td><td>同一<b>时间间隔</b>内多个事件发生</td><td>宏观同时、微观交替;<b>最重要</b>,是其它特征的基础</td></tr>
+<tr><td><b>共享</b></td><td>资源被多个并发进程<b>共同使用</b></td><td>互斥共享=临界资源(如打印机)/ 同时访问(如只读文件)</td></tr>
+<tr><td><b>虚拟</b></td><td>把一个<b>物理实体</b>变成多个<b>逻辑实体</b></td><td>时分复用(虚拟处理机)/ 空分复用(虚拟存储器)</td></tr>
+<tr><td><b>异步</b></td><td>进程走走停停、以<b>不可预知的速度</b>推进</td><td>不影响正确性:同环境多次运行,结果应完全相同</td></tr>
+</table>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2>4. 📖 是什么:精确定义(对齐教材口径)</h2>
+
+<div class="key">
+<b>并发:</b> 两个或多个事件在<b>同一时间间隔内</b>发生 —— <b>宏观上同时、微观上交替</b>。为实现并发,OS 引入了<b>进程</b>(独立运行、独立分配资源的基本单位),后来又引入<b>线程</b>来进一步提高并发度。
+</div>
+<div class="key">
+<b>并行:</b> 两个或多个事件在<b>同一时刻</b>同时发生,<b>需要多个 CPU 支持</b>。
+</div>
+<div class="key">
+<b>共享:</b> 系统资源可被多个并发进程<b>共同使用</b>。分两种:<b>互斥共享</b>——一段时间内只允许一个进程访问,这种资源称<b>临界资源</b>(如打印机);<b>同时访问</b>——允许多个进程同时访问(如磁盘上的只读文件、可重入代码)。<b>并发与共享互为存在条件。</b>
+</div>
+<div class="key">
+<b>虚拟:</b> 通过某种技术把一个<b>物理实体</b>变为若干个<b>逻辑上的对应物</b>。两类手段:<b>时分复用</b>(如虚拟处理机)与<b>空分复用</b>(如虚拟存储器)。
+</div>
+<div class="key">
+<b>异步:</b> 在多道程序环境下,进程<b>以不可预知的速度</b>向前推进(走走停停)。但只要运行环境相同,<b>多次运行的结果应完全相同</b> —— 异步性本身不破坏正确性,靠<b>同步机制</b>来保证。
+</div>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2>5. ❓ 为什么:一层层深挖</h2>
+
+<h3>为什么说并发是“最重要”的特征?</h3>
+<p>因为<b>没有并发,就谈不上多个程序共用资源</b>。共享是为了让并发的进程能同时用系统资源;虚拟是为了让有限的物理资源“变多”去支撑更多并发进程;异步则是并发执行必然带来的副产物。<b>抽掉并发,其余三个都失去了存在的理由</b> —— 所以并发是地基。</p>
+
+<h3>再深一层:为什么“并发和共享互为存在条件”?</h3>
+<p>两个方向都成立:<b>①</b> 如果没有并发(系统里只有一个程序在跑),那根本没有“多个进程抢同一份资源”的场景,共享就无从谈起。<b>②</b> 如果资源不能被共享(一份资源死死锁给一个进程,别人碰不得),那多个程序也无法真正地并发推进。所以两者<b>缺一不可、互为前提</b>。</p>
+
+<h3>再深一层:异步从哪来?为什么它不破坏正确性?</h3>
+<p><b>异步的根源</b>:进程会因为抢不到 CPU、或要等待 I/O 完成而被迫暂停,过一会儿再继续 —— 所以它前进的速度<b>不可预知</b>,呈现“走走停停”。<b>为什么仍然正确</b>:只要用<b>同步 / 互斥机制</b>保证关键操作的先后次序(该谁先做的就先做),那么<b>相同的输入</b>就一定得到<b>相同的结果</b>。异步说的是“过程的快慢不确定”,不是“结果不确定”。</p>
+
+<div class="eli5">
+<b>🧸 一句话收束:</b> 并发是“为什么要有 OS 这么复杂”的答案 —— 正因为要让很多程序<b>看起来同时</b>跑在<b>可能只有一个</b>的 CPU 上,才需要进程、调度、共享、同步这一整套机制。
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2>6. ✅ 自测:先想再翻答案</h2>
+
+<div class="panel">
+<div class="quiz">
+<p>Q1(最高频)一台<b>单 CPU(单核)</b>计算机,能实现“<b>并行</b>”吗?</p>
+<label class="opt">A. 能,单核也能并行</label>
+<label class="opt">B. 不能,单核只能并发;并行必须有多个 CPU / 核</label>
+<label class="opt">C. 能,只要开的程序足够多</label>
+<details><summary>点我看答案</summary>
+正确:<b>B</b>。并行的定义是“同一<b>时刻</b>多个事件真的同时发生”,物理上需要多个 CPU/核同时干活。单核任一时刻只有一个任务在跑,只能靠<b>时间片切换</b>制造“同时”的错觉 —— 那是<b>并发</b>,不是并行。
+</details>
+</div>
+
+<div class="quiz">
+<p>Q2 “<b>宏观上同时发生、微观上交替执行</b>”描述的是?</p>
+<label class="opt">A. 并行</label>
+<label class="opt">B. 虚拟</label>
+<label class="opt">C. 并发</label>
+<details><summary>点我看答案</summary>
+正确:<b>C</b>。“宏观同时、微观交替”正是<b>并发</b>的标准描述。并行是“宏观、微观都同时”。
+</details>
+</div>
+
+<div class="quiz">
+<p>Q3 <b>打印机</b>属于哪种共享?</p>
+<label class="opt">A. 同时访问(多个进程可一起用)</label>
+<label class="opt">B. 互斥共享(临界资源,一段时间只允许一个进程用)</label>
+<label class="opt">C. 虚拟共享</label>
+<details><summary>点我看答案</summary>
+正确:<b>B</b>。打印机若被两个进程同时写,输出就会串行错乱,所以它是<b>互斥共享</b>的资源,这类资源称为<b>临界资源</b>。像磁盘上的只读文件才属于“同时访问”。
+</details>
+</div>
+
+<div class="quiz">
+<p>Q4 四大特征中,哪个是其它特征的<b>基础 / 最重要</b>?</p>
+<label class="opt">A. 异步</label>
+<label class="opt">B. 并发</label>
+<label class="opt">C. 虚拟</label>
+<label class="opt">D. 共享</label>
+<details><summary>点我看答案</summary>
+正确:<b>B</b>。<b>并发</b>是地基:共享是为支撑并发而生,虚拟是为放大资源以支撑更多并发,异步是并发执行的必然结果。
+</details>
+</div>
+
+<div class="quiz">
+<p>🗣 <b>口述题(别打字,说出来):</b> 用你自己的话讲清楚 —— 单核电脑上“一边听歌一边下载”为什么是<b>并发</b>而不是<b>并行</b>?（提示:同一时刻只有一个在跑、飞快切换、需要几个 CPU）</p>
+</div>
+<p style="font-size:13.5px;color:var(--muted)">四道选择题都选对、口述题能不看屏幕说顺 → 你是真懂了。哪题卡住,回第 1 节把模拟器再播一遍。</p>
+</div>
+
+<footer>
+第 15 课 · Ch1 引论 · 四大特征 / 并发 vs 并行 ·
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课</a> ·
+上一节 → <a href="./0014-what-is-os.html">第 14 课 什么是 OS</a> ·
+下一节 → <a href="./0016-syscall-kernel-user-mode.html">第 16 课 系统调用与内核态</a><br>
+口径对齐教材 Ch1:四大基本特征 = 并发 · 共享 · 虚拟 · 异步;并发为其余三者之基础。
+</footer>
+
+</div>
+
+<script>
+// ---------- 并发 vs 并行 时间轴模拟器 ----------
+var SLOTS = 12;                 // 时间片数量
+var mode = 'single';            // 'single' | 'multi'
+var timer = null;               // 播放定时器
+var timeline = document.getElementById('timeline');
+var tlReadout = document.getElementById('tlReadout');
+var taskName = ['A','B','C'];
+var taskCls  = ['tA','tB','tC'];
+
+// lanes: 每个 lane 是一个对象 { label, sub, cells:[{el,task}] }
+var lanes = [];
+
+function buildTimeline(){
+  stopPlay();
+  timeline.innerHTML = '';
+  lanes = [];
+  if(mode === 'single'){
+    // 一条 lane,A/B/C 轮流(时间片切换)
+    var tasks = [];
+    for(var t=0;t<SLOTS;t++){ tasks.push(t % 3); }
+    addLane('单核 CPU', '同一条轨道', tasks);
+  } else {
+    // 三条 lane,每条一直跑同一个任务 → 同一竖直时刻齐头并进
+    for(var L=0; L<3; L++){
+      var tasks2 = [];
+      for(var t2=0;t2<SLOTS;t2++){ tasks2.push(L); }
+      addLane('核心 '+(L+1), 'CPU #'+(L+1), tasks2);
+    }
+  }
+  setReadout(mode === 'single'
+    ? '单核:一条轨道上 A/B/C 轮流。点 ▶ 播放,看它们“交替”点亮 → 并发。'
+    : '多核:三条轨道各跑一个任务。点 ▶ 播放,看同一竖直时刻“一起”点亮 → 并行。');
+}
+
+function addLane(label, sub, tasks){
+  var lane = document.createElement('div');
+  lane.className = 'lane';
+  var lbl = document.createElement('div');
+  lbl.className = 'lanelabel';
+  lbl.innerHTML = label + '<small>'+sub+'</small>';
+  var track = document.createElement('div');
+  track.className = 'track';
+  var cells = [];
+  for(var t=0;t<SLOTS;t++){
+    var c = document.createElement('div');
+    var task = tasks[t];
+    c.className = 'cell ' + taskCls[task];
+    c.textContent = taskName[task];
+    track.appendChild(c);
+    cells.push({el:c, task:task});
+  }
+  lane.appendChild(lbl); lane.appendChild(track);
+  timeline.appendChild(lane);
+  lanes.push({cells:cells});
+}
+
+function clearLit(){
+  lanes.forEach(function(lane){
+    lane.cells.forEach(function(cell){
+      cell.el.classList.remove('lit','head');
+    });
+  });
+}
+
+function lightColumn(c){
+  // 移除上一列的 head 高亮
+  lanes.forEach(function(lane){
+    lane.cells.forEach(function(cell){ cell.el.classList.remove('head'); });
+  });
+  lanes.forEach(function(lane){
+    var cell = lane.cells[c];
+    cell.el.classList.add('lit','head');
+  });
+}
+
+function stopPlay(){
+  if(timer){ clearInterval(timer); timer = null; }
+}
+
+function play(){
+  stopPlay();
+  clearLit();
+  var c = 0;
+  step(); // 立刻点亮第 0 列
+  timer = setInterval(step, 500);
+  function step(){
+    if(c >= SLOTS){ stopPlay(); finishReadout(); return; }
+    lightColumn(c);
+    updatePlayReadout(c);
+    c++;
+  }
+}
+
+function updatePlayReadout(c){
+  if(mode === 'single'){
+    var task = lanes[0].cells[c].task;
+    setReadout('t = '+c+' 时刻:CPU 上只有 <b style="color:var(--'+taskCls[task]+')">任务 '+taskName[task]+'</b> 在跑 —— 同一时刻只有一个,靠飞快切换制造“同时”的错觉 → <b>并发</b>。');
+  } else {
+    setReadout('t = '+c+' 时刻:<b style="color:var(--tA)">A</b> · <b style="color:var(--tB)">B</b> · <b style="color:var(--tC)">C</b> 在各自核心上<b>同时</b>运行 —— 真的一起跑 → <b>并行</b>(需要多个 CPU/核)。');
+  }
+}
+
+function finishReadout(){
+  setReadout(mode === 'single'
+    ? '播放完毕:整条轨道被 A→B→C 交替填满 —— 一个时刻只干一件事,却让你觉得“同时” → 这就是<b>并发</b>。'
+    : '播放完毕:每一竖列都是 A·B·C 同时亮 —— 物理上真的一起跑 → 这就是<b>并行</b>,单核做不到。');
+}
+
+function setReadout(html){ tlReadout.innerHTML = html; }
+
+// 变量放在 var 元素引用之后再取,避免顺序问题
+var _tlReadoutEl = document.getElementById('tlReadout');
+function _ignore(){ return _tlReadoutEl; }
+
+// 模式切换
+var mSingle = document.getElementById('mSingle');
+var mMulti  = document.getElementById('mMulti');
+mSingle.addEventListener('click', function(){
+  mode = 'single';
+  mSingle.classList.add('on'); mMulti.classList.remove('on');
+  buildTimeline();
+});
+mMulti.addEventListener('click', function(){
+  mode = 'multi';
+  mMulti.classList.add('on'); mSingle.classList.remove('on');
+  buildTimeline();
+});
+document.getElementById('mPlay').addEventListener('click', play);
+document.getElementById('mReset').addEventListener('click', function(){
+  stopPlay(); clearLit();
+  setReadout('已清空。切换单核/多核,再点 ▶ 播放,对比点亮顺序。');
+});
+
+// 初始化
+buildTimeline();
+</script>
+</body>
+</html>

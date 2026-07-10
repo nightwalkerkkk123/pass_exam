@@ -1,0 +1,505 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 48 课 · Ch5 设备管理 · 缓冲区管理 + SPOOLing 假脱机</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  /* ===== 三种色块提示条:橙(直觉/ELI5)· 绿(要点)· 红(陷阱/警告) ===== */
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+
+  /* ===== 白卡容器:放交互件 / 自测题 ===== */
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  /* ===== 紫色解题模板盒 ===== */
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .tmpl ol{margin:6px 0 0; padding-left:20px} .tmpl li{margin:3px 0}
+
+  /* ===== 按钮 ===== */
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  /* ===== 表格 ===== */
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+
+  /* ===== 交互件回显区 ===== */
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  .readout .step{display:block; margin:3px 0}
+  .readout .okc{color:var(--green)} .readout .badc{color:var(--red)}
+  .readout code{background:#e7f0fb}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  /* ===== 顶部锚点导航 ===== */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* ===== 全局故事线:横向节点 + 箭头 ===== */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 120px; min-width:110px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  /* ===== 签名交互件:缓冲数据流甘特图(本课新增,沿用上面配色令牌) ===== */
+  .slider-row{display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin:8px 0}
+  .slider-row label{font-size:13.5px; color:var(--muted); display:flex; align-items:center; gap:8px}
+  .slider-row input[type=range]{width:130px}
+  .slider-row b{color:var(--ink); font-variant-numeric:tabular-nums}
+  .gantt-scroll{overflow-x:auto; margin:12px 0 6px; padding-bottom:4px}
+  .gantt{display:inline-block; min-width:100%}
+  .grow{display:flex; align-items:center; margin:3px 0}
+  .glabel{flex:0 0 92px; font-size:13px; font-weight:600; color:var(--ink)}
+  .gtrack{display:flex}
+  .cell{width:24px; height:26px; border:1px solid #eef1f6; border-right:none; display:flex; align-items:center; justify-content:center; font-size:11px; color:#fff; position:relative}
+  .gtrack .cell:last-child{border-right:1px solid #eef1f6}
+  .cell.idle{background:#f0f2f6; color:#b8bec9}
+  .cell.dev{background:var(--blue2)}
+  .cell.copy{background:var(--amber)}
+  .cell.cpu{background:var(--green)}
+  .cell.ph{outline:2px solid var(--red); outline-offset:-2px; z-index:2}
+  .axis .cell{background:transparent; color:var(--muted); border-color:transparent; font-size:10px; height:16px}
+  .legend{font-size:12.5px; color:var(--muted); margin:6px 0}
+  .legend span{display:inline-block; margin-right:12px}
+  .chip{display:inline-block; width:11px; height:11px; border-radius:2px; vertical-align:-1px; margin-right:4px}
+
+  @media print{ body{background:#fff} .btn,.nav,.slider-row,#playBtn{display:none} .panel{box-shadow:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 48 课 · Ch5 设备管理 · 零基础可视化</p>
+  <h1>缓冲区管理 + SPOOLing:两招把慢设备“配平”给快 CPU</h1>
+  <p class="sub">这一课只回答一件事:CPU 快、设备慢,操作系统怎么让两者别互相干等。缓冲=时间上的错峰,SPOOLing=空间上的虚拟。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·数据流演示</a>
+    <a href="#s2">2·ELI5</a>
+    <a href="#s3">3·对照表</a>
+    <a href="#s4">4·是什么</a>
+    <a href="#s5">5·为什么</a>
+    <a href="#s6">6·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> 缓冲区管理用“<b>时间错峰</b>”缓和 CPU 与设备的速度差(单/双/循环/池);SPOOLing 用“<b>空间换共享</b>”把独占设备(如打印机)虚拟成人人可用的共享设备。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:一个矛盾,逼出两条解法</h2>
+<p class="hint">别把下面这些当孤立知识点——它们都是“CPU 快、设备慢”这一个矛盾一路逼出来的。</p>
+<div class="flow">
+  <div class="fnode warn"><b>矛盾</b>CPU 极快 / I/O 设备极慢,直接对接则一方永远在等另一方</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>缓冲(时间)</b>加一块内存暂存区,让设备与 CPU 错峰并行:单→双→循环→池</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>SPOOLing(空间)</b>再进一步:用磁盘井把“独占设备”虚拟成“共享设备”</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>结果</b>设备利用率↑、CPU 利用率↑、多进程可同时“用”打印机</div>
+</div>
+
+<!-- ===================== 1. 签名交互件 ===================== -->
+<h2 id="s1">🖼 1. 先看画面:缓冲数据流演示(设备→缓冲→CPU)</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 蓝色=设备在传数据,黄色=把缓冲区腾空/拷到用户区(M),绿色=CPU 在算。切换“无/单/双缓冲”,看蓝绿两条轨道是<b>一忙一闲</b>还是<b>真并行</b>。
+</div>
+<div class="panel">
+  <div class="hint">👇 先点三个模式按钮对比空隙;拖滑块改 T/C/M;点“▶ 播放流水”看红框沿时间轴走一遍。</div>
+
+  <div>
+    <button class="btn" data-mode="none">① 无缓冲</button>
+    <button class="btn" data-mode="single">② 单缓冲</button>
+    <button class="btn on" data-mode="double">③ 双缓冲</button>
+    <button class="btn reset" id="playBtn">▶ 播放流水</button>
+  </div>
+
+  <div class="slider-row">
+    <label>设备传一块 T = <b id="tVal">5</b>
+      <input type="range" id="tRange" min="2" max="8" step="1" value="5"></label>
+    <label>CPU 算一块 C = <b id="cVal">3</b>
+      <input type="range" id="cRange" min="2" max="8" step="1" value="3"></label>
+    <label>缓冲→用户 M = <b id="mVal">1</b>
+      <input type="range" id="mRange" min="0" max="2" step="1" value="1"></label>
+  </div>
+
+  <div class="legend">
+    <span><i class="chip" style="background:#3182ce"></i>设备传输(T)</span>
+    <span><i class="chip" style="background:#b7791f"></i>拷到用户区(M)</span>
+    <span><i class="chip" style="background:#2f855a"></i>CPU 计算(C)</span>
+    <span><i class="chip" style="background:#f0f2f6;border:1px solid #ddd"></i>空闲(在干等)</span>
+  </div>
+
+  <div class="gantt-scroll">
+    <div class="gantt" id="gantt"><!-- JS 填充甘特图 --></div>
+  </div>
+
+  <div class="readout" id="readout">← 选一个模式看结果。</div>
+</div>
+<div class="key">
+<b>要点:</b> 无缓冲 = <code>T+C</code>(设备与 CPU 永不重叠,一忙一闲);单缓冲 = <code>max(T,C)+M</code>(相邻块可并行,但腾空缓冲区那段 M 仍串行,设备会有小空隙);双缓冲 = <code>max(T,C)</code>(两个缓冲区交替,设备与 CPU <b>完全并行</b>,快的一方不再停)。
+</div>
+
+<!-- ===================== 2. ELI5 ===================== -->
+<h2 id="s2">🧸 2. 讲人话:洗碗工与烘干机</h2>
+<div class="eli5">
+<b>🧸 ELI5:</b> 你(CPU)算得飞快,水龙头(设备)出水很慢。<br>
+· <b>无缓冲</b>:你举着杯子接水,接满才能喝,喝的时候水龙头关着——两个人轮流干,总有一个在发呆。<br>
+· <b>单缓冲</b>:放一个水盆。水龙头往盆里接,接满后你舀出来喝;但你舀水(M)那一下,水龙头得停一停等盆空出来。<br>
+· <b>双缓冲</b>:放两个盆 A、B。A 接满你去喝 A,水龙头立刻转去接 B;你喝完 A,B 也快满了——水龙头<b>一刻不停</b>,你也<b>一刻不停</b>,这就是真并行。
+</div>
+<div class="warnbox">
+<b>⚠️ 反例(没有它会怎样):</b> 若完全不用缓冲,教材算过:从终端输入一个字符约 100ms,而送入缓冲区仅 &lt;0.1ms;程序 I/O 方式下 CPU 有 99.9ms 在<b>忙—等</b>白白空转。缓冲(配合中断)能把 CPU 利用率“成百倍”提高。<span class="hint">(引自 5_设备管理/ppt文本.md:207)</span>
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2 id="s3">⚖️ 3. 对照表:四种缓冲 + SPOOLing 一次辨清</h2>
+<div class="eli5"><b>🧸 一句话:</b> 从“1 个盆”一路加到“一池子公用盆”,再跳到“用磁盘当盆把设备虚拟化”。</div>
+
+<h3>缓冲的四级演进(照教材口径)</h3>
+<table>
+<tr><th>方案</th><th>结构</th><th>连续处理一块的时间</th><th>能否 CPU/设备真并行</th></tr>
+<tr><td>无缓冲</td><td>设备直连 CPU</td><td><code>T+C</code></td><td>❌ 不能,一忙一闲</td></tr>
+<tr><td>单缓冲 Single</td><td>1 个缓冲区,输入与提取<b>串行</b></td><td><code>max(T,C)+M</code></td><td>⚠️ 部分并行(腾空那段 M 仍串行,不完全)</td></tr>
+<tr><td>双缓冲 Double</td><td>2 个缓冲区 A/B 交替(缓冲对换)</td><td><code>max(T,C)</code></td><td>✅ 完全并行</td></tr>
+<tr><td>循环缓冲 Circular</td><td>多个缓冲区组成环形队列,含 nextg/nextp/current 指针</td><td>随缓冲数增多而更平滑</td><td>✅ 抗速度波动</td></tr>
+<tr><td>缓冲池 Buffer Pool</td><td>公用缓冲池,多进程<b>共享</b>;三队列(空/输入/输出)+ getbuf/putbuf</td><td>动态分配,利用率最高</td><td>✅ 多设备多进程通用</td></tr>
+</table>
+<p class="hint">T=设备传一块,C=CPU 算一块,M=缓冲区→用户区传送(通常很小)。口径见 textbook/ch06_IO系统.md:128-160。</p>
+
+<h3>缓冲 vs SPOOLing(最容易混)</h3>
+<table>
+<tr><th>比什么</th><th>缓冲区管理</th><th>SPOOLing 假脱机</th></tr>
+<tr><td>解决维度</td><td>时间:错峰,缓和速度差</td><td>空间:用外存虚拟设备</td></tr>
+<tr><td>存放位置</td><td>内存中的缓冲区</td><td>磁盘上的输入井/输出井(+内存缓冲区)</td></tr>
+<tr><td>本质目的</td><td>提高并行、减少中断</td><td>把<b>独占设备</b>改造成<b>共享设备</b></td></tr>
+<tr><td>典型例子</td><td>块设备读写、终端 I/O</td><td>假脱机打印(一台打印机变“多台”)</td></tr>
+</table>
+<div class="key"><b>结论:</b> 缓冲让“快慢配平”,SPOOLing 让“一个变多个”。SPOOLing 内部<b>也用</b>缓冲区,但它的灵魂是“空间换共享”,不是简单排队。</div>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2 id="s4">📖 4. 是什么:精确定义(对齐教材原文)</h2>
+
+<div class="key">
+<b>缓冲(Buffer)的定义:</b> 在内存中开辟的一块存储区域,用来暂存 I/O 设备和 CPU 之间传输的数据,<b>缓解设备和 CPU 之间速度不匹配的矛盾</b>。<span class="hint">(textbook/ch06_IO系统.md:118)</span>
+</div>
+
+<div class="key">
+<b>单缓冲:</b> 设备与 CPU 之间设一个缓冲区,设备写满缓冲区后 CPU 再读取处理。连续处理一块的平均时间 <code>= max(T,C)+M</code>。<b>缺点:并行性不够</b>——对缓冲区的输入(装入)和提取是串行的,故为并行必须引入双缓冲。<span class="hint">(textbook/ch06_IO系统.md:129-133;5_设备管理/ppt文本.md:309)</span>
+</div>
+
+<div class="key">
+<b>双缓冲(缓冲对换):</b> 设两个缓冲区 A、B。设备先装 A,装满转去装 B;此时 OS 从 A 提取数据送用户区并由 CPU 计算。连续处理一块 <code>= max(T,C)</code>,实现设备与 CPU 的<b>完全并行</b>。<span class="hint">(textbook/ch06_IO系统.md:135-139;5_设备管理/ppt文本.md:321)</span>
+</div>
+
+<div class="key">
+<b>循环缓冲 / 缓冲池:</b> 循环缓冲把多个缓冲区组成环形队列(Getbuf 取满缓冲区、Releasebuf 归还空缓冲区),平滑速度波动。缓冲池是<b>公用</b>缓冲池,池中缓冲区供多进程共享,至少含空缓冲区、输入缓冲区、输出缓冲区三类,链成 emq/inq/outq 三个队列,用 getbuf/putbuf 存取。<span class="hint">(5_设备管理/ppt文本.md:333-378;textbook/ch06_IO系统.md:141-160)</span>
+</div>
+
+<div class="key">
+<b>SPOOLing(假脱机)的定义:</b> Simultaneous Peripheral Operation On-Line,利用<b>外存(磁盘)</b>模拟脱机输入/输出,由系统中两个专管 I/O 的进程模拟外围机功能,把<b>独占设备改造为共享设备</b>。组成三部分:①输入井/输出井(磁盘上两大存储区);②输入缓冲区/输出缓冲区(内存);③输入进程 SPi / 输出进程 SPo。<span class="hint">(textbook/ch06_IO系统.md:224-234;5_设备管理/ppt文本.md:612-633)</span>
+</div>
+
+<h3>SPOOLing 打印数据流(照 ppt 口径)</h3>
+<div class="flow">
+  <div class="fnode"><b>用户进程请求打印</b>不直接给打印机</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>写入输出井</b>在磁盘申请空闲盘块存打印数据</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>登记打印请求表</b>排入打印队列</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>打印机空闲时</b>输出进程 SPo 取队首请求,经内存缓冲区送去打印</div>
+</div>
+<p class="hint">一台物理打印机因此“看起来”能被多个进程同时使用——虚拟设备。(5_设备管理/ppt文本.md:633-636)</p>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2 id="s5">❓ 5. 为什么:三层追问动机与边界</h2>
+<div class="eli5"><b>🧸 一句话:</b> 不断问“那又怎样”,直到摸到设计的底。</div>
+<div class="panel">
+<h3>第 1 层:为什么非要缓冲?</h3>
+<p>因为 CPU 与 I/O 设备速度差极大。缓冲带来三件事(教材列举):① <b>缓和速度不匹配</b>;② <b>减少对 CPU 的中断频率、放宽中断响应限制</b>(攒够一块再中断一次,而非每字节一次);③ <b>提高 CPU 与 I/O 的并行性</b>(还能解决数据粒度不匹配)。<span class="hint">(textbook/ch06_IO系统.md:119-123)</span></p>
+
+<h3>第 2 层:为什么单缓冲不够,要双缓冲?</h3>
+<p>单缓冲只有一个盆:设备把它<b>装满</b>和 CPU 把它<b>取空</b>必须错开(串行),所以每块要额外背上那段 M,且设备在腾空期间会空转——上面交互件里单缓冲的蓝色轨道有小空隙就是它。双缓冲用 A/B 交替,装 B 的同时取 A,把串行的那段藏进 max 里,设备与 CPU 才能<b>完全并行</b>。这就是“单缓冲能否并行”的判分点:<b>单缓冲=部分并行,双缓冲=完全并行</b>。</p>
+
+<h3>第 3 层:为什么有了缓冲还要 SPOOLing?边界在哪?</h3>
+<p>缓冲解决的是“快慢配平”,但打印机这类<b>独占设备</b>还有另一个问题:一次只能一个进程用,别人得干等着,利用率低、用户体验差。SPOOLing 换了个维度——<b>用磁盘空间(输入井/输出井)当中转</b>,进程只管把数据丢进输出井就“以为打完了”,真正的物理打印由输出进程排队慢慢做。于是<b>独占→共享(虚拟设备)</b>。<br>
+<b>边界/代价:</b> 需要占用大量磁盘做井、内存开辟缓冲区,有系统开销,磁盘空间可能不足。这也是为什么它是“<b>空间换共享</b>”而非免费午餐。<span class="hint">(textbook/ch06_IO系统.md:236-249)</span></p>
+</div>
+<div class="warnbox">
+<b>⚠️ 易错陷阱:</b> ①把“单缓冲也能完全并行”当对——错,单缓冲因输入/提取串行只能部分并行。②把 SPOOLing 说成“就是给请求排个队”——错,排队只是表象,核心是<b>用外存把独占设备虚拟成共享设备</b>,SPOOLing 不增加任何物理设备。</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="s6">✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1 —— 单缓冲 vs 双缓冲能否并行</h3>
+<p>关于单缓冲与双缓冲,下列说法正确的是?</p>
+<p>
+A. 单缓冲时 CPU 与设备可以完全并行工作<br>
+B. 双缓冲与单缓冲一样,任意时刻只有设备或 CPU 之一在工作<br>
+C. 双缓冲能让设备与 CPU 真正并行,单缓冲做不到完全并行<br>
+D. 缓冲区越多,处理一块数据的时间一定线性下降到 0
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 双缓冲用 A/B 交替把串行的腾空段藏进 <code>max(T,C)</code>,设备与 CPU 完全并行;单缓冲因缓冲区的输入与提取串行,只能部分并行。<br>
+A 错:单缓冲恰恰不能完全并行(腾空 M 那段串行)。<br>
+B 错:双缓冲正是为了让两者同时忙。<br>
+D 错:有下界 <code>max(T,C)</code>,受慢的一方限制,不可能降到 0,收益也递减。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2 —— SPOOLing 的本质</h3>
+<p>SPOOLing(假脱机)技术的本质是?</p>
+<p>
+A. 给独占设备的请求排一个先来先服务队列,仅此而已<br>
+B. 用磁盘上的输入井/输出井作中转,把独占设备虚拟成可共享的设备(空间换共享)<br>
+C. 增加更多物理打印机来满足多个进程<br>
+D. 把慢速设备的数据直接送进 CPU 寄存器以加速
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> SPOOLing 用外存(输入井/输出井)模拟脱机 I/O,把独占设备改造成共享设备,是“空间换共享”。<br>
+A 错:排队只是表象,核心是虚拟化,不止排队。<br>
+C 错:不增加任何物理设备,是把一台<b>虚拟</b>成多台。<br>
+D 错:与 CPU 寄存器无关,数据落在磁盘井上。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3 —— 单缓冲时间公式</h3>
+<p>设备传一块时间 T、CPU 处理一块 C、缓冲区→用户区传送 M。<b>单缓冲</b>连续处理一块数据的平均时间约为?</p>
+<p>
+A. T + M + C<br>
+B. max(T, C)<br>
+C. T + C<br>
+D. max(T, C) + M
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 连续处理稳态下,相邻块的输入与计算并行,但缓冲区腾空(M)串行,故 <code>max(T,C)+M</code>。<br>
+A 错:<code>T+M+C</code> 是“单独处理一块”把三步全串起来的时间,不是连续稳态。<br>
+B 错:<code>max(T,C)</code> 是<b>双缓冲</b>。<br>
+C 错:<code>T+C</code> 是无缓冲(完全串行)近似。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4 —— 引入缓冲的原因</h3>
+<p>下列哪一项<b>不是</b>引入缓冲的主要原因?</p>
+<p>
+A. 让每个进程独占一台物理打印机以提升安全性<br>
+B. 缓和 CPU 与 I/O 设备速度不匹配的矛盾<br>
+C. 减少对 CPU 的中断频率、放宽中断响应时间限制<br>
+D. 提高 CPU 与 I/O 设备之间的并行性
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> B/C/D 都是教材列出的引入缓冲的原因;A 既不是缓冲的目的,表述本身也错——独占设备的共享是 SPOOLing 的效果,且 SPOOLing 是把设备<b>虚拟共享</b>而非让进程独占物理设备。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>用一句话说出缓冲与 SPOOLing 各自解决什么维度的问题。</li>
+<li>不看屏幕,复述“单缓冲为什么不能完全并行、双缓冲为什么能”。</li>
+<li>复述 SPOOLing 打印的数据流:请求 → 输出井 → 队列 → 空闲时输出进程打印。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能顺口说出 → 你是真懂了。哪题卡壳,回到对应小节再点一遍交互件。</p>
+</div>
+
+<footer>
+第 48 课 · Ch5 设备管理 · 缓冲=时间错峰(单/双/循环/池),SPOOLing=空间换共享(独占→虚拟共享)<br>
+相关课 → <a href="./0047-io-control-methods.html">第 47 课 · I/O 控制方式</a> ·
+<a href="./0008-io-system.html">第 8 课 · I/O 系统</a>
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// 签名交互件:缓冲数据流甘特图(设备→缓冲→CPU)
+// 纯原生 JS,无外部依赖。class 切换高亮,无 canvas。
+// 时间模型(口径 textbook/ch06_IO系统.md:131,137):
+//   无缓冲 : 每块 = T + C          (设备与 CPU 完全串行,一忙一闲)
+//   单缓冲 : 每块 = max(T,C) + M   (相邻块并行,但腾空 M 串行,设备有空隙)
+//   双缓冲 : 每块 = max(T,C)       (A/B 交替,设备与 CPU 完全并行)
+// 三条轨道:dev(设备传输T) / copy(缓冲→用户M) / cpu(计算C)
+// =============================================================
+var T=5, C=3, M=1, mode='double', N=3;
+var gantt   = document.getElementById('gantt');
+var readout = document.getElementById('readout');
+var playTimer=null, playHead=-1, horizon=0;
+
+function periodOf(m){
+  var mx=Math.max(T,C);
+  if(m==='none')   return T+C;
+  if(m==='single') return mx+M;
+  return mx;                      // double
+}
+
+// 生成 N 块的三轨道区间 [start,end)
+function buildBlocks(m){
+  var P=periodOf(m), b=[];
+  for(var i=0;i<N;i++){
+    var base=i*P;
+    if(m==='none'){
+      b.push({dev:[base,base+T], copy:null, cpu:[base+T, base+T+C]});
+    }else{
+      b.push({dev:[base,base+T], copy:[base+T, base+T+M], cpu:[base+T+M, base+T+M+C]});
+    }
+  }
+  return b;
+}
+
+function covered(intervals, t){          // 时刻 [t,t+1) 是否落在某区间内
+  for(var i=0;i<intervals.length;i++){
+    var iv=intervals[i]; if(!iv) continue;
+    if(t>=iv[0] && t<iv[1]) return true;
+  }
+  return false;
+}
+
+function render(){
+  var blocks=buildBlocks(mode);
+  // 计算时间轴长度 = 最后一块 cpu 结束
+  horizon=0;
+  for(var i=0;i<blocks.length;i++){ if(blocks[i].cpu[1]>horizon) horizon=blocks[i].cpu[1]; }
+
+  var devIv=[], copyIv=[], cpuIv=[];
+  for(var i=0;i<blocks.length;i++){
+    devIv.push(blocks[i].dev);
+    if(blocks[i].copy) copyIv.push(blocks[i].copy);
+    cpuIv.push(blocks[i].cpu);
+  }
+
+  var rows=[['axis','']];   // 时间刻度行
+  rows.push(['dev','设备']);
+  if(mode!=='none') rows.push(['copy','缓冲(M)']);
+  rows.push(['cpu','CPU']);
+
+  var html='';
+  for(var r=0;r<rows.length;r++){
+    var kind=rows[r][0], lab=rows[r][1];
+    html+='<div class="grow'+(kind==='axis'?' axis':'')+'">';
+    html+='<div class="glabel">'+lab+'</div><div class="gtrack">';
+    for(var t=0;t<horizon;t++){
+      if(kind==='axis'){
+        html+='<div class="cell" data-t="'+t+'">'+t+'</div>';
+      }else{
+        var busy = kind==='dev'?covered(devIv,t) : kind==='copy'?covered(copyIv,t) : covered(cpuIv,t);
+        var cls  = busy ? kind : 'idle';
+        html+='<div class="cell '+cls+'" data-t="'+t+'"></div>';
+      }
+    }
+    html+='</div></div>';
+  }
+  gantt.innerHTML=html;
+  paintHead();
+  writeReadout();
+}
+
+function paintHead(){
+  var cells=gantt.querySelectorAll('.cell');
+  for(var i=0;i<cells.length;i++){
+    if(playHead>=0 && parseInt(cells[i].getAttribute('data-t'),10)===playHead)
+      cells[i].classList.add('ph');
+    else cells[i].classList.remove('ph');
+  }
+}
+
+function writeReadout(){
+  var none=T+C, single=Math.max(T,C)+M, dbl=Math.max(T,C);
+  var per = periodOf(mode);
+  var name = mode==='none'?'无缓冲':mode==='single'?'单缓冲':'双缓冲';
+  var formula = mode==='none'?('T+C = '+T+'+'+C):
+                mode==='single'?('max(T,C)+M = max('+T+','+C+')+'+M):
+                ('max(T,C) = max('+T+','+C+')');
+  var parallel = mode==='none'
+      ? '<span class="badc">设备与 CPU 完全串行——蓝、绿两条轨道永不重叠,一忙一闲。</span>'
+      : mode==='single'
+      ? '<span class="okc">相邻块可并行,但腾空缓冲区(黄 M)那段串行——看设备轨道有小空隙,不是完全并行。</span>'
+      : '<span class="okc">设备与 CPU 完全并行——'+(T>=C?'设备(蓝)一刻不停':'CPU(绿)一刻不停')+',慢的一方成为唯一瓶颈。</span>';
+
+  readout.innerHTML=
+    '<span class="step">当前:<b>'+name+'</b>　连续处理一块 ≈ <code>'+formula+' = '+per+'</code> 个时间单位。</span>'+
+    '<span class="step">'+parallel+'</span>'+
+    '<span class="step">同参数横评:无缓冲 <code>'+none+'</code> ▸ 单缓冲 <code>'+single+'</code> ▸ 双缓冲 <code>'+dbl+'</code>（单位/块,越小越好）。</span>';
+}
+
+// ---- 播放流水:红框沿时间轴前进 ----
+function play(){
+  if(playTimer){ clearInterval(playTimer); playTimer=null; playHead=-1; paintHead(); return; }
+  playHead=0; paintHead();
+  playTimer=setInterval(function(){
+    playHead++;
+    if(playHead>=horizon){ clearInterval(playTimer); playTimer=null; playHead=-1; }
+    paintHead();
+  },260);
+}
+
+// ---- 事件绑定 ----
+var modeBtns=document.querySelectorAll('.btn[data-mode]');
+for(var i=0;i<modeBtns.length;i++){
+  modeBtns[i].addEventListener('click', function(){
+    mode=this.getAttribute('data-mode');
+    for(var j=0;j<modeBtns.length;j++) modeBtns[j].classList.remove('on');
+    this.classList.add('on');
+    render();
+  });
+}
+function bindSlider(id, valId, setter){
+  var el=document.getElementById(id), lab=document.getElementById(valId);
+  el.addEventListener('input', function(){ setter(parseInt(el.value,10)); lab.textContent=el.value; render(); });
+}
+bindSlider('tRange','tVal',function(v){T=v;});
+bindSlider('cRange','cVal',function(v){C=v;});
+bindSlider('mRange','mVal',function(v){M=v;});
+document.getElementById('playBtn').addEventListener('click', play);
+
+// ===== 首屏渲染 =====
+render();
+</script>
+</body>
+</html>

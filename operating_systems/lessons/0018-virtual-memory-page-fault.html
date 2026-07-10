@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 18 课 · 虚拟存储器 · 缺页中断 · 抖动与工作集</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --l-app:#eef4fb; --l-appb:#9cc2e8;
+    --l-os:#fef3e2;  --l-osb:#e8b86a;
+    --l-hw:#e6f4ea;  --l-hwb:#9ad0ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+
+  /* ===== 签名交互件:三层夹心 ===== */
+  .sandwich{max-width:600px; margin:6px auto 0; display:flex; flex-direction:column; gap:0}
+  .layer{border:2px solid #ccc; border-radius:10px; padding:12px 14px 14px; position:relative; transition:.18s; background:#fff}
+  .layer .layertag{position:absolute; top:-11px; left:14px; font-size:12px; font-weight:700; background:#fff; padding:0 6px; color:var(--muted)}
+  .applayer{border-color:var(--l-appb); background:var(--l-app)}
+  .oslayer{border-color:var(--l-osb); background:var(--l-os); cursor:pointer}
+  .hwlayer{border-color:var(--l-hwb); background:var(--l-hw)}
+  .oslayer.hl{box-shadow:0 0 0 4px rgba(232,184,106,.45); transform:scale(1.015)}
+  .apps,.hws{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px}
+  .app,.hw{font-size:13.5px; padding:6px 10px; border-radius:8px; border:1px solid #cbd2dd; background:#fff; cursor:pointer; transition:.15s; user-select:none}
+  .app:hover,.hw:hover{transform:translateY(-1px); box-shadow:0 2px 6px rgba(20,30,60,.12)}
+  .app.hl{background:var(--blue); color:#fff; border-color:var(--blue)}
+  .hw{cursor:default}
+  .hw.hl{background:var(--green); color:#fff; border-color:var(--green); transform:scale(1.06)}
+  .oscore{font-weight:800; font-size:17px; color:var(--amber); text-align:center; margin-top:2px}
+  .ossub{text-align:center; font-size:12.5px; color:#8a6d3b; margin-top:2px}
+  .gap{margin:6px auto; text-align:center; font-size:12.5px; color:#aab; font-weight:600;
+    padding:4px 10px; border-radius:20px; transition:.18s; letter-spacing:.02em}
+  .gap.up.hl{background:#e7f0fb; color:var(--blue)}
+  .gap.down.hl{background:#e6f4ea; color:var(--green)}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 4px}
+  @media print{ body{background:#fff} .btn{display:none} }
+
+  /* ===== 本课签名交互件:缺页中断处理流程模拟器 ===== */
+  .pf-refstrip{display:flex; gap:6px; flex-wrap:wrap; margin:10px 0 4px}
+  .pf-refcell{width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    border:1px solid #cbd2dd; border-radius:8px; font-weight:700; background:#fff; color:var(--muted); font-size:15px; transition:.15s}
+  .pf-refcell.done{background:#eef2f8; color:#99a}
+  .pf-refcell.cur{background:var(--blue); color:#fff; border-color:var(--blue); transform:scale(1.1)}
+  .pf-cols{display:flex; gap:18px; flex-wrap:wrap; margin-top:10px; align-items:flex-start}
+  .pf-col{flex:1 1 260px; min-width:240px}
+  .pf-coltitle{font-size:13px; font-weight:700; color:var(--muted); margin-bottom:6px}
+  .pf-pt{margin:0; font-size:13.5px}
+  .pf-pt th,.pf-pt td{text-align:center}
+  .pf-pt tr.inmem td{background:#ecfdf5}
+  .pf-pt tr.cur td{outline:2px solid var(--blue); outline-offset:-2px}
+  .pf-blocks{display:flex; flex-direction:column; gap:8px}
+  .pf-block{border:2px dashed #cbd2dd; border-radius:8px; padding:12px; text-align:center; font-weight:700;
+    color:var(--muted); background:#fff; transition:.15s}
+  .pf-block.filled{border-style:solid; border-color:var(--green); background:#ecfdf5; color:var(--green)}
+  .pf-block.cur{border-color:var(--blue); box-shadow:0 0 0 3px rgba(43,108,176,.2)}
+  .pf-blocklabel{font-size:11.5px; color:#99a; font-weight:600}
+  .pf-count{font-size:12.5px; color:var(--muted); margin-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 18 课 · Ch5 虚拟存储器 · 零基础可视化 · S13</p>
+  <h1>虚拟存储器 · 缺页中断 · 抖动与工作集</h1>
+  <p class="sub">这一课回答:内存装不下大程序时,系统靠什么把它跑起来?配合 <a href="./0013-exam-cheatsheet-map.html">速查地图</a> 使用。</p>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> 内存装不下整个大程序,靠<b>程序局部性</b>只把当前用得着的页装进来——这就是<b>虚拟存储器</b>;访问到一个没装进来的页,就触发<b>缺页中断</b>去外存把它调进来;如果装得太少,就会不停地换入换出(<b>抖动</b>);用<b>工作集</b>来估计一个进程<b>至少要装多少页</b>才不会抖。
+</div>
+
+<!-- ===================== 1. 直觉图 ===================== -->
+<h2>🖼 1. 直觉图:「缺页中断处理流程模拟器」</h2>
+<p class="hint">引用串 <code>[0, 5, 1, 5, 9, 0]</code> 按顺序访问,只有 <b>3 个物理块</b>,满了用 <b>FIFO(先进先出)</b>置换。<b>页 5 是会被写过的脏页</b>。点【访问下一页】一步步看缺页中断怎么处理:</p>
+<div class="panel">
+
+<div class="pf-refstrip" id="refStrip"></div>
+
+<div class="pf-cols">
+  <div class="pf-col">
+    <div class="pf-coltitle">📋 页表(逻辑页)</div>
+    <table class="pf-pt">
+      <thead><tr><th>页号</th><th>状态位</th><th>物理块号</th><th>修改位</th></tr></thead>
+      <tbody id="ptBody"></tbody>
+    </table>
+  </div>
+  <div class="pf-col">
+    <div class="pf-coltitle">💾 内存物理块(3 块)</div>
+    <div class="pf-blocks" id="memBlocks"></div>
+  </div>
+</div>
+
+<div style="margin-top:14px">
+  <button class="btn" id="btnNext">▶ 访问下一页</button>
+  <button class="btn reset" id="btnReset">↺ 重置</button>
+</div>
+<div class="pf-count" id="pfCount">命中 0 次 · 缺页 0 次</div>
+<div class="readout" id="pfReadout">← 点【访问下一页】开始:引用串 [0, 5, 1, 5, 9, 0],3 块,FIFO 置换。</div>
+</div>
+
+<div class="key">
+<b>看懂这台模拟器,本节就懂一半:</b> 每访问一页,先看<b>状态位</b>——是 1 就<b>命中</b>直接用;是 0 就<b>缺页中断</b>去调页。调页时若没空闲块要<b>置换</b>,置换前看牺牲页的<b>修改位</b>:脏页先<b>写回外存</b>,干净页<b>直接丢弃</b>省一次 IO。最后都要<b>重新执行</b>被打断的那条指令。
+</div>
+
+<!-- ===================== 2. 具体例子 ===================== -->
+<h2>🧸 2. 具体例子(ELI5):小书桌与大书架</h2>
+<div class="eli5">
+<b>🧸 5 岁也懂的比喻:</b> 你的<b>书桌很小</b>,只能同时摊开 <b>3 本书</b>(这是<b>内存</b>);旁边的<b>书架很大</b>,装得下所有书(这是<b>外存/磁盘</b>)。<br>
+你正在做的题只翻那几本书,摊桌上就够用了——这就是<b>局部性</b>,不用把所有书都搬上桌。<br>
+要用一本<b>没在桌上</b>的书时,你得停下来走到书架去取——这一停就是<b>缺页中断</b>。<br>
+桌子已经满了,得先<b>收走一本</b>(置换):如果那本你<b>写过批注(脏页)</b>,得先把批注<b>抄回书架</b>再收;如果<b>没写过(干净页)</b>,直接放回去就行,省事。<br>
+要是桌子实在太小,你<b>不停地取书、收书</b>,几乎没时间真正做题——这就是 <b>抖动</b>。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2>⚖️ 3. 对照表(照教材口径)</h2>
+
+<h3>对照一:常规存储器 vs 虚拟存储器</h3>
+<table>
+<tr><th>比什么</th><th>常规存储器</th><th>虚拟存储器</th></tr>
+<tr><td>装入方式</td>
+    <td><b>一次性</b>:运行前把整个作业<b>全部</b>装入内存</td>
+    <td><b>多次性</b>:分成多次、<b>用到才调入</b>(最重要的特征)</td></tr>
+<tr><td>驻留情况</td>
+    <td><b>驻留性</b>:装入后<b>一直占着</b>内存直到运行结束</td>
+    <td><b>对换性</b>:暂时不用的页<b>换出</b>外存,需要时再<b>换入</b></td></tr>
+<tr><td>本质效果</td>
+    <td>受内存容量限制,程序不能大于内存</td>
+    <td><b>虚拟性</b>:从<b>逻辑上扩充</b>了内存(是前两者带来的结果)</td></tr>
+</table>
+
+<h3>对照二:请求分页页表里的各个控制位</h3>
+<table>
+<tr><th>控制位</th><th>别名</th><th>作用</th></tr>
+<tr><td><b>状态位</b></td><td>存在位</td><td>0 = 该页<b>不在内存</b>;1 = <b>在内存</b>(访问它是命中还是缺页,看这一位)</td></tr>
+<tr><td><b>访问位</b></td><td>引用位</td><td>记录该页近期是否被访问过,<b>供置换算法</b>(如 LRU/CLOCK)挑牺牲页用</td></tr>
+<tr><td><b>修改位</b></td><td>脏位</td><td>该页调入后有没有被改过。<b>改过 → 换出时要写回外存;没改过 → 可直接丢弃</b></td></tr>
+<tr><td><b>保护位</b></td><td>—</td><td>该页的<b>读 / 写 / 执行</b>访问权限</td></tr>
+<tr><td><b>外存地址</b></td><td>—</td><td>该页在<b>磁盘上的位置</b>,缺页时按它去外存找这一页</td></tr>
+</table>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2>📖 4. 是什么:精确定义(对齐教材)</h2>
+
+<div class="key">
+<b>虚拟存储器定义:</b> 是一种具有<b>请求调入功能和置换功能</b>、能<b>从逻辑上对内存容量加以扩充</b>的存储器系统。它的<b>逻辑容量 = 内存容量 + 外存容量之和</b>,运行<b>速度接近内存</b>,而<b>成本接近外存</b>。
+</div>
+
+<p><b>实现基础:</b> <b>程序局部性原理</b>——程序在执行时,在<b>一小段时间内</b>只会用到程序的<b>一小部分</b>(代码/数据),所以没必要把整个程序全装进内存。</p>
+
+<p><b>虚存的四个特征:</b></p>
+<table>
+<tr><th>特征</th><th>含义</th></tr>
+<tr><td><b>多次性</b>(最重要)</td><td>作业分成<b>多次</b>调入内存,而不是一次全装入</td></tr>
+<tr><td><b>对换性</b></td><td>暂不用的页可以<b>换出</b>外存,需要时再<b>换入</b></td></tr>
+<tr><td><b>虚拟性</b></td><td>从<b>逻辑上扩充</b>了内存容量(前三者的最终目的)</td></tr>
+<tr><td><b>离散性</b></td><td>程序在内存中是<b>离散(不连续)</b>存放的,这是前三者的基础</td></tr>
+</table>
+
+<p><b>实现方式:</b> 请求分页(最常用)/ 请求分段 / 请求段页式;都<b>必须采用离散分配</b>。</p>
+
+<div class="key">
+<b>★ 缺页中断处理过程(5 步,简答高频):</b><br>
+① <b>保护 CPU 现场</b>(保存被中断指令的状态);<br>
+② 按页表中的<b>外存地址</b>,在<b>外存</b>中找到该页;<br>
+③ 若内存<b>有空闲块</b> → 调入并修改状态位;若<b>无空闲块</b> → 调用<b>页面置换算法</b>选牺牲页(牺牲页是<b>脏页要先写回外存</b>,干净页可直接淘汰);<br>
+④ 把该页<b>调入内存、修改页表</b>(填物理块号、状态位置 1);<br>
+⑤ <b>恢复现场,重新执行</b>刚才被中断的那条指令。
+</div>
+
+<p><b>缺页中断 vs 普通中断(区别是考点):</b></p>
+<table>
+<tr><th>比什么</th><th>普通中断</th><th>缺页中断</th></tr>
+<tr><td>产生时机</td><td>一条指令<b>执行完之后</b>才响应</td><td>在一条指令<b>执行期间</b>产生</td></tr>
+<tr><td>一条指令产生次数</td><td>至多一次</td><td>可能产生<b>多次</b>(一条指令跨多页)</td></tr>
+<tr><td>类型</td><td>可为外部中断</td><td>是<b>内部中断(故障 fault)</b></td></tr>
+<tr><td>处理完做什么</td><td>执行<b>下一条</b>指令</td><td><b>重新执行</b>当前(被中断的)指令</td></tr>
+</table>
+
+<div class="key">
+<b>缺页率:</b> <code>f = 缺页次数 F ÷ 总访问次数 A</code>。<br>
+<b>影响因素:</b> 页面越大 → 缺页率越低;分配的物理块数越多 → 越低;<b>置换算法</b>好坏;以及<b>程序本身的局部性</b>好坏。
+</div>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2>❓ 5. 为什么:逐层深挖三层</h2>
+
+<div class="panel">
+<h3>第 1 层:为什么<b>要</b>虚拟存储器?</h3>
+<p>因为<b>大程序可能超过内存总容量</b>,按常规"一次性全装入"的办法,它根本<b>跑不起来</b>。<br>
+而且常规方式的"<b>一次性 + 驻留性</b>"很<b>浪费</b>:一个进程大部分时间在等 I/O、在阻塞,却把整个身子<b>一直占着内存</b>不放;更亏的是,程序里有大量分支、异常处理代码<b>这次运行根本用不到</b>,却也被装了进来。<b>凭什么把用不到的部分也塞进宝贵的内存?</b></p>
+
+<h3>第 2 层:为什么"<b>只装一部分</b>"还能正常跑?</h3>
+<p>靠<b>程序局部性原理</b>:<br>
+• <b>时间局部性</b>——刚访问过的东西,很快还会再访问(比如循环体);<br>
+• <b>空间局部性</b>——访问了某个地址,附近的地址也很可能马上被访问(比如顺序执行、数组遍历)。<br>
+所以在<b>一小段时间内</b>,程序只在<b>一小片页</b>上打转。只要这一小片"当前用的页"在内存里就够跑;偶尔缺了一页,再<b>临时调进来</b>就是了。</p>
+
+<h3>第 3 层:为什么会<b>抖动</b>?怎么防?</h3>
+<p>"只装一部分"是有<b>代价</b>的:如果装得<b>太少</b> → 频繁<b>缺页</b> → 频繁<b>换入换出</b> → CPU 大部分时间都花在<b>处理缺页和置换</b>上,真正执行的有效指令极少 → 这就是<b>抖动(颠簸)</b>,CPU 利用率<b>趋近于 0</b>。<br>
+根本原因是:<b>分配给进程的物理块数 &lt; 它的工作集</b>。<br>
+用<b>工作集模型</b>来救:它统计进程在<b>最近一段时间窗口内</b>实际访问过的页集合,以此<b>估计进程至少需要多少页</b>。只要<b>分配的物理块数 ≥ 工作集大小</b>,就能防抖;若<b>所有进程的工作集之和 &gt; 总物理块数</b>,就说明多道程序度太高,要<b>挂起部分进程 / 降低多道程序度</b>。</p>
+<p class="hint">注:置换算法(OPT / FIFO / LRU / CLOCK、以及 Belady 异常)的<b>具体计算不在本课</b>,本课只需知道"块满了会置换""算法不当会加剧抖动"。算法细算见 → <a href="./0006-page-replacement.html">第 6 课(页面置换算法)</a>。</p>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2>✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>虚拟存储器能够实现的<b>基础</b>是下面哪一项?</p>
+<p>
+A. 内存容量足够大<br>
+B. 程序局部性原理<br>
+C. CPU 主频足够高<br>
+D. 磁盘速度接近内存
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 正因为程序执行有<b>时间/空间局部性</b>——一小段时间只用一小片页——才能"只装一部分"还跑得动。A 错:内存要是真够大就不需要虚存了,这是它要解决的问题不是基础;C 错:主频快只影响速度,和"能不能只装一部分"无关;D 错:磁盘再快也是外存,不是虚存成立的前提。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>请求分页页表里的"<b>修改位(脏位)</b>"主要用来?</p>
+<p>
+A. 表示该页当前是否在内存<br>
+B. 供置换算法参考该页近期是否被访问过<br>
+C. 表示该页的读/写/执行权限<br>
+D. 决定该页换出时要不要写回外存
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 修改位记录该页调入后<b>有没有被改过</b>:改过就得先写回外存,没改过可直接丢弃(省一次 IO)。A 是<b>状态位(存在位)</b>的作用;B 是<b>访问位(引用位)</b>的作用;C 是<b>保护位</b>的作用——四个位各司其职,别混。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>缺页中断与普通中断相比,<b>关键区别</b>是?</p>
+<p>
+A. 缺页在一条指令<b>执行期间</b>产生,处理完要<b>重新执行</b>当前指令<br>
+B. 缺页只会在一条指令<b>执行完之后</b>才产生<br>
+C. 缺页处理完后执行的是<b>下一条</b>指令<br>
+D. 缺页属于外部中断,普通中断才是内部中断
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 缺页是<b>内部中断(故障)</b>,在指令<b>执行中途</b>发现所需页不在内存时产生,调页后必须<b>重新执行</b>这条指令;一条指令还可能<b>缺页多次</b>。B、C 说的都是<b>普通中断</b>的特点(执行完才响应、处理完执行下一条),正好说反;D 把内/外部中断也弄反了。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>系统<b>频繁换入换出页面、CPU 利用率趋近于 0</b>,这是什么现象?根因是?</p>
+<p>
+A. 死锁;根因是进程间循环等待资源<br>
+B. 缺页中断;根因是页表太大放不下<br>
+C. 抖动(颠簸);根因是分配的物理块数 &lt; 进程工作集(进程太多、每个分到的块太少)<br>
+D. Belady 异常;根因是用了 FIFO 置换算法
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 这就是<b>抖动/颠簸</b>:块给得太少 → 频繁缺页置换 → 有效指令极少。A 死锁是"互相等资源卡住",不是频繁换页;B 单次缺页是正常现象,不是"利用率趋 0"的现象名;D Belady 异常指"块变多缺页反而变多"的反常计数现象,不是这里描述的整体崩溃。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>不看屏幕,<b>复述缺页中断的 5 步处理流程</b>(从保护现场,到最后重新执行被中断的指令)。</li>
+<li>说清<b>抖动为什么发生</b>(块太少 → 频繁换入换出),以及<b>工作集怎么防</b>(分配块数 ≥ 工作集;工作集之和超总块数就降多道程序度)。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">两题都能顺口说出来 → 真懂了。哪题卡壳,回到第 4 节的绿框和第 5 节第 3 层再看一遍,或回上面的模拟器再走一遍引用串。</p>
+</div>
+
+<footer>
+第 18 课 · Ch5 虚拟存储器 · 缺页中断处理 / 抖动与工作集<br>
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课(速查地图)</a> ·
+置换算法细算 → <a href="./0006-page-replacement.html">第 6 课(页面置换算法)</a> ·
+分段与分页 → <a href="./0017-segmentation-vs-paging.html">第 17 课(分段 vs 分页)</a>
+</footer>
+
+</div>
+
+<script>
+// ================= 签名交互件:缺页中断处理流程模拟器 =================
+var refStr    = [0, 5, 1, 5, 9, 0];
+var NUM_BLOCKS = 3;
+var pageOrder = [0, 1, 5, 9];   // 页表中列出的逻辑页(排序显示)
+
+var refStrip  = document.getElementById('refStrip');
+var ptBody    = document.getElementById('ptBody');
+var memBlocks = document.getElementById('memBlocks');
+var pfReadout = document.getElementById('pfReadout');
+var pfCount   = document.getElementById('pfCount');
+var btnNext   = document.getElementById('btnNext');
+var btnReset  = document.getElementById('btnReset');
+
+var pages, blocks, fifo, stepIdx, hitCount, faultCount, lastRefPage;
+
+function initState(){
+  // willWrite=true 的页在内存时视为脏页(会被写),换出要写回
+  pages = {
+    0:{inMem:false, block:null, dirty:false, willWrite:false},
+    1:{inMem:false, block:null, dirty:false, willWrite:false},
+    5:{inMem:false, block:null, dirty:false, willWrite:true},
+    9:{inMem:false, block:null, dirty:false, willWrite:false}
+  };
+  blocks      = [null, null, null];
+  fifo        = [];      // FIFO 队列,存页号,队首=最早进入
+  stepIdx     = 0;
+  hitCount    = 0;
+  faultCount  = 0;
+  lastRefPage = null;
+}
+
+function render(){
+  // 引用串
+  var rs = '';
+  for(var i=0;i<refStr.length;i++){
+    var cls = 'pf-refcell';
+    if(i < stepIdx) cls += ' done';
+    if(i === stepIdx && stepIdx < refStr.length) cls += ' cur';
+    rs += '<div class="'+cls+'">'+refStr[i]+'</div>';
+  }
+  refStrip.innerHTML = rs;
+
+  // 页表
+  var pb = '';
+  for(var k=0;k<pageOrder.length;k++){
+    var pn = pageOrder[k];
+    var pg = pages[pn];
+    var rowcls = '';
+    if(pg.inMem) rowcls += ' inmem';
+    if(pn === lastRefPage) rowcls += ' cur';
+    var state = pg.inMem ? '1' : '0';
+    var blk   = pg.inMem ? pg.block : '—';
+    var mod;
+    if(!pg.inMem){ mod = '—'; }
+    else if(pg.dirty){ mod = '<span style="color:var(--red);font-weight:700">1 (脏)</span>'; }
+    else { mod = '<span style="color:var(--green)">0 (干净)</span>'; }
+    pb += '<tr class="'+rowcls.replace(/^ /,'')+'"><td>'+pn+'</td><td>'+state+'</td><td>'+blk+'</td><td>'+mod+'</td></tr>';
+  }
+  ptBody.innerHTML = pb;
+
+  // 内存物理块
+  var bb = '';
+  for(var b=0;b<NUM_BLOCKS;b++){
+    var occ = blocks[b];
+    var cls = 'pf-block';
+    if(occ !== null) cls += ' filled';
+    if(occ !== null && occ === lastRefPage) cls += ' cur';
+    var content = (occ === null) ? '空闲' : ('页 '+occ);
+    bb += '<div class="'+cls+'"><div class="pf-blocklabel">物理块 '+b+'</div>'+content+'</div>';
+  }
+  memBlocks.innerHTML = bb;
+
+  // 计数
+  pfCount.innerHTML = '命中 '+hitCount+' 次 · 缺页 '+faultCount+' 次';
+
+  // 按钮状态
+  btnNext.disabled = (stepIdx >= refStr.length);
+  btnNext.style.opacity = btnNext.disabled ? '.45' : '1';
+  btnNext.style.cursor  = btnNext.disabled ? 'default' : 'pointer';
+}
+
+function nextStep(){
+  if(stepIdx >= refStr.length){
+    pfReadout.innerHTML = '✅ 引用串已走完:共 '+refStr.length+' 次访问,命中 '+hitCount+' 次、缺页 '+faultCount+' 次(缺页率 = '+faultCount+'/'+refStr.length+')。点【重置】重新演示。';
+    return;
+  }
+  var p  = refStr[stepIdx];
+  var pg = pages[p];
+  lastRefPage = p;
+  var msg = '第 '+(stepIdx+1)+' 步 · 访问页 <b>'+p+'</b>:';
+
+  if(pg.inMem){
+    // 命中
+    hitCount++;
+    msg += ' 查页表,状态位 = <b>1</b>(在内存,物理块 '+pg.block+')→ <span style="color:var(--green)"><b>命中!直接访问,快</b></span>,不产生缺页。';
+  } else {
+    // 缺页中断
+    faultCount++;
+    msg += ' 查页表,状态位 = <b>0</b>(不在内存)→ 触发 <b style="color:var(--red)">缺页中断</b>。';
+    var freeIdx = blocks.indexOf(null);
+    if(freeIdx !== -1){
+      // 有空闲块
+      blocks[freeIdx] = p;
+      pg.inMem = true;
+      pg.block = freeIdx;
+      if(pg.willWrite) pg.dirty = true;
+      fifo.push(p);
+      msg += ' 内存<b>有空闲块(物理块 '+freeIdx+')</b> → 把页 '+p+' 调入,状态位置 <b>1</b>。';
+    } else {
+      // 无空闲块 → 置换
+      var victim = fifo.shift();
+      var vpg    = pages[victim];
+      var vblk   = vpg.block;
+      msg += ' <b>无空闲块</b> → 页面置换:FIFO 选<b>最早进入</b>的页 <b>'+victim+'</b> 作牺牲页;';
+      if(vpg.dirty){
+        msg += ' 它<b style="color:var(--amber)">修改位=1(脏页),先写回外存</b>(多一次 IO);';
+      } else {
+        msg += ' 它<b style="color:var(--green)">修改位=0(干净),直接丢弃,省一次 IO</b>;';
+      }
+      vpg.inMem = false; vpg.block = null; vpg.dirty = false;   // 淘汰牺牲页
+      blocks[vblk] = p;                                          // 新页占用其块
+      pg.inMem = true; pg.block = vblk;
+      if(pg.willWrite) pg.dirty = true;
+      fifo.push(p);
+      msg += ' 再把页 '+p+' 调入<b>物理块 '+vblk+'</b>,修改页表。';
+    }
+    msg += ' 最后<b>恢复现场,重新执行</b>刚才被中断的那条指令。';
+  }
+
+  stepIdx++;
+  render();
+  pfReadout.innerHTML = msg;
+}
+
+function resetSim(){
+  initState();
+  render();
+  pfReadout.innerHTML = '← 点【访问下一页】开始:引用串 [0, 5, 1, 5, 9, 0],3 块,FIFO 置换。';
+}
+
+btnNext.addEventListener('click', nextStep);
+btnReset.addEventListener('click', resetSim);
+
+// 初始渲染
+resetSim();
+</script>
+</body>
+</html>

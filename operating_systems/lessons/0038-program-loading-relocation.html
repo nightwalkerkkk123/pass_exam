@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 38 课 · 程序的装入·链接·重定位(逻辑地址→物理地址)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --l-app:#eef4fb; --l-appb:#9cc2e8;
+    --l-os:#fef3e2;  --l-osb:#e8b86a;
+    --l-hw:#e6f4ea;  --l-hwb:#9ad0ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+
+  /* ===== 签名交互件:三层夹心 ===== */
+  .sandwich{max-width:600px; margin:6px auto 0; display:flex; flex-direction:column; gap:0}
+  .layer{border:2px solid #ccc; border-radius:10px; padding:12px 14px 14px; position:relative; transition:.18s; background:#fff}
+  .layer .layertag{position:absolute; top:-11px; left:14px; font-size:12px; font-weight:700; background:#fff; padding:0 6px; color:var(--muted)}
+  .applayer{border-color:var(--l-appb); background:var(--l-app)}
+  .oslayer{border-color:var(--l-osb); background:var(--l-os); cursor:pointer}
+  .hwlayer{border-color:var(--l-hwb); background:var(--l-hw)}
+  .oslayer.hl{box-shadow:0 0 0 4px rgba(232,184,106,.45); transform:scale(1.015)}
+  .apps,.hws{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px}
+  .app,.hw{font-size:13.5px; padding:6px 10px; border-radius:8px; border:1px solid #cbd2dd; background:#fff; cursor:pointer; transition:.15s; user-select:none}
+  .app:hover,.hw:hover{transform:translateY(-1px); box-shadow:0 2px 6px rgba(20,30,60,.12)}
+  .app.hl{background:var(--blue); color:#fff; border-color:var(--blue)}
+  .hw{cursor:default}
+  .hw.hl{background:var(--green); color:#fff; border-color:var(--green); transform:scale(1.06)}
+  .oscore{font-weight:800; font-size:17px; color:var(--amber); text-align:center; margin-top:2px}
+  .ossub{text-align:center; font-size:12.5px; color:#8a6d3b; margin-top:2px}
+  .gap{margin:6px auto; text-align:center; font-size:12.5px; color:#aab; font-weight:600;
+    padding:4px 10px; border-radius:20px; transition:.18s; letter-spacing:.02em}
+  .gap.up.hl{background:#e7f0fb; color:var(--blue)}
+  .gap.down.hl{background:#e6f4ea; color:var(--green)}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 4px}
+  @media print{ body{background:#fff} .btn{display:none} }
+
+  /* ===== 本课签名交互件:地址重定位演示器 ===== */
+  .reloc{display:flex; gap:14px; flex-wrap:wrap; margin-top:14px}
+  .progcard,.basectrl{flex:1; min-width:250px; border:2px solid var(--line); border-radius:10px; padding:12px 14px}
+  .progcard{border-color:var(--l-appb); background:var(--l-app)}
+  .basectrl{border-color:var(--l-osb); background:var(--l-os)}
+  .cardtag{font-size:12.5px; font-weight:700; color:var(--muted); margin-bottom:8px}
+  .instr{font-size:15px; margin:8px 0}
+  .addrbox{display:inline-block; font-family:"SF Mono",Menlo,Consolas,monospace; font-weight:800; font-size:18px;
+    background:#fff; border:2px solid var(--blue); color:var(--blue); border-radius:6px; padding:2px 10px; margin-left:4px; transition:.15s}
+  .addrbox.written{border-color:var(--red); color:var(--red)}
+  .storenote{font-size:12.5px; color:#556; margin-top:10px; line-height:1.55}
+  .basectrl input[type=range]{width:100%; margin:8px 0 2px}
+  .baseval{font-size:15px; color:var(--amber)}
+  .baseval b{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:19px}
+  .formula{margin-top:14px; text-align:center; font-family:"SF Mono",Menlo,Consolas,monospace; font-size:15px;
+    background:#f4f7fb; border:1px dashed var(--l-appb); border-radius:8px; padding:9px 10px; color:var(--ink)}
+  .readout.err{color:var(--red)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 38 课 · Ch4 存储器管理 · 零基础可视化 · Ch4 地基</p>
+  <h1>程序的装入 · 链接 · 重定位</h1>
+  <p class="sub">这一课只回答一件事:程序里写的地址,和它在内存的真实位置,怎么对上号?先动手拖一个滑块,再上术语。配合 <a href="./0013-exam-cheatsheet-map.html">速查地图</a> 使用。</p>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> 程序里写的地址(<b>逻辑地址 / 相对地址</b>)是从 0 算起的,和它最终待在内存的真实位置(<b>物理地址</b>)对不上;把逻辑地址换算成物理地址的过程叫<b>重定位</b>。换算发生在<b>“装入时一次性”</b>就是<b>静态重定位</b>;发生在<b>“运行时每次访问、由硬件做”</b>就是<b>动态重定位</b>。
+</div>
+
+<!-- ===================== 1. 直觉图 ===================== -->
+<h2>🖼 1. 直觉图:「地址重定位演示器」</h2>
+<p class="hint">程序里有一条指令 <code>LOAD</code>,它想访问<b>相对地址 100</b>。这条指令最终跑在内存的哪里,取决于程序被装到哪个<b>基址</b>。选一种模式,拖滑块,再点按钮体验两种模式的天壤之别。</p>
+<div class="panel">
+<div style="text-align:center">
+  <button class="btn on" id="btnStatic">静态重定位</button>
+  <button class="btn" id="btnDynamic">动态重定位</button>
+</div>
+
+<div class="reloc">
+  <div class="progcard">
+    <div class="cardtag">📦 你的程序(装入模块)</div>
+    <div class="instr">指令 <code>LOAD</code> 要访问:<span class="addrbox" id="storedAddr">100</span></div>
+    <div class="storenote" id="storeNote">程序里现在存的是<b>逻辑地址 100</b>(从 0 开始编址)。</div>
+  </div>
+
+  <div class="basectrl">
+    <div class="cardtag" id="baseTag">🎚 装入起始地址(基址)</div>
+    <input type="range" id="baseSlider" min="0" max="8000" step="100" value="1000">
+    <div class="baseval">基址 = <b id="baseVal">1000</b></div>
+  </div>
+</div>
+
+<div style="text-align:center; margin-top:12px">
+  <button class="btn" id="btnCalc">计算物理地址</button>
+  <button class="btn" id="btnMove">把程序搬到别处(基址→5000)</button>
+  <button class="btn reset" id="btnReset">重置</button>
+</div>
+
+<div class="formula" id="formula">物理地址 = 基址 + 逻辑地址 = 1000 + 100 = <b>1100</b></div>
+
+<div class="readout" id="relocReadout">← 先选一种模式,再点「计算物理地址」。</div>
+</div>
+
+<div class="key">
+<b>看懂这台演示器,本节就懂一半了:</b> 无论哪种模式,换算规则都是 <b>物理地址 = 基址 + 逻辑地址</b>。区别只在两件事——<b>什么时候换算</b>(装入时一次 vs 运行时每次)、<b>程序能不能搬家</b>(静态搬了就出错 vs 动态改个寄存器照跑)。
+</div>
+
+<!-- ===================== 2. 具体例子 ===================== -->
+<h2>🧸 2. 具体例子:请柬上的「从大门第 100 步」</h2>
+<div class="eli5">
+<b>🧸 5 岁也懂的比喻:</b> 你写请柬,只会写「进大门后往里<b>第 100 步</b>」——这是<b>逻辑地址</b>,因为你还不知道会场会摆在城市哪个角落。<br>
+① <b>静态重定位</b>:布置会场时,工作人员<b>一次性</b>把它改成「绝对位置:东经…北纬…」(装入时就定死)。可一旦会场整体挪个地方,那张绝对坐标就<b>全错了</b>,只能<b>重印请柬</b>重新算一遍。<br>
+② <b>动态重定位</b>:请柬上<b>永远</b>写「从大门第 100 步」。门开在哪不管,<b>进门的那一刻</b>再由门口的人(<b>重定位寄存器</b>)按「当前大门位置 + 100 步」把你带过去。会场随便挪,请柬<b>一个字都不用改</b>——挪门口牌子就行。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2>⚖️ 3. 对照表:三种装入 + 三种链接</h2>
+
+<h3>对照一:三种装入方式(重点在中间两种)</h3>
+<table>
+<tr><th>装入方式</th><th>地址怎么来 / 何时转换</th><th>特点与代价</th></tr>
+<tr>
+  <td><b>绝对装入</b></td>
+  <td>编译时就直接产生<b>绝对地址</b>,装入时不改。</td>
+  <td>最简单;但要求编译时就知道装到哪 → <b>仅适用单道程序</b>环境。</td>
+</tr>
+<tr>
+  <td><b>可重定位装入</b><br>(=静态重定位)</td>
+  <td>装入时<b>一次性</b>把相对地址 + 起始地址 → 绝对地址,以后不再改。</td>
+  <td>简单、<b>无需硬件</b>;但装入后<b>不能移动</b>、须占<b>连续</b>空间、<b>难共享</b>。</td>
+</tr>
+<tr>
+  <td><b>动态运行时装入</b><br>(=动态重定位)</td>
+  <td>装入后内存里<b>仍是相对地址</b>,转换<b>推迟到执行时</b>由<b>重定位寄存器</b>做。</td>
+  <td><b>可移动</b>、不需连续空间、支持<b>对换和虚存</b>、便于<b>共享</b>;但<b>需硬件支持</b>。</td>
+</tr>
+</table>
+
+<h3>对照二:三种链接方式</h3>
+<table>
+<tr><th>链接方式</th><th>什么时候链</th><th>特点与代价</th></tr>
+<tr>
+  <td><b>静态链接</b></td>
+  <td>运行<b>前</b>就把所有目标模块 + 库链成一个完整装入模块。</td>
+  <td>运行快;但文件大、库更新要<b>重新链接</b>、多程序调同一库有<b>多份副本</b>浪费内存。</td>
+</tr>
+<tr>
+  <td><b>装入时动态链接</b></td>
+  <td>装入内存时<b>边装边链</b>。</td>
+  <td>便于修改更新、可<b>共享</b>、省内存;装入稍慢。</td>
+</tr>
+<tr>
+  <td><b>运行时动态链接</b></td>
+  <td>执行到<b>真正用某模块</b>时才调入并链接。</td>
+  <td>省内存、启动快、便于更新共享;有运行时链接开销。典型:Windows 的 <code>DLL</code>、Linux 的 <code>.so</code>。</td>
+</tr>
+</table>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2>📖 4. 是什么:精确定义(对齐教材口径)</h2>
+
+<div class="key">
+<b>程序运行前的三步:</b> <b>编译</b>(源代码 → 目标模块)→ <b>链接</b>(目标模块 + 库 → 完整的装入模块)→ <b>装入</b>(装入模块 → 内存运行)。重定位就发生在最后一步「装入 / 运行」环节。
+</div>
+
+<table>
+<tr><th>术语</th><th>定义</th></tr>
+<tr><td><b>逻辑地址</b>(相对地址)</td><td>程序中使用的地址,<b>从 0 开始编址</b>(编译 / 用户视角)。</td></tr>
+<tr><td><b>物理地址</b>(绝对地址)</td><td>内存单元的<b>真实地址</b>。</td></tr>
+<tr><td><b>重定位</b></td><td>把<b>逻辑地址转换成物理地址</b>的过程。</td></tr>
+</table>
+
+<p><b>静态重定位 vs 动态重定位(三点对照,考试就考这三行):</b></p>
+<table>
+<tr><th>比什么</th><th>静态重定位</th><th>动态重定位</th></tr>
+<tr><td>① 何时转换</td><td><b>装入时一次性</b>全部改完</td><td><b>运行时每次访问</b>由硬件现算</td></tr>
+<tr><td>② 程序能否移动</td><td><b>不能</b>(地址已写死)</td><td><b>能</b>(逻辑地址不变)</td></tr>
+<tr><td>③ 硬件要求</td><td><b>不需要</b></td><td><b>需要重定位寄存器</b></td></tr>
+</table>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2>❓ 5. 为什么:一层层往下挖</h2>
+
+<div class="panel">
+<h3>第 1 层:为什么<b>需要</b>重定位?</h3>
+<p>因为程序在<b>编译时并不知道</b>自己将来会被装到内存哪个位置,只能先按「<b>从 0 开始</b>」编相对地址。真正<b>装入时</b>才知道落在哪个基址,于是必须把相对地址<b>换算成真实物理地址</b>——不换算,程序访问 100 就会跑到内存真正的 100 号单元去,那根本不是它的地盘。</p>
+
+<h3>第 2 层:为什么还要<b>区分</b>静态和动态?</h3>
+<p>静态图省事——装入时改一次就不管了,连硬件都不用。<b>但代价是地址被写死、程序钉在原地不能动</b>。一旦要<b>对换</b>(把进程换出再换回)、要<b>紧凑</b>(移动进程腾出连续空间)、要多个程序<b>共享</b>同一段代码,那些写死的绝对地址就<b>全乱套</b>了。区分,是为了在「省事」和「灵活」之间做选择。</p>
+
+<h3>第 3 层:为什么动态重定位<b>这么关键</b>?</h3>
+<p>它把地址转换<b>推迟到「每次访问的运行时」</b>,程序里<b>永远只存逻辑地址</b>,真实位置由重定位寄存器<b>现算</b>——于是搬动一个进程,只需<b>改一个寄存器</b>的值,程序一个字都不用动。<br>
+<b>再往下问一句「所以呢?」</b> → 正是它,才让<b>对换、紧凑、虚拟存储、代码共享</b>统统成为可能。它是现代内存管理的<b>地基</b>。</p>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2>✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>下列哪种方式把「地址转换<b>推迟到程序执行时</b>、每次访问由<b>重定位寄存器</b>完成」?</p>
+<p>
+A. 动态运行时装入(动态重定位)<br>
+B. 可重定位装入(静态重定位)<br>
+C. 绝对装入<br>
+D. 静态链接
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 只有动态重定位把转换<b>推迟到运行时</b>、由重定位寄存器现算。<b>陷阱 B</b>:静态重定位是<b>装入时一次性</b>转换、把地址<b>写死</b>,不是运行时;C 绝对装入编译时就是绝对地址、<b>根本不转换</b>;D 是<b>链接</b>方式,不是装入 / 重定位。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>静态重定位(可重定位装入)的<b>关键缺点</b>是?</p>
+<p>
+A. 需要专门的重定位寄存器硬件<br>
+B. 转换发生在每次访问、运行开销大<br>
+C. 程序装入后<b>不能再移动</b>、必须占用<b>连续</b>内存空间<br>
+D. 编译时就必须知道程序的绝对地址
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 静态重定位把地址<b>一次性写死</b>,痛点正是<b>装入后不能移动、须占连续空间、难共享</b>。<b>陷阱 A、B 说反了</b>——需要硬件、每次访问才转换的是<b>动态</b>重定位;D 是<b>绝对装入</b>的特点,不是静态重定位。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>「逻辑地址(相对地址)」指的是?</p>
+<p>
+A. 内存单元的真实物理地址<br>
+B. 重定位寄存器里存的基址<br>
+C. 磁盘上文件的存放位置<br>
+D. 程序中使用、<b>从 0 开始编址</b>的地址
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 逻辑地址是编译 / 用户视角、<b>从 0 起算</b>的相对地址,要经重定位才变成物理地址。<b>陷阱 A</b>:那是它的<b>对立面</b>——物理地址;B 是<b>基址</b>不是逻辑地址;C 与地址转换无关。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>Windows 的 <code>DLL</code>、Linux 的 <code>.so</code> 属于哪种<b>链接</b>方式?</p>
+<p>
+A. 静态链接<br>
+B. 运行时动态链接<br>
+C. 装入时动态链接<br>
+D. 绝对装入
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> <code>DLL</code>/<code>.so</code> 是「执行到<b>真正用某模块</b>时才调入并链接」,即<b>运行时动态链接</b>。<b>陷阱 C</b>:装入时动态链接是「<b>装入内存那一刻</b>就边装边链」,时机更早;A 静态链接会在<b>运行前</b>把库并进可执行文件;D 是<b>装入</b>方式,不是链接方式。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>说出程序运行前的<b>三步</b>(编译 → 链接 → 装入),并讲清每一步的<b>输入 → 输出</b>是什么。</li>
+<li>用公式「<b>物理地址 = 基址 + 逻辑地址</b>」讲一遍:静态和动态各在<b>什么时候</b>做这步换算?各由<b>谁</b>来做?</li>
+<li>为什么<b>动态</b>重定位能支持「对换 / 紧凑 / 虚存 / 共享」,而<b>静态</b>却不能移动?(要点:动态只存逻辑地址、搬家只改一个寄存器;静态地址已被写死。)</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能顺口说出来 → 你是真懂了,不只是「听过」。哪题卡壳,回到第 1 节再拖一遍那台演示器。</p>
+</div>
+
+<footer>
+第 38 课 · Ch4 存储器管理 · 程序的装入 / 链接 / 重定位 · 逻辑地址 → 物理地址<br>
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课(速查地图)</a> ·
+上承 → <a href="./0037-dynamic-partition-allocation.html">第 37 课(连续分配 · 动态分区)</a> ·
+下接 → <a href="./0005-paging-fundamentals.html">第 5 课(分页)</a>
+</footer>
+
+</div>
+
+<script>
+// ================= 签名交互件:地址重定位演示器 =================
+var LOGICAL = 100;               // 逻辑地址,恒定不变
+
+var btnStatic  = document.getElementById('btnStatic');
+var btnDynamic = document.getElementById('btnDynamic');
+var slider     = document.getElementById('baseSlider');
+var baseVal    = document.getElementById('baseVal');
+var baseTag    = document.getElementById('baseTag');
+var storedAddr = document.getElementById('storedAddr');
+var storeNote  = document.getElementById('storeNote');
+var formula    = document.getElementById('formula');
+var readout    = document.getElementById('relocReadout');
+
+var mode         = 'static';     // 'static' | 'dynamic'
+var staticLoaded = false;        // 静态:是否已装入(把地址写死)
+var writtenAddr  = null;         // 静态:装入时写死的绝对地址
+
+function base(){ return parseInt(slider.value, 10); }
+
+function render(){
+  baseVal.textContent = base();
+  baseTag.textContent = (mode === 'static')
+      ? '🎚 装入起始地址(基址)'
+      : '🎚 重定位寄存器(基址)';
+  if(mode === 'static' && staticLoaded){
+    storedAddr.textContent = writtenAddr;
+    storedAddr.classList.add('written');
+    storeNote.innerHTML = '装入时已把地址<b>一次性改写</b>成绝对地址 <b>' + writtenAddr +
+        '</b>,程序里<b>从此就是它</b>,运行时不再换算。';
+  } else {
+    storedAddr.textContent = LOGICAL;
+    storedAddr.classList.remove('written');
+    if(mode === 'static'){
+      storeNote.innerHTML = '程序里现在还是<b>逻辑地址 100</b>,等「计算物理地址」时会被<b>一次性写死</b>。';
+    } else {
+      storeNote.innerHTML = '程序里存的<b>始终是逻辑地址 100</b>,真实位置运行时才现算。';
+    }
+  }
+  formula.innerHTML = '物理地址 = 基址 + 逻辑地址 = ' + base() + ' + 100 = <b>' + (base()+100) + '</b>';
+}
+
+function setMode(m){
+  mode = m;
+  staticLoaded = false;
+  writtenAddr  = null;
+  btnStatic.classList.toggle('on',  m === 'static');
+  btnDynamic.classList.toggle('on', m === 'dynamic');
+  readout.classList.remove('err');
+  render();
+  readout.innerHTML = (m === 'static')
+      ? '已切到<b>静态重定位</b>。先点「计算物理地址」把程序装入(写死地址),再点「把程序搬到别处」看看会怎样。'
+      : '已切到<b>动态重定位</b>。先点「计算物理地址」看运行时怎么现算,再点「把程序搬到别处」看它照常跑。';
+}
+
+btnStatic.addEventListener('click',  function(){ setMode('static'); });
+btnDynamic.addEventListener('click', function(){ setMode('dynamic'); });
+
+// 用户手动拖滑块 = 重新选择装入基址 → 静态需重新装入
+slider.addEventListener('input', function(){
+  if(mode === 'static'){ staticLoaded = false; writtenAddr = null; }
+  readout.classList.remove('err');
+  render();
+});
+
+// 计算物理地址
+document.getElementById('btnCalc').addEventListener('click', function(){
+  readout.classList.remove('err');
+  var b = base();
+  if(mode === 'dynamic'){
+    var phy = b + LOGICAL;
+    formula.innerHTML = '运行时现算:' + b + ' + 100 = <b>' + phy + '</b>';
+    readout.innerHTML = '【动态重定位】程序里存的<b>始终是逻辑地址 100</b>。每次访问这条指令时,由<b>重定位寄存器(基址=' + b +
+        ')</b>当场算:物理地址 = ' + b + ' + 100 = <b>' + phy + '</b>。逻辑地址<b>一个字没改</b>。';
+    render();
+  } else {
+    staticLoaded = true;
+    writtenAddr  = b + LOGICAL;
+    formula.innerHTML = '装入时写死:逻辑 100 → 绝对 <b>' + writtenAddr + '</b>';
+    readout.innerHTML = '【静态重定位】装入时<b>一次性</b>把逻辑地址 100 改写成绝对地址 <b>' + writtenAddr +
+        '</b>(= ' + b + ' + 100)。程序里的地址<b>从此就是 ' + writtenAddr + '</b>,运行时不再做任何换算。';
+    render();
+  }
+});
+
+// 把程序搬到别处(基址 → 5000)
+document.getElementById('btnMove').addEventListener('click', function(){
+  if(mode === 'dynamic'){
+    slider.value = 5000;
+    readout.classList.remove('err');
+    render();  // storedAddr 仍显示逻辑 100
+    formula.innerHTML = '运行时现算:5000 + 100 = <b>5100</b>';
+    readout.innerHTML = '【动态重定位 · 搬家成功 ✔】只把<b>重定位寄存器改成 5000</b>,逻辑地址 100 一个字没动,' +
+        '新物理地址<b>自动</b>变成 5000 + 100 = <b>5100</b>。程序照常跑 —— 这就是动态重定位<b>支持移动 / 对换 / 共享</b>的原因。';
+  } else {
+    if(!staticLoaded){
+      slider.value = 5000;
+      readout.classList.remove('err');
+      render();
+      readout.innerHTML = '现在还<b>没装入</b>(没点「计算物理地址」)。静态重定位要先在某个基址上把地址<b>写死</b>,才谈得上「能不能搬」。请先点<b>「计算物理地址」</b>。';
+      return;
+    }
+    // 已在旧基址写死过,现在把它搬到 5000 —— 触发经典错误
+    slider.value = 5000;
+    baseVal.textContent = 5000;
+    // storedAddr 保持写死的旧绝对地址不变
+    storedAddr.textContent = writtenAddr;
+    storedAddr.classList.add('written');
+    formula.innerHTML = '程序仍访问写死的 <b>' + writtenAddr + '</b>,而新地盘从 5000 起 → <b style="color:var(--red)">越界 / 出错</b>';
+    readout.classList.add('err');
+    readout.innerHTML = '【静态重定位 · 搬家失败 ⚠】地址已被<b>写死成 ' + writtenAddr +
+        '</b>。程序搬到基址 5000 后,它<b>还是去访问 ' + writtenAddr + '</b> —— 那已经不是它的地盘了 → <b>访问出错 / 数据错乱!</b>' +
+        '<br>静态重定位下程序<b>不能移动</b>;要移动只能<b>重新装入</b>、按新基址 5000 <b>重新算一遍</b>地址。';
+  }
+});
+
+// 重置
+document.getElementById('btnReset').addEventListener('click', function(){
+  slider.value = 1000;
+  staticLoaded = false;
+  writtenAddr  = null;
+  readout.classList.remove('err');
+  render();
+  readout.innerHTML = '已重置(基址回到 1000)。当前模式:<b>' + (mode === 'static' ? '静态重定位' : '动态重定位') + '</b>。';
+});
+
+// 初始渲染
+render();
+</script>
+</body>
+</html>

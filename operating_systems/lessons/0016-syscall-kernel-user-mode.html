@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 16 课 · 五大功能 · 用户态/核心态 · 系统调用(trap)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --user:#e6f0fb; --userb:#9dc2ea; --kern:#fde0e0; --kernb:#e79a9a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  .btn.call{font-family:"SF Mono",Menlo,Consolas,monospace; font-weight:600}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+  /* ---- signature: syscall journey ---- */
+  .journey{position:relative}
+  .worlds{display:flex; gap:0; align-items:stretch; border-radius:10px; overflow:hidden; border:1px solid var(--line)}
+  .side{flex:1; min-width:0; padding:16px 14px; min-height:210px; transition:.35s}
+  .side.user{background:var(--user)}
+  .side.kern{background:#f4f6f9}
+  .side.kern.active{background:var(--kern)}
+  .side .tag{font-size:12px; font-weight:700; letter-spacing:.03em; margin-bottom:4px}
+  .side.user .tag{color:var(--blue2)}
+  .side.kern .tag{color:var(--red)}
+  .side .who{font-size:13.5px; color:var(--muted); margin-bottom:12px}
+  .box{background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 12px; font-size:13.5px; margin:8px 0; transition:.3s}
+  .box.lit{border-color:var(--blue); box-shadow:0 0 0 3px rgba(43,108,176,.15); transform:translateY(-1px)}
+  .side.kern .box.lit{border-color:var(--red); box-shadow:0 0 0 3px rgba(197,48,48,.15)}
+  .hw{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+  .hw span{font-size:12px; background:#eef1f6; border:1px solid #d7dce6; border-radius:5px; padding:3px 7px; color:#667}
+  .hw span.buzz{background:var(--kernb); border-color:var(--kernb); color:#fff; animation:buzz .5s}
+  @keyframes buzz{0%,100%{transform:translateY(0)}25%{transform:translateY(-3px)}75%{transform:translateY(2px)}}
+  /* the wall / door */
+  .wall{position:relative; width:64px; flex:0 0 64px; background:repeating-linear-gradient(0deg,#cbd2dd,#cbd2dd 8px,#b8c0cd 8px,#b8c0cd 16px);
+    display:flex; align-items:center; justify-content:center}
+  .door{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:34px; height:78px;
+    background:#8a5a2b; border:2px solid #5e3c1c; border-radius:4px; transition:.4s; transform-origin:left center;
+    display:flex; align-items:center; justify-content:center}
+  .door.open{transform:translate(-50%,-50%) perspective(240px) rotateY(-72deg)}
+  .door .knob{width:6px;height:6px;border-radius:50%;background:#f0d9b5;position:absolute;right:4px}
+  .doortxt{position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:10px; color:#3a2a18;
+    writing-mode:vertical-rl; letter-spacing:.05em; font-weight:700}
+  /* traveler token */
+  .token{position:absolute; top:50%; width:26px; height:26px; border-radius:50%;
+    background:var(--blue); color:#fff; font-size:11px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(43,108,176,.5);
+    transform:translate(-50%,-50%); transition:left .55s cubic-bezier(.4,.1,.3,1), background .3s; z-index:5}
+  .token.inkern{background:var(--red); box-shadow:0 2px 6px rgba(197,48,48,.5)}
+  .steps{display:flex; flex-direction:column; gap:6px; margin-top:14px}
+  .step{display:grid; grid-template-columns:30px 1fr; gap:10px; align-items:center; padding:8px 10px;
+    border:1px solid var(--line); border-radius:8px; background:#fcfdff; opacity:.4; transition:.3s; font-size:14px}
+  .step.done{opacity:1}
+  .step.now{opacity:1; border-color:var(--blue); background:var(--soft); box-shadow:0 0 0 2px rgba(43,108,176,.15)}
+  .step .n{width:30px;height:30px;border-radius:50%;background:#dfe5ee;color:#667;font-weight:700;
+    display:flex;align-items:center;justify-content:center;font-size:14px; transition:.3s}
+  .step.done .n{background:var(--green);color:#fff}
+  .step.now .n{background:var(--blue);color:#fff}
+  .modebadge{display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; border-radius:12px; margin-left:6px}
+  .modebadge.u{background:var(--user); color:var(--blue2); border:1px solid var(--userb)}
+  .modebadge.k{background:var(--kern); color:var(--red); border:1px solid var(--kernb)}
+  .readout{margin-top:10px; font-size:14px; min-height:1.5em; color:var(--blue); font-weight:600}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  details{margin:10px 0; background:#fbfcfe; border:1px solid var(--line); border-radius:8px; padding:6px 12px}
+  summary{cursor:pointer; font-weight:600; color:var(--blue)}
+  details[open]{padding-bottom:12px}
+  .q{font-weight:600; margin:14px 0 6px}
+  ol.opts{list-style:upper-alpha; margin:4px 0 0 22px} ol.opts li{margin:3px 0}
+  @media print{ body{background:#fff} .btn{display:none} }
+  @media (max-width:560px){ .side{min-height:auto} .wall{flex:0 0 44px;width:44px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 16 课 · Ch1 引论 · 零基础可视化 · S03</p>
+  <h1>穿墙记:用户态 / 核心态 与 系统调用(trap)</h1>
+  <p class="sub">你的程序想碰硬件,得先敲门。配合 <a href="./0014-what-is-os.html">第 14 课「OS 是什么」</a> 与 <a href="./0015-os-features-concurrency.html">第 15 课「四大特征」</a> 一起看。</p>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> CPU 有两个「档位」——<b>用户态(目态)</b>跑你的应用、够不到硬件;<b>核心态(管态)</b>跑操作系统内核、能碰一切硬件。中间隔着一堵墙,墙上<b>只有一道门</b>,叫<b>系统调用(trap)</b>。想让内核帮忙,必须走这道门。
+</div>
+
+<!-- ===================== 1. 直觉图 ===================== -->
+<h2>🖼 1. 直觉图:系统调用之旅(点一个函数,看它怎么穿墙)</h2>
+<div class="eli5">
+<b>先看见,再讲。</b> 下面左边是<b>用户态</b>(你的程序),右边是<b>核心态</b>(内核 + 硬件),中间那堵砖墙上只有一道门。点 <code>open()</code> / <code>read()</code> / <code>fork()</code> 任意一个,看那个小圆点怎么<b>敲门 → 进内核 → 干活 → 回来</b>。
+</div>
+
+<div class="panel journey">
+  <div style="margin-bottom:12px">
+    请求内核帮忙做:
+    <button class="btn call on" data-call="open">open()</button>
+    <button class="btn call" data-call="read">read()</button>
+    <button class="btn call" data-call="fork">fork()</button>
+    <button class="btn reset" id="jReset">重播</button>
+  </div>
+
+  <div class="worlds" id="worlds">
+    <div class="side user">
+      <div class="tag">用户态 · 目态</div>
+      <div class="who">这里跑<b>应用程序</b>,只能执行非特权指令,<b>够不到硬件</b>。</div>
+      <div class="box" id="boxApp">你的程序:<code id="callName">open("a.txt")</code><br><span style="color:#889;font-size:12.5px">调用库函数,准备请求 OS 服务</span></div>
+    </div>
+
+    <div class="wall">
+      <div class="door" id="door">
+        <span class="knob"></span>
+        <span class="doortxt">系统调用 trap</span>
+      </div>
+    </div>
+
+    <div class="side kern" id="kernSide">
+      <div class="tag">核心态 · 管态</div>
+      <div class="who">这里跑 <b>OS 内核</b>,可执行全部指令(含特权指令),能访问全部硬件。</div>
+      <div class="box" id="boxKern">内核:系统调用处理程序<br><span style="color:#889;font-size:12.5px">替你操作硬件,再把结果递回去</span></div>
+      <div class="hw" id="hw">
+        <span data-hw="disk">💽 磁盘</span>
+        <span data-hw="mem">🧠 内存/页表</span>
+        <span data-hw="io">🔌 I/O 设备</span>
+      </div>
+    </div>
+
+    <div class="token" id="token">app</div>
+  </div>
+
+  <div class="steps" id="steps">
+    <div class="step" data-s="1"><div class="n">1</div><div>用户程序调用<b>库函数</b>(如 <code>read()</code>)<span class="modebadge u">用户态</span></div></div>
+    <div class="step" data-s="2"><div class="n">2</div><div>库函数执行一条<b>陷入指令 trap</b>,主动敲门<span class="modebadge u">用户态</span></div></div>
+    <div class="step" data-s="3"><div class="n">3</div><div>CPU <b>由用户态切到核心态</b>,门打开、控制权交给内核<span class="modebadge k">切换</span></div></div>
+    <div class="step" data-s="4"><div class="n">4</div><div>内核执行<b>系统调用处理程序</b>,真正去碰硬件<span class="modebadge k">核心态</span></div></div>
+    <div class="step" data-s="5"><div class="n">5</div><div>做完<b>返回用户态</b>,门关上,回到你的程序继续跑<span class="modebadge u">用户态</span></div></div>
+  </div>
+  <div class="readout" id="jReadout">👆 上面点一个函数开始「穿墙之旅」</div>
+</div>
+
+<div class="key">
+<b>可视化的题眼:</b> 用户态那一侧<b>永远够不到右边的硬件</b>。想碰硬件,只能让小圆点走过这道门、变成红色(进核心态)去干活,干完再变回蓝色回来。这趟路线就是 <b>用户态 → 核心态 → 用户态</b>。
+</div>
+
+<!-- ===================== 2. 具体例子 ===================== -->
+<h2>🧸 2. 具体例子:住客不能自己进后厨</h2>
+<div class="eli5">
+<b>5 岁也懂的比喻:</b> 你的程序想<b>读一个文件</b>,可它不能自己跑去拨磁盘——就像餐厅住客不能自己冲进后厨炒菜。<br>
+它只能<b>按铃(trap)</b>喊服务员(内核):「帮我 <code>read</code> 一下!」服务员进后厨(核心态)替你把菜端出来(操作磁盘、拿到数据),再<b>递回到你桌上</b>(返回用户态)。<br>
+后厨的刀火电(硬件)只有服务员能碰;你只能<b>隔着门请求</b>。这道「按铃请服务员」的机制,就是<b>系统调用</b>。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2>⚖️ 3. 对照表:两组最容易考混的概念</h2>
+
+<h3>表 1 · 用户态(目态)vs 核心态(管态)</h3>
+<table>
+<tr><th>对比项</th><th>用户态 / 目态</th><th>核心态 / 管态</th></tr>
+<tr><td>能执行的指令</td><td>只能<b>非特权指令</b></td><td>可执行<b>全部指令</b>(含特权指令)</td></tr>
+<tr><td>能否直接访问硬件</td><td><b>不能</b>,够不到</td><td><b>能</b>,可访问全部硬件资源</td></tr>
+<tr><td>谁在这个态运行</td><td><b>应用程序</b></td><td><b>OS 内核</b></td></tr>
+<tr><td>能访问的内存</td><td>只能<b>自己的内存空间</b></td><td>可访问<b>全部内存</b></td></tr>
+</table>
+
+<h3>表 2 · 中断 vs 异常(内中断 / 陷入)</h3>
+<table>
+<tr><th>对比项</th><th>中断(外中断)</th><th>异常(内中断 / 陷入)</th></tr>
+<tr><td>来源</td><td><b>外部硬件设备</b></td><td><b>CPU 执行指令时</b>产生</td></tr>
+<tr><td>与当前指令的关系</td><td><b>异步</b>、与当前指令无关</td><td><b>同步</b>、与当前指令相关</td></tr>
+<tr><td>举例</td><td>I/O 完成、时钟中断、键盘输入</td><td>除零、地址越界、缺页、<b>系统调用指令(trap)</b></td></tr>
+</table>
+
+<h3>表 3 · OS 五大功能一览</h3>
+<table>
+<tr><th>功能</th><th>它管什么</th></tr>
+<tr><td>① 处理机管理</td><td>以<b>进程</b>为单位:进程控制 / 同步 / 通信 / 调度</td></tr>
+<tr><td>② 存储器管理</td><td>内存分配 / 保护 / 地址映射 / 内存扩充</td></tr>
+<tr><td>③ 设备管理</td><td>缓冲 / 设备分配 / 设备处理 / 设备独立性</td></tr>
+<tr><td>④ 文件管理</td><td>存储空间管理 / 目录管理 / 读写 / 共享保护(实现<b>按名存取</b>)</td></tr>
+<tr><td>⑤ 用户接口</td><td>命令接口 / 程序接口(即<b>系统调用</b>) / 图形接口</td></tr>
+</table>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2>📖 4. 是什么(逐字对齐教材口径)</h2>
+
+<h3>五大功能的精确表述</h3>
+<div class="key">
+① <b>处理机管理</b>:以进程为单位——进程控制、进程同步、进程通信、调度。<br>
+② <b>存储器管理</b>:内存分配、内存保护、地址映射、内存扩充。<br>
+③ <b>设备管理</b>:缓冲管理、设备分配、设备处理、设备独立性。<br>
+④ <b>文件管理</b>:存储空间管理、目录管理、文件读写、共享与保护——实现<b>按名存取</b>。<br>
+⑤ <b>用户接口</b>:命令接口、程序接口(即<b>系统调用</b>)、图形接口。
+</div>
+
+<h3>两种运行态</h3>
+<div class="key">
+<b>核心态(Kernel Mode,又称管态、特权态):</b> CPU 可执行<b>所有指令</b>(含特权指令),可访问<b>所有硬件资源</b>,<b>OS 内核</b>运行于此。<br>
+<b>用户态(User Mode,又称目态):</b> CPU <b>只能执行非特权指令</b>,不能直接访问硬件,只能访问<b>自己的内存空间</b>,<b>应用程序</b>运行于此。
+</div>
+
+<h3>特权指令 & 模式切换 & 系统调用</h3>
+<div class="key">
+<b>特权指令:</b> 只能在核心态执行的指令(如 I/O 指令、关中断、修改页表 / 系统寄存器);用户态执行特权指令会<b>触发异常并被 OS 终止</b>。<br>
+<b>模式切换:</b> 用户态切到核心态的<b>唯一途径</b>是<b>中断、异常或系统调用</b>;核心态可<b>直接</b>切回用户态。<br>
+<b>系统调用:</b> 用户态程序请求 OS 服务的接口,是应用程序获取 OS 服务的<b>唯一途径</b>。<br>
+<b>系统调用执行过程:</b> 用户程序调用库函数 → 产生<b>陷入指令 trap</b> → CPU 从用户态切到核心态 → 进入<b>系统调用处理程序</b>执行内核服务 → 返回用户态。<br>
+(即路线为「<b>用户态 → 核心态 → 用户态</b>」;而<b>系统调用代码本身运行在核心态</b>。)
+</div>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2>❓ 5. 为什么(往下深挖三层)</h2>
+
+<h3>第 1 层 · 为什么要分用户态 / 核心态两种模式?</h3>
+<p>为了<b>保护</b>。如果谁都能直接执行 I/O、关中断、改页表这类危险操作,一个写错的应用就能<b>把整个系统搞崩</b>、甚至偷看别的进程内存。于是把「能碰硬件的钥匙」全部<b>锁进核心态</b>,应用只能在用户态跑受限指令。</p>
+
+<h3>第 2 层 · 为什么系统调用是获取 OS 服务的「唯一途径」?</h3>
+<p>因为应用在用户态<b>够不到硬件和内核数据</b>,它想读盘、开进程,只能通过这道<b>受控的门</b>请求内核代劳。而内核<b>借这道门做权限检查、参数检查</b>——门是关卡,不是随便进出的过道。既然墙外做不了,门又是唯一入口,系统调用自然成了唯一途径。</p>
+
+<h3>第 3 层 · 为什么切核心态只能靠中断 / 异常 / 系统调用,不能想跳就跳?</h3>
+<p>如果程序能自己一句指令就跳进核心态,那「保护」就<b>彻底失效</b>了——任何程序都能随意进内核。所以只留这三个入口,而且它们都会把控制权交给<b>内核预先设定好的处理程序</b>(受控入口),程序无法指定「跳到内核的哪一行」。这就是为什么<b>只有内核能把自己降回用户态</b>,反方向的门却上了锁。</p>
+
+<div class="key">
+<b>一句话收束:</b> 双态 + 特权指令 + 唯一受控入口,三件事合起来只做一件事——<b>把危险操作关进笼子,再只开一扇带门卫的门</b>。这就是操作系统「运行机制」的地基。
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2>✅ 6. 自测(先想再翻答案)</h2>
+
+<div class="panel">
+<p class="q">第 1 题(高频)· 系统调用的<b>执行过程</b>(即处理程序代码)运行在什么态?</p>
+<ol class="opts">
+<li>核心态</li>
+<li>始终在用户态</li>
+<li>先核心态,执行到一半切回用户态执行</li>
+<li>与调用它的程序同一个态,不发生切换</li>
+</ol>
+<details><summary>点我看答案</summary>
+<p><b>答案:A(核心态)。</b> 注意区分两件事:整趟<b>路线</b>是「用户态 → 核心态 → 用户态」;但<b>系统调用处理程序这段代码本身</b>是在<b>核心态</b>执行的——它要碰硬件,只能在核心态跑。陷阱选项 C/D 就是把「路线」和「代码在哪跑」混为一谈。</p>
+</details>
+</div>
+
+<div class="panel">
+<p class="q">第 2 题(高频)· 下列哪一组,<b>全部</b>都是「用户态 → 核心态」的合法途径?</p>
+<ol class="opts">
+<li>调用普通函数、做加法、赋值语句</li>
+<li>系统调用、跳转指令 jmp、函数返回</li>
+<li>关中断指令、进程调度、时间片用完</li>
+<li>中断、异常、系统调用</li>
+</ol>
+<details><summary>点我看答案</summary>
+<p><b>答案:D(中断、异常、系统调用)。</b> 用户态切核心态<b>只有</b>这三条路,而且<b>都不是程序自己主动跳</b>的——普通函数调用、加法、jmp 都留在用户态;关中断本身是特权指令,用户态根本执行不了(会触发异常被终止)。</p>
+</details>
+</div>
+
+<div class="panel">
+<p class="q">第 3 题 · 下列哪一条是<b>特权指令</b>(只能在核心态执行)?</p>
+<ol class="opts">
+<li>两个寄存器做加法</li>
+<li>关中断</li>
+<li>把常数写入一个普通变量</li>
+<li>比较两个数的大小</li>
+</ol>
+<details><summary>点我看答案</summary>
+<p><b>答案:B(关中断)。</b> 关中断、I/O 指令、修改页表 / 系统寄存器都属于特权指令,用户态执行会触发异常并被 OS 终止;而加法、赋值、比较都是<b>非特权指令</b>,用户态就能跑。</p>
+</details>
+</div>
+
+<div class="panel">
+<p class="q">第 4 题 · 应用程序获取操作系统服务的<b>唯一途径</b>是?</p>
+<ol class="opts">
+<li>直接执行 I/O 指令去操作硬件</li>
+<li>把自己切换到核心态后随意调用内核函数</li>
+<li>系统调用(程序接口)</li>
+<li>修改页表把内核内存映射进来读</li>
+</ol>
+<details><summary>点我看答案</summary>
+<p><b>答案:C(系统调用 / 程序接口)。</b> A、D 是特权操作,用户态做不到;B 里「应用自己切核心态」根本不存在——切换只能靠中断 / 异常 / 系统调用,而且入口由内核掌控。所以唯一途径就是系统调用。</p>
+</details>
+</div>
+
+<div class="panel">
+<p class="q">口述题(不要打字,说出来)</p>
+<ol>
+<li>把「系统调用之旅」的 5 步<b>按顺序</b>讲一遍,并说清哪几步在用户态、哪几步在核心态。</li>
+<li>用自己的话回答:为什么应用「够不到硬件」反而是一件<b>好事</b>?</li>
+<li>「中断」和「异常」最本质的区别是什么?各举一个例子。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能不看屏幕说顺 → 你是真懂了,不只是「听过」。说不顺的那题,回到对应小节再点一遍上面的动画。</p>
+</div>
+
+<footer>
+第 16 课 · Ch1 引论 · 五大功能 / 用户态·核心态 / 系统调用(trap) ·
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课</a> ·
+同段 → <a href="./0014-what-is-os.html">第 14 课 OS 是什么</a> ·
+<a href="./0015-os-features-concurrency.html">第 15 课 四大特征</a><br>
+口径对齐教材 ch01:双态切换唯一途径 = 中断 / 异常 / 系统调用;系统调用处理程序运行在核心态。
+</footer>
+
+</div>
+
+<script>
+// ---------- signature: 系统调用之旅 ----------
+var CALLS = {
+  open: {
+    name: 'open("a.txt")',
+    hw: 'disk',
+    kern: '内核:sys_open 处理程序',
+    kernSub: '在目录里找文件、建立文件描述符',
+    s4: '内核执行 sys_open:查目录、打开文件、返回文件描述符 fd'
+  },
+  read: {
+    name: 'read(fd, buf, n)',
+    hw: 'io',
+    kern: '内核:sys_read 处理程序',
+    kernSub: '驱动 I/O 设备把数据搬进缓冲区',
+    s4: '内核执行 sys_read:驱动磁盘/设备读数据 → 拷进你的 buf'
+  },
+  fork: {
+    name: 'fork()',
+    hw: 'mem',
+    kern: '内核:sys_fork 处理程序',
+    kernSub: '复制页表、分配 PCB、创建子进程',
+    s4: '内核执行 sys_fork:复制内存/页表、建 PCB、生出子进程'
+  }
+};
+var STEP_TEXT = [
+  '① 用户程序调用库函数 —— 还在【用户态】,只是普通函数调用',
+  '② 库函数执行陷入指令 trap —— 主动敲门(仍在用户态发起)',
+  '③ CPU 由用户态切到核心态 —— 门打开,控制权交给内核',
+  '',  // filled per-call as s4
+  '⑤ 内核返回用户态 —— 门关上,回到你的程序,拿到结果继续跑'
+];
+// token 的横向位置(百分比):步骤 1/2 在左侧(用户态),3/4 在门口/内核,5 回左侧
+var TOKEN_LEFT = ['22%','22%','50%','76%','22%'];
+
+var token   = document.getElementById('token');
+var door    = document.getElementById('door');
+var kernSide= document.getElementById('kernSide');
+var steps   = document.querySelectorAll('.step');
+var boxApp  = document.getElementById('boxApp');
+var boxKern = document.getElementById('boxKern');
+var readout = document.getElementById('jReadout');
+var hwSpans = document.querySelectorAll('#hw span');
+var callName= document.getElementById('callName');
+var callBtns= document.querySelectorAll('.btn.call');
+
+var current = 'open';
+var timers  = [];
+
+function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+
+function resetVisual(){
+  clearTimers();
+  steps.forEach(function(s){ s.classList.remove('done','now'); });
+  door.classList.remove('open');
+  kernSide.classList.remove('active');
+  token.classList.remove('inkern');
+  token.style.left = '22%';
+  token.textContent = 'app';
+  boxApp.classList.remove('lit');
+  boxKern.classList.remove('lit');
+  hwSpans.forEach(function(h){ h.classList.remove('buzz'); });
+}
+
+function play(callKey){
+  current = callKey;
+  var C = CALLS[callKey];
+  resetVisual();
+  callName.textContent = C.name;
+  boxKern.innerHTML = C.kern + '<br><span style="color:#889;font-size:12.5px">' + C.kernSub + '</span>';
+  STEP_TEXT[3] = '④ ' + C.s4 + ' —— 在【核心态】,真正碰硬件';
+
+  var seq = [0,1,2,3,4];
+  seq.forEach(function(idx, order){
+    var t = setTimeout(function(){
+      // mark previous done, current now
+      steps.forEach(function(s,i){
+        s.classList.remove('now');
+        if(i < idx) s.classList.add('done');
+      });
+      steps[idx].classList.add('now');
+      token.style.left = TOKEN_LEFT[idx];
+
+      if(idx === 0){ boxApp.classList.add('lit'); }
+      if(idx === 1){ boxApp.classList.add('lit'); }
+      if(idx === 2){ door.classList.add('open'); token.classList.add('inkern'); token.textContent='OS'; }
+      if(idx === 3){
+        kernSide.classList.add('active');
+        boxKern.classList.add('lit');
+        var hw = document.querySelector('#hw span[data-hw="'+C.hw+'"]');
+        if(hw){ hw.classList.add('buzz'); }
+      }
+      if(idx === 4){
+        door.classList.remove('open');
+        kernSide.classList.remove('active');
+        boxKern.classList.remove('lit');
+        token.classList.remove('inkern'); token.textContent='app';
+        boxApp.classList.add('lit');
+      }
+      readout.textContent = STEP_TEXT[idx];
+
+      // last step: mark itself done after a beat
+      if(order === seq.length-1){
+        var t2 = setTimeout(function(){ steps[idx].classList.add('done'); steps[idx].classList.remove('now'); }, 700);
+        timers.push(t2);
+      }
+    }, order * 1100);
+    timers.push(t);
+  });
+}
+
+callBtns.forEach(function(b){
+  b.addEventListener('click', function(){
+    callBtns.forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    play(b.dataset.call);
+  });
+});
+document.getElementById('jReset').addEventListener('click', function(){
+  play(current);
+});
+
+// 初始:静态摆好第 1 帧(不自动跑,等她点)
+resetVisual();
+callName.textContent = CALLS.open.name;
+</script>
+</body>
+</html>

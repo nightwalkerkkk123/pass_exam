@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 14 课 · OS 是什么 · 为什么存在(两顶帽子:管资源 + 给服务)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --l-app:#eef4fb; --l-appb:#9cc2e8;
+    --l-os:#fef3e2;  --l-osb:#e8b86a;
+    --l-hw:#e6f4ea;  --l-hwb:#9ad0ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+
+  /* ===== 签名交互件:三层夹心 ===== */
+  .sandwich{max-width:600px; margin:6px auto 0; display:flex; flex-direction:column; gap:0}
+  .layer{border:2px solid #ccc; border-radius:10px; padding:12px 14px 14px; position:relative; transition:.18s; background:#fff}
+  .layer .layertag{position:absolute; top:-11px; left:14px; font-size:12px; font-weight:700; background:#fff; padding:0 6px; color:var(--muted)}
+  .applayer{border-color:var(--l-appb); background:var(--l-app)}
+  .oslayer{border-color:var(--l-osb); background:var(--l-os); cursor:pointer}
+  .hwlayer{border-color:var(--l-hwb); background:var(--l-hw)}
+  .oslayer.hl{box-shadow:0 0 0 4px rgba(232,184,106,.45); transform:scale(1.015)}
+  .apps,.hws{display:flex; gap:8px; flex-wrap:wrap; margin-top:6px}
+  .app,.hw{font-size:13.5px; padding:6px 10px; border-radius:8px; border:1px solid #cbd2dd; background:#fff; cursor:pointer; transition:.15s; user-select:none}
+  .app:hover,.hw:hover{transform:translateY(-1px); box-shadow:0 2px 6px rgba(20,30,60,.12)}
+  .app.hl{background:var(--blue); color:#fff; border-color:var(--blue)}
+  .hw{cursor:default}
+  .hw.hl{background:var(--green); color:#fff; border-color:var(--green); transform:scale(1.06)}
+  .oscore{font-weight:800; font-size:17px; color:var(--amber); text-align:center; margin-top:2px}
+  .ossub{text-align:center; font-size:12.5px; color:#8a6d3b; margin-top:2px}
+  .gap{margin:6px auto; text-align:center; font-size:12.5px; color:#aab; font-weight:600;
+    padding:4px 10px; border-radius:20px; transition:.18s; letter-spacing:.02em}
+  .gap.up.hl{background:#e7f0fb; color:var(--blue)}
+  .gap.down.hl{background:#e6f4ea; color:var(--green)}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 4px}
+  @media print{ body{background:#fff} .btn{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 14 课 · Ch1 引论 · 零基础可视化 · S01</p>
+  <h1>OS 是什么 · 为什么存在(两顶帽子:管资源 + 给服务)</h1>
+  <p class="sub">这一课只回答一件事:操作系统到底是干嘛的?先动手点一张图,再上术语。配合 <a href="./0013-exam-cheatsheet-map.html">速查地图</a> 使用。</p>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> 操作系统同时戴着<b>两顶帽子</b>——① 对下,它是<b>资源管理者</b>(替你管好 CPU、内存、磁盘、打印机);② 对上,它是<b>服务接口</b>(给你和程序一个好用的窗口去用这些硬件)。你从来没直接碰过硬件,都是它替你碰的。
+</div>
+
+<!-- ===================== 1. 直觉图 ===================== -->
+<h2>🖼 1. 直觉图:一台电脑的「三层夹心」</h2>
+<p class="hint">一台电脑从上到下分三层:你和 App 在最上层,硬件在最下层,<b>操作系统夹在中间</b>。中间这层是本节主角。</p>
+<div class="panel">
+<div class="hint">👇 <b>先点中间黄色的【操作系统】</b>看它的两顶帽子;<b>再点最上面某个 App</b>,看它想用硬件时怎么“绕不开”操作系统:</div>
+
+<div class="sandwich" id="sandwich">
+  <div class="layer applayer">
+    <span class="layertag">① 应用程序 / 用户(上层)</span>
+    <div class="apps">
+      <div class="app" data-app="浏览器">🌐 浏览器</div>
+      <div class="app" data-app="音乐">🎵 音乐播放器</div>
+      <div class="app" data-app="下载">⬇️ 下载工具</div>
+      <div class="app" data-app="打印">📄 打印文档</div>
+    </div>
+  </div>
+
+  <div class="gap up" id="gapUp">🎁 向上:OS 给 App 提供服务(命令 / 系统调用 / 图形界面)</div>
+
+  <div class="layer oslayer" id="oslayer">
+    <span class="layertag">② 操作系统(中间层 · 点我)</span>
+    <div class="oscore">操作系统 OS</div>
+    <div class="ossub">调度 · 分配 · 隔离 · 抽象</div>
+  </div>
+
+  <div class="gap down" id="gapDown">🔧 向下:OS 管理硬件资源(替 App 去操作硬件)</div>
+
+  <div class="layer hwlayer">
+    <span class="layertag">③ 硬件 / 裸机(下层)</span>
+    <div class="hws">
+      <div class="hw" data-hw="cpu">🧠 CPU</div>
+      <div class="hw" data-hw="mem">💾 内存</div>
+      <div class="hw" data-hw="disk">🗄️ 磁盘</div>
+      <div class="hw" data-hw="print">🖨️ 打印机</div>
+    </div>
+  </div>
+</div>
+
+<div class="readout" id="sandReadout">← 先点中间的【操作系统】试试</div>
+</div>
+
+<div class="key">
+<b>看懂这张图,本节就懂一半了:</b> App <b>永远不能直接碰硬件</b>,任何用硬件的请求都要<b>向下穿过 OS</b>。OS 一边<b>向下管硬件</b>、一边<b>向上给服务</b>——这就是“两顶帽子”。
+</div>
+
+<!-- ===================== 2. 具体例子 ===================== -->
+<h2>🧸 2. 具体例子:你写 <code>printf("hello")</code> 时,谁在碰硬件?</h2>
+<div class="eli5">
+<b>🧸 5 岁也懂的比喻:</b> 你在程序里写 <code>printf("hello")</code>,或者点一下“播放音乐”。<br>
+问你一句:你的手<b>碰过显卡、声卡吗?</b> 没有。<br>
+是<b>操作系统替你去操作了硬件</b>——它把字送去屏幕、把音频送去声卡。你只管说“我要打印这行字”,<b>脏活累活 OS 全包了</b>。这就是 OS 作为“服务窗口”的意义:你面对的是一个<b>好用的窗口</b>,不是一堆冷冰冰的电路。
+</div>
+<div class="eli5">
+<b>🧸 那没有 OS 会怎样?(手工操作阶段)</b> 在最早的计算机上<b>根本没有操作系统</b>:一个人<b>独占整台机器</b>,亲手把纸带 / 卡片装上去、亲手启动、亲手取结果。人手很慢,<b>飞快的 CPU 只能干等着</b>你换纸带——机器大部分时间在发呆,<b>资源利用率极低</b>,而且门槛高到普通人根本不会用。OS 出现,就是为了终结这种“人机互相拖后腿”的局面。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2>⚖️ 3. 对照表:有 OS vs 没 OS,以及「两顶帽子」拆开看</h2>
+
+<h3>对照一:有 OS 的电脑 vs 没 OS 的“手工操作阶段”</h3>
+<table>
+<tr><th>比什么</th><th>没有 OS(手工操作阶段)</th><th>有 OS(现在)</th></tr>
+<tr><td>谁去操作硬件</td><td>用户<b>亲手</b>装纸带、按按钮</td><td><b>OS 替你</b>操作硬件</td></tr>
+<tr><td>能同时跑几个程序</td><td>不能,<b>一次一个、独占整机</b></td><td>可以,多个程序<b>共享</b>一台机器</td></tr>
+<tr><td>资源利用率</td><td><b>极低</b>(CPU 干等人工操作)</td><td><b>高</b>(OS 让 CPU 忙起来)</td></tr>
+<tr><td>好不好用</td><td>门槛极高,只有专家会用</td><td>普通人点点鼠标就能用</td></tr>
+</table>
+
+<h3>对照二:OS 的「两顶帽子」各管什么</h3>
+<table>
+<tr><th></th><th>帽子① 资源管理者(向下)</th><th>帽子② 用户/程序接口(向上)</th></tr>
+<tr><td>面向谁</td><td>面向<b>硬件</b></td><td>面向<b>用户和程序</b></td></tr>
+<tr><td>具体管 / 给什么</td>
+    <td>管四大类资源:<b>处理机 · 存储器 · I/O 设备 · 文件</b></td>
+    <td>给三种接口:<b>命令接口 · 程序接口(系统调用)· 图形接口</b></td></tr>
+<tr><td>解决的问题</td><td>别乱抢、别撞车、用得高效</td><td>别让人直接碰硬件,给个好用的窗口</td></tr>
+</table>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2>📖 4. 是什么:精确定义(对齐教材口径)</h2>
+
+<div class="key">
+<b>定义:</b> 操作系统是<b>管理计算机硬件与软件资源</b>的计算机程序,是<b>直接运行在裸机上的最基本的系统软件</b>,是系统软件的核心;<b>任何其他软件都必须在操作系统的支持下才能运行</b>。
+</div>
+
+<p><b>它的地位:</b> OS 是配置在计算机硬件上的<b>“第一层”系统软件</b>,是介于<b>硬件和应用程序之间</b>的一层软件——<b>向下</b>管理硬件资源,<b>向上</b>为应用程序提供运行环境和服务。(正是第 1 节那张三层夹心图。)</p>
+
+<p><b>三大作用(考点):</b></p>
+<table>
+<tr><th>作用</th><th>说明</th></tr>
+<tr><td>① 用户与硬件之间的<b>接口</b></td><td>用户不直接碰硬件,通过 OS 提供的窗口来使用计算机(帽子②)。</td></tr>
+<tr><td>② 系统资源的<b>管理者</b></td><td>管理四大类资源:<b>处理机、存储器、I/O 设备、文件</b>(帽子①)。</td></tr>
+<tr><td>③ 实现对资源的<b>抽象</b></td><td>把磁盘块抽象成<b>文件</b>、把 I/O 设备抽象成 <code>read/write</code> 接口、把 CPU 抽象成<b>进程</b>,<b>隐藏硬件细节</b>。</td></tr>
+</table>
+
+<div class="key">
+<b>“隐藏的第三顶帽子”——资源抽象:</b> 除了“管资源”和“给接口”,OS 还偷偷做了一件事:把丑陋的硬件包装成好用的逻辑对象。你面对的是<b>文件、进程</b>,而不是磁道、扇区、寄存器。
+</div>
+
+<p><b>四大目标(各记一句):</b></p>
+<table>
+<tr><th>目标</th><th>一句话</th></tr>
+<tr><td><b>方便性</b></td><td>让计算机<b>更好用</b>(有了抽象和接口,普通人也能用)。</td></tr>
+<tr><td><b>有效性</b></td><td>让资源<b>用得更充分</b>、系统吞吐更高(别让 CPU 干等)。</td></tr>
+<tr><td><b>可扩充性</b></td><td>方便<b>增加新功能</b>、加新模块而不推倒重来。</td></tr>
+<tr><td><b>开放性</b></td><td>遵循<b>统一标准</b>,不同设备 / 系统之间能兼容互通。</td></tr>
+</table>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2>❓ 5. 为什么:一层层往下挖“为什么要有 OS”</h2>
+
+<div class="panel">
+<h3>第 1 层:为什么<b>需要</b>操作系统?</h3>
+<p>因为有几对绕不开的矛盾:<br>
+• <b>人机矛盾</b>——人操作慢、机器算得快,让人手动伺候机器,机器只能干等;<br>
+• <b>CPU 与 I/O 速度不匹配</b>——CPU 快、磁盘 / 打印机慢,不协调就互相拖累;<br>
+• <b>多个程序抢有限资源</b>——大家都想用 CPU / 内存 / 设备,<b>没有一个“管家”就会乱抢、低效、难用</b>。<br>
+OS 就是那个管家:它调度、分配、隔离,把矛盾摆平。</p>
+
+<h3>第 2 层:为什么说它是<b>“第一层 / 最基本”</b>的软件?</h3>
+<p>因为它<b>直接跑在裸机上、开机时最先启动</b>;它启动好之后,才轮到别的软件运行。<b>其它所有软件都依赖它提供的运行环境</b>——没有 OS 打好的地基,浏览器、微信、你的程序一行都跑不起来。</p>
+
+<h3>第 3 层:为什么还要费劲做<b>“资源抽象”</b>?</h3>
+<p>因为要让程序员<b>不必关心硬件的物理细节</b>。你不需要知道磁盘有几个磁道、显卡怎么发信号——只面对<b>文件、进程</b>这些好用的逻辑对象就行。<br>
+<b>再往下问一句“所以呢?”</b> → 这正是“<b>方便性</b>”这个目标的来源:抽象藏起了复杂,好用才成为可能。三顶帽子在这里合成了一句话:<b>管好资源、给好接口、藏好细节。</b></p>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2>✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>操作系统最本质的<b>两个身份</b>是下面哪一项?</p>
+<p>
+A. 一个用来上网的普通应用程序<br>
+B. 资源管理者 + 用户/程序的服务接口<br>
+C. 一种藏在主板里的 CPU 硬件电路<br>
+D. 一门用来写程序的编程语言
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> OS 的两顶帽子就是①对下当<b>资源管理者</b>、②对上当<b>服务接口</b>。A 错:OS 是系统软件的核心,不是普通 App;C 错:它是软件不是硬件电路;D 错:它不是编程语言。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>下面哪一个<b>“不是”</b>操作系统直接管理的四大类资源?</p>
+<p>
+A. 处理机(CPU)<br>
+B. 存储器(内存)<br>
+C. 网络协议栈<br>
+D. I/O 设备
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> OS 直接管理的四大类资源是<b>处理机、存储器、I/O 设备、文件</b>。“网络协议栈”不属于这四大类里的标准说法,是干扰项。(A、B、D 都是四大类之一。)</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>“程序员不用关心磁盘的物理结构,只要用 <code>open/read</code> 去读文件”——这体现了 OS 的哪个作用?</p>
+<p>
+A. 实现对资源的<b>抽象</b><br>
+B. 提高 CPU 的主频<br>
+C. 让电脑开机更快<br>
+D. 增加内存的容量
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 把磁盘块包装成“文件”、把设备包装成 <code>read/write</code>,隐藏硬件细节——这正是<b>资源抽象</b>(也是“方便性”的来源)。B/C/D 都是硬件性能的事,和抽象无关。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>用一句话说出 OS 的<b>两顶帽子</b>分别是什么、各面向谁。</li>
+<li>不看屏幕,画一遍<b>三层夹心</b>,并说明“App 为什么绕不开 OS”。</li>
+<li>说出<b>没有 OS 的手工操作阶段</b>为什么“资源利用率极低”。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能顺口说出来 → 你是真懂了,不只是“听过”。哪题卡壳,回到对应小节再点一遍上面的三层夹心图。</p>
+</div>
+
+<footer>
+第 14 课 · Ch1 引论 · OS 是什么 / 为什么存在 · 两顶帽子(管资源 + 给服务)<br>
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课</a> ·
+本段续讲 → <a href="./0015-os-features-concurrency.html">第 15 课 · OS 四大特征(并发/共享/虚拟/异步)</a> ·
+<a href="./0016-syscall-kernel-user-mode.html">第 16 课 · 系统调用与内核态/用户态</a>
+</footer>
+
+</div>
+
+<script>
+// ================= 签名交互件:三层夹心 =================
+var oslayer   = document.getElementById('oslayer');
+var gapUp     = document.getElementById('gapUp');
+var gapDown   = document.getElementById('gapDown');
+var readout   = document.getElementById('sandReadout');
+var apps      = Array.prototype.slice.call(document.querySelectorAll('.app'));
+var hws       = Array.prototype.slice.call(document.querySelectorAll('.hw'));
+
+// App 想用的硬件 + 动作说法
+var appHw   = { '浏览器':'cpu',  '音乐':'mem',   '下载':'disk',  '打印':'print' };
+var appVerb = { '浏览器':'渲染网页要算画面', '音乐':'把音频数据缓存起来', '下载':'把文件存下来', '打印':'把文档送去打印' };
+var hwName  = { cpu:'CPU', mem:'内存', disk:'磁盘', print:'打印机' };
+
+function clearAll(){
+  oslayer.classList.remove('hl');
+  gapUp.classList.remove('hl');
+  gapDown.classList.remove('hl');
+  apps.forEach(function(a){ a.classList.remove('hl'); });
+  hws.forEach(function(h){ h.classList.remove('hl'); });
+}
+
+// 点【操作系统】→ 亮两顶帽子
+oslayer.addEventListener('click', function(){
+  clearAll();
+  oslayer.classList.add('hl');
+  gapUp.classList.add('hl');
+  gapDown.classList.add('hl');
+  readout.innerHTML = '这就是 OS 的<b>两顶帽子</b>:🎁 <b>向上</b>给 App 提供服务接口(命令/系统调用/图形界面);🔧 <b>向下</b>管理硬件资源(CPU·内存·磁盘·打印机)。一个夹心层,同时对上负责、对下负责。';
+});
+
+// 点某个 App → 演示它必须穿过 OS 才能用到硬件
+apps.forEach(function(a){
+  a.addEventListener('click', function(){
+    clearAll();
+    var name = a.dataset.app;
+    var hwKey = appHw[name];
+    a.classList.add('hl');
+    gapUp.classList.add('hl');
+    oslayer.classList.add('hl');
+    gapDown.classList.add('hl');
+    var hwEl = hws.filter(function(h){ return h.dataset.hw === hwKey; })[0];
+    if(hwEl) hwEl.classList.add('hl');
+    readout.innerHTML =
+      '【'+name+'】'+appVerb[name]+',它想用 <b>'+hwName[hwKey]+'</b>——但它<b>不能直接碰硬件</b>。'+
+      '于是:①【'+name+'】向下发请求给 OS(🎁 走服务接口)→ ②OS 替它去操作 <b>'+hwName[hwKey]+'</b>(🔧 管理硬件)→ ③结果再返回给【'+name+'】。'+
+      '<br><b>结论:任何 App 用硬件,都绕不开中间的操作系统。</b>';
+  });
+});
+</script>
+</body>
+</html>

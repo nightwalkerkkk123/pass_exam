@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 40 课 · 存储管理计算大题冲刺串讲(分页地址变换 · FF/BF/WF · 分段vs分页 · 页面置换 · Belady/抖动)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  .readout .step{display:block; margin:3px 0}
+  .readout .okc{color:var(--green)} .readout .badc{color:var(--red)}
+  .readout code{background:#e7f0fb}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  /* 顶部导航 */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* 全局故事线 */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 120px; min-width:110px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  /* 输入区 */
+  .calcin{background:#fafbfe; border:1px dashed var(--line); border-radius:8px; padding:12px 14px; margin:6px 0}
+  .calcin label{display:inline-block; margin:5px 16px 5px 0; font-size:14px; font-weight:600}
+  .calcin input{font:inherit; font-size:14px; width:110px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; margin-left:4px}
+  .calcin input.wide{width:280px; max-width:100%}
+
+  /* 分页地址结构条 */
+  .addrbar{display:flex; border:2px solid var(--ink); border-radius:6px; overflow:hidden; margin:8px 0; max-width:520px}
+  .addrbar div{flex:1; text-align:center; padding:9px 6px; font-family:"SF Mono",Menlo,monospace; font-weight:700; font-size:13.5px}
+  .ab-p{background:#e7f0fb} .ab-w{background:#e6f4ea} .ab-f{background:#fef3e2}
+
+  /* FF/BF/WF 三列 */
+  .ffgrid{display:flex; gap:10px; flex-wrap:wrap; margin-top:10px}
+  .ffcol{flex:1 1 190px; min-width:180px; border:1px solid var(--line); border-radius:8px; padding:10px; background:#fff}
+  .ffcol h4{margin:0 0 4px; font-size:14px; color:var(--blue)}
+  .ffcol .rule{font-size:12px; color:var(--muted); margin-bottom:8px; min-height:2.2em}
+  .fblk{border:1px solid #cbd2dd; border-radius:6px; padding:5px 8px; margin:4px 0; font-size:13px; background:#f7f9fc; display:flex; justify-content:space-between}
+  .fblk.too{opacity:.5}
+  .fblk.pick{border-color:var(--amber); background:#fff7ed; box-shadow:0 0 0 3px rgba(183,121,31,.22); font-weight:700}
+  .fpick{font-size:12.5px; margin-top:6px; font-weight:700; color:var(--green)}
+  .fpick.none{color:var(--red)}
+
+  /* trace 表 */
+  .traceScroll{overflow-x:auto; margin:8px 0}
+  table.trace{font-size:13px; width:auto; min-width:100%}
+  table.trace th, table.trace td{padding:4px 7px; text-align:center; white-space:nowrap}
+  table.trace th{background:#eef2f8; font-weight:700}
+  table.trace td.pg{font-weight:700; background:#f3f6fb}
+  table.trace td.load{background:#fef3e2; color:var(--amber); font-weight:700}
+  table.trace td.hit{background:#ecfdf5; color:var(--green); font-weight:700}
+  table.trace td.miss{background:#fdecec; color:var(--red); font-weight:700}
+  table.trace td.ev{color:var(--muted); font-size:12px}
+  .bigrate{font-size:15px; font-weight:800; color:var(--blue)}
+  .belady2{display:flex; gap:14px; flex-wrap:wrap}
+  .belady2 > div{flex:1 1 320px; min-width:300px}
+  .beltag{font-weight:700; font-size:14px; margin-bottom:2px}
+
+  /* 解题模板盒 */
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .tmpl ol{margin:6px 0 0; padding-left:20px} .tmpl li{margin:3px 0}
+
+  .big{background:#fff; border:2px solid var(--blue); border-radius:10px; padding:16px 18px; margin:16px 0}
+  .big .qtag{display:inline-block; background:var(--blue); color:#fff; font-size:12px; font-weight:700; padding:2px 10px; border-radius:20px; margin-bottom:6px}
+
+  @media print{ body{background:#fff} .btn,.nav{display:none} .panel{box-shadow:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 40 课 · Ch4 存储器管理 + Ch5 虚拟存储器 · 考前冲刺串讲 · ⚡计算大题</p>
+  <h1>存储管理计算大题冲刺:分页地址变换 · FF/BF/WF · 分段vs分页 · 页面置换 · Belady/抖动</h1>
+  <p class="sub">这是一节<b>串讲/冲刺页</b>——把内存管理这一整块最爱考的<b>两道计算大题</b>(分页地址变换、页面置换缺页率)和周边辨析点<b>串成一条线</b>。每个概念都有<b>单独的可视化课</b>(见文末),这里负责<b>打通 + 练手</b>。配合 <a href="./0013-exam-cheatsheet-map.html">速查地图</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·分页地址变换⚡</a>
+    <a href="#s2">2·FF/BF/WF</a>
+    <a href="#s3">3·分段vs分页/段页式</a>
+    <a href="#s4">4·页面置换⚡</a>
+    <a href="#s5">5·Belady/抖动</a>
+    <a href="#s6">6·计算大题实战</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一页话先记住这条主线:</b> 连续分配会产生<b>外部碎片</b>、靠紧凑搬家太贵 → 干脆<b>离散分配</b>(分页/分段) → 于是要会<b>地址变换</b>(⚡大题一) → 内存还是装不下大程序 → <b>虚拟存储器</b>只装当前用的页 → 用到没装的页就<b>缺页中断</b>去调 → 块满了要<b>置换</b>(⚡大题二,算缺页率) → 置换算法用不好会出<b>Belady 异常</b>或<b>抖动</b>。整块内存管理,就是这一根因果链。
+</div>
+
+<!-- ===================== 0. 全局线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:这些点怎么串起来</h2>
+<p class="hint">别把下面这些当成孤立知识点——它们是同一个问题“<b>怎么把程序放进内存、内存不够怎么办</b>”一路逼出来的。</p>
+<div class="flow">
+  <div class="fnode warn"><b>外部碎片</b>连续分配切来切去,总量够却拼不出整块</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>离散分配</b>分页/分段,哪空放哪,消灭外碎片</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>地址变换 ⚡</b>逻辑地址→物理地址(大题一)</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>虚拟存储器</b>靠局部性只装当前用的页</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>缺页中断</b>用到没装的页就去外存调</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>页面置换 ⚡</b>块满了淘汰谁,算缺页率(大题二)</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>Belady / 抖动</b>算法/块数不当的反常与崩溃</div>
+</div>
+
+<!-- ===================== 1. 分页地址变换 ===================== -->
+<h2 id="s1">📄 1. 分页地址变换 + 快表 EAT ⚡(计算大题一)</h2>
+
+<div class="eli5">
+<b>🧸 一句话:</b> 逻辑地址就是“<b>第几页 + 页里第几个字节</b>”。因为每页一样大(页大小固定),系统<b>自己就能</b>把你给的一个数除出“页号+偏移”;再拿页号去<b>页表</b>查到它住进了内存第几个物理块,把块号和偏移拼起来,就是真实物理地址。
+</div>
+
+<h3>🖼 交互件一:分页地址变换 + EAT 计算器</h3>
+<p class="hint">👇 改<b>页大小</b>和<b>逻辑地址</b>,点【变换】看三步怎么走。下半区是<b>快表 EAT</b>小算器。本例页表固定为 <code>[0→8, 1→5, 2→9, 3→3, 4→7]</code>。</p>
+<div class="panel">
+  <div class="calcin">
+    <label>页大小 L(字节) = <input id="pgL" type="number" value="1024"></label>
+    <label>逻辑地址 A = <input id="pgA" type="number" value="2500"></label>
+    <button class="btn on" id="pgBtn">变换 ▶</button>
+  </div>
+  <div class="addrbar">
+    <div class="ab-p">页号 P</div>
+    <div class="ab-w">页内偏移 W</div>
+  </div>
+  <div class="hint">逻辑地址拆成这两段;查页表把 P 换成物理块号 F,W 原样不动 → 物理地址 = F × L + W</div>
+  <div class="readout" id="pgReadout">← 点【变换】看 2500 怎么一步步变成物理地址。</div>
+
+  <hr style="border:none;border-top:1px dashed var(--line);margin:16px 0">
+  <div class="hint"><b>快表 EAT</b>(有效访问时间):快表命中直接得块号只花 ε+t;不命中要再访问内存里的页表,共 2t+ε。</div>
+  <div class="calcin">
+    <label>内存访问 t(ns) = <input id="eT" type="number" value="100"></label>
+    <label>快表访问 ε(ns) = <input id="eE" type="number" value="20"></label>
+    <label>命中率 p(%) = <input id="eP" type="number" value="90"></label>
+    <button class="btn on" id="eBtn">算 EAT ▶</button>
+  </div>
+  <div class="readout" id="eReadout">← 点【算 EAT】。公式 EAT = p·(t+ε) + (1−p)·(2t+ε) = 2t+ε−p·t。</div>
+</div>
+
+<div class="tmpl">
+<b>📐 解题模板(分页地址变换,三步):</b>
+<ol>
+<li><b>拆地址</b>:页号 P = A ÷ L(整除);页内偏移 W = A mod L(取余)。<b>先把单位看清:4KB=4096,不是 4000!</b></li>
+<li><b>查页表</b>:F = 页表[P](页号 → 物理块号)。若 P ≥ 页表长度 → <b>越界中断</b>。</li>
+<li><b>拼地址</b>:物理地址 = F × L + W。<b>偏移 W 前后一字不变</b>,只换块号。</li>
+</ol>
+</div>
+
+<div class="key">
+<b>快表 EAT(汤小丹口径):</b> 设内存访问时间 t、快表访问时间 ε、命中率 p,则<br>
+<code>EAT = p×(t+ε) + (1−p)×(2t+ε) = 2t + ε − p×t</code>。<br>
+不用快表(基本分页)= <b>2t</b>(一次查页表 + 一次取数据)。命中率越高,EAT 越接近 t + ε。
+</div>
+
+<!-- ===================== 2. FF/BF/WF ===================== -->
+<h2 id="s2">🅿️ 2. 动态分区四挑法 FF / NF / BF / WF</h2>
+
+<div class="eli5">
+<b>🧸 一句话:</b> 内存里有一堆<b>大小不一的空闲块</b>,来一个作业要挑一块给它。FF=从头找第一个够大的;NF=接着上次位置往后找;BF=挑<b>刚好够、最小</b>的;WF=挑<b>最大</b>的。同一个作业、同一堆空闲块,<b>四种挑法可能选中完全不同的块</b>。
+</div>
+
+<h3>🖼 交互件二:FF / BF / WF 三算法“同题不同选”对比</h3>
+<p class="hint">👇 空闲块固定为 <code>100K / 500K / 200K / 300K / 600K</code>(按地址排)。改一个<b>作业大小</b>,看 FF、BF、WF <b>各自选中哪一块</b>——它们经常选出三个不同的块。(NF 与 FF 的区别是“接着上次位置找”,这里不动指针时与 FF 一致。)</p>
+<div class="panel">
+  <div class="calcin">
+    <label>作业请求大小(K) = <input id="ffReq" type="number" value="300"></label>
+    <button class="btn on" id="ffBtn">对比三种挑法 ▶</button>
+  </div>
+  <div class="ffgrid" id="ffGrid"></div>
+  <div class="readout" id="ffReadout">← 点【对比三种挑法】看同一个 300K 作业被三种算法送进了三个不同的块。</div>
+</div>
+
+<h3>⚖️ 四挑法 + 碎片对照(照教材口径)</h3>
+<div class="traceScroll">
+<table>
+<tr><th>算法</th><th>空闲链按什么排</th><th>怎么挑</th><th>毛病</th></tr>
+<tr><td><b>FF 首次适应</b></td><td>地址递增</td><td>从低地址找<b>第一个</b>够用的</td><td>低地址越切越碎</td></tr>
+<tr><td><b>NF 循环首次</b></td><td>地址递增(成环)</td><td>从<b>上次结束处</b>往后找第一个够用的</td><td>会切开高地址大块</td></tr>
+<tr><td><b>BF 最佳适应</b></td><td>容量<b>递增</b></td><td>挑够用里<b>最小</b>的</td><td>留一堆没用的<b>小碎渣</b></td></tr>
+<tr><td><b>WF 最坏适应</b></td><td>容量<b>递减</b></td><td>挑<b>最大</b>的</td><td>大块很快<b>被用光</b></td></tr>
+</table>
+</div>
+<div class="key">
+<b>碎片必考辨析:</b> <b>内部碎片</b>=分给作业的分区<b>里面</b>没用满的空间(<b>固定分区、分页</b>有);<b>外部碎片</b>=分区<b>之间</b>那些太小、谁也用不上的空隙(<b>动态分区、连续分配</b>有)。外碎片攒多了 → <b>紧凑</b>(搬进程拼成大块),前提是<b>动态重定位(重定位寄存器)</b>。想彻底躲开外碎片 → 干脆<b>离散分配(分页)</b>,这就接到了第 1 节。
+</div>
+
+<!-- ===================== 3. 分段 vs 分页 ===================== -->
+<h2 id="s3">🧩 3. 分段 vs 分页 · 段页式(一维 vs 二维 · 相加 vs 相乘)</h2>
+
+<div class="eli5">
+<b>🧸 一句话:</b> <b>分页</b>是给系统管内存用的“物理切分”,每页一样大 → 给<b>一个数</b>就能定位(<b>一维</b>);<b>分段</b>是给程序员用的“逻辑切分”,每段长短不一 → 必须给<b>段号+段内偏移两个数</b>(<b>二维</b>)。<b>段页式</b>把两者叠起来:先分段、每段再分页。
+</div>
+
+<h3>⚖️ 分段 vs 分页 对照(照教材口径)</h3>
+<div class="traceScroll">
+<table>
+<tr><th>比什么</th><th>分页 Paging</th><th>分段 Segmentation</th></tr>
+<tr><td>为什么分</td><td>信息的<b>物理单位</b>,为提高内存利用率、便于 OS 管理</td><td>信息的<b>逻辑单位</b>,一段是一组完整信息,便于用户编程</td></tr>
+<tr><td>大小</td><td><b>固定</b>,由系统定(如 4KB)</td><td><b>不固定</b>,由内容/用户定</td></tr>
+<tr><td>地址维度</td><td><b>一维</b>(给一个数)</td><td><b>二维</b>(段号 + 段内偏移)</td></tr>
+<tr><td>碎片</td><td>有<b>内部碎片</b>,无外部碎片</td><td>有<b>外部碎片</b>,无内部碎片</td></tr>
+<tr><td>表里存什么</td><td>页表:页号 → <b>物理块号</b></td><td>段表:段号 → (<b>段长 limit、段基址 base</b>)</td></tr>
+<tr><td>物理地址怎么算</td><td><b>块号 × 页大小 + 偏移(相乘)</b></td><td><b>段基址 + 段内偏移(相加)</b></td></tr>
+<tr><td>共享/保护</td><td>不便按逻辑模块共享</td><td>便于段级共享、保护、动态链接</td></tr>
+</table>
+</div>
+
+<div class="eli5">
+<b>⚠️ 最毒的陷阱(几乎年年考):</b> <b>分页是“相乘”</b>(块号 × 页大小 + 偏移),<b>分段是“相加”</b>(段基址 + 段内偏移)。段表里存的是<b>段基址(起始物理地址)</b>,<b>不是块号</b>。谁把分段也写成“× 段长”,直接扣分。
+</div>
+
+<h3>🔢 同一组数,分页(相乘)vs 分段(相加)对照走一遍</h3>
+<div class="panel">
+<p><b>分页</b>:页大小 L=1KB=1024,页表 <code>[0→8,1→5,2→9]</code>,逻辑地址 2500。</p>
+<p style="margin-left:14px">P = 2500 ÷ 1024 = <b>2</b>,W = 2500 mod 1024 = <b>452</b> → 查页表 F = <b>9</b> → 物理地址 = <b>9 × 1024 + 452 = 9668</b>(<span style="color:var(--red)">相乘</span>)。</p>
+<p><b>分段</b>:段表 段2 → (base=120000, limit=8000),段号 s=2、段内偏移 d=100。</p>
+<p style="margin-left:14px">先查越界:100 &lt; 8000 ✓ → 物理地址 = base + d = <b>120000 + 100 = 120100</b>(<span style="color:var(--green)">相加</span>)。</p>
+</div>
+
+<div class="key">
+<b>段页式:</b> 逻辑地址三部分 = [<b>段号 s | 页号 p | 页内偏移 d</b>];<b>每进程一张段表、每段一张页表</b>。变换:查段表得该段<b>页表起址</b> → 查页表得<b>物理块号</b> → 物理地址 = <b>块号 × 页大小 + d</b>。<b>不用快表要访存 3 次</b>(段表 → 页表 → 数据),所以配<b>快表(TLB)</b>提速。想看这三种模式的<b>可点拆解器</b>,去 <a href="./0017-segmentation-vs-paging.html">第 17 课</a>。
+</div>
+
+<!-- ===================== 4. 页面置换 ===================== -->
+<h2 id="s4">🔁 4. 页面置换 OPT / FIFO / LRU / CLOCK ⚡(计算大题二)</h2>
+
+<div class="eli5">
+<b>🧸 一句话:</b> 物理块满了又要装新页,就得按规则<b>淘汰一个老页</b>。OPT 淘汰“<b>将来最久不用</b>”的(理论最优、不可实现);FIFO 淘汰“<b>最早进来</b>”的(最简单、可能 Belady);LRU 淘汰“<b>过去最久没用</b>”的(接近最优、无 Belady);CLOCK 用一个<b>访问位</b>近似 LRU(便宜)。
+</div>
+
+<h3>🖼 交互件三:页面置换 trace 生成器 + 缺页率</h3>
+<p class="hint">👇 改<b>引用串</b>和<b>物理块数</b>,选算法,点【生成】——现场画出整张 trace 表并算<b>缺页率</b>。默认串 <code>1,2,3,4,1,2,5,1,2,3,4,5</code> / 3 块,是最经典的考题串(FIFO=9、OPT=7、LRU=10)。</p>
+<div class="panel">
+  <div class="calcin">
+    <label class="wide">引用串 = <input id="rsIn" class="wide" type="text" value="1,2,3,4,1,2,5,1,2,3,4,5"></label>
+    <label>物理块数 = <input id="rsFrames" type="number" value="3" min="1" max="7"></label>
+  </div>
+  <div style="margin:2px 0 4px">
+    <span class="hint" style="margin-right:6px">算法:</span>
+    <button class="btn on" id="aFIFO" data-algo="FIFO">FIFO</button>
+    <button class="btn"    id="aLRU"  data-algo="LRU">LRU</button>
+    <button class="btn"    id="aOPT"  data-algo="OPT">OPT</button>
+    <button class="btn on" id="rsBtn">生成 ▶</button>
+  </div>
+  <div id="traceBox" class="traceScroll"></div>
+  <div class="readout" id="rsReadout">← 选算法后点【生成】。</div>
+</div>
+
+<h3>⚖️ 四种算法判据(必背)</h3>
+<div class="traceScroll">
+<table>
+<tr><th>算法</th><th>淘汰谁</th><th>看的是</th><th>特点</th></tr>
+<tr><td><b>OPT 最佳</b></td><td>将来<b>最久不再用</b>的</td><td>未来</td><td>缺页率最低;<b>不可实现</b>,只用来打分</td></tr>
+<tr><td><b>FIFO 先进先出</b></td><td><b>最早进内存</b>的</td><td>进入顺序</td><td>最简单;<b>可能 Belady 异常</b></td></tr>
+<tr><td><b>LRU 最近最久未用</b></td><td>过去<b>最久没用过</b>的</td><td>过去</td><td>接近 OPT;<b>无 Belady</b>;要硬件记时间</td></tr>
+<tr><td><b>CLOCK 时钟/NRU</b></td><td>扫到<b>访问位=0</b>的第一个</td><td>访问位</td><td>LRU 的<b>低成本近似</b>:环形链表+指针,遇1清0后移,遇0淘汰</td></tr>
+</table>
+</div>
+
+<div class="tmpl">
+<b>📐 解题模板(页面置换缺页率,手算 4 步):</b>
+<ol>
+<li><b>画 K 行的表</b>(K=物理块数),列 = 引用串每一次访问。</li>
+<li>逐个访问:<b>已在内存</b> → 命中(FIFO 不动;LRU 把它记为“刚用过”);<b>不在</b> → 缺页+1,内存没满直接装,满了<b>按算法选牺牲页</b>换掉。</li>
+<li><b>OPT 看后面</b>:对内存里每一页,找它<b>下一次出现的位置</b>,淘汰最靠后/永不再现的那个。</li>
+<li><b>缺页率 = 缺页次数 F ÷ 总访问次数 N</b>(是比率,不是次数本身!)。</li>
+</ol>
+</div>
+
+<!-- ===================== 5. Belady / 抖动 ===================== -->
+<h2 id="s5">📉 5. Belady 异常 · 抖动 · 工作集</h2>
+
+<div class="eli5">
+<b>🧸 一句话:</b> <b>Belady 异常</b> = “多给一块内存,缺页反而变多”的反常现象——<b>只有 FIFO 会</b>(OPT/LRU 这类“堆栈类算法”不会)。<b>抖动</b> = 块给得太少,系统不停换入换出、几乎不干正事,CPU 利用率趋近 0。<b>工作集</b>用来估“一个进程至少要几块才不抖”。
+</div>
+
+<h3>🖼 交互件四:Belady 异常现场(同串,3 块 vs 4 块,都用 FIFO)</h3>
+<p class="hint">👇 引用串 <code>1,2,3,4,1,2,5,1,2,3,4,5</code> 用 FIFO 各跑一遍:左边 3 块、右边 4 块。<b>看总缺页数——多给一块,反而从 9 涨到 10</b>。这就是 Belady。</p>
+<div class="panel">
+  <button class="btn on" id="belBtn">跑一遍对比 ▶</button>
+  <div class="belady2" style="margin-top:10px">
+    <div>
+      <div class="beltag">🅰 3 块 · FIFO</div>
+      <div id="bel3" class="traceScroll"></div>
+    </div>
+    <div>
+      <div class="beltag">🅱 4 块 · FIFO</div>
+      <div id="bel4" class="traceScroll"></div>
+    </div>
+  </div>
+  <div class="readout" id="belReadout">← 点【跑一遍对比】。</div>
+</div>
+
+<div class="key">
+<b>为什么 FIFO 会 Belady、别的不会?</b> FIFO 只看“谁最早进来”,不看“谁最近有用”——块变多、队列变长,它可能把“<b>马上要用</b>”的页当成“老页”踢掉。而 OPT/LRU 是<b>堆栈类算法</b>:块数变多时,小内存里的页集合<b>始终是大内存的子集</b>,所以缺页只会<b>不增</b>。<b>结论:块越多缺页越少?对 FIFO 不成立。</b>
+</div>
+
+<h3>❓ 抖动(颠簸)与工作集</h3>
+<div class="panel">
+<p><b>抖动是什么:</b> 分配给进程的<b>物理块数 &lt; 它的工作集</b> → 频繁缺页 → 频繁换入换出 → CPU 几乎全花在处理缺页上,有效工作趋近 0。</p>
+<p><b>工作集怎么救:</b> 工作集 = 进程在<b>最近一段时间窗口</b>内实际访问过的页集合,用它<b>估计进程至少要几块</b>。只要<b>分配块数 ≥ 工作集</b>就不抖;若<b>所有进程工作集之和 &gt; 总块数</b>,说明多道程序度太高,要<b>挂起部分进程 / 降低多道程序度</b>。</p>
+<p><b>缺页率的影响因素:</b> 页面越大、分配块数越多、置换算法越好、程序局部性越好 → 缺页率越低。</p>
+</div>
+
+<!-- ===================== 6. 计算大题实战 ===================== -->
+<h2 id="s6">⚡ 6. 计算大题实战(两道,先做再翻答案)</h2>
+
+<div class="big">
+<span class="qtag">大题一 · 分页地址变换 + EAT</span>
+<p>某系统采用<b>分页</b>存储管理,<b>页大小 = 1KB</b>。某进程页表如下:</p>
+<div class="traceScroll">
+<table>
+<tr><th>页号</th><td>0</td><td>1</td><td>2</td><td>3</td></tr>
+<tr><th>物理块号</th><td>2</td><td>4</td><td>6</td><td>8</td></tr>
+</table>
+</div>
+<p>(1) 求逻辑地址 <b>1500</b> 和 <b>3200</b> 对应的物理地址。<br>
+(2) 若逻辑地址 <b>5000</b>,会发生什么?<br>
+(3) 内存访问 t=100ns、快表访问 ε=10ns、命中率 p=80%,求有效访问时间 EAT。</p>
+<details>
+<summary>点我看逐步解答</summary>
+<p><b>(1)</b> 1KB = 1024 字节。</p>
+<p style="margin-left:14px">• A=1500:P = 1500÷1024 = <b>1</b>,W = 1500 mod 1024 = <b>476</b>;查页表 F = 4 → 物理 = 4×1024 + 476 = <b>4572</b>。</p>
+<p style="margin-left:14px">• A=3200:P = 3200÷1024 = <b>3</b>,W = 3200 mod 1024 = 3200−3072 = <b>128</b>;查页表 F = 8 → 物理 = 8×1024 + 128 = <b>8320</b>。</p>
+<p><b>(2)</b> A=5000:P = 5000÷1024 = <b>4</b>,而页表只有 0~3 页 → <b>页号越界,产生越界中断</b>,访问被拒绝。</p>
+<p><b>(3)</b> EAT = p×(t+ε) + (1−p)×(2t+ε) = 0.8×(100+10) + 0.2×(200+10) = 0.8×110 + 0.2×210 = 88 + 42 = <b>130ns</b>。(核对:2t+ε−p×t = 210 − 80 = 130 ✓)</p>
+<p class="hint">易错:偏移 476/128 要原样带进物理地址;单位是 1024 不是 1000;越界要判 P 是否 ≥ 页表长度。</p>
+</details>
+</div>
+
+<div class="big">
+<span class="qtag">大题二 · 页面置换缺页率 + Belady</span>
+<p>引用串 <code>1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5</code>(共 12 次访问)。</p>
+<p>(1) 物理块 = 3,分别用 <b>OPT、FIFO、LRU</b> 求缺页次数与缺页率。<br>
+(2) 用 <b>FIFO</b>,把物理块从 3 增到 4,缺页次数如何变化?说明这是什么现象。</p>
+<details>
+<summary>点我看逐步解答</summary>
+<p><b>(1) 物理块 = 3(N=12):</b></p>
+<p style="margin-left:14px">• <b>OPT</b>:缺页 <b>7</b> 次(步 1,2,3,4,7,10,11)→ 缺页率 = 7/12 ≈ <b>58.3%</b>。</p>
+<p style="margin-left:14px">• <b>FIFO</b>:缺页 <b>9</b> 次(步 1,2,3,4,5,6,7,10,11)→ 缺页率 = 9/12 = <b>75%</b>。</p>
+<p style="margin-left:14px">• <b>LRU</b>:缺页 <b>10</b> 次(步 1,2,3,4,5,6,7,10,11,12)→ 缺页率 = 10/12 ≈ <b>83.3%</b>。</p>
+<p class="hint">注意:这串<b>恰好 FIFO 比 LRU 还少</b>——是这条特定串的巧合,不代表 FIFO 一般更好。考试问的是“会不会算”,别慌。用上面的<b>交互件三</b>切换三种算法,可现场核对这三个数。</p>
+<p><b>(2) FIFO,物理块 3 → 4:</b></p>
+<p style="margin-left:14px">3 块 FIFO 缺页 <b>9</b> 次;4 块 FIFO 缺页 <b>10</b> 次。<b>多给一块,缺页反而多了一次</b> → 这就是 <b>Belady 异常</b>,只有 FIFO 会出现(OPT/LRU 是堆栈类算法,不会)。用<b>交互件四</b>可现场看这 9→10。</p>
+</details>
+</div>
+
+<!-- ===================== 自测 ===================== -->
+<h2>✅ 收尾自测(先自己想,再点开答案)</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>分页系统页大小 1KB,页表 <code>[0→3, 1→5, 2→1]</code>,逻辑地址 <b>2100</b> 的物理地址是?</p>
+<p>A. 52(= 0×1024 + 52)<br>
+B. 1076(= 1×1024 + 52)<br>
+C. 2100(不变)<br>
+D. 3124(= 3×1024 + 52)</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> P = 2100÷1024 = <b>2</b>,W = 2100 mod 1024 = 2100−2048 = <b>52</b>;查页表[2] = <b>1</b> → 物理 = 1×1024 + 52 = <b>1076</b>。A 错:块号漏查页表当成 0;C 错:忘了做变换(或误把页号 2 直接当块号,2×1024+52 也恰是 2100);D 错:页号取成 3(应查页表[2]=1)。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>下列关于 <b>Belady 异常</b> 的说法,<b>正确</b>的是?</p>
+<p>A. 任何置换算法都可能出现<br>
+B. 物理块越多,缺页率一定越低<br>
+C. 它是 LRU 的专属缺陷<br>
+D. 只有 <b>FIFO</b> 可能出现,OPT/LRU 不会</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> Belady 异常(块变多缺页反而变多)<b>只在 FIFO</b> 这类非堆栈算法出现;OPT、LRU 是堆栈类算法,块多时页集合是块少时的超集,缺页只会不增。A、C 错;B 恰恰被 Belady 反驳。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>分段系统段表 段1 → (base=40000, limit=6000),访问段号 1、段内偏移 <b>100</b>,物理地址是?</p>
+<p>A. 40000 + 100 = 40100<br>
+B. 1 × 6000 + 100 = 6100<br>
+C. 40000 × 6000 + 100<br>
+D. 越界,拒绝访问</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 先越界检查:100 &lt; 6000 ✓ 合法;<b>分段是相加</b>:物理 = 段基址 + 段内偏移 = 40000 + 100 = <b>40100</b>。C 是把分段错当“相乘”(最毒陷阱);B 用段号乘,纯属乱凑;D 错,没越界。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>“最佳适应算法 BF”的空闲分区链<b>按什么排序</b>、分配时<b>选哪块</b>?</p>
+<p>A. 按地址递增,选第一个够用的<br>
+B. 按容量递减,选最大块<br>
+C. 按容量<b>递增</b>,选能满足的<b>最小</b>块<br>
+D. 按地址递减,选最后一个够用的</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> BF 空闲链按<b>容量从小到大</b>排,从头找到第一个够用的就是“最小够用块”。A 是 FF(按地址);B 是 WF(容量递减、选最大);D 生造。记牢:<b>BF 按大小、不是按地址</b>——最容易记反。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>不看屏幕,说出<b>分页地址变换三步</b>,并强调“偏移不变、分页相乘、分段相加”。</li>
+<li>说清<b>缺页率</b>怎么算,以及 OPT/FIFO/LRU <b>各淘汰谁</b>。</li>
+<li>用一句话讲清<b>为什么只有 FIFO 会 Belady</b>(堆栈类 vs 非堆栈类)。</li>
+<li>说出<b>抖动</b>的成因和<b>工作集</b>怎么防抖。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">四题都能顺口说 → 内存管理这条线你就打通了。哪题卡壳,回到对应小节,再去上面的交互件点几下。</p>
+</div>
+
+<footer>
+第 40 课 · Ch4/Ch5 存储管理计算大题冲刺串讲 · 分页地址变换 · FF/BF/WF · 分段vs分页/段页式 · 页面置换 · Belady/抖动<br>
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课</a> ·
+单概念课:<a href="./0005-paging-fundamentals.html">05 分页基础</a> ·
+<a href="./0006-page-replacement.html">06 页面置换</a> ·
+<a href="./0017-segmentation-vs-paging.html">17 分段vs分页</a> ·
+<a href="./0018-virtual-memory-page-fault.html">18 虚存/缺页</a> ·
+<a href="./0037-dynamic-partition-allocation.html">37 动态分区FF/BF/WF</a>
+</footer>
+
+</div>
+
+<script>
+// ===================================================================
+// 交互件一:分页地址变换 + EAT
+// ===================================================================
+var PG_TABLE = [8, 5, 9, 3, 7];   // 页号 -> 物理块号
+var pgReadout = document.getElementById('pgReadout');
+
+function doPaging(){
+  var L = parseInt(document.getElementById('pgL').value, 10);
+  var A = parseInt(document.getElementById('pgA').value, 10);
+  if(isNaN(L) || L <= 0 || isNaN(A) || A < 0){
+    pgReadout.innerHTML = '<span class="badc">请输入正的页大小和非负的逻辑地址。</span>'; return;
+  }
+  var P = Math.floor(A / L);
+  var W = A % L;
+  if(P >= PG_TABLE.length){
+    pgReadout.innerHTML =
+      '<span class="step">① 拆地址:P = ' + A + ' ÷ ' + L + ' = <b>' + P + '</b>,W = ' + A + ' mod ' + L + ' = <b>' + W + '</b>。</span>' +
+      '<span class="step badc">② 查页表:页号 ' + P + ' ≥ 页表长度 ' + PG_TABLE.length + '(只有 0~' + (PG_TABLE.length-1) + ' 页)→ <b>越界中断!</b>换个更小的逻辑地址。</span>';
+    return;
+  }
+  var F = PG_TABLE[P];
+  var phys = F * L + W;
+  pgReadout.innerHTML =
+    '<span class="step">① 拆地址:页号 P = ' + A + ' ÷ ' + L + ' = <b>' + P + '</b>(整除);页内偏移 W = ' + A + ' mod ' + L + ' = <b>' + W + '</b>(取余)。</span>' +
+    '<span class="step">② 查页表[' + P + '] → 物理块号 F = <b>' + F + '</b>。</span>' +
+    '<span class="step okc">③ 物理地址 = F × L + W = ' + F + ' × ' + L + ' + ' + W + ' = <b>' + phys + '</b>(分页是<b>相乘</b>;偏移 ' + W + ' 一字不变)。</span>';
+}
+
+var eReadout = document.getElementById('eReadout');
+function doEAT(){
+  var t = parseFloat(document.getElementById('eT').value);
+  var e = parseFloat(document.getElementById('eE').value);
+  var p = parseFloat(document.getElementById('eP').value);
+  if(isNaN(t) || isNaN(e) || isNaN(p) || p < 0 || p > 100){
+    eReadout.innerHTML = '<span class="badc">请输入 t、ε 和 0~100 的命中率 p。</span>'; return;
+  }
+  var pr = p / 100;
+  var hit = t + e;             // 命中:查快表 + 取数据
+  var miss = 2 * t + e;        // 不命中:查快表 + 查内存页表 + 取数据
+  var eat = pr * hit + (1 - pr) * miss;
+  var shortcut = 2 * t + e - pr * t;
+  eReadout.innerHTML =
+    '<span class="step">命中(概率 ' + p + '%):查快表 ε + 取数据 t = ' + e + ' + ' + t + ' = <b>' + hit + 'ns</b>。</span>' +
+    '<span class="step">不命中(概率 ' + (100 - p) + '%):查快表 + 查内存页表 + 取数据 = 2t+ε = <b>' + miss + 'ns</b>。</span>' +
+    '<span class="step okc">EAT = ' + pr + '×' + hit + ' + ' + (Math.round((1-pr)*100)/100) + '×' + miss + ' = <b>' + (Math.round(eat*100)/100) + 'ns</b>。</span>' +
+    '<span class="step">核对捷径 2t+ε−p·t = ' + (2*t+e) + ' − ' + (Math.round(pr*t*100)/100) + ' = <b>' + (Math.round(shortcut*100)/100) + 'ns</b>;不用快表 = 2t = <b>' + (2*t) + 'ns</b>。</span>';
+}
+
+document.getElementById('pgBtn').addEventListener('click', doPaging);
+document.getElementById('eBtn').addEventListener('click', doEAT);
+
+// ===================================================================
+// 交互件二:FF / BF / WF 三算法同题不同选
+// ===================================================================
+// 空闲块:按地址排 100/500/200/300/600,记地址便于说明
+var FREE = [
+  {size:100, addr:0},
+  {size:500, addr:100},
+  {size:200, addr:600},
+  {size:300, addr:800},
+  {size:600, addr:1100}
+];
+var ffGrid = document.getElementById('ffGrid');
+var ffReadout = document.getElementById('ffReadout');
+
+function pickFF(req){ // 地址序第一个够用
+  for(var i=0;i<FREE.length;i++) if(FREE[i].size >= req) return i;
+  return -1;
+}
+function pickBF(req){ // 够用里最小
+  var best=-1;
+  for(var i=0;i<FREE.length;i++){
+    if(FREE[i].size >= req){ if(best===-1 || FREE[i].size < FREE[best].size) best=i; }
+  }
+  return best;
+}
+function pickWF(req){ // 够用里最大
+  var big=-1;
+  for(var i=0;i<FREE.length;i++){
+    if(FREE[i].size >= req){ if(big===-1 || FREE[i].size > FREE[big].size) big=i; }
+  }
+  return big;
+}
+
+function renderFFcol(title, rule, req, pickIdx){
+  var h = '<div class="ffcol"><h4>' + title + '</h4><div class="rule">' + rule + '</div>';
+  for(var i=0;i<FREE.length;i++){
+    var cls = 'fblk';
+    if(FREE[i].size < req) cls += ' too';
+    if(i === pickIdx) cls += ' pick';
+    h += '<div class="' + cls + '"><span>' + FREE[i].size + 'K</span><span>起址 ' + FREE[i].addr + '</span></div>';
+  }
+  if(pickIdx === -1){
+    h += '<div class="fpick none">✗ 无够用块</div>';
+  }else{
+    h += '<div class="fpick">✓ 选中 ' + FREE[pickIdx].size + 'K(起址 ' + FREE[pickIdx].addr + ')</div>';
+  }
+  h += '</div>';
+  return h;
+}
+
+function doFF(){
+  var req = parseInt(document.getElementById('ffReq').value, 10);
+  if(isNaN(req) || req <= 0){ ffReadout.innerHTML = '<span class="badc">请输入正的作业大小。</span>'; return; }
+  var iFF = pickFF(req), iBF = pickBF(req), iWF = pickWF(req);
+  ffGrid.innerHTML =
+    renderFFcol('FF 首次适应', '地址序第一个够用的块', req, iFF) +
+    renderFFcol('BF 最佳适应', '够用里容量最小的块', req, iBF) +
+    renderFFcol('WF 最坏适应', '够用里容量最大的块', req, iWF);
+  function nm(i){ return i===-1 ? '无' : (FREE[i].size + 'K(起址' + FREE[i].addr + ')'); }
+  var same = (iFF===iBF && iBF===iWF && iFF!==-1);
+  if(iFF===-1){
+    ffReadout.className = 'readout';
+    ffReadout.innerHTML = '⚠️ 作业 <b>' + req + 'K</b> 比任何单块都大,三种算法都<b>装不下</b>——空闲总量也许够,但没有整块,这就是<b>外部碎片</b>,需要紧凑。';
+  }else if(same){
+    ffReadout.className = 'readout';
+    ffReadout.innerHTML = '作业 <b>' + req + 'K</b>:三种算法<b>恰好都选中 ' + nm(iFF) + '</b>——当够用的块只剩一个时它们会一致。改小请求(如 300),看它们分道扬镳。';
+  }else{
+    ffReadout.className = 'readout';
+    ffReadout.innerHTML = '作业 <b>' + req + 'K</b>:<b>FF→' + nm(iFF) + '</b>、<b>BF→' + nm(iBF) + '</b>、<b>WF→' + nm(iWF) + '</b>。同一个作业、同一堆空闲块,<b>三种挑法送进了不同的块</b>——这就是四挑法的差异。';
+  }
+}
+document.getElementById('ffBtn').addEventListener('click', doFF);
+
+// ===================================================================
+// 共用引擎:页面置换模拟(FIFO / LRU / OPT),positional 物理块布局
+// ===================================================================
+function nextUse(page, ref, from){
+  for(var j=from;j<ref.length;j++){ if(ref[j]===page) return j; }
+  return Infinity;   // 之后不再出现
+}
+function simulate(ref, frames, algo){
+  var slots = [];               // 物理块(定位固定),null=空
+  for(var s=0;s<frames;s++) slots.push(null);
+  var loadTime = {};            // page -> 进入步(FIFO)
+  var lastUse  = {};            // page -> 最近使用步(LRU)
+  var faults = 0, cols = [];
+  for(var i=0;i<ref.length;i++){
+    var p = ref[i];
+    var inMem = slots.indexOf(p) !== -1;
+    var evicted = null, target = -1;
+    if(inMem){
+      if(algo === 'LRU') lastUse[p] = i;
+      target = slots.indexOf(p);
+    }else{
+      faults++;
+      var free = slots.indexOf(null);
+      if(free !== -1){
+        target = free;
+      }else{
+        var victim;
+        if(algo === 'FIFO'){
+          victim = null; var best = Infinity;
+          for(var a=0;a<slots.length;a++){ if(loadTime[slots[a]] < best){ best = loadTime[slots[a]]; victim = slots[a]; } }
+        }else if(algo === 'LRU'){
+          victim = null; var bl = Infinity;
+          for(var b=0;b<slots.length;b++){ if(lastUse[slots[b]] < bl){ bl = lastUse[slots[b]]; victim = slots[b]; } }
+        }else{ // OPT:下次使用最靠后/永不再现
+          victim = null; var far = -1;
+          for(var c=0;c<slots.length;c++){
+            var nu = nextUse(slots[c], ref, i+1);
+            if(nu > far){ far = nu; victim = slots[c]; }
+          }
+        }
+        target = slots.indexOf(victim);
+        evicted = victim;
+      }
+      slots[target] = p;
+      loadTime[p] = i;
+      lastUse[p] = i;
+    }
+    var snap = slots.slice();
+    cols.push({page:p, hit:inMem, slots:snap, evicted:evicted, target:target});
+  }
+  return {faults:faults, cols:cols, rate:faults/ref.length, n:ref.length};
+}
+
+function renderTrace(res, frames, ref){
+  var h = '<table class="trace"><tbody>';
+  h += '<tr><th>第几次</th>';
+  for(var i=0;i<ref.length;i++) h += '<th>' + (i+1) + '</th>';
+  h += '</tr>';
+  h += '<tr><th>访问页</th>';
+  for(i=0;i<ref.length;i++) h += '<td class="pg">' + ref[i] + '</td>';
+  h += '</tr>';
+  for(var f=0;f<frames;f++){
+    h += '<tr><th>物理块' + f + '</th>';
+    for(i=0;i<ref.length;i++){
+      var v = res.cols[i].slots[f];
+      var cls = (!res.cols[i].hit && res.cols[i].target === f) ? 'load' : '';
+      h += '<td class="' + cls + '">' + (v === null ? '' : v) + '</td>';
+    }
+    h += '</tr>';
+  }
+  h += '<tr><th>命中?</th>';
+  for(i=0;i<ref.length;i++) h += res.cols[i].hit ? '<td class="hit">中</td>' : '<td class="miss">缺</td>';
+  h += '</tr>';
+  h += '<tr><th>淘汰</th>';
+  for(i=0;i<ref.length;i++){ var e=res.cols[i].evicted; h += '<td class="ev">' + (e===null?'—':e) + '</td>'; }
+  h += '</tr>';
+  h += '</tbody></table>';
+  return h;
+}
+
+function parseRef(str){
+  var parts = str.split(/[^0-9]+/), out = [];
+  for(var i=0;i<parts.length;i++){ if(parts[i] !== '') out.push(parseInt(parts[i],10)); }
+  return out;
+}
+
+// ===================================================================
+// 交互件三:trace 生成器
+// ===================================================================
+var curAlgo = 'FIFO';
+var algoBtns = [document.getElementById('aFIFO'), document.getElementById('aLRU'), document.getElementById('aOPT')];
+var traceBox = document.getElementById('traceBox');
+var rsReadout = document.getElementById('rsReadout');
+
+function doTrace(){
+  var ref = parseRef(document.getElementById('rsIn').value);
+  var frames = parseInt(document.getElementById('rsFrames').value, 10);
+  if(ref.length === 0){ rsReadout.innerHTML = '<span class="badc">请输入引用串,如 1,2,3,4,1,2,5。</span>'; traceBox.innerHTML=''; return; }
+  if(isNaN(frames) || frames < 1 || frames > 7){ rsReadout.innerHTML = '<span class="badc">物理块数请填 1~7。</span>'; return; }
+  var res = simulate(ref, frames, curAlgo);
+  traceBox.innerHTML = renderTrace(res, frames, ref);
+  var rate = Math.round(res.rate * 1000) / 10;
+  rsReadout.innerHTML =
+    '【' + curAlgo + '】' + frames + ' 块:总访问 <b>' + res.n + '</b> 次,命中 <b>' + (res.n - res.faults) +
+    '</b> 次,<b>缺页 ' + res.faults + ' 次</b> → <span class="bigrate">缺页率 = ' + res.faults + '/' + res.n + ' ≈ ' + rate + '%</span>。' +
+    '(橙色=新页装入,红=缺页,绿=命中。切换算法再点【生成】对比。)';
+}
+algoBtns.forEach(function(btn){
+  btn.addEventListener('click', function(){
+    curAlgo = btn.dataset.algo;
+    algoBtns.forEach(function(x){ x.classList.remove('on'); });
+    btn.classList.add('on');
+    doTrace();
+  });
+});
+document.getElementById('rsBtn').addEventListener('click', doTrace);
+
+// ===================================================================
+// 交互件四:Belady 3 块 vs 4 块
+// ===================================================================
+var BELADY = [1,2,3,4,1,2,5,1,2,3,4,5];
+var belReadout = document.getElementById('belReadout');
+function doBelady(){
+  var r3 = simulate(BELADY, 3, 'FIFO');
+  var r4 = simulate(BELADY, 4, 'FIFO');
+  document.getElementById('bel3').innerHTML = renderTrace(r3, 3, BELADY) +
+    '<div class="readout" style="margin-top:6px">缺页 <b>' + r3.faults + '</b> 次 → 缺页率 ' + r3.faults + '/12 = <b>75%</b></div>';
+  document.getElementById('bel4').innerHTML = renderTrace(r4, 4, BELADY) +
+    '<div class="readout" style="margin-top:6px">缺页 <b>' + r4.faults + '</b> 次 → 缺页率 ' + r4.faults + '/12 ≈ <b>83.3%</b></div>';
+  belReadout.innerHTML = '3 块缺页 <b>' + r3.faults + '</b> 次、4 块缺页 <b>' + r4.faults +
+    '</b> 次:<b style="color:var(--red)">多给一块,缺页反而多了 ' + (r4.faults - r3.faults) + ' 次</b> → 这就是 <b>Belady 异常</b>(只有 FIFO 会)。';
+}
+document.getElementById('belBtn').addEventListener('click', doBelady);
+
+// ===== 首屏渲染 =====
+doPaging();
+doEAT();
+doFF();
+doTrace();
+doBelady();
+</script>
+</body>
+</html>

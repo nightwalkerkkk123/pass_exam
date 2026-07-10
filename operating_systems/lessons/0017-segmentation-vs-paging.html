@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 17 课 · 分段 vs 分页 · 段页式(一维 vs 二维)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --l-app:#eef4fb; --l-appb:#9cc2e8;
+    --l-os:#fef3e2;  --l-osb:#e8b86a;
+    --l-hw:#e6f4ea;  --l-hwb:#9ad0ad;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 10px; border-left:4px solid var(--blue); padding-left:10px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+
+  /* ===== 签名交互件:一维 vs 二维 地址拆解器 ===== */
+  .modeswitch{text-align:center; margin-bottom:10px}
+  .modein{background:#fafbfe; border:1px dashed var(--line); border-radius:8px; padding:12px 14px; margin-top:4px}
+  .modein label{display:inline-block; margin:5px 14px 5px 0; font-size:14px; font-weight:600; color:var(--ink)}
+  .modein input{font:inherit; font-size:14px; width:120px; padding:5px 8px; border:1px solid var(--line); border-radius:6px; margin-left:4px}
+  .calcrow{text-align:center; margin-top:12px}
+  .readout .step{display:block; margin:4px 0}
+  .readout .ok{color:var(--green)}
+  .readout .bad{color:var(--red)}
+  .readout code{background:#e7f0fb}
+  .dimtag{display:inline-block; font-size:12.5px; font-weight:700; padding:2px 9px; border-radius:20px; margin-left:6px}
+  .dim1{background:#e7f0fb; color:var(--blue)}
+  .dim2{background:#f3e8fb; color:var(--purple)}
+  @media print{ body{background:#fff} .btn{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 17 课 · Ch4 存储器管理 · 零基础可视化 · S11</p>
+  <h1>分段 vs 分页 · 段页式(一维 vs 二维)</h1>
+  <p class="sub">这一课只回答一件事:分页和分段到底差在哪?先动手拆一个地址,再上术语。配合 <a href="./0013-exam-cheatsheet-map.html">速查地图</a> 使用。</p>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> <b>分页</b>是“<b>物理切分</b>、一个数就能定位”——地址是<b>一维</b>的;<b>分段</b>是“<b>逻辑切分</b>、必须给两个数”——地址是<b>二维</b>的;<b>段页式</b>就是把两者叠起来:先分段,每段再分页,兼得逻辑清晰与高利用率。
+</div>
+
+<!-- ===================== 1. 直觉图 ===================== -->
+<h2>🖼 1. 直觉图:一维 vs 二维 地址拆解器</h2>
+<p class="hint">👇 先点上方切换<b>模式</b>,再改输入框里的数字,点【拆解 / 查表】——系统会一步步算给你看。注意每种模式<b>要你输入几个数</b>,这就是“一维 / 二维”的分水岭。</p>
+<div class="panel">
+
+<div class="modeswitch">
+  <button class="btn on" id="mPaging">分页(一维)</button>
+  <button class="btn" id="mSeg">分段(二维)</button>
+  <button class="btn" id="mSegPage">段页式</button>
+</div>
+
+<!-- 分页输入 -->
+<div id="inPaging" class="modein">
+  <p class="hint">页大小固定 = 4096(4KB)。你只需要给<b>一个</b>十进制逻辑地址:</p>
+  <label>逻辑地址 = <input id="pgAddr" type="number" value="8196"></label>
+</div>
+
+<!-- 分段输入 -->
+<div id="inSeg" class="modein" style="display:none">
+  <p class="hint">段长<b>不固定</b>,只给一个线性数没法定位,必须<b>分别</b>给两个数:</p>
+  <label>段号 s = <input id="segS" type="number" value="2"></label>
+  <label>段内偏移 d = <input id="segD" type="number" value="100"></label>
+</div>
+
+<!-- 段页式输入 -->
+<div id="inSegPage" class="modein" style="display:none">
+  <p class="hint">先分段、每段再分页,页大小 = 4096,给<b>三部分</b>:</p>
+  <label>段号 s = <input id="spS" type="number" value="1"></label>
+  <label>页号 p = <input id="spP" type="number" value="2"></label>
+  <label>页内偏移 d = <input id="spD" type="number" value="100"></label>
+</div>
+
+<div class="calcrow">
+  <button class="btn" id="calcBtn">拆解 / 查表 ▶</button>
+</div>
+
+<div class="readout" id="addrReadout">← 先选模式,再点【拆解 / 查表】</div>
+</div>
+
+<div class="key">
+<b>看懂这一件事,本节就懂一半:</b> 分页<b>只要你给一个数</b>(因为页大小固定,系统自己就能除出页号和偏移)→ <b>一维</b>;分段<b>必须你给两个数</b>(段长不固定,不告诉它段号根本不知道你落在哪个段)→ <b>二维</b>。
+</div>
+
+<!-- ===================== 2. 具体例子 ===================== -->
+<h2>🧸 2. 具体例子(ELI5):一维 vs 二维</h2>
+<div class="eli5">
+<b>🧸 分页 = 一本页码连续的书。</b> 每页字数一样多(比如每页 4096 个字)。你说“我要第 <b>8196</b> 个字符”,系统一除就知道:8196 ÷ 4096 = 第 <b>2</b> 页、余 <b>4</b> → 第 2 页的第 4 个字。<b>一个数就够了</b>,不用你再报“第几页”。
+</div>
+<div class="eli5">
+<b>🧸 分段 = 一栋楼里长短不一的房间。</b> 每个房间大小都不同,有的 600 步长、有的 8000 步长。你只说“第 <b>3000</b> 号位置”没用——因为不知道到底落在哪个房间。你<b>必须说清两个数</b>:“<b>几号房</b> + <b>房内第几步</b>”。这就是二维。
+</div>
+<div class="eli5">
+<b>🧸 段页式 = 先分部门、每部门再分格子间。</b> 先按逻辑分“部门(段)”,每个部门内部再切成一样大的“格子间(页)”。找东西要说三样:<b>哪个部门(段号)→ 部门里第几个格子(页号)→ 格子里第几步(页内偏移)</b>。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2>⚖️ 3. 对照表:分段 vs 分页(照教材口径)</h2>
+<table>
+<tr><th>比什么</th><th>分页(Paging)</th><th>分段(Segmentation)</th></tr>
+<tr><td>划分角度</td>
+    <td>信息的<b>物理单位</b>;为<b>提高内存利用率</b>、满足<b>OS 管理</b>需要</td>
+    <td>信息的<b>逻辑单位</b>;一段是<b>一组完整信息</b>;满足<b>用户编程</b>需要</td></tr>
+<tr><td>大小是否固定</td>
+    <td><b>固定</b>,由<b>系统</b>决定(如 4KB)</td>
+    <td><b>不固定</b>,由段的<b>实际内容 / 用户</b>决定</td></tr>
+<tr><td>地址维度</td>
+    <td><b>一维</b>(给一个数即可)</td>
+    <td><b>二维</b>(必须给段号 + 段内偏移)</td></tr>
+<tr><td>碎片</td>
+    <td>有<b>内部碎片</b>,<b>无外部碎片</b></td>
+    <td>有<b>外部碎片</b>,<b>无内部碎片</b></td></tr>
+<tr><td>共享与保护</td>
+    <td><b>不便</b>按逻辑模块共享 / 保护</td>
+    <td><b>便于</b>段级共享 / 保护,适合<b>动态链接</b></td></tr>
+<tr><td>访问效率 / 定位</td>
+    <td>变换快,适合<b>底层管理</b></td>
+    <td>更<b>灵活</b>,适合<b>用户</b>,稍慢</td></tr>
+</table>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2>📖 4. 是什么:精确定义(对齐教材)</h2>
+
+<div class="key">
+<b>分页:</b> 逻辑地址 = [<b>页号</b> | <b>页内偏移</b>];<b>页号 = 地址 ÷ 页大小</b>(整除),<b>偏移 = 地址 mod 页大小</b>;页表:<b>页号 → 物理块号</b>;<b>物理地址 = 块号 × 页大小 + 偏移</b>。消灭外部碎片,但有内部碎片。
+</div>
+
+<table>
+<tr><th>项目</th><th>分段</th></tr>
+<tr><td>逻辑地址</td><td>[<b>段号</b> | <b>段内偏移</b>]</td></tr>
+<tr><td>段表记录</td><td>(<b>段号、段长 limit、段基址 base</b>)</td></tr>
+<tr><td>物理地址</td><td><b>段基址 + 段内偏移</b>(先检查 偏移 &lt; 段长,否则越界中断)</td></tr>
+<tr><td>碎片 / 特点</td><td>有<b>外部碎片</b>、<b>无内部碎片</b>;便于<b>共享、保护、动态链接</b></td></tr>
+</table>
+
+<div class="eli5">
+<b>⚠️ 最容易错的陷阱:</b> 段表项存的是<b>「段基址」(段的起始物理地址)</b>,<b>不是块号</b>;物理地址是<b>「基址 + 偏移」相加</b>,<b>不是「块号 × 大小」相乘</b>。相乘是分页的算法,别张冠李戴。
+</div>
+
+<div class="key">
+<b>段页式:</b> 先<b>分段</b>、每段再<b>分页</b>;逻辑地址三部分 = [<b>段号</b> | <b>页号</b> | <b>页内偏移</b>];<b>每个进程一个段表、每个段一个页表</b>;段表项记录(<b>页表起始地址、页表长度</b>);地址变换:<b>段表 → 页表 → 物理块号</b>,<b>物理地址 = 块号 × 页大小 + 偏移</b>。不用快表需 <b>3 次访存</b>(段表→页表→数据)。<br>
+<b>优点</b> = 结合两者(逻辑清晰、便于共享保护 + 内存利用率高、无外部碎片);<b>缺点</b> = 复杂、开销大、需要更多硬件支持。
+</div>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2>❓ 5. 为什么:一层层往下挖</h2>
+
+<div class="panel">
+<h3>第 1 层:为什么要<b>分页</b>?</h3>
+<p>连续分配会产生<b>外部碎片</b>(内存被切得七零八落,总量够却拼不出一整块),想消除又得靠<b>紧凑</b>(搬来搬去),开销很大。于是改用<b>离散分配</b>:把内存切成<b>固定大小</b>的页框,程序也切成同样大的页,哪里空放哪里。页大小固定 → <b>彻底消灭外部碎片</b>,大幅<b>提高内存利用率</b>。</p>
+
+<h3>第 2 层:分页够好了,为什么<b>还要分段</b>?</h3>
+<p>分页是为了 <b>OS 管理方便</b>的<b>物理切分</b>,它<b>不符合用户的逻辑视角</b>:一个函数 / 模块可能正好被<b>页边界劈成两半</b>,横跨两页。这样很不利于<b>按逻辑模块去共享和保护</b>(你想共享“这个函数”,却发现它散在页里)。<b>分段</b>按<b>逻辑意义</b>切——一段就是一个完整模块,于是<b>便于共享、保护、动态链接</b>。</p>
+
+<h3>第 3 层:为什么现代系统用<b>段页式</b>?</h3>
+<p>因为我们<b>两样都想要</b>:既要分段的<b>逻辑视角与共享保护</b>,又要分页的<b>高内存利用率、无外部碎片</b> → 那就<b>结合</b>:先分段满足逻辑,再对每段分页满足利用率。代价是<b>结构复杂 + 多次访存</b>(段表→页表→数据),所以用<b>快表(TLB)</b>来补偿访存开销。</p>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2>✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>分页系统的逻辑地址是<b>几维</b>的?</p>
+<p>
+A. 二维<br>
+B. 三维<br>
+C. 一维<br>
+D. 由页大小决定,不固定
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 分页只需给<b>一个</b>线性地址,系统靠<b>固定页大小</b>自己就能除出页号和偏移,所以是<b>一维</b>。A 错:二维是<b>分段</b>的特征(要给段号+偏移);B 错:三维是<b>段页式</b>(段号+页号+偏移);D 错:维度和页大小无关,分页永远是一维。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>“<b>有内部碎片、无外部碎片</b>”说的是分页还是分段?</p>
+<p>
+A. 分页<br>
+B. 分段<br>
+C. 两者都有内部碎片<br>
+D. 两者都没有任何碎片
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> <b>分页</b>:页大小固定,最后一页可能装不满 → <b>有内部碎片</b>;但页框大小一致、哪里空放哪里 → <b>无外部碎片</b>。<b>分段正好相反</b>:段长按需分配、装得满 → 无内部碎片,但段间空隙拼不成整块 → 有外部碎片。所以 B 说反了;C、D 与事实不符。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>段页式的逻辑地址三部分,<b>正确的顺序</b>是?</p>
+<p>
+A. 页号 → 段号 → 页内偏移<br>
+B. 页内偏移 → 页号 → 段号<br>
+C. 段号 → 页内偏移 → 页号<br>
+D. 段号 → 页号 → 页内偏移
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 段页式是“先分段、每段再分页”,所以从大到小依次是 <b>段号 → 页号 → 页内偏移</b>。A 错:段号必须在最前(先定段才能找该段的页表);B 是完全倒过来;C 把页内偏移和页号次序颠倒了。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>分段系统里,<b>段表项存的是什么、物理地址怎么算</b>?</p>
+<p>
+A. 存物理块号;物理地址 = 块号 × 页大小 + 偏移<br>
+B. 存段基址和段长;物理地址 = 段基址 + 段内偏移(相加)<br>
+C. 存段基址;物理地址 = 段基址 × 段长 + 偏移<br>
+D. 存页号;物理地址 = 页号 × 段长 + 偏移
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 段表项记录(段长 limit、段基址 base),定位是<b>相加</b>:先查 偏移 &lt; 段长,再 <b>物理地址 = 段基址 + 段内偏移</b>。<b>A 是最毒的陷阱——那是分页的算法(块号 × 页大小 + 偏移,相乘)</b>,别把分段和分页搞混:<b>分段是相加、分页才是相乘</b>。C 的“基址 × 段长”纯属乱凑;D 段表里根本不存页号。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>用一句话说清:为什么分页是<b>一维</b>、分段是<b>二维</b>?(提示:页大小固定 vs 段长不固定)</li>
+<li>不看屏幕,说出分页和分段<b>各有哪种碎片</b>,以及为什么。</li>
+<li>说出段页式地址变换的<b>三步查表</b>顺序,以及为什么不用快表要访存 3 次。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能顺口说出来 → 你是真懂了。哪题卡壳,回到对应小节,再去第 1 节的拆解器里点一遍那个模式。</p>
+</div>
+
+<footer>
+第 17 课 · Ch4 存储器管理 · 分段 vs 分页 · 段页式(一维 vs 二维)<br>
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课(速查地图)</a> ·
+基础回顾 → <a href="./0005-paging-fundamentals.html">第 5 课(分页基础)</a> ·
+继续 → <a href="./0018-virtual-memory-page-fault.html">第 18 课(虚拟存储器)</a>
+</footer>
+
+</div>
+
+<script>
+// ================= 签名交互件:一维 vs 二维 地址拆解器 =================
+var PAGE = 4096;
+// 分页:页表 页号 -> 物理块号
+var pageTable = [8, 5, 9, 3, 7, 1];
+// 分段:段表 段号 -> {base 段基址, limit 段长}
+var segTable = [
+  {base:40000,  limit:600},
+  {base:80000,  limit:14000},
+  {base:120000, limit:8000},
+  {base:150000, limit:2000}
+];
+// 段页式:每段一张页表 段号 -> [页号->物理块号]
+var segPage = [
+  {pt:[8, 5, 9, 3]},
+  {pt:[2, 7, 4, 6]},
+  {pt:[1, 10, 3]}
+];
+
+var mPaging  = document.getElementById('mPaging');
+var mSeg     = document.getElementById('mSeg');
+var mSegPage = document.getElementById('mSegPage');
+var inPaging  = document.getElementById('inPaging');
+var inSeg     = document.getElementById('inSeg');
+var inSegPage = document.getElementById('inSegPage');
+var calcBtn   = document.getElementById('calcBtn');
+var readout   = document.getElementById('addrReadout');
+var mode = 'paging';
+
+function setMode(m){
+  mode = m;
+  mPaging.classList.toggle('on',  m==='paging');
+  mSeg.classList.toggle('on',     m==='seg');
+  mSegPage.classList.toggle('on', m==='segpage');
+  inPaging.style.display  = (m==='paging')  ? '' : 'none';
+  inSeg.style.display     = (m==='seg')     ? '' : 'none';
+  inSegPage.style.display = (m==='segpage') ? '' : 'none';
+  readout.innerHTML = '← 已切到【' + (m==='paging'?'分页':m==='seg'?'分段':'段页式') + '】模式,点【拆解 / 查表】看它怎么算。';
+}
+mPaging.addEventListener('click',  function(){ setMode('paging');  });
+mSeg.addEventListener('click',     function(){ setMode('seg');     });
+mSegPage.addEventListener('click', function(){ setMode('segpage'); });
+
+function calcPaging(){
+  var addr = parseInt(document.getElementById('pgAddr').value, 10);
+  if(isNaN(addr) || addr < 0){ readout.innerHTML = '<span class="bad">请输入一个非负整数逻辑地址。</span>'; return; }
+  var pageNo = Math.floor(addr / PAGE);
+  var off    = addr % PAGE;
+  if(pageNo >= pageTable.length){
+    readout.innerHTML = '<span class="step bad">页号 ' + pageNo + ' 超出页表范围(本例页表只有 0~' + (pageTable.length-1) + ' 项)→ 越界。换个更小的地址试试。</span>';
+    return;
+  }
+  var block = pageTable[pageNo];
+  var phys  = block * PAGE + off;
+  readout.innerHTML =
+    '<span class="step">你只给了 <b>一个数</b> ' + addr + '<span class="dimtag dim1">一维地址</span></span>' +
+    '<span class="step">① 拆地址:页号 = ' + addr + ' ÷ ' + PAGE + ' = <b>' + pageNo + '</b>;页内偏移 = ' + addr + ' mod ' + PAGE + ' = <b>' + off + '</b>。<b>因为页大小固定,系统自己就能拆</b>——这就是一维。</span>' +
+    '<span class="step">② 查页表[' + pageNo + '] → 物理块号 b = <b>' + block + '</b>。</span>' +
+    '<span class="step ok">③ 物理地址 = 块号 × 页大小 + 偏移 = ' + block + ' × ' + PAGE + ' + ' + off + ' = <b>' + phys + '</b>(注意:分页是<b>相乘</b>)。</span>';
+}
+
+function calcSeg(){
+  var s = parseInt(document.getElementById('segS').value, 10);
+  var d = parseInt(document.getElementById('segD').value, 10);
+  if(isNaN(s) || isNaN(d) || s < 0 || d < 0){ readout.innerHTML = '<span class="bad">请分别输入非负的段号与段内偏移两个数。</span>'; return; }
+  if(s >= segTable.length){
+    readout.innerHTML = '<span class="step bad">段号 ' + s + ' 超出段表范围(本例段表只有 0~' + (segTable.length-1) + ' 项)。</span>';
+    return;
+  }
+  var seg = segTable[s];
+  var head =
+    '<span class="step">你必须给 <b>两个数</b>:段号 ' + s + ' 、段内偏移 ' + d + '<span class="dimtag dim2">二维地址</span></span>' +
+    '<span class="step"><b>段长不固定</b>,只给一个线性数根本不知道落在哪个段——所以必须分别给两个数,这就是二维。</span>' +
+    '<span class="step">① 查段表[' + s + '] → 段基址 base = <b>' + seg.base + '</b>,段长 limit = <b>' + seg.limit + '</b>。<b>段表项存的是「段基址」,不是块号!</b></span>' +
+    '<span class="step">② 越界检查:段内偏移 ' + d + (d < seg.limit ? ' &lt; ' : ' ≥ ') + '段长 ' + seg.limit;
+  if(d >= seg.limit){
+    readout.innerHTML = head + ' → <b class="bad">越界!触发地址越界中断,访问被拒绝。</b></span>';
+    return;
+  }
+  var phys = seg.base + d;
+  readout.innerHTML = head + ' → 合法。</span>' +
+    '<span class="step ok">③ 物理地址 = 段基址 + 段内偏移 = ' + seg.base + ' + ' + d + ' = <b>' + phys + '</b>(注意:分段是<b>相加</b>,不是相乘!)。</span>';
+}
+
+function calcSegPage(){
+  var s = parseInt(document.getElementById('spS').value, 10);
+  var p = parseInt(document.getElementById('spP').value, 10);
+  var d = parseInt(document.getElementById('spD').value, 10);
+  if(isNaN(s) || isNaN(p) || isNaN(d) || s < 0 || p < 0 || d < 0){ readout.innerHTML = '<span class="bad">请输入非负的段号、页号、页内偏移三个数。</span>'; return; }
+  if(s >= segPage.length){
+    readout.innerHTML = '<span class="step bad">段号 ' + s + ' 超出段表范围(本例只有段 0~' + (segPage.length-1) + ')。</span>';
+    return;
+  }
+  var pt = segPage[s].pt;
+  if(p >= pt.length){
+    readout.innerHTML = '<span class="step bad">页号 ' + p + ' 超出段 ' + s + ' 的页表范围(该段只有页 0~' + (pt.length-1) + ')。</span>';
+    return;
+  }
+  var block = pt[p];
+  var phys  = block * PAGE + d;
+  readout.innerHTML =
+    '<span class="step">你给了 <b>三部分</b>:段号 ' + s + ' 、页号 ' + p + ' 、页内偏移 ' + d + '<span class="dimtag dim2">先分段再分页</span></span>' +
+    '<span class="step">① 第一次访存:查段表[' + s + '] → 得到该段的<b>页表起始地址</b>。</span>' +
+    '<span class="step">② 第二次访存:查该段页表[' + p + '] → 物理块号 b = <b>' + block + '</b>。</span>' +
+    '<span class="step ok">③ 第三次访存:物理地址 = 块号 × 页大小 + 偏移 = ' + block + ' × ' + PAGE + ' + ' + d + ' = <b>' + phys + '</b>。</span>' +
+    '<span class="step">不用快表要 <b>3 次访存</b>(段表→页表→数据),实际用<b>快表(TLB)</b>优化。</span>';
+}
+
+calcBtn.addEventListener('click', function(){
+  if(mode==='paging')       calcPaging();
+  else if(mode==='seg')     calcSeg();
+  else                      calcSegPage();
+});
+
+setMode('paging');
+</script>
+</body>
+</html>

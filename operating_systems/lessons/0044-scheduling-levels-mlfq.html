@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 44 课 · Ch3 处理机调度 · 三级调度 + 多级反馈队列 MFQ(老师重点)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  /* ===== 三种色块提示条:橙(直觉/ELI5)· 绿(要点)· 红(陷阱/警告) ===== */
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+
+  /* ===== 白卡容器:放交互件 / 自测题 ===== */
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  /* ===== 紫色解题模板盒 ===== */
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .tmpl ol{margin:6px 0 0; padding-left:20px} .tmpl li{margin:3px 0}
+
+  /* ===== 按钮 ===== */
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  /* ===== 表格 ===== */
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+
+  /* ===== 交互件回显区 ===== */
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  .readout .step{display:block; margin:3px 0}
+  .readout .okc{color:var(--green)} .readout .badc{color:var(--red)}
+  .readout code{background:#e7f0fb}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  /* ===== 顶部锚点导航 ===== */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* ===== 全局故事线:横向节点 + 箭头 ===== */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 120px; min-width:110px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  /* ===== MFQ 交互件专用(沿用房屋令牌) ===== */
+  .mfq-in{display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; margin:6px 0 10px}
+  .mfq-in .box{border:1px solid var(--line); border-radius:8px; padding:8px 10px; background:#fbfcfe}
+  .mfq-in label{font-size:13px; color:var(--muted); display:block; margin:3px 0 1px}
+  .mfq-in input{width:52px; font:inherit; font-size:14px; padding:3px 5px; border:1px solid var(--line);
+    border-radius:5px; text-align:center}
+  .mfq-in .rowline{display:flex; gap:10px; align-items:center}
+  .mfq-in .rowline b{width:38px; display:inline-block}
+  .lanes{margin:8px 0}
+  .lane{display:flex; align-items:center; gap:8px; margin:5px 0; padding:6px 8px; border:1px solid var(--line);
+    border-radius:8px; background:#fbfcfe; min-height:40px}
+  .lane .qname{width:150px; flex:none; font-size:12.5px; color:var(--muted); font-weight:600; line-height:1.25}
+  .lane .qname b{color:var(--ink)}
+  .lane .cells{display:flex; flex-wrap:wrap; gap:5px; flex:1}
+  .lane.cpu{background:#eef4fb; border-color:#cfe0f4}
+  .lane.cpu .qname b{color:var(--blue)}
+  .chip{font-size:12.5px; font-weight:700; color:#fff; padding:3px 9px; border-radius:14px; white-space:nowrap}
+  .chip small{font-weight:500; opacity:.9}
+  .p0{background:var(--blue2)} .p1{background:var(--green)} .p2{background:var(--amber)}
+  .chip.run{outline:3px solid var(--ink); outline-offset:1px}
+  .empty{font-size:12.5px; color:#aab}
+  /* 甘特图 */
+  .gantt{display:flex; width:100%; margin:6px 0 2px; border:1px solid var(--line); border-radius:6px; overflow:hidden; min-height:30px}
+  .gseg{color:#fff; font-size:12px; font-weight:700; text-align:center; padding:6px 0; border-right:1px solid rgba(255,255,255,.55);
+    overflow:hidden; white-space:nowrap}
+  .gseg.now{outline:3px solid var(--ink); outline-offset:-3px}
+  .gseg.future{opacity:.22}
+  .gaxis{position:relative; width:100%; height:16px; font-size:11px; color:var(--muted)}
+  .gtick{position:absolute; transform:translateX(-50%)}
+  .res{font-size:13px; margin-top:8px}
+  .res table{margin:6px 0}
+  .legend{font-size:12px; color:var(--muted); margin:4px 0}
+  .legend .chip{padding:1px 7px; margin-right:4px}
+
+  @media print{
+    body{background:#fff}
+    .btn,.nav,.mfq-in input,.mfq-ctl{display:none}
+    .panel{box-shadow:none}
+    .gseg.future{opacity:.5}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 44 课 · Ch3 处理机调度与死锁 · 老师重点 ★</p>
+  <h1>三级调度 + 多级反馈队列 MFQ:一个"不用估时间"的万能调度器</h1>
+  <p class="sub">这一课只回答一件事:<b>MFQ 凭什么能同时让短作业跑得快、又让长作业不饿死?</b> 配合 <a href="./0013-exam-cheatsheet-map.html">速查地图</a>、<a href="./0002-scheduling-algorithms.html">调度四件套</a> 使用。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·先看它跑</a>
+    <a href="#s2">2·ELI5类比</a>
+    <a href="#s3">3·对照表</a>
+    <a href="#s4">4·是什么</a>
+    <a href="#s5">5·为什么</a>
+    <a href="#s6">6·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> <b>三级调度</b>管"谁能进内存、谁被换出去、谁上 CPU"三个不同频率的问题;<b>MFQ</b> 则是低级(进程)调度里的明星——<b>多条优先级递减的队列、时间片逐级翻倍、新进程进最高队、一个时间片没跑完就降一级、随时可被更高队抢占</b>,于是短作业在高队秒完、长作业沉到底队按 RR 慢慢跑,谁也不饿死。它就是 <b>SJF + RR 的工程折中</b>。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:这些点怎么串起来</h2>
+<p class="hint">别把三级调度、SJF、RR、MFQ 当孤立知识点——它们是"怎么公平又高效地分 CPU"这一个问题一路逼出来的。</p>
+<div class="flow">
+  <div class="fnode"><b>三级调度</b>先分层:作业调度(进不进内存)/内存调度(换不换出)/进程调度(谁上 CPU)</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>SJF 短作业优先</b>响应最快,但要<b>预估运行时间</b>,还饿死长作业</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>RR 时间片轮转</b>公平不饿死,但对短作业不够快,长短一视同仁</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>MFQ 多级反馈队列</b>两者折中:不用估时间,又快又不饿死(老师重点★)</div>
+</div>
+
+<!-- ===================== 1. 先看它跑 ===================== -->
+<h2 id="s1">🖼 1. 先别背定义,先看 MFQ 跑一遍</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 下面是一台有 <b>3 条就绪队列</b>的机器。你按"下一步",看着进程<b>进最高队 → 时间片用完往下掉 → 掉到底队按 RR 转圈</b>,同时甘特图一格一格画出来。每一步下方的蓝字会告诉你<b>"为什么现在是它在跑"</b>。
+</div>
+
+<div class="panel">
+  <div class="hint">👇 改到达/服务时间与三档时间片,点「重新模拟」;再用「下一步 / 自动播放」逐时刻推进。默认例子已是可手算核对的干净数据。</div>
+
+  <div class="mfq-in">
+    <div class="box">
+      <div class="rowline"><b>P1</b>
+        <span><label>到达</label><input id="a0" type="number" min="0" value="0"></span>
+        <span><label>服务</label><input id="s0i" type="number" min="1" value="7"></span>
+      </div>
+      <div class="rowline"><b>P2</b>
+        <span><label>到达</label><input id="a1" type="number" min="0" value="1"></span>
+        <span><label>服务</label><input id="s1i" type="number" min="1" value="3"></span>
+      </div>
+      <div class="rowline"><b>P3</b>
+        <span><label>到达</label><input id="a2" type="number" min="0" value="3"></span>
+        <span><label>服务</label><input id="s2i" type="number" min="1" value="5"></span>
+      </div>
+    </div>
+    <div class="box">
+      <div class="rowline"><b>时间片</b>
+        <span><label>Q1</label><input id="q0" type="number" min="1" value="2"></span>
+        <span><label>Q2</label><input id="q1" type="number" min="1" value="4"></span>
+        <span><label>Q3</label><input id="q2" type="number" min="1" value="8"></span>
+      </div>
+      <p class="hint" style="margin-top:8px">规则:优先级 Q1&gt;Q2&gt;Q3,时间片<b>逐级翻倍</b>(2→4→8);Q3 是底队,用完时间片就<b>原地 RR</b>不再降。</p>
+    </div>
+  </div>
+
+  <div class="mfq-ctl">
+    <button class="btn" id="rebuild">↻ 重新模拟</button>
+    <button class="btn" id="prev">⏮ 上一步</button>
+    <button class="btn on" id="next">下一步 ▶</button>
+    <button class="btn" id="play">⏯ 自动播放</button>
+    <button class="btn reset" id="tostart">回到开头</button>
+  </div>
+
+  <p class="legend" id="legend"></p>
+
+  <div class="lanes" id="lanes"></div>
+
+  <h3 style="margin-top:14px">甘特图(Gantt)</h3>
+  <div class="gantt" id="gantt"></div>
+  <div class="gaxis" id="gaxis"></div>
+
+  <div class="readout" id="readout">← 点「下一步」开始。</div>
+
+  <div class="res" id="result"></div>
+</div>
+
+<div class="key">
+<b>要点:</b> MFQ 的"反馈"二字 = <b>用完时间片没跑完就自动降一级</b>。进程运行越久 → 越往下沉 → 时间片越大但优先级越低。<span class="hint">(来源:3_处理机调度/ppt文本.md 幻灯片 155/160;textbook/ch03_处理机调度与死锁.md §3.3)</span>
+</div>
+
+<!-- ===================== 2. ELI5 类比 ===================== -->
+<h2 id="s2">🧸 2. ELI5:医院分诊台 + 一个反例</h2>
+<div class="eli5">
+<b>🧸 想象一个分诊台(MFQ):</b> 病人(进程)来了先进<b>1 号快速通道 Q1</b>(优先级最高,但每人只给 <b>2 分钟</b>)。2 分钟看完就走人(短作业秒完);没看完的转到 <b>2 号通道 Q2</b>(每人给 4 分钟);还没完再转 <b>3 号通道 Q3</b>(每人 8 分钟,反复排队慢慢看)。只要 1 号还有人,医生绝不去叫 2 号、3 号。这样<b>小病人来去如风、大病人也总有 3 号通道兜底,不会被永远晾着</b>。
+</div>
+<div class="warnbox">
+<b>⚠️ 反例(如果没有 MFQ,只用 SJF 会怎样):</b> 分诊台改成"永远先看预计最快的那个"。结果只要不断有小病人进来,一个需要长时间的大病人就<b>永远排在最后,饿死(starvation)</b>;而且你还得<b>预先精确估计每人要看多久</b>——现实里根本估不准。MFQ 用"跑一段没完就降级"替代了"预估时间",这正是它的精髓。<span class="hint">(SJF 缺点见 3_处理机调度/ppt文本.md 幻灯片 对 SF 的"对长作业不利 / 估计值"论述)</span>
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2 id="s3">⚖️ 3. 对照表:MFQ 到底是 RR 和 SJF 的什么折中</h2>
+<div class="eli5"><b>🧸 一句话:</b> MFQ <b>不是</b>单一队列的 RR!它是"很多条 RR 队列摞起来 + 会降级",从而<b>模拟出 SJF 的效果却不用估时间</b>。</div>
+<h3>⚖️ 三算法并排(照教材口径)</h3>
+<div style="overflow-x:auto">
+<table>
+<tr><th>比什么</th><th>SJF 短作业优先</th><th>RR 时间片轮转</th><th>MFQ 多级反馈队列 ★</th></tr>
+<tr><td>队列数</td><td>1 条(按预估时间排)</td><td>1 条(FCFS 排队轮转)</td><td><b>多条</b>,优先级递减</td></tr>
+<tr><td>要预估运行时间吗</td><td><b>要</b>(致命弱点)</td><td>不要</td><td><b>不要</b>(用降级代替预估)</td></tr>
+<tr><td>短作业响应</td><td>最快</td><td>一般</td><td><b>很快</b>(在 Q1 就跑完)</td></tr>
+<tr><td>长作业会饿死吗</td><td><b>会</b></td><td>不会</td><td><b>不会</b>(沉到底队 RR 兜底)</td></tr>
+<tr><td>时间片</td><td>无(跑到完 / 被抢)</td><td>固定一个</td><td><b>逐队翻倍</b> S1&lt;S2&lt;…&lt;Sn</td></tr>
+<tr><td>抢占</td><td>可抢占 / 非抢占</td><td>抢占(时间片到)</td><td><b>抢占</b>(更高队新进程到达)</td></tr>
+<tr><td>适用</td><td>批处理作业</td><td>分时系统</td><td><b>通用</b>,兼顾实时 / 分时 / 批处理</td></tr>
+</table>
+</div>
+<div class="key"><b>结论:</b> MFQ = <b>「多条 RR 队列」+「跑不完就降级」</b>。高队时间片小 → 短作业几下就完,行为像 SJF;长作业逐级下沉到底队 → 像 RR 一样轮转不饿死。所以它是 <b>SJF 与 RR 的工程折中</b>。<span class="hint">(来源:textbook/算法速查表.md 第 11 行:"兼顾长短作业,交互性好,无需估计运行时间")</span></div>
+
+<!-- ===================== 4. 是什么 ===================== -->
+<h2 id="s4">📖 4. 是什么:先三级调度,再 MFQ 精确定义</h2>
+
+<div class="eli5"><b>🧸 一句话:</b> "调度"分三层楼,楼层越低跑得越勤;MFQ 只住在最低那层(进程调度)里。</div>
+
+<h3>4.1 三级调度:三个不同频率的问题</h3>
+<div style="overflow-x:auto">
+<table>
+<tr><th>层次(别名)</th><th>调度对象</th><th>管什么</th><th>频率</th><th>哪种系统有</th></tr>
+<tr><td><b>高级调度</b><br>作业调度 / 长程调度</td><td>作业</td><td>把外存后备队列里的哪些作业<b>调入内存</b>、建进程、给资源(决定多道程序度)</td><td><b>低</b>,几分钟一次</td><td>只在<b>批处理</b>系统</td></tr>
+<tr><td><b>中级调度</b><br>内存调度 / 对换</td><td>进程</td><td>把暂不能运行的进程<b>换到外存(挂起)</b>,有条件再<b>换回内存(就绪)</b>,提高内存利用率</td><td><b>中</b>,几十秒一次</td><td>引入对换的系统(常见于分时)</td></tr>
+<tr><td><b>低级调度</b><br>进程调度 / 短程调度</td><td>进程 / 内核级线程</td><td>决定就绪队列里<b>哪个进程上 CPU</b>(MFQ 就在这一层)</td><td><b>高</b>,几十毫秒一次</td><td><b>所有 OS 都必备</b></td></tr>
+</table>
+</div>
+<div class="key"><b>关键定义(照教材):</b> <b>中级调度</b>(内存调度)= 实现进程的<b>"挂起"与"激活"</b>,把进程在内存与外存之间<b>对换(swap)</b>,通常用于分时系统。<span class="hint">(来源:3_处理机调度/ppt文本.md 中级调度幻灯片;textbook/ch03 §3.1 处理机调度的层次)</span></div>
+
+<h3>4.2 MFQ 的四条精确规则</h3>
+<div class="key">
+<b>多级反馈队列(MFQ, Multilevel Feedback Queue)</b>——照 textbook/ch03 §3.3 与 ppt 幻灯片 155/160 原文:
+<ol style="margin:6px 0 0;padding-left:20px">
+<li>设置<b>多个就绪队列</b>,从高到低赋予不同优先级(Q1 最高),队内用 <b>RR</b>。</li>
+<li>各队<b>时间片不同,优先级越高时间片越小</b>,一般<b>逐级翻倍</b>(S1&lt;S2&lt;…&lt;Sn)。</li>
+<li><b>新进程进第一队(最高队)队尾</b>;在本队一个时间片内完成就撤离,否则<b>降到下一队队尾</b>;降到最后一队后按 RR 反复轮转。</li>
+<li><b>只有更高优先级队列全空,才调度低一级队列</b>;若正跑低队进程时更高队来了新进程,则<b>把当前进程放回本队队尾,转去跑高队进程(抢占)</b>。</li>
+</ol>
+</div>
+
+<!-- ===================== 5. 为什么 ===================== -->
+<h2 id="s5">❓ 5. 为什么:一层层追问 MFQ 的设计动机</h2>
+<div class="panel">
+<h3>第 1 层:为什么要"多条队列 + 降级",不用一条队列?</h3>
+<p>因为要同时满足<b>两个矛盾</b>的目标:短作业要<b>响应快</b>(像 SJF),长作业要<b>不饿死</b>(像 RR)。一条队列做不到两全:RR 对短作业不够快,SJF 会饿死长作业还得预估时间。多条队列让<b>"跑得少的天然待在高队(快)、跑得多的自动沉到低队(不饿死)"</b>——用<b>观察到的行为</b>区分长短,而不是预估。</p>
+
+<h3>第 2 层:为什么时间片要"逐级翻倍",而不是都一样?</h3>
+<p>高队时间片<b>小</b>,是为了让真·短作业几下就在高队跑完、快速离场,同时高频切换保证交互响应;越往下的进程已经证明自己是"长家伙",给它<b>大时间片</b>可以<b>减少切换开销</b>(一次多跑一点),又因为它优先级低,不会挤占短作业。这就是"短的图快、长的图省"的分层折中。</p>
+
+<h3>第 3 层:边界与陷阱——它和 RR/SJF 的界线在哪?</h3>
+<ul>
+<li><b>MFQ ≠ 单队列 RR。</b> 有多条队列 + 降级机制,别在卷子上把它画成一条队列。</li>
+<li><b>降级 vs 抢占回队要分清:</b> "时间片用完没跑完"→<b>降一级</b>(去下一队队尾);"被更高队新进程抢占"→<b>退回本队队尾</b>(不降级)。</li>
+<li><b>底队(最后一队)不再降级</b>,只在本队 RR;所以长作业最终稳定在底队轮转,<b>不会饿死</b>。</li>
+<li><b>无需预估运行时间</b>——这是它相对 SJF/HRRN 的最大工程优势。</li>
+<li><b>代价:</b> 实现较复杂、调度开销较大。<span class="hint">(来源:3_处理机调度/ppt文本.md 幻灯片 189 "缺点:调度开销较大")</span></li>
+</ul>
+</div>
+<div class="tmpl">
+<b>📐 手算 MFQ 甘特图(4 步):</b>
+<ol>
+<li><b>建队</b>:新进程按到达时间进 Q1 队尾;每一刻先"接纳"到达者。</li>
+<li><b>选谁跑</b>:永远挑<b>最高的非空队列</b>的队首。</li>
+<li><b>跑多久</b>:跑 min(本队时间片, 剩余时间, 到下一个更高队到达前);跑完或时间片到就结算。</li>
+<li><b>放哪去</b>:跑完→离场;时间片到没完→<b>降一级队尾</b>(底队则回本队尾);被高队抢占→<b>回本队尾</b>。回到第 2 步。</li>
+</ol>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="s6">✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>MFQ 中,一个<b>新到达</b>的进程首先被放到哪里?</p>
+<p>
+A. 最低优先级队列的末尾<br>
+B. 第一队列(最高优先级)的末尾<br>
+C. 当前正在运行进程所在的那条队列<br>
+D. 由系统预估其运行时间后决定的队列
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 规则明写"新进程放到最高优先级就绪队列尾部"。A 错——那是长作业反复降级后的归宿,不是起点;C 错——新进程不看谁在跑;D 错——MFQ 的卖点正是<b>不需要预估运行时间</b>,用降级代替预估。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>关于 MFQ 各队列的<b>时间片</b>,下列正确的是?</p>
+<p>
+A. 所有队列时间片完全相同<br>
+B. 优先级越高的队列时间片越大<br>
+C. 优先级越低的队列时间片越大(一般逐级翻倍)<br>
+D. 时间片随进程的等待时间动态增长
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 教材:"时间片长度从高优先级到低优先级依次增加(一般加倍)S1&lt;S2&lt;…&lt;Sn"。A 错(那退化成分层 FCFS);B 恰好说反;D 是把 MFQ 和"动态优先级 / HRRN 随等待变化"搞混了——MFQ 的时间片是<b>按队列固定</b>的。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>一个<b>长进程(长作业)</b>在 MFQ 中的最终命运是?</p>
+<p>
+A. 逐级下降到最后一个队列,按 RR 轮转执行,不会饿死<br>
+B. 永远停留在第一队列反复运行<br>
+C. 因始终抢不到 CPU 而饿死(starvation)<br>
+D. 被系统识别为长作业后强制终止
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 长进程一次次用完时间片就一路降级,最后沉到底队按 RR 轮转,总能分到 CPU。B 错——它跑一个时间片没完就会被降走;C 恰恰是 MFQ <b>要避免</b>的(那是 SJF 的毛病);D 纯属虚构,OS 不会因为作业长就杀它。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>三级调度中,运行频率<b>最高</b>、且<b>每种 OS 都必须配置</b>的是?</p>
+<p>
+A. 中级调度(内存调度 / 对换)<br>
+B. 低级调度(进程调度)<br>
+C. 高级调度(作业调度)<br>
+D. 三者频率一样高
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 低级(进程)调度几十毫秒一次,是最基本、所有 OS 都必备的调度。C 高级调度几分钟一次且只在批处理系统有;A 中级调度几十秒一次,只在有对换的系统;D 错,三层频率差着数量级。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 5</h3>
+<p>关于 <b>MFQ 与 RR/SJF 的关系</b>,哪句最准确?</p>
+<p>
+A. MFQ 就是单一队列的 RR,只是换了个名字<br>
+B. MFQ 必须预先精确估计每个进程的运行时间<br>
+C. MFQ 是 SJF 与 RR 的工程折中:多队列 + 降级让短作业先跑完、长作业不饿死,且无需预估运行时间<br>
+D. MFQ 只适用于硬实时系统
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> A 错——MFQ 有多条队列且会降级,不是单队列 RR;B 恰好把 MFQ 最大的优点说反了(它<b>不</b>需要预估);D 错——它是<b>通用</b>调度算法,兼顾实时 / 分时 / 批处理。C 正是本课主线。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>用一句话说出 MFQ 的四条规则(进最高队 / 时间片翻倍 / 用完降级 / 高队全空才跑低队)。</li>
+<li>不看屏幕,复述"为什么 MFQ 是 SJF+RR 的折中":短作业为什么快?长作业为什么不饿死?为什么不用估时间?</li>
+<li>说清三级调度各管什么、频率高低。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能顺口说出 → 你是真懂了。哪题卡壳,回到对应小节,再点一遍上面的模拟器逐步看。</p>
+</div>
+
+<footer>
+第 44 课 · Ch3 处理机调度 · 三级调度 + MFQ:不估时间也能又快又不饿死的调度器<br>
+调度四件套(FCFS/SJF/优先级/RR) → <a href="./0002-scheduling-algorithms.html">第 2 课</a> ·
+计算大题冲刺 → <a href="./0040-storage-calc-exam-cram.html">第 40 课</a> ·
+速查地图 → <a href="./0013-exam-cheatsheet-map.html">第 13 课</a>
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// MFQ 降级模拟器:纯原生 JS,离散事件推进。
+// 规则(照 ppt 幻灯片 155/160 + ch03 §3.3):
+//  1) 3 条就绪队列 Q1>Q2>Q3,时间片 quanta[0..2](默认 2,4,8)
+//  2) 新进程按到达时间进 Q1 队尾
+//  3) 选最高非空队列队首运行;跑 min(时间片,剩余,到下一更高队到达前)
+//  4) 时间片用完没跑完→降一级队尾(底队则回本队尾 RR);跑完→离场;
+//     跑低队时更高队来新进程→当前进程回本队队尾,转去跑高队(抢占)
+// 已用默认例子手算核对:P1(0,7) P2(1,3) P3(3,5),q=2/4/8 →
+//   甘特 P1[0-2]Q1 P2[2-4]Q1 P3[4-6]Q1 P1[6-10]Q2 P2[10-11]Q2 P3[11-14]Q2 P1[14-15]Q3
+//   完成 P1=15 P2=11 P3=14;周转 15/10/11,平均 12。
+// =============================================================
+var PC = ['p0','p1','p2'];           // 进程配色 class
+function pname(i){ return 'P'+(i+1); }
+
+function simulate(procs, quanta){
+  var n = procs.length;
+  var rem = procs.map(function(p){ return p.service; });
+  var arrived = procs.map(function(){ return false; });
+  var finish = procs.map(function(){ return 0; });
+  var queues = [[],[],[]];
+  var segs = [];
+  var t = 0, done = 0, lastReason = {};
+
+  function admit(upto){
+    var list = [];
+    for(var i=0;i<n;i++) if(!arrived[i] && procs[i].arrival<=upto) list.push(i);
+    list.sort(function(a,b){ return (procs[a].arrival-procs[b].arrival) || (a-b); });
+    for(var k=0;k<list.length;k++){ arrived[list[k]]=true; queues[0].push(list[k]); }
+  }
+  admit(0);
+
+  var guard = 0;
+  while(done<n && guard++<5000){
+    // 选最高非空队列
+    var q = -1;
+    for(var k=0;k<3;k++){ if(queues[k].length){ q=k; break; } }
+    if(q===-1){
+      // CPU 空闲:跳到下一个到达时刻
+      var nx = Infinity;
+      for(var i=0;i<n;i++) if(!arrived[i]) nx = Math.min(nx, procs[i].arrival);
+      if(nx===Infinity) break;
+      t = nx; admit(t); continue;
+    }
+    // 运行前快照(供可视化)
+    var snap = [queues[0].slice(), queues[1].slice(), queues[2].slice()];
+    var pid = queues[q].shift();
+    var quantum = quanta[q];
+    var start = t;
+    var enter = (lastReason[pid]===undefined) ? 'new' : lastReason[pid];
+
+    var runFull = Math.min(quantum, rem[pid]);
+    // 抢占:仅当在低队(q>0)运行时,有更高队(所有新到达都进 Q1)在 start 之后到达
+    var preemptT = Infinity;
+    if(q>0){
+      for(var i2=0;i2<n;i2++) if(!arrived[i2] && procs[i2].arrival>start) preemptT = Math.min(preemptT, procs[i2].arrival);
+    }
+    var end, reason;
+    if(q>0 && preemptT < start+runFull){
+      end = preemptT; reason = 'preempt';
+    } else {
+      end = start+runFull;
+      reason = (runFull===rem[pid]) ? 'finish' : 'quantum';
+    }
+    var ran = end-start;
+    rem[pid] -= ran;
+    segs.push({ pid:pid, q:q, start:start, end:end, quantum:quantum,
+                reason:reason, remAfter:rem[pid], enter:enter, snap:snap });
+    t = end;
+    admit(t);            // 先接纳本时刻到达者(进 Q1),再安置当前进程
+    if(reason==='finish' || rem[pid]<=0){
+      finish[pid] = t; done++; lastReason[pid]='finish';
+    } else if(reason==='quantum'){
+      var nq = Math.min(q+1, 2);
+      queues[nq].push(pid); lastReason[pid]='quantum';
+    } else { // preempt
+      queues[q].push(pid); lastReason[pid]='preempt';
+    }
+  }
+
+  var turn = procs.map(function(p,i){ return finish[i]-p.arrival; });
+  var total = segs.length ? segs[segs.length-1].end : 0;
+  return { segs:segs, finish:finish, turn:turn, total:total, procs:procs, quanta:quanta };
+}
+
+// ---------------- 渲染 ----------------
+var SIM = null, STEP = 0, timer = null;
+
+function readInputs(){
+  function v(id){ return Math.max(0, parseInt(document.getElementById(id).value,10)||0); }
+  function vs(id){ return Math.max(1, parseInt(document.getElementById(id).value,10)||1); }
+  var procs = [
+    {arrival:v('a0'), service:vs('s0i')},
+    {arrival:v('a1'), service:vs('s1i')},
+    {arrival:v('a2'), service:vs('s2i')}
+  ];
+  var quanta = [vs('q0'), vs('q1'), vs('q2')];
+  return { procs:procs, quanta:quanta };
+}
+
+function chip(pid, cls){
+  return '<span class="chip '+PC[pid]+' '+(cls||'')+'">'+pname(pid)+'</span>';
+}
+
+function renderLanes(seg){
+  var qtitle = ['Q1', 'Q2', 'Q3'];
+  var qtail = ['最高 · 时间片 '+SIM.quanta[0],
+               '中 · 时间片 '+SIM.quanta[1],
+               '底队 · 时间片 '+SIM.quanta[2]+' · RR'];
+  var html = '';
+  // CPU 行
+  html += '<div class="lane cpu"><div class="qname"><b>CPU 正在运行</b></div><div class="cells">';
+  if(seg){ html += '<span class="chip '+PC[seg.pid]+' run">'+pname(seg.pid)+' <small>@Q'+(seg.q+1)+'</small></span>'; }
+  else { html += '<span class="empty">—</span>'; }
+  html += '</div></div>';
+  // 三条队列(用运行前快照;正在运行的队首标 run)
+  for(var k=0;k<3;k++){
+    html += '<div class="lane"><div class="qname"><b>'+qtitle[k]+'</b> '+qtail[k]+'</div><div class="cells">';
+    var arr = seg ? seg.snap[k] : [];
+    if(arr.length===0){ html += '<span class="empty">(空)</span>'; }
+    else {
+      for(var j=0;j<arr.length;j++){
+        var isRun = seg && k===seg.q && j===0;
+        html += chip(arr[j], isRun?'run':'');
+      }
+    }
+    html += '</div></div>';
+  }
+  document.getElementById('lanes').innerHTML = html;
+}
+
+function renderGantt(){
+  var g = document.getElementById('gantt');
+  var ax = document.getElementById('gaxis');
+  var total = SIM.total || 1;
+  var gh = '', boundaries = {};
+  for(var i=0;i<SIM.segs.length;i++){
+    var s = SIM.segs[i];
+    var w = ((s.end-s.start)/total*100).toFixed(4);
+    var cls = 'gseg '+PC[s.pid] + (i===STEP-1?' now':'') + (i>=STEP?' future':'');
+    gh += '<div class="'+cls+'" style="width:'+w+'%" title="'+pname(s.pid)+' '+s.start+'→'+s.end+' (Q'+(s.q+1)+')">'+pname(s.pid)+'</div>';
+    boundaries[s.start]=1; boundaries[s.end]=1;
+  }
+  g.innerHTML = gh || '<div class="empty" style="padding:6px">(未开始)</div>';
+  var keys = Object.keys(boundaries).map(Number).sort(function(a,b){return a-b;});
+  var ah = '';
+  for(var k=0;k<keys.length;k++){
+    var left = (keys[k]/total*100).toFixed(4);
+    ah += '<span class="gtick" style="left:'+left+'%">'+keys[k]+'</span>';
+  }
+  ax.innerHTML = ah;
+}
+
+function explain(seg){
+  if(!seg) return '← 点「下一步」开始;或「自动播放」看它自己跑完。';
+  var enterTxt = {
+    'new':'首次进入,新进程放最高队 Q1 队尾',
+    'quantum':'上一次时间片用完没跑完,已从上一级<b>降</b>到这里',
+    'preempt':'上一次被更高队进程抢占,已<b>退回本队队尾</b>'
+  }[seg.enter] || '';
+  var why = '<span class="step">▶ <b>为什么是它:</b> Q'+(seg.q+1)+' 是当前<b>最高的非空</b>就绪队列,队首是 '+
+            pname(seg.pid)+',所以由它上 CPU'+(enterTxt?'(' + enterTxt + ')':'')+'。</span>';
+  var run = '<span class="step">⏱ 运行 <code>['+seg.start+' → '+seg.end+']</code>,配 Q'+(seg.q+1)+' 的时间片 '+seg.quantum+'。</span>';
+  var res;
+  if(seg.reason==='finish'){
+    res = '<span class="step okc">✔ 剩余时间跑完 → <b>'+pname(seg.pid)+' 完成,离开系统。</b></span>';
+  } else if(seg.reason==='quantum'){
+    if(seg.q<2){
+      res = '<span class="step badc">↓ 时间片用完仍剩 '+seg.remAfter+' → <b>'+pname(seg.pid)+' 降到 Q'+(seg.q+2)+' 队尾</b>(这就是"反馈"降级)。</span>';
+    } else {
+      res = '<span class="step badc">↺ 已在底队 Q3,时间片用完仍剩 '+seg.remAfter+' → <b>回 Q3 队尾继续 RR</b>(不再降级,兜底不饿死)。</span>';
+    }
+  } else { // preempt
+    res = '<span class="step badc">⚡ t='+seg.end+' 有更高优先级新进程到达 → <b>'+pname(seg.pid)+' 退回 Q'+(seg.q+1)+' 队尾</b>,CPU 抢占转去跑高队进程。</span>';
+  }
+  return why+run+res;
+}
+
+function renderResult(){
+  var finished = (STEP>=SIM.segs.length);
+  var doneSet = {};
+  for(var i=0;i<STEP;i++){ var s=SIM.segs[i]; if(s.reason==='finish') doneSet[s.pid]=s.end; }
+  var rows='', sumT=0, cnt=0;
+  for(var i=0;i<SIM.procs.length;i++){
+    var fin = doneSet[i];
+    var tt = (fin!==undefined) ? (fin-SIM.procs[i].arrival) : null;
+    if(tt!==null){ sumT+=tt; cnt++; }
+    rows += '<tr><td>'+chip(i)+'</td><td>'+SIM.procs[i].arrival+'</td><td>'+SIM.procs[i].service+
+            '</td><td>'+(fin!==undefined?fin:'—')+'</td><td>'+(tt!==null?tt:'—')+'</td></tr>';
+  }
+  var avg = cnt? (sumT/cnt).toFixed(2) : '—';
+  var head = finished
+    ? '<b style="color:var(--green)">✅ 全部完成!</b> 平均周转时间 = '+avg
+    : '进度:'+STEP+' / '+SIM.segs.length+' 步(已完成 '+cnt+' 个进程)';
+  document.getElementById('result').innerHTML =
+    '<div style="margin-bottom:4px">'+head+'</div>'+
+    '<div style="overflow-x:auto"><table><tr><th>进程</th><th>到达</th><th>服务</th><th>完成</th><th>周转</th></tr>'+rows+'</table></div>';
+}
+
+function render(){
+  document.getElementById('legend').innerHTML =
+    '图例:'+chip(0)+' P1  '+chip(1)+' P2  '+chip(2)+' P3 &nbsp;·&nbsp; 粗黑框 = 当前正在跑';
+  var seg = (STEP>0 && STEP<=SIM.segs.length) ? SIM.segs[STEP-1] : null;
+  renderLanes(seg);
+  renderGantt();
+  document.getElementById('readout').innerHTML = explain(seg);
+  renderResult();
+}
+
+function stopPlay(){
+  if(timer){ clearInterval(timer); timer=null; }
+  var pb=document.getElementById('play'); pb.classList.remove('on'); pb.textContent='⏯ 自动播放';
+}
+function stepNext(){ if(STEP<SIM.segs.length){ STEP++; render(); } else { stopPlay(); } }
+function stepPrev(){ if(STEP>0){ STEP--; render(); } }
+
+function rebuild(){
+  stopPlay();
+  var inp = readInputs();
+  SIM = simulate(inp.procs, inp.quanta);
+  STEP = 0;
+  render();
+}
+
+document.getElementById('rebuild').addEventListener('click', rebuild);
+document.getElementById('next').addEventListener('click', function(){ stopPlay(); stepNext(); });
+document.getElementById('prev').addEventListener('click', function(){ stopPlay(); stepPrev(); });
+document.getElementById('tostart').addEventListener('click', function(){ stopPlay(); STEP=0; render(); });
+document.getElementById('play').addEventListener('click', function(){
+  if(timer){ stopPlay(); return; }
+  this.classList.add('on'); this.textContent='⏸ 暂停';
+  timer = setInterval(stepNext, 1100);
+});
+
+// ===== 首屏渲染 =====
+rebuild();
+</script>
+</body>
+</html>

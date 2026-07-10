@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 50 课 · Ch2 进程管理 · PV 信号量伪代码默写训练(考场默写模板)</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  /* ===== 三种色块提示条:橙(直觉/ELI5)· 绿(要点)· 红(陷阱/警告) ===== */
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+
+  /* ===== 白卡容器:放交互件 / 自测题 ===== */
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  /* ===== 紫色解题模板盒 ===== */
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .tmpl ol{margin:6px 0 0; padding-left:20px} .tmpl li{margin:3px 0}
+
+  /* ===== 按钮 ===== */
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  /* ===== 表格 ===== */
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+
+  /* ===== 交互件回显区 ===== */
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  .readout .step{display:block; margin:3px 0}
+  .readout .okc{color:var(--green)} .readout .badc{color:var(--red)}
+  .readout code{background:#e7f0fb}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  /* ===== 顶部锚点导航 ===== */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* ===== 全局故事线:横向节点 + 箭头 ===== */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 120px; min-width:110px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  /* ===== 本课新增:代码块 + 填空下拉 ===== */
+  .code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; background:#0f1b2d; color:#e6edf3;
+    border-radius:8px; padding:14px 16px; overflow-x:auto; line-height:2.0; white-space:pre; margin:12px 0}
+  .code .cm{color:#7d8fa8}
+  select.fib{font:inherit; font-size:12.5px; font-family:"SF Mono",Menlo,Consolas,monospace;
+    background:#132538; color:#ffd479; border:1px solid #2b6cb0; border-radius:5px; padding:1px 4px; cursor:pointer}
+  select.fib.okc{border-color:#48bb78; color:#7ee0a8; background:#12331f}
+  select.fib.badc{border-color:#fc8181; color:#ffb4b4; background:#3a1414}
+  .modebar{margin:2px 0 12px}
+
+  @media print{ body{background:#fff} .btn,.nav,.modebar{display:none} .panel{box-shadow:none} .code{background:#fff; color:#111; border:1px solid #ccc} .code .cm{color:#555} select.fib{background:#fff; color:#111; border:1px solid #999} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 50 课 · Ch2 进程管理 · 题型冲刺(伪代码) · 考前默写</p>
+  <h1>PV 信号量伪代码默写训练:把原理练成上考场能默写的模板</h1>
+  <p class="sub">这一课只回答一件事:<b>伪代码那道独立 10 分题,怎么闭着眼默写不出错。</b> 先把 <a href="./0010-process-sync.html">第 10 课(PV 原理)</a> 和 <a href="./0011-classic-sync.html">第 11 课(经典问题)</a> 学完再来练默写。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·默写器</a>
+    <a href="#s2">2·ELI5</a>
+    <a href="#s3">3·对照表</a>
+    <a href="#s4">4·定义+模板</a>
+    <a href="#s5">5·为什么</a>
+    <a href="#s6">6·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> <b>先 P 资源信号量(empty/full),再 P 互斥信号量(mutex);两个 V 顺序随便换,两个 P 死死不能换。</b> 颠倒两个 P = 抱着锁去等资源 = 死锁。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:这道题在考什么</h2>
+<p class="hint">深大自命题里,题型是 <b>选择(15×2)、简答(4×5)、计算(4×10)、伪代码(10)</b>——伪代码是<b>单独一道 10 分的默写题</b>,不背模板直接丢 10 分。(出处:<code>reference/szu-期末真题/期末重点.txt</code>)</p>
+<div class="flow">
+  <div class="fnode"><b>并发出问题</b>多进程抢共享资源 → 结果不可再现</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>信号量登场</b>用 P/V(wait/signal)守住临界区</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>套进模板</b>生产者-消费者 / 读者-写者</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>默写踩坑</b>两个 P 颠倒 → 死锁;初值填错 → 全错</div>
+</div>
+<p>你已经<b>理解</b>了原理(第 10、11 课),但考场上要的是<b>默写</b>——手不能抖。这节课不讲新原理,只干一件事:<b>把模板练到肌肉记忆</b>。</p>
+
+<!-- ===================== 1. 签名交互件 ===================== -->
+<h2 id="s1">🖼 1. 直觉图:伪代码填空默写器(本节灵魂)</h2>
+<div class="eli5">
+<b>🧸 先玩再懂:</b> 下面给你挖好空的骨架,每个空是一个下拉框。<b>先凭记忆选,再点"提交判分"</b>。选错顺序会直接告诉你哪里会死锁——这就是考场上会被扣分的地方。
+</div>
+<div class="panel">
+  <div class="hint">👇 点上方切换两道经典题;选完所有下拉框 → 点"提交判分"。红框=错,绿框=对。两个 V 顺序可换,系统会认。</div>
+  <div class="modebar">
+    <button class="btn on" id="mPC">🏭 生产者-消费者</button>
+    <button class="btn" id="mRW">📚 读者-写者(读者优先)</button>
+  </div>
+
+  <div id="panePC">
+    <pre class="code" id="codePC"></pre>
+    <button class="btn" id="subPC">提交判分 ✓</button>
+    <button class="btn reset" id="resPC">重置</button>
+    <div class="readout" id="outPC">← 凭记忆选完 8 个下拉框,再点"提交判分"。</div>
+  </div>
+
+  <div id="paneRW" style="display:none">
+    <pre class="code" id="codeRW"></pre>
+    <button class="btn" id="subRW">提交判分 ✓</button>
+    <button class="btn reset" id="resRW">重置</button>
+    <div class="readout" id="outRW">← 凭记忆选完 8 个下拉框,再点"提交判分"。</div>
+  </div>
+</div>
+<div class="key">
+<b>要点:</b> 模板的骨架是死的——<b>P 资源 → P 互斥 → 干活 → V 互斥 → V 资源</b>。你要练的不是"理解",是"手熟到不用想"。
+</div>
+
+<!-- ===================== 2. ELI5 + 反例 ===================== -->
+<h2 id="s2">🧸 2. ELI5:更衣室的钥匙牌 + 一个反例</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 更衣室有 <b>n 个柜子</b>(缓冲区),门口有 <b>1 把公用钥匙</b>(mutex)。想放东西的人(生产者):<b>①先看还有没有空柜子(P(empty)),②再去拿钥匙(P(mutex))</b>,放完东西<b>③还钥匙(V(mutex))、④告诉别人"多了一个满柜子"(V(full))</b>。
+</div>
+<div class="warnbox">
+<b>⚠️ 反例:如果没有"先 P 资源再 P 互斥"这条铁律会怎样?</b><br>
+假设生产者<b>先拿钥匙(P(mutex))再看有没有空柜子(P(empty))</b>。某一刻柜子全满(empty=0):生产者<b>攥着唯一的钥匙,却卡在"等空柜子"上不动了</b>。而消费者想取一个柜子腾出空位,必须<b>先拿钥匙</b>——钥匙在生产者手里,永远拿不到 → 谁也动不了 → <b>死锁</b>。这就是你反复踩的坑。
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2 id="s3">⚖️ 3. 对照表:两个 P 能换吗?初值到底填几?</h2>
+<div class="eli5"><b>🧸 一句话:</b> 记两件事就够——<b>P 的顺序是铁律,V 的顺序无所谓;初值填"个数"不是"大小"。</b></div>
+<h3>⚖️ P 顺序 vs V 顺序</h3>
+<table>
+<tr><th>比什么</th><th>两个 P(wait)</th><th>两个 V(signal)</th></tr>
+<tr><td>顺序能不能换</td><td><b>不能换</b>(资源在前,互斥在后)</td><td><b>随便换</b>(结果一样)</td></tr>
+<tr><td>换了会怎样</td><td>可能<b>死锁</b>(抱锁等资源)</td><td>不会死锁(V 只加一、从不阻塞)</td></tr>
+<tr><td>为什么</td><td>P 会<b>阻塞</b>——被阻塞时若还占着锁,别人进不来</td><td>V 从不阻塞——只是放行,先放谁都行</td></tr>
+</table>
+<h3>⚖️ 三个信号量的初值(生产者-消费者)</h3>
+<table>
+<tr><th>信号量</th><th>含义</th><th>初值</th><th>类型</th></tr>
+<tr><td><code>mutex</code></td><td>缓冲区互斥访问</td><td><b>1</b></td><td>互斥信号量(公用)</td></tr>
+<tr><td><code>empty</code></td><td>空缓冲区<b>个数</b></td><td><b>n</b>(缓冲区总数)</td><td>资源/同步信号量</td></tr>
+<tr><td><code>full</code></td><td>满缓冲区<b>个数</b></td><td><b>0</b></td><td>资源/同步信号量</td></tr>
+</table>
+<div class="key"><b>结论:</b> 互斥信号量初值恒为 <b>1</b>;资源信号量初值 = <b>资源的个数</b>(一开始 n 个空、0 个满)。初值填的是"有几个",不是"有多大"。(模板出处:<code>textbook/算法速查表.md</code> 六·3;初值意义出处:<code>2_进程管理/ppt文本.md</code>「S.value&gt;0 表示可供使用资源数」)</div>
+
+<!-- ===================== 4. 是什么:定义 + 默写模板 ===================== -->
+<h2 id="s4">📖 4. 是什么:三类信号量 + 可默写模板</h2>
+<div class="eli5"><b>🧸 一句话:</b> 信号量分两种用途——<b>互斥用(初值 1)</b>和<b>同步/资源用(初值=资源数)</b>;P 就是 wait(减一,可能阻塞),V 就是 signal(加一,可能唤醒)。</div>
+<div class="key">
+<b>精确定义(对齐教材口径):</b><br>
+· <b>P 操作 = wait(S):</b> <code>S.value := S.value − 1; if S.value &lt; 0 then block(S,L)</code>——申请资源,不够就阻塞自己。<br>
+· <b>V 操作 = signal(S):</b> <code>S.value := S.value + 1; if S.value &le; 0 then wakeup(S,L)</code>——释放资源,有人等就唤醒。<br>
+· <b>S.value 的意义:</b> &gt;0 = 还有几个资源可用;=0 = 资源用完、没人等;&lt;0(=−k)= 资源用完、还有 k 个进程在阻塞排队。<br>
+<span class="hint">(出处:<code>2_进程管理/ppt文本.md</code> 记录型信号量 wait/signal 定义 + 「3.信号量 S 取值意义」)</span>
+</div>
+<div class="key">
+<b>两类信号量(教材原文):</b><br>
+· <b>互斥信号量(公用信号量):</b> 为一组互斥共享临界资源的进程设置,每个进程都能对它 P/V,<b>初值置为 1</b>。<br>
+· <b>同步信号量(专用信号量):</b> 代表消耗性专用资源,只有拥有者能 V、使用者先 P,<b>初值 = 该资源当前数量</b>(如 empty=n、full=0)。<br>
+<span class="hint">(出处:<code>2_进程管理/ppt文本.md</code>「2.信号量的类型」)</span>
+</div>
+<div class="tmpl">
+<b>📐 考场默写模板(5 步骨架,套任何互斥+同步题):</b>
+<ol>
+<li><b>先 P 资源信号量</b>——你要<b>消耗</b>什么就 P 什么(生产者消耗空位→P(empty);消费者消耗满位→P(full))。</li>
+<li><b>再 P 互斥信号量</b>——P(mutex),进临界区。</li>
+<li><b>干活</b>——put_item / get_item(访问缓冲区)。</li>
+<li><b>V 互斥信号量</b>——V(mutex),出临界区。</li>
+<li><b>V 资源信号量</b>——你<b>生产</b>了什么就 V 什么(生产者产出满位→V(full);消费者腾出空位→V(empty))。</li>
+</ol>
+<span class="hint">第 4、5 步(两个 V)顺序可换;第 1、2 步(两个 P)顺序<b>绝不能换</b>。</span>
+</div>
+
+<!-- ===================== 5. 为什么:三层追问 ===================== -->
+<h2 id="s5">❓ 5. 为什么:层层追问"先 P 资源再 P 互斥"</h2>
+<div class="panel">
+<p><b>第 1 层(是什么):</b> 铁律是"先 P(empty)/P(full),再 P(mutex)"。为什么不能反过来?</p>
+<p><b>第 2 层(会怎样):</b> 因为 <b>P 操作可能把自己阻塞</b>。如果先 P(mutex) 拿到锁、再 P(empty) 时缓冲区恰好满了,这个进程就<b>抱着 mutex 睡过去了</b>。别人要进临界区必须先 P(mutex),而 mutex 被睡着的它占着 → 所有人卡死 = 死锁。反过来"先 P(empty)":真没空位时它<b>还没拿锁就阻塞</b>,mutex 还留在门口,消费者能进来取货、腾出空位、V(empty) 把它唤醒——系统能自愈。</p>
+<p><b>第 3 层(边界/为什么 V 反而能换):</b> 那为什么两个 V 就能随便换?因为 <b>V 操作永远不阻塞</b>——它只把 value 加一、顺手唤醒一个等待者,自己绝不会睡。既然谁都不会"抱着锁睡",先 V(mutex) 还是先 V(full) 都不会制造循环等待。<b>死锁的根子是"占有并等待",而只有会阻塞的 P 才可能制造它。</b>(死锁四条件之一"占有并等待",见 <a href="./0040-storage-calc-exam-cram.html">第 40 课</a> 相关计算题背景;互斥/死锁/饥饿定义出处:<code>2_进程管理/ppt文本.md</code> 2.3.1)</p>
+</div>
+<div class="warnbox">
+<b>⚠️ 默写时最常丢分的三处:</b> ①两个 P 写反(→死锁,直接扣光);②初值写错(mutex 写成 n、empty 写成 0);③生产者错写成 P(full)/消费者错写成 P(empty)——<b>记住:P 的是"我要消耗的",V 的是"我刚产出的"</b>。
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="s6">✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1 · 两个 P 的顺序</h3>
+<p>生产者进程里两个 P 操作,正确顺序是?</p>
+<p>
+A. 顺序无所谓,结果都一样<br>
+B. 先 P(mutex) 再 P(empty)<br>
+C. 先 P(empty) 再 P(mutex)<br>
+D. 先 P(full) 再 P(mutex)
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 铁律"先 P 资源(empty)再 P 互斥(mutex)"。
+A 错——顺序恰恰是命门,颠倒会死锁;
+B 错——先 P(mutex) 会抱锁等资源 → 死锁;
+D 错——生产者消耗的是<b>空位</b>,该 P(empty) 不是 P(full)(P(full) 是消费者的)。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2 · 三个信号量的初值</h3>
+<p>缓冲区共 n 个,生产者-消费者三个信号量 <code>mutex / empty / full</code> 的初值分别是?</p>
+<p>
+A. mutex=1, empty=n, full=0<br>
+B. mutex=1, empty=0, full=n<br>
+C. mutex=n, empty=1, full=0<br>
+D. mutex=0, empty=n, full=1
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 互斥信号量初值恒为 1;一开始有 n 个空缓冲区(empty=n)、0 个满缓冲区(full=0)。
+B 错——空满写反了;
+C 错——mutex 是互斥锁只能是 1,不是 n;
+D 错——mutex=0 意味着一开始就没人能进临界区,整个系统卡死。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3 · 颠倒会怎样</h3>
+<p>若把生产者写成"先 P(mutex) 后 P(empty)",当缓冲区已满时会发生什么?</p>
+<p>
+A. 只是效率低一点,不影响正确性<br>
+B. 生产者直接报错退出<br>
+C. 消费者会自动帮生产者释放 mutex<br>
+D. 生产者攥着 mutex 阻塞,消费者进不了临界区 → 死锁
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 生产者抱着唯一的 mutex 卡在 P(empty) 上睡着;消费者要取货必须先 P(mutex),永远拿不到 → 循环等待 = 死锁。
+A 错——这是正确性错误不是性能问题;
+B 错——P 操作是阻塞不是报错;
+C 错——没有任何机制会"替别人释放"锁,锁只能由持有者自己 V。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4 · 读者-写者(读者优先)</h3>
+<p>读者优先方案里,"第一个读者"进入时必须做什么?</p>
+<p>
+A. 什么都不做,直接读<br>
+B. 执行 P(wmutex),给写者上锁<br>
+C. 执行 V(wmutex),唤醒写者<br>
+D. 执行 P(rmutex) 后立刻 V(rmutex)
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 读者优先的精髓:<b>第一个读者 P(wmutex) 把写者挡在门外,最后一个读者 V(wmutex) 才放行</b>;中间的读者只改 readcount、不碰 wmutex,所以读者之间可以并发读。
+A 错——不上写锁,写者会和读者并发写坏数据;
+C 错——V(wmutex) 是"放行写者",方向反了;
+D 错——rmutex 只用来保护 readcount 计数器,和挡写者无关。(模板出处:<code>textbook/算法速查表.md</code> 六·4)</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 5 · 两个 V 能不能换</h3>
+<p>生产者末尾的 V(mutex) 和 V(full) 交换顺序,会有问题吗?</p>
+<p>
+A. 不能换,交换会死锁<br>
+B. 不能换,交换会丢数据<br>
+C. 能换,V 只加不减、从不阻塞,不会制造循环等待<br>
+D. 只有单核 CPU 上才能换
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> V 操作永远不阻塞——它只把 value 加一并顺手唤醒等待者,自己不会睡,所以不可能"抱着锁睡" → 换顺序不会死锁。
+A、B 错——死锁/丢数据的根子是会阻塞的 P,不是 V;
+D 错——和几个核没关系,V 不阻塞是它的本质。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>用一句话说出铁律:两个 P 谁在前?为什么不能换?</li>
+<li>不看屏幕,默写整段生产者-消费者:三个信号量初值 + producer/consumer 的 P/V 顺序。</li>
+<li>说出"P 的是什么、V 的是什么"这条判对象的口诀。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">三题都能顺口说出来 + 默写器能一次全绿 → 这道 10 分你稳拿。哪题卡壳,回到第 1 节交互件再默一遍。</p>
+</div>
+
+<footer>
+第 50 课 · Ch2 进程管理 · PV 伪代码默写:先 P 资源、再 P 互斥,两个 V 可换、两个 P 不能换。<br>
+原理打底 → <a href="./0010-process-sync.html">第 10 课 · PV 信号量</a> ·
+经典问题 → <a href="./0011-classic-sync.html">第 11 课 · 经典同步问题</a> ·
+计算大题冲刺 → <a href="./0040-storage-calc-exam-cram.html">第 40 课</a>
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// 伪代码填空默写器:纯原生 JS,零外部依赖。
+// 生成两套挖空骨架(生产者-消费者 / 读者-写者),提交后判对错,
+// 特别检测"两个 P 颠倒 → 死锁"并解释。首屏 init() 渲染。
+// =============================================================
+var PVOPTS = ['P(empty)','P(mutex)','P(full)','V(empty)','V(mutex)','V(full)'];
+var RWOPTS = ['P(rmutex)','P(wmutex)','V(rmutex)','V(wmutex)'];
+
+function mkSel(id, opts){
+  var s = '<select class="fib" id="'+id+'"><option value="">— 选 —</option>';
+  for(var i=0;i<opts.length;i++){ s += '<option value="'+opts[i]+'">'+opts[i]+'</option>'; }
+  return s + '</select>';
+}
+function val(id){ return document.getElementById(id).value; }
+function mark(id, ok){ document.getElementById(id).className = 'fib ' + (ok ? 'okc' : 'badc'); }
+
+// ---------- 构建代码骨架 ----------
+function buildPC(){
+  return ''+
+  'semaphore mutex = 1;   <span class="cm">// 互斥信号量,初值=1</span>\n'+
+  'semaphore empty = n;   <span class="cm">// 空缓冲区数,初值=缓冲区总数 n</span>\n'+
+  'semaphore full  = 0;   <span class="cm">// 满缓冲区数,初值=0</span>\n'+
+  '\n'+
+  'producer(){\n'+
+  '  produce_item();\n'+
+  '  '+mkSel('pb1',PVOPTS)+' ;   <span class="cm">// ① 先 P 资源</span>\n'+
+  '  '+mkSel('pb2',PVOPTS)+' ;   <span class="cm">// ② 再 P 互斥</span>\n'+
+  '  put_item_to_buffer();\n'+
+  '  '+mkSel('pb3',PVOPTS)+' ;   <span class="cm">// ③ V ...(两个 V 顺序可换)</span>\n'+
+  '  '+mkSel('pb4',PVOPTS)+' ;   <span class="cm">// ④ V ...</span>\n'+
+  '}\n'+
+  'consumer(){\n'+
+  '  '+mkSel('cb1',PVOPTS)+' ;   <span class="cm">// ① 先 P 资源</span>\n'+
+  '  '+mkSel('cb2',PVOPTS)+' ;   <span class="cm">// ② 再 P 互斥</span>\n'+
+  '  get_item_from_buffer();\n'+
+  '  '+mkSel('cb3',PVOPTS)+' ;   <span class="cm">// ③ V ...</span>\n'+
+  '  '+mkSel('cb4',PVOPTS)+' ;   <span class="cm">// ④ V ...</span>\n'+
+  '}';
+}
+function buildRW(){
+  return ''+
+  'semaphore rmutex = 1;  <span class="cm">// 保护 readcount,初值=1</span>\n'+
+  'semaphore wmutex = 1;  <span class="cm">// 写互斥,初值=1</span>\n'+
+  'int readcount = 0;\n'+
+  '\n'+
+  'reader(){\n'+
+  '  '+mkSel('rb1',RWOPTS)+' ;\n'+
+  '  if(readcount==0) '+mkSel('rb2',RWOPTS)+' ;   <span class="cm">// 第一个读者上写锁</span>\n'+
+  '  readcount++;\n'+
+  '  '+mkSel('rb3',RWOPTS)+' ;\n'+
+  '  read_file();\n'+
+  '  '+mkSel('rb4',RWOPTS)+' ;\n'+
+  '  readcount--;\n'+
+  '  if(readcount==0) '+mkSel('rb5',RWOPTS)+' ;   <span class="cm">// 最后一个读者放写锁</span>\n'+
+  '  '+mkSel('rb6',RWOPTS)+' ;\n'+
+  '}\n'+
+  'writer(){\n'+
+  '  '+mkSel('wb1',RWOPTS)+' ;\n'+
+  '  write_file();\n'+
+  '  '+mkSel('wb2',RWOPTS)+' ;\n'+
+  '}';
+}
+
+// ---------- 判分:生产者-消费者 ----------
+function checkPC(){
+  var out = document.getElementById('outPC');
+  var ids = ['pb1','pb2','pb3','pb4','cb1','cb2','cb3','cb4'];
+  for(var i=0;i<ids.length;i++){
+    if(val(ids[i])===''){ out.innerHTML='<span class="step badc">⚠ 还有空没选,先把 8 个下拉框都选上。</span>'; return; }
+  }
+  var pb1=val('pb1'),pb2=val('pb2'),pb3=val('pb3'),pb4=val('pb4');
+  var cb1=val('cb1'),cb2=val('cb2'),cb3=val('cb3'),cb4=val('cb4');
+
+  var r = {};
+  r.pb1 = (pb1==='P(empty)');
+  r.pb2 = (pb2==='P(mutex)');
+  var pVok = ([pb3,pb4].sort().join(',') === ['V(full)','V(mutex)'].sort().join(','));
+  r.pb3 = pVok; r.pb4 = pVok;
+  r.cb1 = (cb1==='P(full)');
+  r.cb2 = (cb2==='P(mutex)');
+  var cVok = ([cb3,cb4].sort().join(',') === ['V(empty)','V(mutex)'].sort().join(','));
+  r.cb3 = cVok; r.cb4 = cVok;
+
+  for(var j=0;j<ids.length;j++){ mark(ids[j], r[ids[j]]); }
+
+  var allok = true;
+  for(var k in r){ if(!r[k]) allok=false; }
+
+  var dead = (pb1==='P(mutex)' && pb2==='P(empty)') || (cb1==='P(mutex)' && cb2==='P(full)');
+
+  if(allok){
+    out.innerHTML =
+      '<span class="step okc">✔ 全对!这段模板你默写正确了。</span>'+
+      '<span class="step">记忆锚:<b>先 P 资源(empty/full) → 再 P(mutex) → 干活 → V(mutex) → V 另一个资源</b>。两个 V 顺序可换,两个 P 死死不能换。</span>';
+    return;
+  }
+  var msgs = [];
+  if(dead){
+    msgs.push('<span class="step badc">✘ 死锁!你把两个 P 颠倒了(先 P(mutex) 再 P 资源)。</span>');
+    msgs.push('<span class="step">为什么死锁:进程先 P(mutex) 抢到互斥锁,再 P(empty)/P(full);若此刻资源为 0,它就<b>攥着 mutex 阻塞</b>。对方想进临界区必须先 P(mutex),而锁被这个睡着的进程占着永远拿不到 → 谁也动不了 = 死锁。</span>');
+    msgs.push('<span class="step">铁律:<b>先 P 资源信号量,再 P 互斥信号量。</b></span>');
+  } else {
+    msgs.push('<span class="step badc">✘ 有错(看红框)。正确答案:</span>');
+    msgs.push('<span class="step">producer = <code>P(empty) → P(mutex) → V(mutex) → V(full)</code>;consumer = <code>P(full) → P(mutex) → V(mutex) → V(empty)</code>。</span>');
+    msgs.push('<span class="step">判对象口诀:<b>P 的是"我要消耗的资源",V 的是"我刚产出的资源"</b>——生产者消耗空位 P(empty)、产出满位 V(full)。两个 V 顺序可换。</span>');
+  }
+  out.innerHTML = msgs.join('');
+}
+
+// ---------- 判分:读者-写者(读者优先) ----------
+function checkRW(){
+  var out = document.getElementById('outRW');
+  var ans = {rb1:'P(rmutex)',rb2:'P(wmutex)',rb3:'V(rmutex)',rb4:'P(rmutex)',rb5:'V(wmutex)',rb6:'V(rmutex)',wb1:'P(wmutex)',wb2:'V(wmutex)'};
+  var ids = ['rb1','rb2','rb3','rb4','rb5','rb6','wb1','wb2'];
+  for(var i=0;i<ids.length;i++){
+    if(val(ids[i])===''){ out.innerHTML='<span class="step badc">⚠ 还有空没选,先把 8 个下拉框都选上。</span>'; return; }
+  }
+  var allok = true;
+  for(var j=0;j<ids.length;j++){
+    var ok = (val(ids[j]) === ans[ids[j]]);
+    mark(ids[j], ok);
+    if(!ok) allok=false;
+  }
+  if(allok){
+    out.innerHTML =
+      '<span class="step okc">✔ 全对!读者优先模板默写正确。</span>'+
+      '<span class="step">读者优先精髓:<b>第一个读者 P(wmutex) 挡住写者,最后一个读者 V(wmutex) 放行;rmutex 只保护 readcount 计数器</b>。写者最简单:P(wmutex) → 写 → V(wmutex)。</span>';
+    return;
+  }
+  out.innerHTML =
+    '<span class="step badc">✘ 有错(看红框)。正确答案:</span>'+
+    '<span class="step">reader = <code>P(rmutex) → [首读 P(wmutex)] → V(rmutex) → 读 → P(rmutex) → [末读 V(wmutex)] → V(rmutex)</code>;writer = <code>P(wmutex) → 写 → V(wmutex)</code>。</span>'+
+    '<span class="step">关键:rmutex 保护计数器 readcount;只有"第一个"读者抢 wmutex、只有"最后一个"读者放 wmutex。</span>';
+}
+
+// ---------- 重置 ----------
+function resetPane(ids, outId, hint){
+  for(var i=0;i<ids.length;i++){
+    var e = document.getElementById(ids[i]);
+    e.value = ''; e.className = 'fib';
+  }
+  document.getElementById(outId).innerHTML = hint;
+}
+
+// ---------- 模式切换 ----------
+function setMode(m){
+  document.getElementById('panePC').style.display = (m==='PC') ? '' : 'none';
+  document.getElementById('paneRW').style.display = (m==='RW') ? '' : 'none';
+  document.getElementById('mPC').className = 'btn' + (m==='PC' ? ' on' : '');
+  document.getElementById('mRW').className = 'btn' + (m==='RW' ? ' on' : '');
+}
+
+// ===== 首屏初始化 =====
+function init(){
+  document.getElementById('codePC').innerHTML = buildPC();
+  document.getElementById('codeRW').innerHTML = buildRW();
+
+  document.getElementById('mPC').addEventListener('click', function(){ setMode('PC'); });
+  document.getElementById('mRW').addEventListener('click', function(){ setMode('RW'); });
+
+  document.getElementById('subPC').addEventListener('click', checkPC);
+  document.getElementById('subRW').addEventListener('click', checkRW);
+  document.getElementById('resPC').addEventListener('click', function(){
+    resetPane(['pb1','pb2','pb3','pb4','cb1','cb2','cb3','cb4'],'outPC','← 凭记忆选完 8 个下拉框,再点"提交判分"。');
+  });
+  document.getElementById('resRW').addEventListener('click', function(){
+    resetPane(['rb1','rb2','rb3','rb4','rb5','rb6','wb1','wb2'],'outRW','← 凭记忆选完 8 个下拉框,再点"提交判分"。');
+  });
+
+  setMode('PC');
+}
+init();
+</script>
+</body>
+</html>

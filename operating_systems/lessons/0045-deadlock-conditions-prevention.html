@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 45 课 · Ch3 处理机调度(死锁) · 死锁四必要条件 + 死锁预防</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  /* ===== 三种色块提示条:橙(直觉/ELI5)· 绿(要点)· 红(陷阱/警告) ===== */
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+
+  /* ===== 白卡容器:放交互件 / 自测题 ===== */
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  /* ===== 紫色解题模板盒 ===== */
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .tmpl ol{margin:6px 0 0; padding-left:20px} .tmpl li{margin:3px 0}
+
+  /* ===== 按钮 ===== */
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  /* ===== 表格 ===== */
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+
+  /* ===== 交互件回显区 ===== */
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  .readout .step{display:block; margin:3px 0}
+  .readout .okc{color:var(--green)} .readout .badc{color:var(--red)}
+  .readout code{background:#e7f0fb}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  /* ===== 顶部锚点导航 ===== */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* ===== 全局故事线:横向节点 + 箭头 ===== */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 120px; min-width:110px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  /* ===== 【本课新增】十字路口死锁交互件 ===== */
+  .xwrap{display:flex; flex-wrap:wrap; gap:20px; align-items:flex-start}
+  .crossroad{position:relative; width:300px; height:300px; flex:0 0 300px;
+    background:#eef2f6; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin:0 auto}
+  .road-v{position:absolute; left:120px; top:0; width:60px; height:100%; background:#cfd6df}
+  .road-h{position:absolute; top:120px; left:0; height:60px; width:100%; background:#cfd6df}
+  .center{position:absolute; left:120px; top:120px; width:60px; height:60px; background:#c3cbd6;
+    outline:2px dashed #9aa6b5; outline-offset:-4px}
+  .car{position:absolute; border-radius:6px; color:#fff; font-size:12px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,.25);
+    transition:transform .9s ease-in-out}
+  .car.v{width:26px; height:46px}
+  .car.h{width:46px; height:26px}
+  .car.n{left:127px; top:6px;   background:#2b6cb0}   /* 北车,向南开 */
+  .car.e{top:127px; left:248px; background:#2f855a}   /* 东车,向西开 */
+  .car.s{left:147px; top:248px; background:#b7791f}   /* 南车,向北开 */
+  .car.w{top:147px; left:6px;   background:#6b46c1}   /* 西车,向东开 */
+
+  /* 卡死态:四车拥进中心,拼成风车,谁也过不去 */
+  .crossroad.lock .car.n{transform:translateY(112px)}
+  .crossroad.lock .car.e{transform:translateX(-112px)}
+  .crossroad.lock .car.s{transform:translateY(-112px)}
+  .crossroad.lock .car.w{transform:translateX(112px)}
+
+  /* 通行态:某条件被破坏,四车依次开出路口(按序通行) */
+  .crossroad.pass .car.n{transform:translateY(320px); transition-delay:0s}
+  .crossroad.pass .car.e{transform:translateX(-330px); transition-delay:.25s}
+  .crossroad.pass .car.s{transform:translateY(-320px); transition-delay:.5s}
+  .crossroad.pass .car.w{transform:translateX(330px); transition-delay:.75s}
+
+  .banner{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    padding:6px 12px; border-radius:6px; font-weight:800; font-size:15px; z-index:5;
+    white-space:nowrap; transition:.2s; pointer-events:none}
+  .banner.lockb{background:rgba(197,48,48,.92); color:#fff}
+  .banner.passb{background:rgba(47,133,90,.92); color:#fff}
+  .banner.idleb{background:rgba(43,108,176,.9); color:#fff}
+
+  .cond-panel{flex:1 1 300px; min-width:280px}
+  .cond{display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:8px;
+    padding:8px 10px; margin:7px 0; background:#fff; cursor:pointer; transition:.15s; user-select:none}
+  .cond:hover{background:var(--soft)}
+  .cond .pill{flex:0 0 auto; font-size:12px; font-weight:800; padding:2px 9px; border-radius:20px;
+    background:#e6f4ea; color:var(--green); border:1px solid #b7e4c7}
+  .cond.off .pill{background:#fdecec; color:var(--red); border-color:#f2b8b8}
+  .cond .cname{font-weight:700}
+  .cond.off .cname{text-decoration:line-through; color:var(--muted)}
+  .cond small{color:var(--muted); font-size:12px}
+
+  @media print{ body{background:#fff} .btn,.nav,.cond{display:none} .panel{box-shadow:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 45 课 · Ch3 处理机调度(死锁) · 零基础可视化</p>
+  <h1>死锁四必要条件 + 死锁预防:破坏任一条件,路口就通了</h1>
+  <p class="sub">这一课只回答一件事:<b>死锁靠哪四个条件同时撑住,以及砍掉其中任意一个怎样把它掐死在源头</b>。配合 <a href="./0003-bankers-algorithm.html">银行家算法(避免)</a> 一起看。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·先看画面</a>
+    <a href="#s2">2·ELI5</a>
+    <a href="#s3">3·预防vs避免vs检测</a>
+    <a href="#s4">4·定义+四条件</a>
+    <a href="#s5">5·必要≠充分</a>
+    <a href="#s6">6·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> 死锁 = 互斥 + 占有并等待 + 不可剥夺 + 循环等待 <b>四个条件同时成立</b>;死锁<b>预防</b> = 提前砍掉其中<b>任意一个</b>,让死锁根本无法成型。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:这些点怎么串起来</h2>
+<p class="hint">别把下面这些当成孤立知识点——它们是"资源分配不当→可能卡死"这一个问题一路逼出来的。</p>
+<div class="flow">
+  <div class="fnode"><b>竞争资源</b>多个进程抢有限的不可剥夺资源</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>推进顺序不当</b>请求/释放次序错开</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>死锁(僵局)</b>四条件同时成立,无外力谁也走不了</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>预防</b>事先破坏四条件之一</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>避免/检测</b>放宽限制,运行时判安全 / 事后再查</div>
+</div>
+
+<!-- ===================== 1. 先看画面(签名交互件) ===================== -->
+<h2 id="s1">🖼 1. 先看画面:十字路口为什么会四车卡死</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 四辆车从四个方向同时冲进没有红绿灯的十字路口,每辆车的车头都被<b>前一辆车的车身</b>挡住——你等我、我等他、他等你,首尾相接绕成一个圈,谁都不肯倒车。这就是死锁。
+</div>
+<div class="panel">
+  <div class="hint">👇 先点 <b>▶ 重放死锁演示</b> 看四车卡死;再点下面任意一个开关<b>关掉一个条件</b>,看路口如何解锁 + 对应的预防策略名。</div>
+  <div class="xwrap">
+    <div class="crossroad" id="cross">
+      <div class="road-v"></div>
+      <div class="road-h"></div>
+      <div class="center"></div>
+      <div class="car v n">北</div>
+      <div class="car h e">东</div>
+      <div class="car v s">南</div>
+      <div class="car h w">西</div>
+      <div class="banner idleb" id="banner">点 ▶ 开始</div>
+    </div>
+    <div class="cond-panel">
+      <div style="margin-bottom:6px">
+        <button class="btn on" id="replay">▶ 重放死锁演示</button>
+        <button class="btn reset" id="resetC">↺ 四条件全恢复</button>
+      </div>
+      <div class="cond" data-k="mutex">
+        <span class="pill">在</span><span><span class="cname">① 互斥</span> <small>资源一次只给一个进程用</small></span>
+      </div>
+      <div class="cond" data-k="hold">
+        <span class="pill">在</span><span><span class="cname">② 占有并等待</span> <small>拿着旧的,又要新的</small></span>
+      </div>
+      <div class="cond" data-k="noPreempt">
+        <span class="pill">在</span><span><span class="cname">③ 不可剥夺</span> <small>已占的不能被强抢</small></span>
+      </div>
+      <div class="cond" data-k="circular">
+        <span class="pill">在</span><span><span class="cname">④ 循环等待</span> <small>形成首尾相接的等待环</small></span>
+      </div>
+      <div class="readout" id="xout">← 点开关看结果。</div>
+    </div>
+  </div>
+</div>
+<div class="key">
+<b>要点:</b> 四个开关<b>全在</b> = 四条件同时成立 = 路口卡死(可能死锁);<b>只要关掉任意一个</b>,路口立刻通车——这正是"死锁预防 = 破坏四必要条件之一"的画面。
+</div>
+
+<!-- ===================== 2. ELI5 + 反例 ===================== -->
+<h2 id="s2">🧸 2. ELI5:死锁到底是什么(附反例)</h2>
+<div class="eli5">
+<b>🧸 像给 5 岁小孩讲:</b> 两个小朋友做手工,小明拿着<b>剪刀</b>想要<b>胶水</b>,小红拿着<b>胶水</b>想要<b>剪刀</b>。两人都攥着手里的不放、又都伸手等对方的——就这么一直僵着,手工永远做不完。这就是死锁:<b>互相等着对方手里的东西,谁也不先松手</b>。<span style="color:var(--blue)">(教材定义见下节)</span>
+</div>
+<div class="warnbox">
+<b>⚠️ 反例:如果没有"循环等待"会怎样?</b> 假设规定<b>谁都必须先拿剪刀、再拿胶水</b>。那么小明拿到剪刀后小红根本拿不到剪刀,只能等——但小明能顺利拿胶水做完、再把剪刀还出来。<b>等待关系变成一条直线而不是一个环</b>,僵局就散了。抽掉四条件里的任何一根柱子,死锁这座桥就塌了。
+</div>
+
+<!-- ===================== 3. 对照表:预防 vs 避免 vs 检测 ===================== -->
+<h2 id="s3">⚖️ 3. 对照表:预防 vs 避免 vs 检测,别混成一锅</h2>
+<div class="eli5"><b>🧸 一句话:</b> <b>预防</b>=事前立死规矩(砍条件);<b>避免</b>=事中每次分配前先算一卦(银行家/安全状态);<b>检测</b>=事后允许出事再派人排查。三者时机不同、松紧不同。</div>
+<h3>⚖️ 三种处理方法对照(照教材口径)</h3>
+<table>
+<tr><th>方法</th><th>时机</th><th>思路</th><th>代表手段</th><th>限制/代价</th></tr>
+<tr><td><b>死锁预防</b></td><td>事前</td><td>破坏四必要条件之一,从根本杜绝</td><td>一次性申请 / 剥夺 / 按序申请</td><td>限制最严,资源利用率最低</td></tr>
+<tr><td><b>死锁避免</b></td><td>事中(每次分配前)</td><td>不破坏条件,但拒绝进入不安全状态</td><td><a href="./0003-bankers-algorithm.html">银行家算法</a></td><td>限制较宽,利用率较高;要预知最大需求</td></tr>
+<tr><td><b>死锁检测</b></td><td>事后</td><td>允许死锁发生,再检测并解除</td><td><a href="./0046-deadlock-detection-recovery.html">资源分配图化简/死锁定理</a></td><td>限制最宽;要额外检测+解除(剥夺/撤销)开销</td></tr>
+</table>
+<div class="key"><b>结论(考试口径一句话):</b> 预防"事先破坏条件",避免"运行中判断安全状态",检测"事后发现再解除"——<b>银行家算法属于"避免",不属于"预防"</b>,这是最爱考的坑。</div>
+
+<!-- ===================== 4. 是什么:定义 + 四条件 ===================== -->
+<h2 id="s4">📖 4. 是什么:死锁定义 + 四个必要条件</h2>
+<div class="key">
+<b>死锁的定义(教材原文):</b> 死锁是指多个进程在运行过程中因<b>争夺资源</b>而造成的一种<b>僵局</b>,当进程处于这种僵持状态时,<b>若无外力作用,它们都将无法再向前推进</b>。
+</div>
+<p>课本把"产生死锁的原因"归为三类:<b>竞争不可抢占性资源</b>、<b>竞争可消耗资源</b>(如消息)、<b>进程推进顺序不当</b>(请求/释放次序错)。而下面四条,是死锁成立的<b>四个必要条件</b>——缺一不可:</p>
+<div class="key">
+<b>四个必要条件(口诀:互 · 占 · 不 · 环):</b>
+<ol style="margin:6px 0 0;padding-left:20px">
+<li><b>互斥条件</b>:进程对分到的资源<b>排他性使用</b>,一段时间内某资源只由一个进程占用。</li>
+<li><b>请求和保持条件</b>(占有并等待):进程<b>已保持至少一个资源</b>,又提出新请求,而新资源被别人占用,于是被阻塞,但<b>对已占资源保持不放</b>。</li>
+<li><b>不可剥夺条件</b>(不可抢占):进程已获得的资源,<b>未用完前不能被别人抢走</b>,只能由它自己用完后释放。</li>
+<li><b>循环等待条件</b>:存在一条<b>进程-资源的循环链</b>,链中每个进程占有的资源正被链中下一个进程请求(等待成环)。</li>
+</ol>
+</div>
+<div class="warnbox"><b>⚠️ 易错:</b> 别把"死锁的三个<b>原因</b>"和"四个<b>必要条件</b>"搞混——原因是"为什么会发生",条件是"发生时一定同时满足的四个特征"。题目问哪个,就答哪个。</div>
+
+<!-- ===================== 5. 为什么:必要≠充分 + 破坏条件的代价 ===================== -->
+<h2 id="s5">❓ 5. 为什么:为什么是"必要"不是"充分"?破坏它们各要付什么代价?</h2>
+<div class="panel">
+<h3>第 1 层:什么叫"必要条件"?为什么四条全中还只是"可能"死锁?</h3>
+<p>"必要条件"的逻辑含义是:<b>死锁一旦发生 ⇒ 这四条一定都成立</b>(有死锁 → 有这四条)。反过来<b>不一定成立</b>:四条全满足,只是<b>具备了死锁的土壤</b>,系统<b>可能</b>死锁,也可能因为进程恰好错开时序而顺利跑完。所以它是<b>必要不充分</b>条件。</p>
+<div class="warnbox"><b>⚠️ 你两次答错的点:</b> "四条件全满足 → 一定死锁" 是<b>错的</b>。正确说法:"四条件全满足是死锁的<b>必要</b>条件,死锁则四条件必全满足;但四条件全满足未必立刻死锁"。判定"是否真的死锁"要靠<a href="./0046-deadlock-detection-recovery.html">资源分配图能否完全化简(死锁定理)</a>——那才是充要条件。</div>
+<h3>第 2 层:既然是"必要"条件,为什么砍掉一个就能防住死锁?</h3>
+<p>因为"必要"意味着<b>死锁 → 四条件全成立</b>。取它的<b>逆否命题</b>:<b>只要有一条不成立 → 一定不死锁</b>。这就是死锁预防的全部数学依据——不用四条全砍,砍一根柱子桥就塌。上面路口交互件里"关一个开关就通车",演示的正是这个逆否逻辑。</p>
+<h3>第 3 层:那为什么现实里通常不砍"互斥",而砍另外三条?各有什么代价?</h3>
+<p>因为<b>互斥往往是资源的固有属性</b>——打印机、磁带机天生不能两个进程同时写,硬把它变共享会出错。教材明说:互斥一般<b>不能破坏</b>,预防主要破坏其余三条。每种破坏都有代价(下表就是路口交互件解锁时弹出的那几句):</p>
+</div>
+<h3>📐 四种破坏策略 · 摒弃哪条 · 代价(考试高频)</h3>
+<table>
+<tr><th>摒弃的条件</th><th>预防策略</th><th>优点</th><th>缺点/代价</th></tr>
+<tr><td>互斥</td><td>把独占资源改造成可共享(SPOOLing/虚拟化/缓冲)</td><td>—</td><td>多数资源天生独占,<b>一般无法破坏</b></td></tr>
+<tr><td>请求和保持<br>(占有并等待)</td><td><b>一次性申请</b>运行所需<b>全部</b>资源,拿不齐就一个都不占</td><td>简单、安全、易实现</td><td><b>资源利用率低</b>、作业需等资源齐才启动,<b>延迟运行/易饥饿</b></td></tr>
+<tr><td>不可剥夺</td><td>申请新资源<b>得不到满足时,立即释放已占的全部资源</b>,日后重新申请</td><td>可避免死锁</td><td>实现复杂、<b>前段工作失效、反复申请、性能下降</b></td></tr>
+<tr><td>循环等待</td><td>资源统一<b>编号</b>,进程必须<b>按序号递增</b>申请(线性排序)</td><td>利用率/吞吐量比前两种好</td><td>序号需稳定、<b>限制新设备加入、限制编程自由</b></td></tr>
+</table>
+<div class="tmpl">
+<b>📐 遇到"如何预防死锁"大题的答题模板(4 步):</b>
+<ol>
+<li>点明:预防 = 破坏四必要条件<b>之一</b>(附逆否逻辑一句)。</li>
+<li>说明互斥一般<b>不破坏</b>(资源固有属性)。</li>
+<li>逐一给出破坏另外三条的<b>具体做法</b>:一次性申请 / 得不到就释放已占 / 按序号递增申请。</li>
+<li>每条<b>补一句代价</b>(利用率低 / 前段失效 / 限制编程),体现"预防限制严、利用率低"。</li>
+</ol>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="s6">✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1 · 必要 vs 充分(你的老坑)</h3>
+<p>关于死锁的四个必要条件,下列说法正确的是?</p>
+<p>
+A. 四个条件只要满足其中一个,系统就一定发生死锁<br>
+B. 四个条件全部满足,系统就一定立刻发生死锁<br>
+C. 四个条件全部满足只是<b>可能</b>死锁,它们是死锁的<b>必要不充分</b>条件<br>
+D. 破坏其中任一条件,系统吞吐量一定随之提高
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> "必要条件"= 死锁发生则四条必全中(死锁→四条),但反向不成立,四条全中只是有死锁风险,故为必要不充分。<br>
+A 错:满足一个远不够,四条必须<b>同时</b>成立;<br>
+B 错:全满足只是"可能",能否真死锁要看资源分配图能否化简(死锁定理),不是"一定立刻";<br>
+D 错:破坏条件是为防死锁,吞吐量往往<b>下降</b>(如一次性申请利用率低),不会"一定提高"。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2 · 策略配对</h3>
+<p>"进程在运行前必须一次性申请它需要的全部资源,拿不齐就一个都不分配"——这种死锁预防策略破坏的是哪个条件?</p>
+<p>
+A. 循环等待条件<br>
+B. 请求和保持条件(占有并等待)<br>
+C. 不可剥夺条件<br>
+D. 互斥条件
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> "一次性申请全部、否则不占"让进程<b>不会出现"已占一部分又等另一部分"</b>的局面,正是摒弃"请求和保持(占有并等待)"。<br>
+A 错:破坏循环等待是"按资源序号递增申请";<br>
+C 错:破坏不可剥夺是"申请不到就释放已占资源";<br>
+D 错:破坏互斥是把独占资源改共享,且一般无法做到。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3 · 预防/避免/检测分工</h3>
+<p>关于处理死锁的三种方法,下列说法正确的是?</p>
+<p>
+A. 银行家算法属于死锁<b>预防</b><br>
+B. 死锁<b>检测</b>是在分配资源<b>之前</b>就杜绝死锁<br>
+C. 死锁<b>预防</b>和死锁<b>避免</b>本质是同一件事<br>
+D. 预防<b>事先</b>破坏必要条件杜绝死锁;避免(银行家算法)在<b>运行时</b>判断安全状态;检测<b>允许</b>死锁发生后再查并解除
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:D。</b> 三者时机不同:预防(事前砍条件)、避免(事中每次分配前判安全)、检测(事后发现再解除)。<br>
+A 错:银行家算法是<b>避免</b>,不是预防(最爱考的坑);<br>
+B 错:检测是<b>允许死锁发生后</b>再查,不是事前杜绝;<br>
+C 错:预防破坏必要条件、限制严;避免不破坏条件、只拒绝进入不安全状态,二者不同。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4 · 代价配对</h3>
+<p>破坏"不可剥夺"条件(申请新资源得不到满足时,释放已占有的全部资源)的<b>主要代价</b>是?</p>
+<p>
+A. 前段工作失效、需反复申请、系统性能下降<br>
+B. 资源利用率低、进程需等资源齐才启动而延迟运行<br>
+C. 资源序号需稳定,限制新设备加入、限制用户编程自由<br>
+D. 每次分配都要运行安全性算法,系统开销大
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> 反复"释放已占→重新申请"会让之前做过的工作<b>作废、反复申请、性能下降</b>。<br>
+B 错:那是破坏"占有并等待(一次性申请)"的代价;<br>
+C 错:那是破坏"循环等待(按序申请)"的代价;<br>
+D 错:那是<b>银行家算法(避免)</b>的代价,不属于预防。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)</h3>
+<ol>
+<li>用一句话说出死锁的定义,再报出四个必要条件的口诀(互·占·不·环)。</li>
+<li>不看屏幕,解释"为什么砍掉<b>一个</b>条件就能预防死锁"(说出逆否逻辑)。</li>
+<li>把破坏"占有并等待/不可剥夺/循环等待"三种做法各配一句代价。</li>
+<li>说清"预防 / 避免 / 检测"三者的时机差别,并指出银行家算法属于哪一类。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)">四题都能顺口说出来 → 你是真懂了。哪题卡壳,回到对应小节再点一遍路口交互件。</p>
+</div>
+
+<footer>
+第 45 课 · Ch3 处理机调度(死锁) · 死锁 = 互·占·不·环 四条同时成立;预防 = 砍掉任一条<br>
+相关课 →
+<a href="./0003-bankers-algorithm.html">第 3 课·银行家算法(死锁避免)</a> ·
+<a href="./0012-process-thread-deadlock.html">第 12 课·死锁概念辨析</a> ·
+<a href="./0046-deadlock-detection-recovery.html">第 46 课·死锁检测(资源分配图化简)</a>
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// 十字路口死锁交互件:纯原生 JS,无外部依赖。
+// 逻辑核心:死锁 <=> 四个必要条件"同时"全部成立。
+//   - 四条件全在(brokenCount==0) => 路口卡死(lock 态)。
+//   - 只要破坏任意一条(brokenCount>=1) => 通行(pass 态),
+//     并列出被破坏条件对应的预防策略 + 代价。
+// 这正是"必要条件"的逆否:有一条不成立 => 一定不死锁。
+// =============================================================
+var cross  = document.getElementById('cross');
+var banner = document.getElementById('banner');
+var xout   = document.getElementById('xout');
+
+// 四个必要条件:true = 成立(在), false = 已被破坏
+var cond = { mutex:true, hold:true, noPreempt:true, circular:true };
+
+// 每个条件被破坏后对应的预防策略 + 代价(照教材 3.6 口径)
+var STRAT = {
+  mutex:     { name:'破坏「互斥」', how:'把独占资源改造成可共享(SPOOLing / 虚拟化 / 缓冲)', cost:'多数资源天生独占(打印机等),一般无法破坏' },
+  hold:      { name:'破坏「占有并等待」', how:'一次性申请全部资源,拿不齐就一个都不占(静态分配)', cost:'资源利用率低、进程延迟运行/易饥饿' },
+  noPreempt: { name:'破坏「不可剥夺」', how:'申请新资源得不到满足时,立即释放已占有的全部资源', cost:'前段工作失效、反复申请、性能下降' },
+  circular:  { name:'破坏「循环等待」', how:'资源统一编号,进程按序号递增申请(线性排序)', cost:'序号需稳定、限制新设备加入、限制编程自由' }
+};
+
+var condEls = Array.prototype.slice.call(document.querySelectorAll('.cond'));
+
+function paintConds(){
+  condEls.forEach(function(el){
+    var k = el.getAttribute('data-k');
+    var on = cond[k];
+    el.classList.toggle('off', !on);
+    el.querySelector('.pill').textContent = on ? '在' : '已破坏';
+  });
+}
+
+function brokenKeys(){
+  return Object.keys(cond).filter(function(k){ return !cond[k]; });
+}
+
+function render(){
+  paintConds();
+  var broken = brokenKeys();
+
+  if (broken.length === 0){
+    // 四条件全成立 => 死锁(卡死)
+    cross.classList.remove('pass');
+    cross.classList.add('lock');
+    banner.className = 'banner lockb';
+    banner.textContent = '⛔ 死锁';
+    xout.innerHTML =
+      '<span class="step badc">✘ 四个必要条件<b>全部成立</b> → 四辆车首尾相接、循环等待,全部卡死。</span>' +
+      '<span class="step">这只是"<b>可能</b>死锁"的土壤:必要不充分。要判定是否<b>真</b>死锁,看资源分配图能否完全化简。</span>';
+  } else {
+    // 至少破坏一条 => 一定不死锁(逆否),通行
+    cross.classList.remove('lock');
+    cross.classList.add('pass');
+    banner.className = 'banner passb';
+    banner.textContent = '✔ 通行';
+    var html = '<span class="step okc">✔ 已破坏 <b>' + broken.length + '</b> 个条件 → 逆否命题:有一条不成立,<b>一定不死锁</b>,路口解锁通车。</span>';
+    broken.forEach(function(k){
+      var s = STRAT[k];
+      html += '<span class="step"><b>' + s.name + '</b>:' + s.how +
+              ' <span class="badc">(代价:' + s.cost + ')</span></span>';
+    });
+    xout.innerHTML = html;
+  }
+}
+
+// 点击某条件 => 翻转"成立/破坏"
+condEls.forEach(function(el){
+  el.addEventListener('click', function(){
+    var k = el.getAttribute('data-k');
+    cond[k] = !cond[k];
+    render();
+  });
+});
+
+// 重放死锁演示:先恢复四条件,回到 idle,再卡死一次
+document.getElementById('replay').addEventListener('click', function(){
+  cond = { mutex:true, hold:true, noPreempt:true, circular:true };
+  paintConds();
+  cross.classList.remove('lock','pass');
+  banner.className = 'banner idleb';
+  banner.textContent = '车辆驶入…';
+  // 强制回流后再进入 lock,让 transition 重新播放
+  void cross.offsetWidth;
+  setTimeout(render, 120);
+});
+
+// 全部恢复
+document.getElementById('resetC').addEventListener('click', function(){
+  cond = { mutex:true, hold:true, noPreempt:true, circular:true };
+  render();
+});
+
+// ===== 首屏渲染 =====
+render();
+</script>
+</body>
+</html>

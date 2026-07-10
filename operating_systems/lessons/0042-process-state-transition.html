@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 42 课 · Ch2 进程管理 · 进程状态转换(五态/七态)+ PCB + 控制原语</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  /* ===== 三种色块提示条:橙(直觉/ELI5)· 绿(要点)· 红(陷阱/警告) ===== */
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+
+  /* ===== 白卡容器:放交互件 / 自测题 ===== */
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  /* ===== 紫色解题模板盒 ===== */
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .tmpl ol{margin:6px 0 0; padding-left:20px} .tmpl li{margin:3px 0}
+
+  /* ===== 按钮 ===== */
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  /* ===== 表格 ===== */
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left}
+  th{background:#eef2f8}
+
+  /* ===== 交互件回显区 ===== */
+  .readout{margin-top:12px; font-size:14px; min-height:1.6em; color:var(--blue); font-weight:600; line-height:1.6}
+  .readout .step{display:block; margin:3px 0}
+  .readout .okc{color:var(--green)} .readout .badc{color:var(--red)}
+  .readout code{background:#e7f0fb}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  /* ===== 顶部锚点导航 ===== */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* ===== 全局故事线:横向节点 + 箭头 ===== */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 120px; min-width:110px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  /* ===== 本课新增:状态机迁移器 ===== */
+  .fsmwrap{overflow-x:auto}
+  .fsm{position:relative; width:660px; height:380px; margin:6px auto}
+  .fsm svg{position:absolute; left:0; top:0; width:660px; height:380px; z-index:1}
+  .node{position:absolute; width:128px; height:50px; border:2px solid var(--line); border-radius:10px;
+    background:#fff; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; font-size:13px; font-weight:700; color:var(--ink); z-index:2; padding:2px; line-height:1.2}
+  .node small{font-weight:400; color:var(--muted); font-size:10.5px}
+  .node.on{border-color:var(--blue); background:var(--blue); color:#fff; box-shadow:0 0 0 4px rgba(43,108,176,.15)}
+  .node.on small{color:#dce8f7}
+  .node.bad{border-color:var(--red)!important; box-shadow:0 0 0 4px rgba(197,48,48,.20)!important}
+  .edge{stroke:#c3ccdb; stroke-width:2; fill:none}
+  .edge.flash{stroke:var(--blue); stroke-width:4}
+  .elabel{font-size:10.5px; fill:#8a94a6}
+  .m5 .s7{display:none}
+  .toolbar{display:flex; flex-wrap:wrap; gap:4px; margin:12px 0 2px}
+
+  @media print{ body{background:#fff} .btn,.nav{display:none} .panel{box-shadow:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 42 课 · Ch2 进程管理 · 零基础可视化 + 考点辨析</p>
+  <h1>进程状态转换:五态 / 七态 + PCB + 四个控制原语</h1>
+  <p class="sub">这一课只回答一件事:一个进程在它的一生里,会在哪几种"状态"之间跳来跳去,<b>什么事件</b>能让它跳、<b>哪两条路根本走不通</b>——顺手讲清 PCB 和"原语"为什么必须是原子的。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·状态机(交互)</a>
+    <a href="#s2">2·ELI5 类比</a>
+    <a href="#s3">3·对照表</a>
+    <a href="#s4">4·是什么(定义)</a>
+    <a href="#s5">5·为什么(追问)</a>
+    <a href="#s6">6·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> <b>就绪 = 只差 CPU(给它 CPU 立刻能跑);阻塞 = 在等别的事件(给它 CPU 也没用)。</b> 全部状态转换的对错,都由这一句判定。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:这些点怎么串起来</h2>
+<p class="hint">别把下面这些当成孤立知识点——它们是"OS 怎么管好一堆并发进程"这一个问题一路逼出来的。</p>
+<div class="flow">
+  <div class="fnode"><b>进程 ≠ 程序</b>程序是静态代码,进程是"程序的一次执行",有生命期</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>要管它就得记它</b>OS 用一张表 <b>PCB</b> 记录每个进程,PCB 是进程存在的唯一标志</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>它会变状态</b>就绪/运行/阻塞…状态字段就存在 PCB 里</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>改状态要原子</b>创建/撤销/block/wakeup 用<b>原语</b>=不可中断,否则 PCB 会被改乱</div>
+</div>
+
+<!-- ===================== 1. 签名交互件:状态机迁移器 ===================== -->
+<h2 id="s1">🖼 1. 先看画面:亲手驱动一个进程的状态机</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 下面这张图就是进程的"人生地图"。你按事件按钮(相当于外界/OS 触发了一件事),看当前<b>蓝色高亮</b>的状态怎么迁移;走得通会绿字解释,<b>走不通会红字"此路不通"</b>并告诉你为什么。
+</div>
+<div class="panel">
+  <div class="hint">👇 先切"五态/七态",再点下面的事件按钮驱动它。故意去点两条不可能的转换(在<b>阻塞态</b>点"被调度"、在<b>就绪态</b>点"请求I/O")看会发生什么。</div>
+
+  <div>
+    <button class="btn on" id="mode5" onclick="setMode(5)">五态模型</button>
+    <button class="btn" id="mode7" onclick="setMode(7)">七态模型(加挂起)</button>
+    <button class="btn reset" onclick="resetFSM()">↺ 回到「新建」重来</button>
+  </div>
+
+  <div class="fsmwrap">
+    <div class="fsm m5" id="fsm">
+      <svg viewBox="0 0 660 380" aria-hidden="true">
+        <defs>
+          <marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+            <path d="M0,0 L7,3 L0,6 Z" fill="#8aa"></path>
+          </marker>
+        </defs>
+        <!-- 五态基本边 -->
+        <line id="a_admit"    class="edge" x1="140" y1="108" x2="174" y2="72"  marker-end="url(#ah)"></line>
+        <line id="a_dispatch" class="edge" x1="304" y1="46"  x2="390" y2="46"  marker-end="url(#ah)"></line>
+        <line id="a_timeout"  class="edge" x1="390" y1="66"  x2="306" y2="66"  marker-end="url(#ah)"></line>
+        <line id="a_reqio"    class="edge" x1="446" y1="82"  x2="446" y2="208" marker-end="url(#ah)"></line>
+        <line id="a_ioend"    class="edge" x1="398" y1="218" x2="300" y2="82"  marker-end="url(#ah)"></line>
+        <line id="a_exit"     class="edge" x1="518" y1="52"  x2="528" y2="96"  marker-end="url(#ah)"></line>
+        <!-- 七态挂起边 -->
+        <line id="a_r_susp"   class="edge s7" x1="232" y1="82"  x2="232" y2="208" marker-end="url(#ah)"></line>
+        <line id="a_r_act"    class="edge s7" x1="252" y1="208" x2="252" y2="82"  marker-end="url(#ah)"></line>
+        <line id="a_run_susp" class="edge s7" x1="392" y1="74"  x2="302" y2="212" marker-end="url(#ah)"></line>
+        <line id="a_b_susp"   class="edge s7" x1="446" y1="262" x2="446" y2="311" marker-end="url(#ah)"></line>
+        <line id="a_b_act"    class="edge s7" x1="468" y1="311" x2="468" y2="262" marker-end="url(#ah)"></line>
+        <line id="a_bs_ioend" class="edge s7" x1="396" y1="330" x2="300" y2="252" marker-end="url(#ah)"></line>
+        <!-- 边标签 -->
+        <text class="elabel" x="118" y="80">接纳</text>
+        <text class="elabel" x="330" y="40">被调度</text>
+        <text class="elabel" x="322" y="82">时间片到</text>
+        <text class="elabel" x="452" y="150">请I/O</text>
+        <text class="elabel" x="322" y="158">I/O完成</text>
+        <text class="elabel" x="528" y="72">结束</text>
+        <text class="elabel s7" x="196" y="150">挂起</text>
+        <text class="elabel s7" x="258" y="150">激活</text>
+        <text class="elabel s7" x="452" y="292">挂起</text>
+        <text class="elabel s7" x="474" y="292">激活</text>
+        <text class="elabel s7" x="322" y="300">I/O完成</text>
+      </svg>
+
+      <div class="node" id="n_new"     style="left:8px;   top:95px">新建<small>New</small></div>
+      <div class="node" id="n_ready"   style="left:176px; top:30px">就绪<small>Ready</small></div>
+      <div class="node" id="n_running" style="left:392px; top:30px">运行<small>Running</small></div>
+      <div class="node" id="n_term"    style="left:524px; top:95px">终止<small>Terminated</small></div>
+      <div class="node" id="n_blocked" style="left:392px; top:210px">阻塞<small>Blocked</small></div>
+      <div class="node s7" id="n_rsusp" style="left:176px; top:210px">静止就绪<small>Ready-Suspend</small></div>
+      <div class="node s7" id="n_bsusp" style="left:392px; top:315px">静止阻塞<small>Blocked-Suspend</small></div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" onclick="step('admit')">接纳(创建完成)</button>
+    <button class="btn" onclick="step('dispatch')">被调度</button>
+    <button class="btn" onclick="step('timeout')">时间片到</button>
+    <button class="btn" onclick="step('reqio')">请求I/O</button>
+    <button class="btn" onclick="step('ioend')">I/O完成</button>
+    <button class="btn" onclick="step('exit')">结束</button>
+    <button class="btn" onclick="step('suspend')">挂起</button>
+    <button class="btn" onclick="step('activate')">激活</button>
+  </div>
+  <div class="readout" id="fsmOut">← 点上面的事件按钮驱动状态机。</div>
+</div>
+<div class="key">
+<b>要点:</b> 事件才是主角。同一个进程,来了"时间片到"就退回就绪、来了"请求I/O"就掉进阻塞——<b>是事件决定去哪,不是进程想去哪</b>。
+</div>
+
+<!-- ===================== 2. ELI5 类比 ===================== -->
+<h2 id="s2">🧸 2. 用课堂类比讲清五个状态</h2>
+<div class="eli5">
+<b>🧸 一句话(照总框架的口径):</b> 把 CPU 想成"老师点名回答问题",一个学生(进程)就在下面几种状态里转:
+</div>
+<div class="panel">
+<ul>
+<li><b>新建 New</b>:刚转学进来,学籍还没办好(PCB 还在初始化),还没进班排队。</li>
+<li><b>就绪 Ready</b>:"我准备好了,就等老师点我"——万事俱备,<b>只差 CPU</b>。</li>
+<li><b>运行 Running</b>:"老师正在让我回答问题"——真正占着 CPU 在执行。</li>
+<li><b>阻塞 Blocked</b>:"我在等课代表把资料发给我,没资料我答不了"——在<b>等某个事件</b>(等 I/O、等信号量、等数据),<b>这时点我也没用</b>。</li>
+<li><b>终止 Terminated</b>:答完下课离场,学籍注销(PCB 回收)。</li>
+</ul>
+<p class="hint">反例:如果没有"阻塞"这个状态会怎样?那么一个在等磁盘数据的进程只能一直占着 CPU 空转("忙等"),CPU 被白白浪费——正是为了把"在等事件"的进程<b>踢下 CPU</b>,才需要阻塞态。</p>
+</div>
+
+<!-- ===================== 3. 对照表 ===================== -->
+<h2 id="s3">⚖️ 3. 对照表:一辈子都别再混的两组概念</h2>
+<div class="eli5"><b>🧸 一句话:</b> 考试最爱在"就绪 vs 阻塞"和"五态 vs 七态"上设坑,先把这两张表刻进脑子。</div>
+
+<h3>⚖️ 就绪 Ready vs 阻塞 Blocked(核心判据)</h3>
+<table>
+<tr><th>比什么</th><th>就绪 Ready</th><th>阻塞 Blocked</th></tr>
+<tr><td>它在等什么</td><td><b>只等 CPU</b>(其它资源都拿到了)</td><td>在<b>等某个事件</b>(I/O完成、数据到达、信号量…)</td></tr>
+<tr><td>现在给它 CPU 会怎样</td><td>立刻就能跑</td><td><b>照样跑不了</b>——事件没来,拿到 CPU 也没用</td></tr>
+<tr><td>排在哪个队列</td><td>就绪队列 RL(通常一条)</td><td>阻塞队列 WL(按等待事件常分成多条)</td></tr>
+<tr><td>谁把它弄成这样</td><td>被 <code>wakeup</code>/调度让出/创建接纳</td><td>运行中自己调用 <code>block()</code> 主动进入</td></tr>
+</table>
+<div class="key"><b>结论:</b> 判断一个进程该是就绪还是阻塞,就问一句——"<b>现在把 CPU 给它,它跑得动吗?</b>"跑得动=就绪,跑不动=阻塞。</div>
+
+<h3>⚖️ 五态 vs 七态(七态=五态 + 两个"挂起")</h3>
+<table>
+<tr><th>模型</th><th>状态</th><th>解决什么问题</th></tr>
+<tr><td>五态</td><td>新建 / 就绪 / 运行 / 阻塞 / 终止</td><td>描述一个进程在内存里的完整生命期</td></tr>
+<tr><td>七态</td><td>再加 <b>静止就绪</b>(就绪挂起) + <b>静止阻塞</b>(阻塞挂起)</td><td>内存不够时把进程<b>换到外存</b>暂存;"活动"在内存、"静止"在外存</td></tr>
+</table>
+<p class="hint">口径(照 PPT 2.1.4):挂起前叫"活动就绪/活动阻塞",挂起后叫"静止就绪/静止阻塞"。运行态或活动就绪被<b>挂起</b>→静止就绪;活动阻塞被挂起→静止阻塞。</p>
+
+<!-- ===================== 4. 是什么:精确定义 ===================== -->
+<h2 id="s4">📖 4. 是什么:三个精确定义(对齐教材原文)</h2>
+
+<div class="key">
+<b>定义①·三种基本状态:</b>
+<b>运行态(Running)</b>=进程已获得 CPU 正在运行;<b>就绪态(Ready)</b>=已获得除 CPU 外的一切所需资源,一旦得到 CPU 即可运行;<b>阻塞态(Blocked)</b>=正在等待某事件发生(如请求 I/O 而等待 I/O 完成)而暂停,此时即使把 CPU 分给它也无法运行。
+</div>
+
+<div class="key">
+<b>定义②·PCB(进程控制块):</b>
+PCB 是 OS 用来描述进程的基本情况和运行状态、进而控制和管理进程的核心数据结构,<b>是进程存在的唯一标志</b>。它让一个本来不能独立运行的程序,成为能与其它进程并发执行的进程——OS 就是靠 PCB 来控制和管理进程的。
+</div>
+
+<h3>PCB 里存了什么(四大类字段)</h3>
+<table>
+<tr><th>类别</th><th>典型字段</th></tr>
+<tr><td>进程标识符</td><td>内部标识符(唯一序号)、外部标识符、父/子进程标识、用户标识</td></tr>
+<tr><td>处理机状态</td><td>通用寄存器、指令计数器 PC、程序状态字 PSW、用户栈指针(切换时保存/恢复现场)</td></tr>
+<tr><td>进程调度信息</td><td><b>进程状态</b>、优先级、已等待/已执行时间、<b>事件(阻塞原因)</b></td></tr>
+<tr><td>进程控制信息</td><td>程序和数据的地址、同步与通信机制(信号量/消息队列指针)、资源清单、链接指针</td></tr>
+</table>
+<p class="hint">注意:"进程状态"这个字段就存在 PCB 里——所以状态转换本质上就是<b>改 PCB 里的 state 字段 + 把 PCB 挪到对应队列</b>。</p>
+
+<div class="key">
+<b>定义③·四个进程控制原语:</b>
+<b>创建原语 create</b>(申请空白 PCB→分配资源→初始化 PCB→插入就绪队列)、<b>撤销原语 destroy</b>(找到 PCB→若在运行则停止→撤销其子孙→回收资源→PCB 移出队列)、<b>阻塞原语 block()</b>(运行进程主动调用:停止执行→state 改"阻塞"→插入阻塞队列→转调度)、<b>唤醒原语 wakeup()</b>(事件发生时由别的进程调用:从阻塞队列移出→state 改"就绪"→插入就绪队列)。
+</div>
+
+<!-- ===================== 5. 为什么:层层追问 ===================== -->
+<h2 id="s5">❓ 5. 为什么:把动机挖到底</h2>
+
+<div class="panel">
+<h3>第 1 层:为什么"阻塞→运行"和"就绪→阻塞"根本不可能?</h3>
+<p>这是本课最高频的送分/送命题。用那句判据一击致命:</p>
+<ul>
+<li><b>阻塞 → 运行 ✘</b>:阻塞进程在等事件,<b>就算把 CPU 硬塞给它也没法用</b>。它必须先等到事件("I/O 完成")→被 <code>wakeup</code> 变<b>就绪</b>→再"被调度"才能运行。中间<b>必须经过就绪</b>做跳板。</li>
+<li><b>就绪 → 阻塞 ✘</b>:只有<b>正在运行</b>的进程才会发起 I/O 请求(要有 CPU 在执行才谈得上"执行到一条 I/O 指令")。就绪进程手里没有 CPU、根本没在跑,谈不上"请求 I/O",自然进不了阻塞。它必须先"被调度"变<b>运行</b>,运行中请求 I/O 才掉进阻塞。</li>
+</ul>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 红线两条(点交互件里的这两步会报"此路不通"):</b><br>
+1) <b>阻塞 → 运行</b> 不存在,要经<b>就绪</b>中转;<br>
+2) <b>就绪 → 阻塞</b> 不存在,要经<b>运行</b>中转。<br>
+记忆:<b>进出 CPU 的门只有"就绪"和"运行"这一对;阻塞永远只能和"就绪"打交道,不直接碰"运行"。</b>
+</div>
+
+<div class="panel">
+<h3>第 2 层:为什么进程控制非得用"原语(原子操作)"?</h3>
+<p>"原语"= primitive,<b>执行期间不可被中断、要么全做完要么全不做</b>。为什么必须这样?因为 block/wakeup/create/destroy 都要<b>同时改好几处</b>:改 PCB 的 state 字段 + 把 PCB 从这条队列摘下 + 挂到那条队列。</p>
+<p>假如中途被打断:比如 <code>wakeup</code> 刚把 state 改成"就绪",还没来得及把 PCB 插进就绪队列,就被切走——此时这个进程<b>状态说它就绪,却不在任何队列里</b>,调度器永远选不到它,它就"人间蒸发"了。用原语保证这一串操作原子完成,PCB 和队列才始终一致。</p>
+</div>
+
+<div class="panel">
+<h3>第 3 层:为什么七态要引入"挂起"?边界在哪?</h3>
+<p>动机(照 PPT):内存紧张、或管理员要暂停进程排故障、或用户想看中间结果时,把进程<b>换到外存</b>腾内存。于是活动态(在内存)分裂出静止态(在外存)。</p>
+<p>边界细节要记牢:<b>静止阻塞</b>的进程,即使人在外存,它等的事件也可能完成——这时它转成<b>静止就绪</b>(注意仍在外存!要再"激活"换回内存才变活动就绪)。这就是交互件里 <code>静止阻塞 --I/O完成--> 静止就绪</code> 那条边。</p>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="s6">✅ 6. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>选择题 1</h3>
+<p>下列哪一种状态转换是<b>不可能直接发生</b>的?</p>
+<p>
+A. 运行 → 就绪<br>
+B. 阻塞 → 运行<br>
+C. 运行 → 阻塞<br>
+D. 就绪 → 运行
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 阻塞进程在等事件,给它 CPU 也跑不了,必须先经"就绪"中转(阻塞→就绪→运行)。
+A 时间片到,合法;C 运行中请求 I/O,合法;D 被调度选中,合法。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 2</h3>
+<p>"就绪"和"阻塞"最根本的区别是?</p>
+<p>
+A. 就绪在内存、阻塞在外存<br>
+B. 就绪在等 I/O、阻塞在等 CPU<br>
+C. 就绪只差 CPU(给 CPU 立刻能跑),阻塞在等其它事件(给 CPU 也没用)<br>
+D. 两者没有本质区别,只是叫法不同
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 判据就是"给它 CPU 跑得动吗"。
+A 混淆的是"活动/静止(挂起)";B 把两者说反了(就绪等 CPU、阻塞等事件);D 显然错。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 3</h3>
+<p>为什么进程控制(创建/撤销/block/wakeup)要用"<b>原语</b>"实现?</p>
+<p>
+A. 因为原语运行速度更快<br>
+B. 因为原语是原子操作、执行中不可被中断,避免 PCB 和队列被并发改乱、出现状态不一致<br>
+C. 因为原语只能由用户程序调用<br>
+D. 因为原语执行时不占用 CPU
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:B。</b> 原语=原子、不可分割,保证"改 state + 挪队列"这一串要么全做完要么全不做。
+A 快慢不是重点;C 恰恰相反,原语多由 OS 内核执行;D 执行任何指令都要占 CPU。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 4</h3>
+<p>关于 PCB 的地位,下列<b>正确</b>的是?</p>
+<p>
+A. PCB 是进程存在的唯一标志,OS 靠它来控制和管理进程<br>
+B. PCB 里保存的是进程的全部程序代码本身<br>
+C. 进程终止后,它的 PCB 会被永久保留<br>
+D. 一个进程可以没有 PCB 也照样被调度运行
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:A。</b> PCB 是进程存在的唯一标志。
+B 错:PCB 存的是程序/数据的<b>地址</b>和管理信息,不是代码本身;C 错:撤销原语会回收 PCB;D 错:没 PCB 就不是"进程",无从调度。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>选择题 5(七态)</h3>
+<p>一个处于<b>静止阻塞</b>(阻塞挂起)的进程,它等待的 I/O 完成后,会转到哪个状态?</p>
+<p>
+A. 活动就绪<br>
+B. 运行<br>
+C. 静止就绪(仍在外存,要"激活"才回内存)<br>
+D. 活动阻塞
+</p>
+<details>
+<summary>点我看答案</summary>
+<p><b>答案:C。</b> 人在外存也能等到事件完成:静止阻塞→静止就绪,但仍在外存,须再"激活"才变活动就绪。
+A/D 要先"激活"换回内存才谈得上;B 任何状态都不能直接跳到运行,必须经(活动)就绪+被调度。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>口述题(别打字,张嘴说)——通过条件</h3>
+<ol>
+<li>用一句话说出"就绪 vs 阻塞"的判据。</li>
+<li>不看屏幕,画/说出五态转换图,并说清每条边由什么事件触发。</li>
+<li>说出为什么"阻塞→运行"和"就绪→阻塞"不可能,各要经哪个态中转。</li>
+<li>说清 PCB 是什么、为什么是"进程存在的唯一标志",以及原语为什么必须原子。</li>
+</ol>
+<p style="font-size:13.5px;color:var(--muted)"><b>通过条件:</b>四条都能顺口说出、且能在交互件上一步不错地走完一条"新建→就绪→运行→阻塞→就绪→运行→终止"的完整路径 → 你是真懂了。哪条卡壳,回到对应小节再点一遍交互件。</p>
+</div>
+
+<footer>
+第 42 课 · Ch2 进程管理 · 进程状态转换(五态/七态)+ PCB + 四原语<br>
+相关课 →
+<a href="./0010-process-sync.html">第 10 课·进程同步与 PV(阻塞态从哪来)</a> ·
+<a href="./0012-process-thread-deadlock.html">第 12 课·进程/线程/死锁辨析</a> ·
+<a href="./0025-xv6-fork-pcb-walkthrough.html">第 25 课·xv6 里的 PCB 源码走读</a>
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// 状态机迁移器:纯原生 JS,零依赖。
+// CUR=当前状态key;MODE=5或7;T=转换表(state→event→规则)。
+// 规则形态:{to,arrow,why[,s7]} 合法迁移 | {bad:'famous'|'plain',why} 非法。
+// 未列出的(state,event)=该事件不作用于此状态(温和报错)。
+// =============================================================
+var CUR = 'new', MODE = 5;
+
+var STATES = {
+  'new':   {label:'新建 New'},
+  ready:   {label:'就绪 Ready'},
+  running: {label:'运行 Running'},
+  blocked: {label:'阻塞 Blocked'},
+  term:    {label:'终止 Terminated'},
+  rsusp:   {label:'静止就绪 Ready-Suspend'},
+  bsusp:   {label:'静止阻塞 Blocked-Suspend'}
+};
+var EVT = {
+  admit:'接纳(创建完成)', dispatch:'被调度', timeout:'时间片到',
+  reqio:'请求I/O', ioend:'I/O完成', suspend:'挂起', activate:'激活', exit:'结束'
+};
+
+var T = {
+  'new': {
+    admit:{to:'ready', arrow:'a_admit',
+      why:'新建进程完成初始化(申请空白 PCB、分配资源、初始化 PCB),被系统接纳、插入<b>就绪队列</b>,开始排队等 CPU。'}
+  },
+  ready: {
+    dispatch:{to:'running', arrow:'a_dispatch',
+      why:'调度程序从就绪队列<b>选中</b>它,把 CPU 交给它。就绪本来只差 CPU,现在补上 → 运行。'},
+    reqio:{bad:'famous',
+      why:'<b>就绪 → 阻塞 不可能!</b> 只有<b>正在运行</b>的进程才会发起 I/O 请求;就绪进程手里根本没有 CPU、没在执行,谈不上"请求 I/O"。它得先"被调度"变运行,运行中请求 I/O 才会掉进阻塞。'},
+    suspend:{to:'rsusp', s7:true, arrow:'a_r_susp',
+      why:'活动就绪被挂起、换到外存 → <b>静止就绪</b>,暂时不参与调度。'}
+  },
+  running: {
+    timeout:{to:'ready', arrow:'a_timeout',
+      why:'时间片用完被<b>抢占</b>,CPU 被收回。它随时还能再跑,所以退回<b>就绪</b>排队,不是阻塞。'},
+    reqio:{to:'blocked', arrow:'a_reqio',
+      why:'运行中主动<b>请求 I/O</b>,拿不到结果没法继续,于是调用 <code>block()</code> 自己放弃 CPU 去等 → 阻塞。'},
+    exit:{to:'term', arrow:'a_exit',
+      why:'程序运行结束或被撤销,调用<b>撤销原语</b>:回收资源、把 PCB 移出队列,进程消亡 → 终止。'},
+    suspend:{to:'rsusp', s7:true, arrow:'a_run_susp',
+      why:'正在运行的进程被挂起:让出 CPU 并换出内存 → <b>静止就绪</b>。'}
+  },
+  blocked: {
+    ioend:{to:'ready', arrow:'a_ioend',
+      why:'它等的事件(如 I/O)完成了,别的进程调用 <code>wakeup()</code> 把它叫醒。注意:只回到<b>就绪</b>排队,不是直接运行!'},
+    dispatch:{bad:'famous',
+      why:'<b>阻塞 → 运行 不可能!</b> 阻塞进程在等事件,就算把 CPU 硬塞给它也没法用。必须先"I/O 完成"回到<b>就绪</b>,再"被调度"才能运行。'},
+    suspend:{to:'bsusp', s7:true, arrow:'a_b_susp',
+      why:'活动阻塞被挂起、换到外存 → <b>静止阻塞</b>:仍在等事件,但进程体已在外存。'}
+  },
+  rsusp: {
+    activate:{to:'ready', s7:true, arrow:'a_r_act',
+      why:'激活:换回内存,静止就绪 → <b>活动就绪</b>,重新参与调度。'},
+    dispatch:{bad:'plain',
+      why:'静止就绪在<b>外存</b>,不参与调度。必须先"激活"换回内存变活动就绪,才能被调度。'}
+  },
+  bsusp: {
+    activate:{to:'blocked', s7:true, arrow:'a_b_act',
+      why:'激活:换回内存,静止阻塞 → <b>活动阻塞</b>,继续在内存里等事件。'},
+    ioend:{to:'rsusp', s7:true, arrow:'a_bs_ioend',
+      why:'人在外存也能等到事件完成:静止阻塞 → <b>静止就绪</b>(但仍在外存,要"激活"才回内存)。'}
+  },
+  term: {}
+};
+
+var out = document.getElementById('fsmOut');
+
+function say(ok, html){
+  out.innerHTML = '<span class="step ' + (ok?'okc':'badc') + '">' + (ok?'✔ ':'✘ ') + html + '</span>';
+}
+function clearFlash(){
+  var es = document.querySelectorAll('.edge.flash');
+  for (var i=0;i<es.length;i++) es[i].classList.remove('flash');
+}
+function flashEdge(id){
+  var e = document.getElementById(id);
+  if (e) e.classList.add('flash');
+}
+function flashBad(){
+  var n = document.getElementById('n_' + CUR);
+  if (!n) return;
+  n.classList.add('bad');
+  setTimeout(function(){ n.classList.remove('bad'); }, 1000);
+}
+function renderNodes(){
+  for (var k in STATES){
+    if (!STATES.hasOwnProperty(k)) continue;
+    var el = document.getElementById('n_' + k);
+    if (el) el.classList.toggle('on', k === CUR);
+  }
+}
+
+function step(ev){
+  clearFlash();
+  // 五态模型下按挂起/激活:友好提示
+  if ((ev === 'suspend' || ev === 'activate') && MODE === 5){
+    say(false, '当前是<b>五态模型</b>,没有"挂起态"。想练挂起/激活,请先点上面切到<b>七态模型</b>。');
+    return;
+  }
+  var rule = (T[CUR] || {})[ev];
+  if (!rule){
+    say(false, '在「' + STATES[CUR].label + '」下,「' + EVT[ev] + '」不会发生 —— 该事件不作用于此状态。');
+    return;
+  }
+  if (rule.bad){
+    flashBad();
+    say(false, (rule.bad === 'famous' ? '🚫 此路不通!<br>' : '') + rule.why);
+    return;
+  }
+  // 合法迁移
+  flashEdge(rule.arrow);
+  var from = STATES[CUR].label;
+  CUR = rule.to;
+  renderNodes();
+  say(true, '<b>' + from + '</b> —<i>' + EVT[ev] + '</i>→ <b>' + STATES[CUR].label + '</b><br>' + rule.why);
+}
+
+function setMode(m){
+  MODE = m;
+  var fsm = document.getElementById('fsm');
+  fsm.classList.toggle('m5', m === 5);
+  fsm.classList.toggle('m7', m === 7);
+  document.getElementById('mode5').classList.toggle('on', m === 5);
+  document.getElementById('mode7').classList.toggle('on', m === 7);
+  // 切回五态时,若当前停在挂起态,拉回对应活动态,避免高亮消失
+  if (m === 5 && CUR === 'rsusp') CUR = 'ready';
+  if (m === 5 && CUR === 'bsusp') CUR = 'blocked';
+  clearFlash();
+  renderNodes();
+  say(true, '已切到<b>' + (m === 5 ? '五态' : '七态') + '模型</b>。当前状态:<b>' + STATES[CUR].label + '</b>。');
+}
+
+function resetFSM(){
+  CUR = 'new';
+  clearFlash();
+  renderNodes();
+  say(true, '已回到<b>新建 New</b>。试试点"接纳(创建完成)"让它进入就绪。');
+}
+
+// ===== 首屏渲染 =====
+function init(){
+  setMode(5);
+  CUR = 'new';
+  renderNodes();
+  say(true, '当前状态:<b>新建 New</b>。按事件按钮驱动它;故意在<b>阻塞</b>点"被调度"、在<b>就绪</b>点"请求I/O",看会不会"此路不通"。');
+}
+init();
+</script>
+</body>
+</html>
