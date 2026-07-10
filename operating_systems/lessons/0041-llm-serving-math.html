@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 41 课 · 加餐 · 大模型训练与服务背后的数学（黑板课精讲：Roofline · 权重时间 vs KV cache · batch 经济学 · API 定价）</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:960px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:24px; margin:6px 0 8px; line-height:1.35}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:40px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox{background:#fdf0f0; border:1px solid #f2c9c9; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  /* 顶部导航 */
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* 全局故事线 */
+  .flow{display:flex; flex-wrap:wrap; align-items:stretch; gap:6px; margin:12px 0}
+  .fnode{flex:1 1 130px; min-width:120px; border:1px solid var(--line); border-radius:8px; padding:9px 10px; background:#fff; font-size:13px}
+  .fnode b{display:block; color:var(--blue); font-size:13.5px; margin-bottom:2px}
+  .fnode.warn{border-color:#f0d9b5; background:#fff7ed}
+  .fnode.warn b{color:var(--amber)}
+  .farrow{align-self:center; color:#aab; font-weight:700}
+
+  /* 公式盒 */
+  .formula{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0; font-size:14px}
+  .formula b{color:var(--purple)}
+  .formula code{background:#ece0f7; font-size:14px}
+
+  /* OS 加餐关系条 */
+  .bridge{background:#eef4fb; border:1px solid #cfe0f4; border-radius:8px; padding:12px 14px; margin:14px 0; font-size:14px}
+  .bridge b{color:var(--blue)}
+
+  /* 两根「时钟」条 */
+  .clocks{display:flex; flex-direction:column; gap:8px; margin:10px 0}
+  .clockrow{display:flex; align-items:center; gap:8px}
+  .clocklab{flex:0 0 128px; font-size:13px; font-weight:700}
+  .clockbar{flex:1; height:26px; border-radius:5px; position:relative; overflow:hidden; background:#f0f2f6; border:1px solid var(--line)}
+  .clockfill{height:100%; display:flex; align-items:center; padding:0 8px; font-size:12px; font-weight:700; color:#fff; white-space:nowrap}
+  .cf-w{background:var(--green)} .cf-kv{background:var(--blue2)} .cf-c{background:var(--amber)}
+
+  /* 图表：签名交互件 */
+  .chartwrap{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:6px 0}
+  @media(max-width:640px){ .chartwrap{grid-template-columns:1fr} }
+  .chartbox{border:1px solid var(--line); border-radius:8px; padding:8px 10px 4px; background:#fff}
+  .chartbox h4{margin:0 0 2px; font-size:13.5px; color:var(--ink)}
+  .chartbox .cap{font-size:11.5px; color:var(--muted); margin:0 0 4px}
+  .chartbox svg{display:block; width:100%; height:auto}
+  .sliderrow{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:10px 0 2px}
+  .sliderrow label{font-size:14px; font-weight:700}
+  input[type=range]{flex:1; min-width:180px; accent-color:var(--blue)}
+  .bigb{font-family:"SF Mono",Menlo,monospace; font-weight:800; color:var(--blue); font-size:18px; min-width:56px; text-align:right}
+  .legend{display:flex; flex-wrap:wrap; gap:12px; font-size:12px; color:var(--muted); margin:6px 0 2px}
+  .legend span{display:inline-flex; align-items:center; gap:5px}
+  .swatch{width:16px; height:3px; border-radius:2px; display:inline-block}
+  .readout{margin-top:10px; font-size:14px; line-height:1.7}
+  .readout b{color:var(--blue)}
+  .tag{display:inline-block; font-size:12px; font-weight:700; padding:2px 9px; border-radius:20px; margin-left:4px}
+  .tag.mem{background:#e6f4ea; color:var(--green)} .tag.comp{background:#fef3e2; color:var(--amber)}
+
+  /* 班车 */
+  .bus{display:flex; gap:3px; flex-wrap:wrap; margin:8px 0 2px; max-width:520px}
+  .seat{width:13px; height:13px; border-radius:3px; background:#e3e6ec}
+  .seat.on{background:var(--blue)}
+
+  /* Roofline / 通用小图 */
+  figure{margin:12px 0} figure svg{display:block; width:100%; height:auto; max-width:560px; margin:0 auto}
+  figcaption{font-size:12px; color:var(--muted); text-align:center; margin-top:4px}
+
+  /* MoE 机架 */
+  .racks{display:flex; gap:26px; flex-wrap:wrap; margin:12px 0; justify-content:center; position:relative}
+  .rack{border:2px solid var(--ink); border-radius:8px; padding:10px; background:#fff}
+  .rack .rlab{font-size:12px; font-weight:700; text-align:center; margin-bottom:6px; color:var(--muted)}
+  .gpus{display:grid; grid-template-columns:repeat(2,58px); gap:6px}
+  .gpu{border:1px solid var(--blue); background:#eef4fb; border-radius:5px; padding:5px 3px; text-align:center; font-size:11px; color:var(--blue); font-weight:700}
+  .linklab{display:flex; gap:18px; justify-content:center; flex-wrap:wrap; font-size:12px; margin-top:6px}
+  .linklab span{display:inline-flex; align-items:center; gap:6px; color:var(--muted)}
+  .ldash{width:22px; height:0; border-top:3px solid var(--green)}
+  .ldash.slow{border-top:2px dashed var(--red)}
+
+  /* 三成本 */
+  .costbars{display:flex; gap:10px; align-items:flex-end; height:120px; margin:12px 0 4px; max-width:420px}
+  .costbars > div{flex:1; text-align:center}
+  .cbar{border-radius:5px 5px 0 0; margin:0 auto}
+  .cbar.a{background:var(--purple)} .cbar.b{background:var(--blue2)} .cbar.c{background:var(--amber)}
+  .costbars small{display:block; font-size:12px; color:var(--muted); margin-top:4px}
+
+  /* 自测 */
+  .q{background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px 16px; margin:14px 0}
+  .q .qh{font-weight:700; margin-bottom:6px}
+  .opt{display:block; margin:4px 0; font-size:14px}
+  .ans{margin-top:8px; font-size:13.5px; color:var(--green); background:#ecfdf5; border-radius:6px; padding:8px 10px}
+
+  @media print{ body{background:#fff} .btn,.nav,input[type=range]{display:none} .panel{box-shadow:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 41 课 · 跨主题加餐 · AI 系统 · 「黑板课」精讲</p>
+  <h1>大模型训练与服务背后的数学：为什么 ChatGPT 是这个速度、这个价格、这个长相？</h1>
+  <p class="sub">整理自 Reiner Pope（前 Google TPU 架构师、MatX CEO）在 Dwarkesh 播客里的一整期黑板课。他反复说的一句话是全篇钥匙：<b>只有真正理解训练和推理在集群里怎么跑，才能理解今天 AI 的一切——架构设计、API 定价、进步速度。</b>这一页把他黑板上推的公式，用交互图一步步喂给你。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·两把尺 Roofline</a>
+    <a href="#s2">2·权重时间+KV</a>
+    <a href="#s3">3·班车经济学⚡</a>
+    <a href="#s4">4·Fast Mode/下限</a>
+    <a href="#s5">5·最优batch≈300</a>
+    <a href="#s6">6·MoE/机架</a>
+    <a href="#s7">7·scale up</a>
+    <a href="#s8">8·过度训练</a>
+    <a href="#s9">9·API定价</a>
+    <a href="#s10">10·彩蛋+结论</a>
+    <a href="#quiz">✅自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话主线：</b> 硬件只给你两把尺子——<b>算力</b>（每秒能算多少）和<b>内存带宽</b>（每秒能搬多少数据）。推理时间 = <code>max(算力时间, 内存时间)</code>，而内存时间又只由两块构成：<b>把整个模型权重读一遍</b>（一个常数）＋ <b>读每个用户的 KV cache</b>（随 batch 线性涨）。今天 AI 所有"奇怪"的现象——Fast Mode 为什么贵、延迟为什么有下限、模型为什么长成 MoE、API 为什么这样定价——全都能从这两把尺子推出来。
+</div>
+
+<div class="bridge">
+🎓 <b>先说和你正在复习的《操作系统》什么关系</b>（这就是它算"加餐"的原因）：这篇表面讲 AI，骨子里全是你考试要考的东西——
+<b>Roofline</b> 就是<b>存储层次的"带宽墙"</b>；<b>batch</b> 就是<b>吞吐量 vs 响应时间</b>的调度权衡（像 CPU 调度里"批处理提高吞吐但拉长周转时间"）；<b>KV cache</b> 就是<b>缓存</b>；<b>权重读取</b>就是被<b>内存带宽</b>卡住的瓶颈。看懂这一页，你对"为什么内存带宽这么重要"会有比课本更硬的体感。
+</div>
+
+<!-- ===================== 0. 全局线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线：一根链条串起全篇</h2>
+<p class="hint">别把下面当孤立知识点——它们是"硬件只有算力和带宽两把尺子"这一个约束，一路逼出来的。</p>
+<div class="flow">
+  <div class="fnode"><b>两把尺子</b>硬件 = 算力 + 内存带宽（Roofline）</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>两块时间</b>推理时间 = max(算力时间, 权重时间+KV时间)</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>batch 枢纽</b>车越满越省钱，但要等车坐满 → 越慢</div>
+  <div class="farrow">→</div>
+  <div class="fnode"><b>最优 batch</b>≈ 300 × 稀疏度（算力时间=权重时间处）</div>
+  <div class="farrow">→</div>
+  <div class="fnode warn"><b>推出一切</b>Fast Mode 贵 / 延迟下限 / MoE / scale up / 过度训练 / API 定价</div>
+</div>
+
+<!-- ===================== 1. Roofline ===================== -->
+<h2 id="s1">📐 1. 第一把 / 第二把尺子：Roofline（算力 vs 带宽）</h2>
+
+<div class="eli5">
+<b>🧸 一句话：</b> 想象一个后厨。<b>灶台数量</b>决定你一秒能炒多少菜（＝<b>算力</b>）；<b>传菜速度</b>决定食材多快能送到灶台（＝<b>内存带宽</b>）。一道菜到底慢在哪？要么灶台不够（<b>算力受限</b>），要么食材送不过来（<b>带宽受限</b>）。Roofline 就是把这两种"卡点"画进同一张图，一眼看出你卡在哪一边。
+</div>
+
+<figure>
+<svg viewBox="0 0 560 300" role="img" aria-label="Roofline 屋顶线示意图">
+  <line x1="60" y1="30" x2="60" y2="250" stroke="#c7ccd6"/>
+  <line x1="60" y1="250" x2="530" y2="250" stroke="#c7ccd6"/>
+  <!-- 带宽斜坡 -->
+  <line x1="60" y1="250" x2="260" y2="70" stroke="#2f855a" stroke-width="2.4"/>
+  <!-- 算力屋顶 -->
+  <line x1="260" y1="70" x2="530" y2="70" stroke="#b7791f" stroke-width="2.4"/>
+  <!-- 脊点 -->
+  <line x1="260" y1="70" x2="260" y2="250" stroke="#6b46c1" stroke-dasharray="3 3"/>
+  <circle cx="260" cy="70" r="5" fill="#6b46c1"/>
+  <text x="266" y="64" font-size="12" fill="#6b46c1" font-weight="700">脊点 · 算力时间 = 带宽时间</text>
+  <text x="120" y="150" font-size="12" fill="#2f855a" font-weight="700" transform="rotate(-42 120 150)">带宽受限（爬坡）</text>
+  <text x="330" y="60" font-size="12" fill="#b7791f" font-weight="700">算力受限（撞到屋顶）</text>
+  <!-- 两个点 -->
+  <circle cx="140" cy="178" r="5" fill="#c53030"/>
+  <text x="86" y="196" font-size="11" fill="#c53030">小 batch 推理：在斜坡上，带宽受限</text>
+  <circle cx="400" cy="70" r="5" fill="#3182ce"/>
+  <text x="340" y="92" font-size="11" fill="#3182ce">大 batch / 训练：撞屋顶，算力受限</text>
+  <text x="150" y="278" font-size="12" fill="#667">运算强度（每读 1 字节做多少次运算）→</text>
+  <text x="16" y="140" font-size="12" fill="#667" transform="rotate(-90 16 140)">实际算力 →</text>
+</svg>
+<figcaption>屋顶线：左边斜坡的斜率就是内存带宽，右边平顶就是峰值算力。脊点左侧＝带宽受限，右侧＝算力受限。</figcaption>
+</figure>
+
+<h3>❓ 为什么这张图是全篇地基（往深里追）</h3>
+<p>因为它把"慢"这件事拆成了<b>互斥的两种病</b>，而且这两种病要用<b>完全相反的药</b>：带宽受限的病，加算力没用，得加带宽或让每次读的数据被反复利用；算力受限的病，加带宽没用，得加算力。<b>推理（一次生成一个 token）几乎永远在斜坡上——带宽受限</b>；训练和大 batch 才撞屋顶。记住这一条，后面"为什么疯狂堆内存带宽""为什么大 batch 更划算"全都顺理成章。</p>
+
+<!-- ===================== 2. 权重时间 + KV ===================== -->
+<h2 id="s2">⏱ 2. 推理其实只看两块时间：权重时间 + KV cache 时间</h2>
+
+<div class="eli5">
+<b>🧸 一句话：</b> 每往外吐<b>一个字（token）</b>，GPU 都必须把<b>整个模型的权重</b>从显存（HBM）里<b>完整搬一遍</b>——这是"<b>权重时间</b>"，跟你伺候多少用户无关，是笔<b>固定开销</b>。同时它还要读<b>每个用户各自的上下文缓存（KV cache）</b>——这是"<b>KV 时间</b>"，用户越多、聊得越长，就越大。
+</div>
+
+<div class="formula">
+<b>推理时间的极简拆解：</b><br>
+<code>总时间 = max( 算力时间 , 内存时间 )</code><br>
+<code>算力时间 ≈ batch × 每 token 的激活参数量</code><br>
+<code>内存时间 = 权重读取时间（常数） + KV cache 读取时间（随 batch 线性）</code>
+</div>
+
+<div class="clocks">
+  <div class="clockrow"><div class="clocklab" style="color:var(--green)">权重时间（常数）</div>
+    <div class="clockbar"><div class="clockfill cf-w" style="width:62%">把整个模型读一遍 · 和 batch 无关</div></div></div>
+  <div class="clockrow"><div class="clocklab" style="color:var(--blue2)">KV cache 时间</div>
+    <div class="clockbar"><div class="clockfill cf-kv" style="width:34%">每用户独立 · 随 batch × 上下文长度 线性涨</div></div></div>
+  <div class="clockrow"><div class="clocklab" style="color:var(--amber)">算力时间</div>
+    <div class="clockbar"><div class="clockfill cf-c" style="width:22%">随 batch 线性涨 · 总时间取它和内存时间的较大者</div></div></div>
+</div>
+
+<h3>📖 两个必须记牢的定义</h3>
+<table>
+<tr><th>名词</th><th>是什么</th><th>为什么重要</th></tr>
+<tr><td><b>激活参数</b><br>(active params)</td><td>每个 token 实际<b>参与计算</b>的参数量。有些模型总参数极大，但每次只激活其中一小部分（见第 6 节 MoE）。</td><td>它决定"<b>算力时间</b>"。激活得越少，算力越省。</td></tr>
+<tr><td><b>KV cache</b></td><td>模型为<b>每个用户</b>、每个已生成的 token 存下的中间状态，好让下一个 token 不用重算前文。每个 token 约占<b>几 KB</b>，随 <b>batch × 上下文长度</b>线性增长。</td><td>它是推理时<b>内存的主要消耗者</b>——第 7 节会看到，它大到连 pipeline 都救不了。</td></tr>
+</table>
+
+<!-- ===================== 3. batch 经济学（签名件） ===================== -->
+<h2 id="s3">🚌 3. 全篇枢纽：batch size 的班车经济学 ⚡</h2>
+
+<div class="eli5">
+<b>🧸 一句话：</b> AI 从不是一个用户一个用户单独服务，而是把<b>一大批请求打包（batch）一起算</b>。为什么？因为"把整个模型权重读一遍"这笔固定开销，<b>一车人分摊</b>比一个人扛便宜得多——就像<b>班车</b>：车越满，每个乘客分摊的油钱越少。<b>但代价是你得等车坐满才发车</b>——batch 越大，每个请求等得越久。<b>这一条矛盾，是理解后面一切的钥匙。</b>
+</div>
+
+<h3>🖼 交互件（签名件）：一个 batch 滑块，同时驱动「延迟」和「成本」两条曲线</h3>
+<p class="hint">👇 拖动 batch，左图看<b>延迟</b>（一个请求要等多久）怎么变，右图看<b>每-token 成本</b>（服务一个字花多少钱）怎么变。盯住一件反直觉的事：<b>它俩往相反方向走。</b></p>
+
+<div class="panel">
+  <div class="sliderrow">
+    <label for="bslider">batch size =</label>
+    <input id="bslider" type="range" min="8" max="512" step="4" value="40">
+    <span class="bigb" id="bval">40</span>
+  </div>
+  <div class="bus" id="bus" aria-hidden="true"></div>
+  <div class="hint" id="busnote">班车载客示意：座位填得越满，每人分摊的"读权重"油钱越低。</div>
+
+  <div class="legend">
+    <span><i class="swatch" style="background:#1a2230;height:4px"></i>总时间 = max(两者)</span>
+    <span><i class="swatch" style="background:#3182ce"></i>算力时间</span>
+    <span><i class="swatch" style="background:#2f855a"></i>内存时间(权重+KV)</span>
+    <span><i class="swatch" style="background:#b7791f"></i>权重地板</span>
+  </div>
+
+  <div class="chartwrap">
+    <div class="chartbox">
+      <h4>① 延迟 vs batch（一个请求等多久）</h4>
+      <p class="cap">先贴着"权重地板"几乎不动 → 越过最优点后被算力顶起来陡升。<b>延迟永远下不去那条地板线。</b></p>
+      <div id="latChart"></div>
+    </div>
+    <div class="chartbox">
+      <h4>② 每-token 成本 vs batch（服务一个字多少钱）</h4>
+      <p class="cap">小 batch 时权重成本 ∝ 1/batch，贵到离谱 → 摊薄后一路俯冲到地板。<b>大 batch 便宜得多。</b></p>
+      <div id="costChart"></div>
+    </div>
+  </div>
+
+  <div class="readout" id="bReadout"></div>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 全篇最该记住的辨析：便宜 ≠ 快，它俩是矛盾的。</b> 大 batch 让每个 token 更<b>便宜</b>（成本俯冲），却让每个请求更<b>慢</b>（要等车坐满）。小 batch 反过来——<b>又快又贵</b>。所以"花钱买速度"本质上就是<b>花钱买一个更小的 batch（甚至独占资源）</b>。这正是下一节 Fast Mode 的全部秘密。
+</div>
+
+<!-- ===================== 4. Fast Mode + 下限 ===================== -->
+<h2 id="s4">💸 4. 用上一节直接解释：Fast Mode 为什么贵，延迟为什么有物理下限</h2>
+
+<h3>Fast Mode：付 6 倍钱，为什么只快 ~2.5 倍？</h3>
+<p>很多人纳闷 Claude / Cursor 的 Fast Mode 为什么"贵得不成比例"。答案就在上一张图：Fast Mode 的本质是<b>让你进入更小的 batch、甚至给你更专属的资源</b>。看左图——batch 变小，延迟确实往地板走（更快）；但看右图——成本沿着 1/batch 曲线<b>暴涨</b>。速度的改善是"贴近地板"的<b>有限收益</b>，成本的上涨却是<b>接近发散</b>的。所以<b>6 倍的钱换 2.5 倍的速度</b>——不是厂商黑心，是曲线的形状决定的。</p>
+
+<h3>能不能付 100 倍钱，把速度推到极致？——不能。</h3>
+<div class="key">
+<b>延迟的物理下限（那条"地板"）：</b> 每生成一个 token，都<b>必须把完整权重从 HBM 读一遍</b>，这个时间<b>绕不过去</b>。当前一代硬件上大约是<b>十几毫秒</b>级别。无论你花多少钱、把 batch 缩到多小，都撞不穿这条地板。反过来，<b>Slow Mode 能更便宜吗？几乎没意义</b>——因为 KV cache 是<b>每个用户独立</b>的，把速度放慢并不能像摊薄权重那样摊薄它。
+</div>
+
+<!-- ===================== 5. 最优 batch ===================== -->
+<h2 id="s5">🎯 5. 最优 batch ≈ 300 × 稀疏度（从曲线交点推出来）</h2>
+<p>系统存在一个"最划算"的点。回看第 3 节右图，成本曲线<b>触底的地方</b>，正是左图里<b>算力时间线和内存时间线相交的地方</b>——此时硬件既没闲着算力、也没浪费带宽，利用率最高。</p>
+
+<div class="formula">
+<b>经验法则（来自硬件的"算力÷带宽"比值）：</b><br>
+<code>最优 batch ≈ 300 × 稀疏度</code><br>
+这里的<b>稀疏度 = 总参数 ÷ 激活参数</b>（每个 token 只用到 1/N 的参数，稀疏度就是 N，≥ 1；稠密模型稀疏度 = 1）。所以<b>模型越稀疏（MoE 激活占比越小），最优 batch 越大</b>——每 token 算得越少，就越该多拼几个人一起摊那笔"读权重"的固定开销。那个 ~300 来自 GPU 的"算力 ÷ 带宽"比值，<b>在不同 GPU 代际之间变化不大</b>；工业上实际再放大几倍（真实效率达不到理论极限）。算出来的数量级，和前沿模型真实的运行 batch 非常接近。
+</div>
+<p class="hint">👆 这也解释了交互件里为什么把 b*≈300 标在成本曲线的最低点——那不是我随手画的，是"算力时间=权重时间"这个等式解出来的。</p>
+
+<!-- ===================== 6. MoE + 机架 ===================== -->
+<h2 id="s6">🧩 6. MoE 决定了模型的"长相"，机架是它的物理边界</h2>
+
+<div class="eli5">
+<b>🧸 一句话：</b> MoE（专家混合）= 模型里养着<b>上百个"专家"</b>，但每个 token 只叫醒其中<b>少数几个</b>干活。好处：干活的参数少 → <b>算力时间省</b>；坏处：总参数变得巨大 → <b>内存压力猛增</b>（权重更难一次读完）。这就是为什么前沿模型几乎都长成了 MoE：它用"内存换算力"，而推理恰恰是算力受限的斜坡。
+</div>
+
+<figure>
+<div class="racks">
+  <div class="rack">
+    <div class="rlab">机架 A（同架内 NVLink 高速互连）</div>
+    <div class="gpus">
+      <div class="gpu">GPU0<br>专家 1·2</div><div class="gpu">GPU1<br>专家 3·4</div>
+      <div class="gpu">GPU2<br>专家 5·6</div><div class="gpu">GPU3<br>专家 7·8</div>
+    </div>
+  </div>
+  <div class="rack">
+    <div class="rlab">机架 B（跨机架，慢）</div>
+    <div class="gpus">
+      <div class="gpu">GPU4<br>专家 9·10</div><div class="gpu">GPU5<br>专家 11·12</div>
+      <div class="gpu">GPU6<br>专家 13·14</div><div class="gpu">GPU7<br>专家 15·16</div>
+    </div>
+  </div>
+</div>
+<div class="linklab">
+  <span><i class="ldash"></i>机架内 NVLink：快</span>
+  <span><i class="ldash slow"></i>跨机架：慢，成为瓶颈</span>
+</div>
+<figcaption>专家分散在不同 GPU 上，每个 token 要"路由"到被激活的专家 → 需要全互连通信。同架内很快，跨机架很慢。</figcaption>
+</figure>
+
+<div class="key">
+<b>结论：机架规模本身，成了模型结构的物理边界。</b> 因为激活的专家分布在多张 GPU 上，每算一个 token 都要做一次<b>全互连通信（all-to-all）</b>把数据凑齐。同一机架内走 NVLink 很快，一旦跨机架就明显变慢。于是"一个模型能有多少专家、怎么切"，不是纯算法选择，而是被"<b>一个机架能塞多少 GPU</b>"这条电缆级的物理事实框死的。
+</div>
+
+<!-- ===================== 7. pipeline + scale up ===================== -->
+<h2 id="s7">🔗 7. Pipeline 不是万能药；为什么厂商拼命"scale up"</h2>
+<p><b>流水线并行（pipeline）</b>把模型切成几段、摊到多个机架上，能缓解<b>单卡装不下权重</b>的问题。但陷阱在于：推理时<b>吃内存的大头是 KV cache，不是权重</b>，而 pipeline <b>并不减少 KV cache</b>——某些情况下因为并行的序列变多，KV 占用反而<b>更高</b>。所以推理更偏好把算力<b>集中在一个大的 scale-up 域</b>里，只在必要时才用少量流水线。</p>
+
+<div class="formula">
+<b>为什么疯狂扩大 scale-up 域？主要不是为容量，是为带宽：</b><br>
+<code>权重读取时间 ∝ 1 / GPU 数量</code><br>
+GPU 越多，就能<b>并行地</b>把权重的不同部分同时读出来 → 权重时间（那条延迟地板）被压得更低。这就是为什么不同厂商在<b>基础设施（互连、机架规模）</b>上的差距，会直接变成<b>模型响应速度</b>的差距。
+</div>
+
+<!-- ===================== 8. 过度训练 ===================== -->
+<h2 id="s8">📚 8. 为什么今天的模型被"严重过度训练"</h2>
+<p>从经济学看，一个模型的总成本分三笔：<b>预训练</b>、<b>强化学习（RL）</b>、<b>推理</b>。最优策略是让三者成本<b>大致相等</b>（哪笔特别小，就说明那里还能再投）。</p>
+
+<figure>
+<div class="costbars" role="img" aria-label="三笔成本大致相等">
+  <div><div class="cbar a" style="height:88px"></div><small>预训练</small></div>
+  <div><div class="cbar b" style="height:80px"></div><small>强化学习</small></div>
+  <div><div class="cbar c" style="height:92px"></div><small>推理</small></div>
+</div>
+<figcaption>三笔成本调到大致相等最划算。而推理端一旦产生海量 token，就得靠更充分的训练把每次推理变得更"熟练"。</figcaption>
+</figure>
+
+<div class="key">
+<b>推论：</b> 一个前沿模型在推理阶段吐出的 token 总量，已经<b>接近甚至超过它预训练看过的数据量</b>。既然要吐这么多、每次推理都要花钱，就值得在训练上多砸，让模型每次推理都更高效、更省。结果就是：<b>训练量远远超过传统理论（如 Chinchilla 的"算力最优"）给出的建议</b>——模型被有意"过度训练"，因为账要算在推理这一头。
+</div>
+
+<!-- ===================== 9. API 定价 ===================== -->
+<h2 id="s9">🧾 9. 把定价单读懂：那些"奇怪"的价格全能推出来</h2>
+<p>你在 API 账单上见到的每一条，几乎都能从前面的两块时间推回去。这张表建议直接背下来——它把"物理"翻译成了"价格"：</p>
+<table>
+<tr><th>现象</th><th>为什么（回到两块时间）</th></tr>
+<tr><td><b>长上下文更贵</b></td><td>上下文越长，<b>KV cache 越大</b>，读它的带宽消耗持续增长；超过某个临界点，系统就从"算力受限"翻转成"<b>内存受限</b>"，边际成本陡增。</td></tr>
+<tr><td><b>输出 token 比输入贵</b></td><td>输入可以一次性并行处理（batch 友好）；而输出是<b>一次只生成一个 token</b>，每生成一个都要重读权重 + 全量 KV，<b>KV cache 的开销占比更高</b>，摊不动。</td></tr>
+<tr><td><b>缓存命中（prompt caching）更便宜</b></td><td>命中就能<b>复用已算好的 KV</b>，省掉重算；但复用的前提是<b>把 KV 一直占在显存里</b>，所以它按<b>占用时间</b>收费——省了算力，占了内存。</td></tr>
+</table>
+
+<!-- ===================== 10. 彩蛋 + 结论 ===================== -->
+<h2 id="s10">🔐 10. 彩蛋类比 + 全篇结论</h2>
+<h3>神经网络 与 密码学，居然是"镜像双胞胎"</h3>
+<p>两者都在对信息做<b>复杂的混合与变换</b>，只是方向相反：<b>密码学把结构变成随机</b>（明文 → 看不出规律的密文），<b>神经网络从随机中提取结构</b>（噪声般的数据 → 规律）。它们甚至用相似的<b>可逆结构</b>——在训练里，可逆结构能省大量内存：反向传播时不用把中间结果全存下来，而是<b>需要时再重算一遍</b>（拿算力换内存，又一次 Roofline 权衡）。</p>
+
+<div class="key">
+<b>全篇结论：AI 不是魔法，也不是简单的"把规模堆大"的游戏。</b> 它是一套被<b>机架、电缆、内存带宽、batch 经济学、通信模式</b>这些硬约束牢牢框住的<b>工程系统</b>。你今天看到的价格、上下文长度上限、以及各种看似奇怪的设计决策，本质上都能在这几条约束里找到答案。
+</div>
+
+<!-- ===================== 自测 ===================== -->
+<h2 id="quiz">✅ 自测：6 题（先自己选，再点开对答案）</h2>
+<p class="hint">正确项位置我特意打乱了，别找规律，凭理解选。</p>
+
+<div class="q">
+  <div class="qh">Q1. Fast Mode 付 6 倍钱却只快约 2.5 倍，根本原因是？</div>
+  <span class="opt">A. 用了更贵的 GPU 芯片</span>
+  <span class="opt">B. 把你放进更小的 batch（甚至独占资源），延迟收益有限但成本接近发散</span>
+  <span class="opt">C. 模型权重被压缩了</span>
+  <span class="opt">D. 网络带宽更高</span>
+  <details><summary>看答案</summary><div class="ans"><b>B。</b> 速度是"贴近权重地板"的有限收益，成本却沿 1/batch 暴涨——曲线形状决定了钱涨得比速度快。</div></details>
+</div>
+
+<div class="q">
+  <div class="qh">Q2. 无论花多少钱都突破不了的"延迟物理下限"，由什么锁死？</div>
+  <span class="opt">A. 把整个模型权重从 HBM 完整读一遍的时间（当前约十几毫秒）</span>
+  <span class="opt">B. 网络往返延迟</span>
+  <span class="opt">C. 用户打字的速度</span>
+  <span class="opt">D. KV cache 的大小</span>
+  <details><summary>看答案</summary><div class="ans"><b>A。</b> 每个 token 都必须读一遍完整权重，这个时间绕不过去，就是那条"地板"。</div></details>
+</div>
+
+<div class="q">
+  <div class="qh">Q3. 关于 batch 与"延迟、成本"的关系，哪句是对的？</div>
+  <span class="opt">A. batch 越大，延迟和成本都下降</span>
+  <span class="opt">B. batch 越大，延迟和成本都上升</span>
+  <span class="opt">C. batch 越大，成本下降但延迟上升（便宜和快是矛盾的）</span>
+  <span class="opt">D. batch 大小对两者都没影响</span>
+  <details><summary>看答案</summary><div class="ans"><b>C。</b> 大 batch 摊薄权重成本（更便宜）却要等车坐满（更慢）。这是全篇最核心的矛盾。</div></details>
+</div>
+
+<div class="q">
+  <div class="qh">Q4. 厂商拼命扩大 scale-up 域（堆 GPU），主要图的是什么？</div>
+  <span class="opt">A. 主要是内存容量</span>
+  <span class="opt">B. 主要是内存带宽——权重读取时间 ∝ 1/GPU 数，GPU 越多权重读得越快</span>
+  <span class="opt">C. 为了省电</span>
+  <span class="opt">D. 为了减少 KV cache</span>
+  <details><summary>看答案</summary><div class="ans"><b>B。</b> 更多 GPU 能并行读权重，把延迟地板压低；带宽而非容量才是主目标。</div></details>
+</div>
+
+<div class="q">
+  <div class="qh">Q5. 为什么 MoE 模型里"机架规模"成了模型结构的物理边界？</div>
+  <span class="opt">A. 机架越大越省电</span>
+  <span class="opt">B. 专家分布在多 GPU 上，每 token 要全互连通信；跨机架比机架内 NVLink 慢得多</span>
+  <span class="opt">C. 机架决定了总参数量</span>
+  <span class="opt">D. 机架决定了预训练数据量</span>
+  <details><summary>看答案</summary><div class="ans"><b>B。</b> all-to-all 通信一旦跨机架就变慢，于是"能有多少专家、怎么切"被机架容量框死。</div></details>
+</div>
+
+<div class="q">
+  <div class="qh">Q6. 为什么 API 里"输出 token 比输入 token 贵"？</div>
+  <span class="opt">A. 输出的字数更多</span>
+  <span class="opt">B. 输出要联网</span>
+  <span class="opt">C. 输入能一次性并行处理；输出一次只生成一个 token，每个都要重读权重+全量 KV，KV 开销占比更高、摊不动</span>
+  <span class="opt">D. 输出用了更大的模型</span>
+  <details><summary>看答案</summary><div class="ans"><b>C。</b> 生成是逐 token 的串行过程，batch 摊薄不了每一步的 KV 与权重开销。</div></details>
+</div>
+
+<div class="key">
+<b>🎤 学完请对我复述这三条（teach 的通过条件）：</b>
+① 推理时间为什么只看"权重时间 + KV 时间"这两块？
+② 为什么大 batch 更便宜、却更慢？（用班车讲）
+③ 随便挑一条 API 定价现象，把它推回到那两块时间。
+能用自己的话讲清这三条，这一页就通关了。
+</div>
+
+<footer>
+第 41 课 · 跨主题加餐（与 OS 考试主线并行，可选看）。<br>
+内容整理自 Reiner Pope（前 Google TPU 架构师 / MatX CEO）× Dwarkesh 播客的一期"黑板课"。文中 <code>十几毫秒</code>、<code>300 × 稀疏度</code>、<code>每 token 几 KB</code> 等均为播客给出的<b>数量级经验值</b>，交互曲线为示意用的简化模型（非某具体芯片实测）。<br>
+回到主线：<a href="./0040-storage-calc-exam-cram.html">0040 存储管理计算大题冲刺</a> · <a href="./0013-exam-cheatsheet-map.html">考点速查地图</a>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  // ---- 模型常数（示意用简化模型）----
+  var BMIN=8, BMAX=512;
+  var W=12;     // 权重读取地板（ms）：把整个模型读一遍
+  var KV=0.02;  // KV 时间斜率（ms / batch）
+  var C=0.06;   // 算力时间斜率（ms / batch）
+  var BSTAR=Math.round(W/(C-KV)); // 算力时间=内存时间 的交点 = 300
+
+  function memT(b){return W+KV*b;}
+  function compT(b){return C*b;}
+  function totT(b){return Math.max(memT(b),compT(b));}
+  function cost(b){return totT(b)/b;}
+
+  // ---- 画布坐标 ----
+  var VW=400, VH=240, pL=40, pR=14, pT=14, pB=30;
+  var plotW=VW-pL-pR, plotH=VH-pT-pB;
+  function mx(b){return pL+(b-BMIN)/(BMAX-BMIN)*plotW;}
+  var LYMAX=36, CYMAX=1.6;
+  function myL(v){return pT+(1-Math.min(v,LYMAX)/LYMAX)*plotH;}
+  function myC(v){return pT+(1-Math.min(v,CYMAX)/CYMAX)*plotH;}
+
+  function poly(fn,ymap){
+    var s=''; for(var b=BMIN;b<=BMAX;b+=3){ s+=(s?' ':'')+mx(b).toFixed(1)+','+ymap(fn(b)).toFixed(1);} return s;
+  }
+  function frame(){
+    var s='';
+    s+='<line x1="'+pL+'" y1="'+pT+'" x2="'+pL+'" y2="'+(VH-pB)+'" stroke="#c7ccd6"/>';
+    s+='<line x1="'+pL+'" y1="'+(VH-pB)+'" x2="'+(VW-pR)+'" y2="'+(VH-pB)+'" stroke="#c7ccd6"/>';
+    // b* 竖线
+    s+='<line x1="'+mx(BSTAR)+'" y1="'+pT+'" x2="'+mx(BSTAR)+'" y2="'+(VH-pB)+'" stroke="#6b46c1" stroke-dasharray="2 3"/>';
+    s+='<text x="'+(mx(BSTAR)+3)+'" y="'+(pT+12)+'" font-size="10" fill="#6b46c1">b*≈300</text>';
+    // x 轴刻度
+    s+='<text x="'+pL+'" y="'+(VH-8)+'" font-size="10" fill="#667">8</text>';
+    s+='<text x="'+mx(BSTAR)+'" y="'+(VH-8)+'" font-size="10" fill="#667" text-anchor="middle">300</text>';
+    s+='<text x="'+(VW-pR)+'" y="'+(VH-8)+'" font-size="10" fill="#667" text-anchor="end">512 · batch→</text>';
+    return s;
+  }
+  function marker(b,ymap,fn){
+    var s='';
+    s+='<line x1="'+mx(b)+'" y1="'+pT+'" x2="'+mx(b)+'" y2="'+(VH-pB)+'" stroke="#c53030" stroke-width="1"/>';
+    s+='<circle cx="'+mx(b)+'" cy="'+ymap(fn(b))+'" r="4.6" fill="#c53030"/>';
+    return s;
+  }
+
+  function buildLat(b){
+    var s='<svg viewBox="0 0 '+VW+' '+VH+'" role="img" aria-label="延迟随 batch 变化的曲线">';
+    s+=frame();
+    // 权重地板
+    s+='<line x1="'+pL+'" y1="'+myL(W)+'" x2="'+(VW-pR)+'" y2="'+myL(W)+'" stroke="#b7791f" stroke-dasharray="4 3"/>';
+    s+='<text x="'+(pL+4)+'" y="'+(myL(W)-4)+'" font-size="9.5" fill="#b7791f">权重地板 ~12ms（延迟下不去）</text>';
+    s+='<text x="6" y="'+(pT+8)+'" font-size="10" fill="#667">ms</text>';
+    s+='<polyline fill="none" stroke="#3182ce" stroke-width="1.4" stroke-dasharray="5 3" points="'+poly(compT,myL)+'"/>';
+    s+='<polyline fill="none" stroke="#2f855a" stroke-width="1.4" stroke-dasharray="5 3" points="'+poly(memT,myL)+'"/>';
+    s+='<polyline fill="none" stroke="#1a2230" stroke-width="2.6" points="'+poly(totT,myL)+'"/>';
+    s+=marker(b,myL,totT);
+    s+='</svg>';
+    return s;
+  }
+  function buildCost(b){
+    var s='<svg viewBox="0 0 '+VW+' '+VH+'" role="img" aria-label="每 token 成本随 batch 变化的曲线">';
+    s+=frame();
+    s+='<text x="6" y="'+(pT+8)+'" font-size="10" fill="#667">$/tok</text>';
+    s+='<polyline fill="none" stroke="#1a2230" stroke-width="2.6" points="'+poly(cost,myC)+'"/>';
+    s+=marker(b,myC,cost);
+    s+='</svg>';
+    return s;
+  }
+
+  var lat=document.getElementById('latChart');
+  var cst=document.getElementById('costChart');
+  var slider=document.getElementById('bslider');
+  var bval=document.getElementById('bval');
+  var ro=document.getElementById('bReadout');
+  var bus=document.getElementById('bus');
+
+  // 班车座位
+  var SEATS=40;
+  for(var i=0;i<SEATS;i++){ var d=document.createElement('div'); d.className='seat'; bus.appendChild(d); }
+  var seats=bus.children;
+
+  function render(){
+    var b=parseInt(slider.value,10);
+    bval.textContent=b;
+    lat.innerHTML=buildLat(b);
+    cst.innerHTML=buildCost(b);
+    // 座位填充
+    var on=Math.round((b-BMIN)/(BMAX-BMIN)*SEATS);
+    for(var i=0;i<SEATS;i++){ seats[i].className='seat'+(i<on?' on':''); }
+
+    var memBound=memT(b)>=compT(b);
+    var ratio=(cost(b)/cost(BSTAR)).toFixed(1);
+    var regime = memBound
+      ? '<span class="tag mem">内存受限 · 权重读取主导</span>'
+      : '<span class="tag comp">算力受限</span>';
+    ro.innerHTML =
+      'batch = <b>'+b+'</b> ｜ 延迟 ≈ <b>'+totT(b).toFixed(1)+' ms</b>'+regime+
+      '<br>每-token 成本 ≈ <b>'+cost(b).toFixed(3)+'</b>（相对最优点 b*≈300 贵 <b>'+ratio+' ×</b>）'+
+      '<br><span style="color:#667;font-size:13px">'+
+        (b<BSTAR
+          ? '此处 batch 偏小：延迟贴近地板（<b>快</b>），但每 token <b>贵 '+ratio+' 倍</b>——这就是花钱买来的 Fast Mode。'
+          : (b>BSTAR
+             ? '此处 batch 偏大：成本已到底（<b>便宜</b>），但算力时间把延迟顶了起来（<b>慢</b>）。'
+             : '正好在最优点 b*≈300：算力时间=内存时间，每 token 成本触底、利用率最高。'))+
+      '</span>';
+  }
+  slider.addEventListener('input',render);
+  render();
+})();
+</script>
+</body>
+</html>
