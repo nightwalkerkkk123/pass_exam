@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 68 课 · Ch2 进程管理 · 重点 · 死锁的必要条件</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 68 课 · Ch2 进程管理 · 重点 · 死锁的必要条件</p>
+  <h1>死锁的四个必要条件：互斥·占有等待·不可抢占·循环等待</h1>
+  <p class="sub">重点考点——<b>简答题必背，破坏条件可预防死锁</b>。教材出处：汤小丹第2章2.7节。</p>
+</header>
+
+<div class="key">
+<b>考场必背口诀:</b> "<b>互持不循</b>" —— 互斥、占有等待、不可抢占、循环等待。<br>
+<b>关键理解:</b> 四个条件必须<b>同时满足</b>才会死锁，破坏任意一个就能预防死锁。
+</div>
+
+<h2 id="s0">🗺 0. 死锁是什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 两个或多个人互相卡住：你等我松手，我等你松手，谁也不愿先放——结果就是大家都动不了。
+</div>
+
+<h2 id="s1">📖 1. 四个必要条件详解</h2>
+<table>
+<tr><th>条件</th><th>含义</th><th>例子</th><th>破坏方法</th></tr>
+<tr><td><b>互斥条件</b></td><td>资源一次只能被一个进程占用</td><td>打印机不能同时打印两个文档</td><td>把互斥资源改为共享(如SPOOLing)</td></tr>
+<tr><td><b>占有等待</b></td><td>进程持有资源，又在等新的资源</td><td>拿着碗等筷子，同时不放下碗</td><td>一次性申请所有资源</td></tr>
+<tr><td><b>不可抢占</b></td><td>已分配的资源不能被强制剥夺</td><td>不能从别人手里抢筷子</td><td>允许抢占(如优先级调度)</td></tr>
+<tr><td><b>循环等待</b></td><td>进程间形成环路等待链</td><td>A等B，B等C，C等A</td><td>资源按序编号，按序申请</td></tr>
+</table>
+
+<h2 id="s2">📖 2. 哲学家就餐与死锁</h2>
+<div class="panel">
+<p><b>经典死锁场景:</b> 5个哲学家同时拿起左筷子，都在等右筷子——形成循环等待。</p>
+<p><b>满足四个条件:</b></p>
+<ul>
+<li>互斥: 筷子一次只能一人用</li>
+<li>占有等待: 拿着左等右</li>
+<li>不可抢占: 不能抢别人筷子</li>
+<li>循环等待: 5人形成环</li>
+</ul>
+<p><b>解决方案:</b> 破坏任一条件，如奇偶号哲学家先拿不同侧的筷子(破坏循环等待)。</p>
+</div>
+
+<h2 id="s3">⚠️ 3. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 四个条件必须同时满足:</b> 不是满足一个就会死锁，是<b>四个同时满足</b>才会死锁！
+</div>
+<div class="warnbox">
+<b>坑 2 · 必要条件 vs 充分条件:</b> 四个条件是<b>必要</b>条件(缺一不可)，不是充分条件(满足也不一定死锁)。
+</div>
+
+<h2 id="s4">✅ 4. 自测</h2>
+<div class="panel">
+<p>下列哪种方法<b>不能</b>预防死锁？</p>
+<p>A. 一次性申请所有资源  B. 允许资源抢占  C. 增加进程优先级  D. 资源按序编号</p>
+<details><summary>答案</summary>
+<p><b>C</b>。A破坏占有等待，B破坏不可抢占，D破坏循环等待。单纯增加优先级不涉及四个条件的破坏。</p>
+</details>
+</div>
+
+<footer>
+第 68 课 · 死锁的四个必要条件。<br>
+重点全套:0063 多级反馈队列 · 0064 抢占式SJF · 0065 设备管理 · 0066 文件物理结构 · 0067 调度指标 · 0068 死锁条件 · 0069 段页式 · 0070 页面抖动
+</footer>
+
+</div>
+</body>
+</html>

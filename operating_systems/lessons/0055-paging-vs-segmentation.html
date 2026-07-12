@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 55 课 · Ch4 内存管理 · 简答 · 分页与分段的区别</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .code{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;overflow-x:auto;line-height:1.9;font-family:'SF Mono',monospace;font-size:13px}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 55 课 · Ch4 内存管理 · 简答 · 分页与分段的区别</p>
+  <h1>分页 = 物理切、固定大小;分段 = 逻辑切、大小不固定</h1>
+  <p class="sub">这是简答题 5 分大题的标准答案骨架——<b>一段话区别 + 对照表 + 段页式组合</b>。教材出处:<code>4_存储器管理/ppt文本.md</code> 幻灯片 326-327(分页 vs 分段)、333-334(段页式)。背景见 <a href="./0005-paging-fundamentals.html">0005 分页基础</a>、<a href="./0017-segmentation-vs-paging.html">0017 分页 vs 分段专题</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·对照表</a>
+    <a href="#s3">3·地址公式</a>
+    <a href="#s4">4·段页式</a>
+    <a href="#s5">5·必背</a>
+    <a href="#s6">6·易错</a>
+    <a href="#s7">7·真题</a>
+    <a href="#s8">8·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背两句话:</b><br>
+① <b>分页</b>按<b>物理</b>视角切、大小<b>固定</b>,地址<b>一维</b>;<b>分段</b>按<b>逻辑</b>视角切、大小<b>不固定</b>,地址<b>二维</b>。<br>
+② <b>分页</b>:无外碎片、有内碎片;<b>分段</b>:有外碎片、无内碎片。<b>段页式 = 分段 + 分页</b>:先按段分,再按页切,段表 + 页表两张表,查表两次。
+</div>
+
+<h2 id="s0">🗺 0. 这道简答题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 分页像"<b>按固定尺寸切肉片</b>"(切多少由刀决定),分段像"<b>按部位切</b>"(切多大由料理决定)。两种切法的核心差别 = <b>谁定的尺寸 / 对谁有意义</b>。
+</div>
+<p>5 分题的标准答法:<b>一句话区别(1 分)+ 对照表 6-8 行(2 分)+ 地址公式 / 段页式简介(2 分)</b>。</p>
+
+<h2 id="s1">📖 1. 是什么:分页与分段 = 两种离散内存分配方式</h2>
+<div class="panel">
+  <p><b>分页(4.3 节):</b> 把进程(作业)的<b>逻辑地址空间</b>划分为大小<b>相等</b>的"页"(由系统决定大小,常 4KB),把<b>物理地址空间</b>划分为大小相等的"块 / 页框";以<b>页</b>为单位离散分配。</p>
+  <p><b>分段(4.4 节):</b> 把进程按<b>逻辑意义</b>划分成多个"段"(主程序段、数据段、堆栈段、子程序段……),段大小<b>由用户/程序决定</b>,每段独立从 0 编址;以<b>段</b>为单位离散分配。</p>
+  <p><b>教材原话(幻灯片 327):</b> "页是信息的<b>物理单位</b>(满足系统管理的需要),段是信息的<b>逻辑单位</b>(满足用户的需要);页的大小<b>固定</b>(由系统决定),段的大小<b>不固定</b>(由用户决定);分页的作业(进程)地址是<b>一维</b>的,分段的作业(进程)地址是<b>二维</b>的。"</p>
+</div>
+
+<h2 id="s2">📊 2. 对照表(分页 vs 分段,考场默写版)</h2>
+<table>
+<tr><th>比较维度</th><th>分页(Paging)</th><th>分段(Segmentation)</th></tr>
+<tr><td><b>划分单位</b></td><td>页(物理单位,大小固定)</td><td>段(逻辑单位,大小不固定)</td></tr>
+<tr><td><b>划分决定者</b></td><td><b>系统</b>(硬件/管理员)</td><td><b>用户/程序员</b>(按程序模块)</td></tr>
+<tr><td><b>地址结构</b></td><td>一维:<code>页号 P + 页内偏移 W</code></td><td>二维:<code>段号 S + 段内偏移 W</code></td></tr>
+<tr><td><b>对用户可见性</b></td><td>不可见,系统自动切</td><td>可见,程序员按段编程</td></tr>
+<tr><td><b>地址空间</b></td><td>线性连续(一维)</td><td>多个独立段地址空间(二维)</td></tr>
+<tr><td><b>碎片情况</b></td><td><b>无外碎片,有内碎片</b><br>(页尾装不满浪费)</td><td><b>无内碎片,有外碎片</b><br>(段间留空洞)</td></tr>
+<tr><td><b>共享</b></td><td>困难(共享粒度=页,通常不可读)</td><td>容易(整段共享,如共享 editor)</td></tr>
+<tr><td><b>地址变换</b></td><td>查<b>页表</b>一次</td><td>查<b>段表</b>一次</td></tr>
+<tr><td><b>典型代表</b></td><td>大多数 OS(虚拟内存)</td><td>x86 保护模式、Intel 段机制</td></tr>
+</table>
+<div class="key">
+<b>记忆口诀:</b> "<b>页固段变、页一维段二维、页物理段逻辑</b>"——背这三句,对比基础就稳了。
+</div>
+
+<h2 id="s3">🧮 3. 地址变换公式</h2>
+
+<h3>① 分页的地址变换</h3>
+<div class="code">
+<span style="color:#7d8fa8">// 逻辑地址 = (页号 P, 页内偏移 W),页大小 = PAGE_SIZE</span>
+P = LA / PAGE_SIZE;        <span style="color:#7d8fa8">// 页号 = 逻辑地址 / 页大小</span>
+W = LA % PAGE_SIZE;        <span style="color:#7d8fa8">// 页内偏移 = 逻辑地址 mod 页大小</span>
+
+<span style="color:#7d8fa8">// 查页表得到物理块号 F</span>
+F = 页表[P];
+
+<span style="color:#fbbf24;font-weight:700">PA = F × PAGE_SIZE + W</span>  <span style="color:#7d8fa8">// 物理地址 = 块号×页大小 + 页内偏移</span>
+</div>
+<p class="hint">例:页大小 4KB,逻辑地址 4832(=4×1024 + 896),P=4,W=896 → 查页表得 F=15 → PA = 15×4096+896。</p>
+
+<h3>② 分段的地址变换</h3>
+<div class="code">
+<span style="color:#7d8fa8">// 逻辑地址 = (段号 S, 段内偏移 W),从段表查段基址 BASE[S]</span>
+查段表得 BASE[S] 与 LIMIT[S];      <span style="color:#7d8fa8">// 段基址 + 段长</span>
+<span style="color:#fbbf24;font-weight:700">if</span> (W >= LIMIT[S]) 越界中断;
+<span style="color:#fbbf24;font-weight:700">PA = BASE[S] + W</span>             <span style="color:#7d8fa8">// 物理地址 = 段基址 + 段内偏移</span>
+</div>
+<p class="hint">例:段号 2 段长 1000 段基址 5000,段内偏移 895,W&lt;LIMIT 合法 → PA = 5000+895 = 5895。</p>
+
+<h3>③ 分页与分段的口诀对照</h3>
+<div class="tmpl">
+<b>📐 考场默写模板:</b>
+<pre style="margin:6px 0 0;background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:6px;font-size:13px">
+分页地址变换: 物理地址 = 页表[P] × 页大小 + 页内偏移
+              (P = LA / 页大小, W = LA mod 页大小)
+分段地址变换: 物理地址 = 段表[S].BASE + 段内偏移
+              (先查段表得段基址和段长,越界则中断)
+</pre>
+</div>
+
+<h2 id="s4">🧬 4. 段页式存储管理(分页 + 分段的合体)</h2>
+<div class="panel">
+  <p><b>思路:</b> 同时吸收分段的"<b>按用户视角</b>"和分页的"<b>无外碎片</b>",先按段划分,再在段内按页划分。</p>
+  <p><b>教材原话(幻灯片 334):</b> "段页式系统是分段和分页原理的组合——先将用户作业(进程)分成若干具有一定逻辑意义的段,再将段分成大小固定的若干个页;段页式系统需要同时设置<b>段表和页表</b>;"</p>
+</div>
+<div class="steps" style="display:flex;flex-wrap:wrap;gap:8px;margin:12px 0">
+  <div class="step" style="flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px"><b>① 段表</b><br>每段一条表项,登记<b>段长</b>和对应<b>页表起始地址</b>。</div>
+  <div class="step" style="flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px"><b>② 页表</b><br>每段一张页表,登记段内<b>每页对应的物理块号</b>。</div>
+  <div class="step" style="flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px"><b>③ 地址变换</b><br>查段表得页表,再查页表得块号 → <b>两次查表</b>(快表可减为 1 次)。</div>
+</div>
+<p><b>口诀:</b> "段表查段、页表查页、两次访问";段页式 <b>继承分页的无外碎片 + 分段的用户可见性</b>。</p>
+
+<h2 id="s5">📝 5. 必背 4 句话</h2>
+<div class="key">
+<b>①</b> 分页按<b>物理</b>单位切、分段按<b>逻辑</b>单位切;分页大小<b>固定</b>、分段大小<b>不固定</b>。<br>
+<b>②</b> 分页地址<b>一维</b>(<code>P+W</code>)、分段地址<b>二维</b>(<code>S+W</code>);分页对用户<b>不可见</b>、分段对用户<b>可见</b>。<br>
+<b>③</b> 分页<b>无外碎片、有内碎片</b>;分段<b>无内碎片、有外碎片</b>。<br>
+<b>④</b> <b>段页式 = 分段 + 分页</b>:段表 + 页表,<b>三次访问</b>(段表→页表→物理块)。</div>
+
+<h2 id="s6">⚠️ 6. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · "分页没有碎片":</b> 分页<b>没有外碎片(磁盘级碎片),但有内碎片</b>(页尾装不满)。老师最爱考的"内/外碎片 vs 分页/分段"对应关系必须记清。
+</div>
+<div class="warnbox">
+<b>坑 2 · 把"段页式"说成"既无内也无外碎片":</b> 段页式<b>继承分页特点 = 无外碎片、有内碎片</b>;不要"以为两者合并就两全其美"。
+</div>
+<div class="warnbox">
+<b>坑 3 · 分页地址"一维"写反:</b> 分页的逻辑地址用<b>一维线性</b>编号(<code>P+W</code> 只用给一个 LA 数即可),分段必须<b>二维</b>(<code>S+W</code>)。反过来说"分页二维"就错了。
+</div>
+<div class="warnbox">
+<b>坑 4 · 把"段表基址"和"页表项"搞混:</b> 分段地址变换只用<b>段表</b>;分页只用<b>页表</b>;<b>段页式先查段表(得到页表起始地址)再查页表(得到物理块号)</b>,这是<b>两张不同的表</b>。
+</div>
+
+<h2 id="s7">📝 7. 真题样例(简答 5 分)</h2>
+<div class="panel">
+  <h3>样题</h3>
+  <p><b>请比较分页存储管理与分段存储管理的主要区别,并简述段页式存储管理的基本思想。(5 分)</b></p>
+  <details>
+    <summary>点我看参考答案</summary>
+    <p><b>答:</b></p>
+    <p><b>(1) 分页与分段的主要区别:</b></p>
+    <ol>
+      <li>页是信息的<b>物理单位</b>(满足系统管理需要),段是信息的<b>逻辑单位</b>(满足用户需要);</li>
+      <li>页大小<b>固定</b>(由系统决定),段大小<b>不固定</b>(由用户决定);</li>
+      <li>分页作业地址是<b>一维</b>的,分段作业地址是<b>二维</b>的;</li>
+      <li>分页对用户<b>不可见</b>、由系统自动切,分段对用户<b>可见</b>、按程序模块划分;</li>
+      <li>分页<b>无外碎片但有内碎片</b>,分段<b>无内碎片但有外碎片</b>。</li>
+    </ol>
+    <p><b>(2) 段页式存储管理的基本思想:</b> 段页式是分段和分页的组合——先按逻辑意义把进程划分为若干段,再把每段划分为大小固定的若干页;<b>同时设置段表和页表</b>,段表项记录段长和对应页表的起始地址,地址变换时先查段表得到页表,再查页表得到物理块号。</p>
+    <p class="hint">出处:<code>4_存储器管理/ppt文本.md</code> 幻灯片 326-327、333-334。<b>关键词:物理/逻辑、固定/不固定、一维/二维、内/外碎片</b>。</p>
+  </details>
+</div>
+
+<h2 id="s8">✅ 8. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 默写挑战</h3>
+<p>不看屏幕,默写:<b>分页 vs 分段 6 行对照表</b>(划分单位、划分决定者、地址结构、对用户可见性、碎片、共享)。</p>
+<details><summary>点我对答案</summary>
+<p>· <b>划分单位</b>:页(物理)/ 段(逻辑)。</p>
+<p>· <b>决定者</b>:系统 / 用户。</p>
+<p>· <b>地址结构</b>:一维 / 二维。</p>
+<p>· <b>可见性</b>:不可见 / 可见。</p>
+<p>· <b>碎片</b>:无外有内 / 无内有外。</p>
+<p>· <b>共享</b>:困难(粒度=页) / 容易(整段)。</p>
+<p class="hint">卡哪一行回到 §2 重读对照表。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 易错辨析</h3>
+<p>下列说法哪个是<b>错的</b>?</p>
+<p>A. 分页按物理单位划分,大小固定;分段按逻辑单位划分,大小不固定<br>
+B. 分页无外碎片但有内碎片,分段无内碎片但有外碎片<br>
+C. 段页式存储管理中,地址变换需要先查页表得到段表,再查段表得到物理块号<br>
+D. 分页地址一维,分段地址二维</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:C</b>。C 把"段表"和"页表"的次序说反了。段页式地址变换的顺序是"<b>先查段表得到页表起始地址,再查页表得到物理块号</b>"。其它三项完全正确。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 算一算</h3>
+<p>某分页系统页大小 4KB,逻辑地址 4832 = <code>4×1024 + 896</code>,进程页表中 P=4 对应物理块号 F=15。求物理地址?分段系统中,段号 2 段基址 5000 段长 1000 段内偏移 895,合法吗?物理地址?</p>
+<details><summary>点我对答案</summary>
+<p><b>分页:</b> P=4, W=896 → PA = F × 4096 + W = 15 × 4096 + 896 = 61440 + 896 = <b>62336</b>。</p>
+<p><b>分段:</b> 段内偏移 895 &lt; 段长 1000,<b>合法</b> → PA = BASE + W = 5000 + 895 = <b>5895</b>。</p>
+<p class="hint">更多变式题见 <a href="./0040-storage-calc-exam-cram.html">0040 存储计算冲刺</a> 和 <a href="./0005-paging-fundamentals.html">0005 分页基础</a>。</p>
+</details>
+</div>
+
+<footer>
+第 55 课 · Ch4 内存管理 · 简答 · 分页与分段的区别。<br>
+背景 → <a href="./0005-paging-fundamentals.html">0005 分页基础</a> · <a href="./0017-segmentation-vs-paging.html">0017 分页 vs 分段专题</a> · <a href="./0006-page-replacement.html">0006 页面置换</a> · <a href="./0040-storage-calc-exam-cram.html">0040 存储计算冲刺</a><br>
+简答全套:0053 进程创建 · 0054 文件系统 · 0055 分页vs分段 · 0056 三级调度 · 0057 SPOOLing
+</footer>
+
+</div>
+</body>
+</html>

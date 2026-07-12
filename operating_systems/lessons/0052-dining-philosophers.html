@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 52 课 · Ch2 进程管理 · 哲学家进餐问题 · 一个圆桌讲透死锁与三种防死锁</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --teal:#0d9488;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:980px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top}
+  th{background:#eef2f8}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* 代码块 */
+  .code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; background:#0f1b2d; color:#e6edf3;
+    border-radius:8px; padding:14px 16px; overflow-x:auto; line-height:2.0; white-space:pre; margin:12px 0}
+  .code .cm{color:#7d8fa8}
+  .code .k{color:#fbbf24; font-weight:700}
+  .code .r{color:#7ee0a8}
+  .code .w{color:#ffb4b4}
+  .code .p{color:#f0a4ff}
+  .code .v{color:#9ad7ff}
+
+  /* 圆桌 */
+  .table-scene{position:relative; margin:14px auto; width:480px; height:320px}
+  .table-center{position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+    width:240px; height:160px; background:#fff8ee; border:3px solid #b0856a; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:13px;
+    box-shadow:inset 0 0 20px rgba(176,133,106,.18)}
+  .phil{position:absolute; width:84px; text-align:center; font-size:12px;
+    background:#fff; border:1px solid var(--line); border-radius:50%; padding:6px 4px}
+  .phil .face{font-size:26px; display:block}
+  .phil .name{font-weight:700; font-size:13px}
+  .phil .state{font-size:11px; color:var(--muted)}
+  .phil.thinking{background:#eef4fb; border-color:var(--blue)}
+  .phil.eating{background:#ecfdf5; border-color:var(--green)}
+  .phil.eating .state{color:var(--green); font-weight:700}
+  .phil.deadlocked{background:#fdecec; border-color:var(--red)}
+  .phil.deadlocked .state{color:var(--red); font-weight:700}
+  .stick{position:absolute; width:46px; height:4px; background:#b0856a; border-radius:2px;
+    display:flex; align-items:center; justify-content:center}
+  .stick::before{content:"🥢"; position:absolute; font-size:14px; top:-12px}
+  .stick.has-l{background:var(--blue)}
+  .stick.has-r{background:var(--green)}
+  .stick.has-both{background:var(--purple)}
+
+  /* 状态指示灯 */
+  .lamps{display:flex; flex-wrap:wrap; gap:10px; margin:12px 0}
+  .lamp{background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:13px; min-width:120px}
+  .lamp .lab{color:var(--muted); font-size:11.5px; display:block; margin-bottom:2px}
+  .lamp .val{font-family:"SF Mono",monospace; font-weight:700; font-size:14px; color:var(--blue)}
+  .lamp.red .val{color:var(--red)}
+  .lamp.green .val{color:var(--green)}
+
+  /* 三种防死锁方法对比 */
+  .methods{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin:14px 0}
+  .method{background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px; font-size:13.5px}
+  .method h4{margin:0 0 8px; font-size:14px; color:var(--blue)}
+  .method.crit{border-left:4px solid var(--green)}
+  .method.atomic{border-left:4px solid var(--purple)}
+  .method.oe{border-left:4px solid var(--amber)}
+  .method .core{margin-top:6px; padding:6px 10px; background:#f7faff; border-radius:5px; font-size:13px}
+
+  /* 打乱选择题 */
+  .q{background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:10px 0}
+  .q b{color:var(--blue)}
+  .opts label{display:block; padding:4px 0; cursor:pointer}
+  .opts input{margin-right:6px}
+
+  .readout{margin-top:8px; font-size:14px; min-height:1.4em; color:var(--blue); font-weight:600}
+  .readout .okc{color:var(--green)}
+  .readout .badc{color:var(--red)}
+
+  @media print{
+    body{background:#fff} .btn,.nav{display:none}
+    .panel,.method{box-shadow:none}
+    .code{background:#fff; color:#111; border:1px solid #ccc}
+    .code .cm{color:#555} .code .k{color:#7a4a00} .code .r{color:#0e6e3a}
+    .code .w{color:#8a1a1a} .code .p{color:#6b21a8} .code .v{color:#1e40af}
+    .table-scene{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 52 课 · Ch2 进程管理 · 经典同步问题 · 专攻哲学家进餐</p>
+  <h1>哲学家进餐问题:一个圆桌讲透"5 人抢 5 根筷子"的死锁与三种解法</h1>
+  <p class="sub">这是 0051 读者写者的兄弟问题——一个考<b>死锁与防死锁</b>。你已经在 <a href="./0011-classic-sync.html">第 11 课</a> 看过速写,这一节把它拆到每行代码 + 让你<b>亲眼看到死锁现场</b>。教材出处:<code>2_进程管理/ppt文本.md</code> 幻灯片 288–292(2.4.2 节)。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·画面</a>
+    <a href="#s2">2·死锁现场</a>
+    <a href="#s3">3·方法 ①限 4 人</a>
+    <a href="#s4">4·方法 ②AND</a>
+    <a href="#s5">5·方法 ③奇偶</a>
+    <a href="#s6">6·三种方法对照</a>
+    <a href="#s7">7·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>一句话先记住:</b> 5 个哲学家围圆桌,每人左右各 1 根筷子(共 5 根),<b>必须拿 2 根才能吃</b>。最朴素算法会死锁——<b>5 人同时各拿左筷、然后都在等右筷</b>。防死锁 3 种思路:<b>①限最多 4 人同时抢 ②AND 信号量(拿两根要拿都拿)③奇偶颠倒顺序</b>。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:这道题在考什么</h2>
+<p class="hint">学校自命题里,经典同步三连(生产者-消费者 / 读者-写者 / 哲学家)选一考,哲学家最常考"3 种防死锁方法"。本质是<b>让你设计打破死锁 4 必要条件(互斥/占有等待/不剥夺/循环等待)的方案</b>。</p>
+<div class="eli5">
+<b>🧸 一句话:</b> 5 个书呆子围坐圆桌,每两人之间 1 根筷子,吃面必须<b>用 2 根</b>。如果<b>所有人同时伸手去拿自己左手那根</b>,就全卡住了——每人手里都攥着 1 根,都在等右手那根,右手那根在别人手里也攥着——<b>谁也吃不上</b>。
+</div>
+<p>这一节我们做 4 件事:①看圆桌画面 ②亲眼看死锁怎么发生 ③逐个学 3 种防死锁方法 ④做 5 道自测(默写 + 选择 + 改错)。</p>
+
+<!-- ===================== 1. 画面 ===================== -->
+<h2 id="s1">🎬 1. 画面:5 哲学家的圆桌</h2>
+<div class="panel">
+  <h3>设定(教材原话,幻灯片 288-289)</h3>
+  <ul>
+    <li><b>5 位哲学家</b>(编号 P0~P4)围坐一张<b>圆桌</b>。</li>
+    <li><b>5 根筷子</b>(编号 C0~C4),<b>每两人之间 1 根</b>——P<sub>i</sub> 的<b>左筷是 C<sub>i</sub></b>、<b>右筷是 C<sub>(i+1) mod 5</sub></b>。</li>
+    <li>哲学家<b>思考 → 饿了 → 拿起左右筷 → 吃面 → 放下 → 思考</b> 循环。</li>
+    <li><b>筷子是临界资源</b>,同一时刻<b>只能 1 人拿 1 根</b>。</li>
+  </ul>
+  <div class="key">
+    <b>编号映射(默写时不要写反):</b><br>
+    · 哲学家 P<sub>i</sub> 的<b>左筷</b> = <code>chopstick[i]</code><br>
+    · 哲学家 P<sub>i</sub> 的<b>右筷</b> = <code>chopstick[(i+1) mod 5]</code><br>
+    · 例:P3 的左筷是 C3、右筷是 C4;P4 的左筷是 C4、右筷是 C0(因为 5 mod 5 = 0,圆桌回到起点)。
+  </div>
+</div>
+
+<!-- ===================== 2. 死锁现场 ===================== -->
+<h2 id="s2">💀 2. 死锁现场:5 人同时各拿左筷</h2>
+<p class="hint">这是教材幻灯片 289 的朴素算法。会死锁。点"▶ 走一遍"看 5 个哲学家<b>同时</b>伸手拿左筷、然后全卡住的现场。</p>
+
+<div class="panel">
+  <h3>朴素(会死锁)算法</h3>
+  <div class="code"><span class="cm">// 5 根筷子,每根初值 1</span>
+<span class="k">semaphore</span> chopstick[<span class="v">5</span>] = {<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>};
+
+<span class="k">philosopher_i</span>() {                <span class="cm">// i = 0,1,2,3,4</span>
+    <span class="k">repeat</span>
+        <span class="r">think</span>();                     <span class="cm">// 思考</span>
+        <span class="v">P</span>(<span class="r">chopstick[i]</span>);             <span class="cm">// 拿左筷</span>
+        <span class="v">P</span>(<span class="r">chopstick[(i+1) mod 5]</span>);  <span class="cm">// 拿右筷</span>
+        <span class="r">eat</span>();                       <span class="cm">// 吃面</span>
+        <span class="v">V</span>(<span class="r">chopstick[i]</span>);             <span class="cm">// 放左筷</span>
+        <span class="v">V</span>(<span class="r">chopstick[(i+1) mod 5]</span>);  <span class="cm">// 放右筷</span>
+    <span class="k">until</span> false;
+}</div>
+
+  <div class="lamps">
+    <div class="lamp"><span class="lab">场景</span><span class="val" id="L_scene">所有人伸手拿左筷</span></div>
+    <div class="lamp"><span class="lab">每根筷子状态</span><span class="val" id="L_chop">[1] [1] [1] [1] [1]</span></div>
+    <div class="lamp red"><span class="lab">死锁?</span><span class="val" id="L_dl">否</span></div>
+  </div>
+  <div>
+    <button class="btn" id="btnStep">⏵ 单步</button>
+    <button class="btn" id="btnRun">▶ 走一遍</button>
+    <button class="btn reset" id="btnReset">⟲ 重置</button>
+    <span class="hint" style="margin-left:6px">演示 5 个哲学家同时拿左筷 → 全部卡住 → 谁也吃不上</span>
+  </div>
+  <div class="table-scene" id="scene"></div>
+  <div id="log" style="margin-top:10px; background:#0f1b2d; color:#e6edf3; border-radius:6px; padding:10px 12px; font-family:'SF Mono',monospace; font-size:13px; min-height:140px; max-height:260px; overflow:auto; line-height:1.7"></div>
+</div>
+
+<div class="warnbox">
+<b>💀 死锁形成过程(每一步都是同时发生):</b><br>
+1️⃣ 5 个人同时饿了,同时伸手拿左筷 → 5 根筷子都被拿走,每人手里攥着 1 根;<br>
+2️⃣ 每个人都试着拿右筷——但右筷都在隔壁的人手里;<br>
+3️⃣ 5 人都阻塞在 P(chopstick[(i+1) mod 5]) 上,谁都吃不上,谁都不放手;<br>
+4️⃣ <b>循环等待 + 占有等待 → 死锁</b>(满足死锁四必要条件中的两条)。<br>
+<span class="hint">教材原话(幻灯片 291):"可采取以下几种解决方法..."</span>
+</div>
+
+<!-- ===================== 3. 方法 ① 最多 4 人 ===================== -->
+<h2 id="s3">🛡 3. 防死锁方法 ①:至多 4 人同时进餐</h2>
+<div class="method crit">
+  <h4>思路(教材原话)</h4>
+  <p>"至多只允许有<b>四位</b>哲学家同时去拿左边的筷子,最终能保证<b>至少有一位</b>哲学家能够进餐,并在用毕时能释放出他用过的两只筷子,从而使更多的哲学家能够进餐。"</p>
+  <p class="hint">出处:<code>2_进程管理/ppt文本.md</code> 幻灯片 291 解决方法 (1)</p>
+</div>
+<div class="code"><span class="cm">// 多设一个信号量,限制最多 4 人同时争筷子</span>
+<span class="k">semaphore</span> chopstick[<span class="v">5</span>] = {<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>};
+<span class="k">semaphore</span> count = <span class="v">4</span>;             <span class="cm">// 同时进餐人数上限</span>
+
+<span class="k">philosopher_i</span>() {
+    <span class="k">repeat</span>
+        <span class="r">think</span>();
+        <span class="v">P</span>(<span class="w">count</span>);                  <span class="cm">① 先抢"进入许可"(最多 4 人)</span>
+        <span class="v">P</span>(<span class="r">chopstick[i]</span>);
+        <span class="v">P</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+        <span class="r">eat</span>();
+        <span class="v">V</span>(<span class="r">chopstick[i]</span>);
+        <span class="v">V</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+        <span class="v">V</span>(<span class="w">count</span>);                  <span class="cm">② 吃完放许可</span>
+    <span class="k">until</span> false;
+}</div>
+<div class="key">
+<b>为什么有效:</b> 最多只允许 4 个人同时伸手,<b>5 根筷子至少剩 1 根</b>没人抢——<b>打破"循环等待"</b>。剩下的那个人能拿到 2 根筷子里至少 1 根,然后引发连锁释放,所有人陆续能吃上。
+</div>
+
+<!-- ===================== 4. 方法 ② AND ===================== -->
+<h2 id="s4">🛡 4. 防死锁方法 ②:AND 信号量(两根筷子要么都拿、要么都不拿)</h2>
+<div class="method atomic">
+  <h4>思路(教材原话)</h4>
+  <p>"仅当哲学家的<b>左、右两只筷子均可用时</b>,才允许他拿起筷子进餐。"</p>
+  <p class="hint">出处:<code>2_进程管理/ppt文本.md</code> 幻灯片 291 解决方法 (2) + 292 AND 信号量机制</p>
+</div>
+<div class="code"><span class="cm">// 用 AND 信号量 Swait:两根筷子"全有才能拿,一根没有就都不拿"</span>
+<span class="k">semaphore</span> chopstick[<span class="v">5</span>] = {<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>};
+
+<span class="k">philosopher_i</span>() {
+    <span class="k">repeat</span>
+        <span class="r">think</span>();
+        <span class="cm">// Swait 原子申请:两根筷子任意一根不可用 → 整组都不拿</span>
+        <span class="p">Swait</span>(<span class="r">chopstick[(i+1) mod 5]</span>, <span class="r">chopstick[i]</span>);
+        <span class="r">eat</span>();
+        <span class="p">Ssignal</span>(<span class="r">chopstick[(i+1) mod 5]</span>, <span class="r">chopstick[i]</span>);
+    <span class="k">until</span> false;
+}</div>
+<div class="key">
+<b>为什么有效:</b> Swait 是<b>原子操作</b>——要么把两根筷子都拿到、要么都不拿(不会发生"手里攥 1 根等另 1 根")。直接<b>打破"占有并等待"</b>条件。<b>代价</b>:Swait 不是所有语言都内置,需要硬件/系统支持。
+</div>
+
+<!-- ===================== 5. 方法 ③ 奇偶 ===================== -->
+<h2 id="s5">🛡 5. 防死锁方法 ③:奇偶号哲学家拿筷顺序相反</h2>
+<div class="method oe">
+  <h4>思路(教材原话)</h4>
+  <p>"规定<b>奇数号哲学家先拿他左边的筷子</b>,然后再去拿右边的筷子;而<b>偶数号哲学家则相反</b>。按此规定,将是 1、2 号哲学家竞争 1 号筷子;3、4 号哲学家竞争 3 号筷子。即五位哲学家都先竞争奇数号筷子,获得后,再去竞争偶数号筷子,<b>最后总会有一位哲学家能获得两只筷子而进餐</b>。"</p>
+  <p class="hint">出处:<code>2_进程管理/ppt文本.md</code> 幻灯片 291 解决方法 (3)</p>
+</div>
+<div class="code"><span class="cm">// 奇偶颠倒:奇数号先左后右,偶数号先右后左</span>
+<span class="k">semaphore</span> chopstick[<span class="v">5</span>] = {<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>};
+
+<span class="k">philosopher_i</span>() {
+    <span class="k">repeat</span>
+        <span class="r">think</span>();
+        <span class="k">if</span> (i <span class="v">% 2 == 0</span>) {              <span class="cm">// 偶数号 P0/P2/P4:先右后左</span>
+            <span class="v">P</span>(<span class="r">chopstick[(i+1) mod 5]</span>);  <span class="cm">// 先拿右</span>
+            <span class="v">P</span>(<span class="r">chopstick[i]</span>);             <span class="cm">// 再拿左</span>
+        <span class="k">}</span> <span class="k">else</span> {                         <span class="cm">// 奇数号 P1/P3:先左后右</span>
+            <span class="v">P</span>(<span class="r">chopstick[i]</span>);             <span class="cm">// 先拿左</span>
+            <span class="v">P</span>(<span class="r">chopstick[(i+1) mod 5]</span>);  <span class="cm">// 再拿右</span>
+        <span class="k">}</span>
+        <span class="r">eat</span>();
+        <span class="v">V</span>(<span class="r">chopstick[i]</span>);
+        <span class="v">V</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+    <span class="k">until</span> false;
+}</div>
+<div class="key">
+<b>为什么有效:</b> 相邻两人一奇一偶,他们的<b>第一根筷子是同一根</b>(奇数号的"先拿左"恰好等于他右边那位偶数号的"先拿右"——因为偶数号 P<sub>i</sub> 的右筷是 chopstick[i+1] = 奇数号 P<sub>i+1</sub> 的左筷 chopstick[i+1])。<b>必有一人先抢到、另一人拿不到</b>——5 人不可能同时各持 1 根筷子,打破"循环等待"。
+</div>
+
+<!-- ===================== 6. 对照 ===================== -->
+<h2 id="s6">⚖️ 6. 三种方法对照表(考场对照用)</h2>
+<table>
+<tr><th>方法</th><th>核心思路</th><th>破哪个死锁条件</th><th>代价 / 局限</th></tr>
+<tr>
+  <td><b>① 限最多 4 人</b><br><code>count=4</code> 信号量</td>
+  <td>门口设岗,最多 4 个人同时进餐桌区</td>
+  <td>打破<b>循环等待</b>(5 人无法同时各拿 1 根)</td>
+  <td>最多浪费 1 个位置;实现简单,通用 P/V 就够</td>
+</tr>
+<tr>
+  <td><b>② AND 信号量</b><br>Swait(左,右)</td>
+  <td>两根筷子"要么都拿、要么都不拿",原子操作</td>
+  <td>打破<b>占有并等待</b>(不会发生"攥 1 根等另 1 根")</td>
+  <td>需要硬件/系统支持 Swait;<b>本课程默认掌握此思路,考场可只写 P/V 注释</b></td>
+</tr>
+<tr>
+  <td><b>③ 奇偶分拿</b><br>偶数先右后左,奇数先左后右</td>
+  <td>相邻两位哲学家抢<b>同一根筷子</b>,必有一人先抢到</td>
+  <td>打破<b>循环等待</b>(5 人不可能同时各持 1 根)</td>
+  <td><b>老师最常考</b>——只需 P/V 即可,代码清晰</td>
+</tr>
+</table>
+<div class="tmpl">
+<b>📐 考场建议:</b> 三种方法<b>任选一种</b>答都对。其中<b>方法 ③ 奇偶分拿</b>最常考(教材幻灯片 291 也是它占最大篇幅),代码只用普通 P/V 实现,不依赖 Swait ——<b>默写保险</b>。
+</div>
+
+<!-- ===================== 7. 自测 ===================== -->
+<h2 id="s7">✅ 7. 自测:先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>Q1 · 为什么朴素算法会死锁?</h3>
+<div class="q">
+用一段话描述<b>朴素算法</b>为什么必然死锁。要说清"什么时候卡死、为什么没人能脱身"。
+</div>
+<details>
+<summary>点我看答案</summary>
+<p><b>朴素算法死锁的过程:</b></p>
+<ol>
+  <li>5 个哲学家同时饿了,几乎同时执行 P(chopstick[i]) 拿<b>左筷</b>;</li>
+  <li>5 根筷子都被拿走,每人手里攥 1 根,没人能吃;</li>
+  <li>每个人都接着执行 P(chopstick[(i+1) mod 5]) 想拿<b>右筷</b>,但右筷都在<b>隔壁那位</b>手里(隔壁的人也在等自己的右筷……);</li>
+  <li>所有人都阻塞,都在等别人放手;</li>
+  <li><b>没人能吃 → 没人能放下筷子 → 没人能脱身</b>。</li>
+</ol>
+<p><b>对应死锁四条件:</b> 互斥(筷子同一时刻只许 1 人拿) ✓ · 占有并等待(每人手里 1 根等另 1 根) ✓ · 不剥夺(不能从别人手里抢) ✓ · <b>循环等待</b>(P0 等 P1 的右筷 → P1 等 P2 的右筷 → … → P4 等 P0 的右筷) ✓ ——<b>四条全满足</b>,所以必死锁。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 编号映射(默写易错)</h3>
+<div class="q">
+哲学家 P3 的<b>左筷</b>和<b>右筷</b>分别是哪一根?<br>
+哲学家 P4 的<b>右筷</b>又是哪一根?(提示:5 mod 5 = ?)
+</div>
+<details>
+<summary>点我看答案</summary>
+<p>· <b>P3 的左筷 = chopstick[3]</b></p>
+<p>· <b>P3 的右筷 = chopstick[(3+1) mod 5] = chopstick[4]</b></p>
+<p>· <b>P4 的右筷 = chopstick[(4+1) mod 5] = chopstick[5 mod 5] = chopstick[0]</b>——<b>圆桌</b>绕回起点!</p>
+<p>这正是"圆桌"的关键——P4 的右手边其实是 P0 的左手边,<b>筷子 C0 是 P4 和 P0 共用</b>。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 方法 ① 的 count 信号量初值为什么是 4 不是 5?</h3>
+<div class="q">
+<b>① 限最多 4 人同时进餐</b>方案里,新加的 count 信号量初值是 4。如果改成 5,会怎样?
+</div>
+<details>
+<summary>点我看答案</summary>
+<p>初值改成 5 = 没有任何限制。<b>5 人还是能同时各拿 1 根左筷</b>,死锁还会发生。</p>
+<p>限 4 人的意义在于:<b>5 根筷子中至少有 1 根没人抢</b>。也就是说至少有 1 个人能拿到他需要的 2 根筷子里的至少 1 根,然后引发连锁释放。所以<b>初值 4 正好</b>,改成 3 或 2 也行,但代价更大(最多 3 人或 2 人同时进餐,效率低)。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q4 · 默写挑战:奇偶分拿</h3>
+<div class="q">
+不看屏幕,在纸上默写<b>方法 ③ 奇偶分拿</b>的完整代码。包括:
+<ol>
+  <li>信号量声明</li>
+  <li>philosopher_i() 函数完整 P/V 序列(用 <code>if (i % 2 == 0)</code> 分支)</li>
+</ol>
+</div>
+<details>
+<summary>点我对答案</summary>
+<div class="code"><span class="k">semaphore</span> chopstick[<span class="v">5</span>] = {<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>,<span class="v">1</span>};
+
+<span class="k">philosopher_i</span>() {
+    <span class="k">repeat</span>
+        <span class="r">think</span>();
+        <span class="k">if</span> (i <span class="v">% 2 == 0</span>) {
+            <span class="v">P</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+            <span class="v">P</span>(<span class="r">chopstick[i]</span>);
+        <span class="k">}</span> <span class="k">else</span> {
+            <span class="v">P</span>(<span class="r">chopstick[i]</span>);
+            <span class="v">P</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+        <span class="k">}</span>
+        <span class="r">eat</span>();
+        <span class="v">V</span>(<span class="r">chopstick[i]</span>);
+        <span class="v">V</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+    <span class="k">until</span> false;
+}</div>
+<p>能一次写对不漏分支 = 哲学家这题你稳拿。<b>卡壳就在编号映射</b>——回去看 Q2。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q5 · 打乱判断(易错辨析)</h3>
+<div class="q">
+下面哪条说法是<b>正确</b>的?(多选 + 单选都有陷阱,选错了回去读对应章节)
+</div>
+<div class="opts">
+  <label><input type="radio" name="q5" value="A"> A. 朴素算法虽然会死锁,但只要改成"先拿右后拿左"就能防死锁</label>
+  <label><input type="radio" name="q5" value="B"> B. 限 4 人方案的本质是打破"占有并等待"条件</label>
+  <label><input type="radio" name="q5" value="C"> C. 奇偶分拿的本质是相邻两位哲学家抢同一根筷子,必有一人先抢到</label>
+  <label><input type="radio" name="q5" value="D"> D. AND 信号量的本质是把"拿 2 根筷子"绑成原子操作</label>
+</div>
+<button class="btn" id="chk5">提交判分</button>
+<div class="readout" id="out5">← 选完再点"提交判分"</div>
+<details>
+<summary>点我看完整答案</summary>
+<p><b>正确答案:C、D</b>(多选)。A 和 B 错。</p>
+<p><b>A 错:</b>"全部人都改成先拿右"——5 人还是同时伸手、同时拿到右筷,然后都等左筷——<b>照样死锁</b>。要打破死锁必须<b>奇偶颠倒</b>(一半人先左、一半人先右),不能所有人都改。</p>
+<p><b>B 错:</b>限 4 人方案的 count 信号量是<b>在门口限人数</b>,本质是<b>让 5 根筷子中至少剩 1 根没人抢</b>,从而<b>打破"循环等待"</b>。它没有改变"占有并等待"——里面 4 个人仍可能各拿 1 根等另 1 根,只是不可能 5 人同时这样,所以不会形成死锁环。</p>
+<p><b>C 对:</b>奇偶分拿的核心巧妙就在这里——相邻两人一奇一偶,他们的"先拿"恰好是同一根筷子。<b>必然一人抢到、另一人没抢到</b>→ 没法 5 人同时各持 1 根 → 循环等待不成立。</p>
+<p><b>D 对:</b>AND 信号量(Swait) 的本质就是"要么都拿、要么都不拿"的原子动作,直接消除了"占有 1 根等另 1 根"的中间状态,打破"占有并等待"。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q6 · 改错题</h3>
+<div class="q">
+下面这段代码号称是"奇偶分拿",但实际会死锁。指出<b>所有错误</b>并修正。
+<div class="code"><span class="k">philosopher_i</span>() {
+    <span class="k">repeat</span>
+        <span class="r">think</span>();
+        <span class="k">if</span> (i <span class="v">% 2 == 0</span>) {
+            <span class="v">P</span>(<span class="r">chopstick[i]</span>);             <span class="cm">// 偶数号:先左</span>
+            <span class="v">P</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+        <span class="k">}</span> <span class="k">else</span> {
+            <span class="v">P</span>(<span class="r">chopstick[i]</span>);             <span class="cm">// 奇数号:先左</span>
+            <span class="v">P</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+        <span class="k">}</span>
+        <span class="r">eat</span>();
+        <span class="v">V</span>(<span class="r">chopstick[i]</span>);
+        <span class="v">V</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+    <span class="k">until</span> false;
+}</div>
+</div>
+<details>
+<summary>点我看答案</summary>
+<p><b>错误:</b> if 和 else 两个分支写得一模一样——都先拿左筷再拿右筷,等于<b>所有人都是"先左后右"</b>,没有"奇偶颠倒",死锁照旧发生。</p>
+<p><b>正确写法(教材原话:偶数号相反):</b></p>
+<div class="code"><span class="k">if</span> (i <span class="v">% 2 == 0</span>) {            <span class="cm">// 偶数号 P0/P2/P4:先右后左</span>
+    <span class="v">P</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+    <span class="v">P</span>(<span class="r">chopstick[i]</span>);
+<span class="k">}</span> <span class="k">else</span> {                       <span class="cm">// 奇数号 P1/P3:先左后右</span>
+    <span class="v">P</span>(<span class="r">chopstick[i]</span>);
+    <span class="v">P</span>(<span class="r">chopstick[(i+1) mod 5]</span>);
+<span class="k">}</span></div>
+<p><b>记忆锚:</b> 教材原话"奇数号先左后右,偶数号相反"——"相反"就是<b>把两个 P 的顺序倒过来</b>。如果你写完发现 if/else 长得一样,就是忘了"相反"。</p>
+</details>
+</div>
+
+<footer>
+第 52 课 · Ch2 进程管理 · 哲学家进餐:5 人抢 5 根筷子会死锁,3 种防死锁方法任选。<br>
+原理打底 → <a href="./0010-process-sync.html">第 10 课 · PV 信号量</a> ·
+经典速写 → <a href="./0011-classic-sync.html">第 11 课 · 经典同步问题</a> ·
+读者写者专攻 → <a href="./0051-reader-writer-priority.html">0051 读者优先</a> ·
+默写训练 → <a href="./0050-pv-pseudocode-drills.html">0050 PV 伪代码默写器</a>
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// 圆桌状态机:5 哲学家同时拿左筷 → 死锁演示
+// =============================================================
+var logEl, sceneEl, lampScene, lampChop, lampDl;
+var step = 0;
+var STEPS = [
+  {msg:'<b>开饭前</b>:5 个哲学家都在思考,5 根筷子都在桌上', ch:[1,1,1,1,1], phils:[
+    {n:'P0', s:'思考'}, {n:'P1', s:'思考'}, {n:'P2', s:'思考'}, {n:'P3', s:'思考'}, {n:'P4', s:'思考'}
+  ], dl:'否'},
+  {msg:'<b>同时饿了!</b> 5 人伸手去拿左筷 — P0 抢 C0, P1 抢 C1, P2 抢 C2, P3 抢 C3, P4 抢 C4', ch:[0,0,0,0,0], phils:[
+    {n:'P0', s:'拿左'}, {n:'P1', s:'拿左'}, {n:'P2', s:'拿左'}, {n:'P3', s:'拿左'}, {n:'P4', s:'拿左'}
+  ], dl:'否'},
+  {msg:'<b>每人试拿右筷:</b> P0 要 C1(C1 在 P1 手里)→ 阻塞; P1 要 C2(P2 手里)→ 阻塞; ... P4 要 C0(P0 手里)→ 阻塞', ch:[0,0,0,0,0], phils:[
+    {n:'P0', s:'等右 C1'}, {n:'P1', s:'等右 C2'}, {n:'P2', s:'等右 C3'}, {n:'P3', s:'等右 C4'}, {n:'P4', s:'等右 C0'}
+  ], dl:'<span class="badc">是</span>'},
+  {msg:'<b>死锁形成!</b> 5 人 → 5 人,每人占 1 根等另 1 根,谁也吃不上,谁也不放手 — <b>循环等待</b>', ch:[0,0,0,0,0], phils:[
+    {n:'P0', s:'💀 死锁'}, {n:'P1', s:'💀 死锁'}, {n:'P2', s:'💀 死锁'}, {n:'P3', s:'💀 死锁'}, {n:'P4', s:'💀 死锁'}
+  ], dl:'<span class="badc">是 (5→0)</span>'}
+];
+
+// 圆桌 5 个哲学家坐标
+var POS = [
+  {x:240, y:10},   // P0 顶
+  {x:430, y:90},   // P1 右上
+  {x:380, y:280},  // P2 右下
+  {x:100, y:280},  // P3 左下
+  {x:50,  y:90}    // P4 左上
+];
+var STICK_POS = [
+  {x:300, y:60},   // C0: P0 与 P4 之间
+  {x:410, y:200},  // C1: P1 与 P0 之间
+  {x:330, y:300},  // C2: P2 与 P1 之间
+  {x:160, y:300},  // C3: P3 与 P2 之间
+  {x:80,  y:200}   // C4: P4 与 P3 之间
+];
+
+function $(id){ return document.getElementById(id); }
+
+function renderScene(){
+  if(!STEPS[step]) return;
+  var s = STEPS[step];
+  var html = '<div class="table-center">🪵 餐桌<br><span style="font-size:11px">5 根筷子在桌上</span></div>';
+  // 哲学家
+  for(var i=0;i<5;i++){
+    var p = POS[i];
+    var ps = s.phils[i];
+    var cls = 'thinking';
+    if(ps.s.indexOf('死锁')>=0) cls = 'deadlocked';
+    else if(ps.s.indexOf('等')>=0 || ps.s.indexOf('拿')>=0) cls = 'thinking';
+    html += '<div class="phil '+cls+'" style="left:'+p.x+'px; top:'+p.y+'px">';
+    html += '<span class="face">🧑</span>';
+    html += '<span class="name">'+ps.n+'</span>';
+    html += '<span class="state">'+ps.s+'</span>';
+    html += '</div>';
+  }
+  // 筷子
+  for(var j=0;j<5;j++){
+    var sp = STICK_POS[j];
+    var cls = s.ch[j]===1 ? '' : 'has-l';
+    html += '<div class="stick '+cls+'" style="left:'+sp.x+'px; top:'+sp.y+'px; transform:rotate('+(j*72)+'deg)"></div>';
+  }
+  sceneEl.innerHTML = html;
+  // 状态灯
+  lampScene.innerHTML = step===0 ? '所有人思考' :
+                       (step===1 ? '同时拿左筷' :
+                       (step===2 ? '等待右筷' : '死锁形成'));
+  lampChop.innerHTML = '['+s.ch.join('] [')+']';
+  lampDl.innerHTML = s.dl;
+}
+
+function appendLog(s){
+  var div = document.createElement('div');
+  div.innerHTML = s.msg;
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function doStep(){
+  if(step >= STEPS.length) return;
+  appendLog(STEPS[step]);
+  step++;
+  renderScene();
+}
+
+function doRun(){
+  if(step >= STEPS.length) resetAll();
+  while(step < STEPS.length) doStep();
+}
+
+function resetAll(){
+  step = 0;
+  logEl.innerHTML = '<span style="color:#7d8fa8">—— 死锁现场演示 —— 5 个哲学家围坐圆桌,每人左右各 1 根筷子</span>';
+  lampDl.style.color = '';
+  lampScene.style.color = '';
+  renderScene();
+}
+
+// ===== 选择题判分 =====
+function checkQ5(){
+  var v = document.querySelector('input[name="q5"]:checked');
+  var out = $('out5');
+  if(!v){ out.innerHTML='<span class="badc">⚠ 请先选一个答案</span>'; return; }
+  var ans = 'C,D'.split(',');
+  if(v.value==='C'){
+    out.innerHTML = '<span class="okc">✔ 选 C 正确!但本题是多选陷阱——D 也是对的(AND 信号量的本质正是原子操作)。</span>';
+  } else if(v.value==='D'){
+    out.innerHTML = '<span class="okc">✔ 选 D 正确!但本题是多选陷阱——C 也是对的(奇偶分拿本质就是相邻人抢同一根)。</span>';
+  } else if(v.value==='A'){
+    out.innerHTML = '<span class="badc">✘ A 错。"全部改成先拿右" = 5 人还是同时各持 1 根等另 1 根,照样死锁。要奇偶颠倒,不能全部一致。</span>';
+  } else if(v.value==='B'){
+    out.innerHTML = '<span class="badc">✘ B 错。限 4 人方案是<b>打破循环等待</b>(5 人不可能同时各持 1 根),不是打破占有并等待。</span>';
+  }
+}
+
+// ===== 初始化 =====
+function init(){
+  logEl = $('log');
+  sceneEl = $('scene');
+  lampScene = $('L_scene');
+  lampChop = $('L_chop');
+  lampDl = $('L_dl');
+  $('btnStep').addEventListener('click', doStep);
+  $('btnRun').addEventListener('click', doRun);
+  $('btnReset').addEventListener('click', resetAll);
+  var btn = $('chk5');
+  if(btn) btn.addEventListener('click', checkQ5);
+  resetAll();
+}
+init();
+</script>
+</body>
+</html>

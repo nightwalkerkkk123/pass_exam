@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 71 课 · Ch6 文件 · 次重点 · 位示图法</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .steps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .step{flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px}
+  .step .n{display:inline-block;background:var(--blue);color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-weight:700;margin-right:6px}
+  .step b{color:var(--blue)}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 71 课 · Ch6 文件 · 次重点 · 位示图法</p>
+  <h1>位示图法:一串比特位,标记所有盘块"占 / 空"</h1>
+  <p class="sub">次重点题型,常出选择题或填空(2–3 分)。<b>核心是<b>字号位号公式</b>与位运算互转</b>。教材出处:<code>6_文件管理/ppt文本.md</code> 幻灯片 247–251(6.5 节)。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·基本思想</a>
+    <a href="#s3">3·字号位号</a>
+    <a href="#s4">4·分配回收</a>
+    <a href="#s5">5·手算例</a>
+    <a href="#s6">6·易错</a>
+    <a href="#s7">7·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背两句话:</b><br>
+① <b>位示图 = 用一串二进制位标记磁盘块状态</b>(0 = 空闲,1 = 已占;或反过来,题目会明说)。<br>
+② <b>块号 ↔ 位置换算</b>:<b>n = 字号 × 字长 + 位号</b>(已知位置求块号),<b>字号 = ⌊(块号-1) / 字长⌋、位号 = (块号-1) mod 字长</b>(已知块号求位置,适合<b>0 起</b>编号);若从 1 起编号,公式写作 i = (n-1) / 字长、j = (n-1) % 字长。
+</div>
+
+<h2 id="s0">🗺 0. 这道题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 磁盘有几万几亿个盘块,OS 要追踪"哪些已分 / 哪些空闲"。位示图就是 OS 拿一张<b>很小的比特位小本本</b>,每个盘块对应一位,翻一翻就知道状态。
+</div>
+<p>常见题型:
+<b>① 概念辨析(位示图 vs 空闲链表 vs 成组链接)</b>;<b>② 给块号求字号位号</b>;<b>③ 给字号位号求块号</b>;<b>④ 简述分配 / 回收流程</b>。前两类是选择题,后两类是填空或简答。</p>
+
+<h2 id="s1">📖 1. 是什么:位示图法</h2>
+<div class="panel">
+  <p><b>定义:</b> 位示图法利用<b>二进制的一位</b>来表示磁盘中<b>一个盘块</b>的使用情况。</p>
+  <p><b>教材原话(幻灯片 248):</b>"位示图指利用二进制的一位来表示磁盘中一个盘块的使用情况。如当值为 0 时,表示空闲盘块;当值为 1 时,表示已分配盘块。"</p>
+  <p class="hint">0/1 的含义可能在不同教材里反过来——<b>答题时一定要按题目</b>"0 表示____,1 表示____"的口径写。MS-DOS、Windows FAT 系列都内置位示图。</p>
+</div>
+
+<h2 id="s2">🧠 2. 基本思想:一串比特位串成一张表</h2>
+<table>
+<tr><th>要素</th><th>说明</th></tr>
+<tr><td><b>单位</b></td><td>每个磁盘块对应<b>1 bit</b></td></tr>
+<tr><td><b>取值(默认)</b></td><td>0 = 空闲,1 = 已分配</td></tr>
+<tr><td><b>组织</b></td><td>若干 bit 组成一个字(常用 16/32 位);一张位示图 = 多个字排成行列</td></tr>
+<tr><td><b>大小</b></td><td>盘块数 N,位示图占 N bits = N/8 字节(可全部装入内存)</td></tr>
+<tr><td><b>优点(教材原话)</b></td><td>① <b>占用空间较小,可以调入内存</b>;② <b>分配和回收操作简单、有效</b></td></tr>
+<tr><td><b>适用场景</b></td><td>微型机、小型机,如 MS OS 中(幻灯片 251)</td></tr>
+</table>
+<div class="key">
+<b>记忆口诀:</b>"<b>一个盘块一位管,0 空 1 占互可换;整张表小可放内存,扫一扫就分配完</b>"。
+</div>
+
+<h2 id="s3">🧮 3. 字号位号公式(核心考点)</h2>
+<div class="panel">
+<h3>先约定符号,避免答案写错被扣分</h3>
+<ul>
+<li><b>字长 L</b>:一个字含多少 bit(常见 16、32,字节式则 8)。</li>
+<li><b>盘块编号 n</b>:从 0 或从 1 开始(看题目;默认教材幻灯片 250 的写法 i=n/8、j=n%8,<b>意味着 n 从 0 起</b>)。</li>
+<li><b>字号 i</b>、<b>位号 j</b>:位示图矩阵中的行列号,i 从 0 起,j 从 0 起。</li>
+</ul>
+</div>
+
+<table>
+<tr><th>方向</th><th>公式(从 0 起编号)</th><th>公式(从 1 起编号)</th></tr>
+<tr><td><b>块号 → 位置</b><br>(知道块号求字号位号)</td><td>i = n / L<br>j = n mod L<br>(整数除法,商 / 余数)</td><td>i = (n-1) / L<br>j = (n-1) mod L</td></tr>
+<tr><td><b>位置 → 块号</b><br>(知道字号位号求块号)</td><td><b>n = i × L + j</b></td><td><b>n = i × L + j + 1</b></td></tr>
+</table>
+
+<div class="key">
+<b>速记技巧:</b>"<b>位置→块号</b>:直接 <b>i × 字长 + j</b>(从 0 起);<b>块号→位置</b>:<b>先减 1 再除余</b>(从 1 起),用 0 起时<b>直接除余</b>。"教材幻灯片 250 用的就是从 0 起的版本(因为结果是 i×8+j,正好是位偏移)。
+</div>
+
+<div class="tmpl">
+<b>📐 考场默写模板:</b>
+<pre style="margin:6px 0 0;background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:6px;font-size:13px">
+分配:① 扫描位示图找一组 0(对应空闲块)
+     ② 由 (字号 i, 位号 j) 算出块号 n = i×L + j   (从 0 起)
+     ③ 把该位置改为 1
+回收:① 由块号 n 算出 (i, j):  i = n/L (取整),  j = n mod L
+     ② 把该位置改为 0
+</pre>
+</div>
+
+<h2 id="s4">🔁 4. 分配 / 回收流程(简答题骨架)</h2>
+<div class="steps">
+  <div class="step"><span class="n">分1</span><b>扫描位示图</b><br>按行扫描,找一<b>个</b>(或<b>连续多个</b>)值为 0 的位。可用"找第一个 0"或"找最长 0 串"两种策略。</div>
+  <div class="step"><span class="n">分2</span><b>位置 → 块号</b><br>由 (字号 i, 位号 j) 用 n = i × L + j(从 0 起)算出盘块号。</div>
+  <div class="step"><span class="n">分3</span><b>置位标识</b><br>将位示图中这几位从 0 改为 1。<b>内存里改完即生效</b>(位示图常驻内存)。</div>
+  <div class="step"><span class="n">回1</span><b>块号 → 位置</b><br>回收时反推: i = n / L, j = n mod L。</div>
+  <div class="step"><span class="n">回2</span><b>清位标识</b><br>把对应位从 1 改回 0。</div>
+</div>
+
+<h2 id="s5">✏️ 5. 手算例题(必会)</h2>
+<div class="panel">
+<h3>例题(从 0 起编号,字长 L = 8)</h3>
+<p><b>已知</b>:某磁盘位示图字号 1 的位号 5 已被占用。</p>
+<p><b>问</b>:它对应的<b>盘块号 n</b>是多少?</p>
+<details>
+<summary>点我看解</summary>
+<p><b>解:</b>公式 n = i × L + j = 1 × 8 + 5 = <b>13</b>。</p>
+<p>所以第 1 字第 5 位对应的盘块号是 <b>13 号</b>。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>例题(从 1 起编号,字长 L = 16)</h3>
+<p><b>已知</b>:磁盘共有 16384 块,系统用位示图管理。某文件申请得到<b>第 200 号</b>盘块。</p>
+<p><b>问</b>:它在位示图里的<b>字号 i 和位号 j</b>各是多少?</p>
+<details>
+<summary>点我看解</summary>
+<p><b>解:</b>块号从 1 起,先减 1:<br>
+i = (200 − 1) / 16 = 199 / 16 = <b>12</b>(整数除,12×16=192,余 7)<br>
+j = (200 − 1) mod 16 = 199 mod 16 = <b>7</b></p>
+<p>所以第 200 块对应<b>字号 12、位号 7</b>(从 0 起)。验证:12×16+7+1=200 ✓</p>
+<p class="hint">每张位示图占 16384 bits = 2 KB,常驻内存没问题。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>例题(综合:扫描找空闲)</h3>
+<p><b>已知</b>:位示图共 3 字,每字 8 位,从 0 起编号。第 0 字 = <code>1111 0100</code>,第 1 字 = <code>0011 1111</code>,第 2 字 = <code>0000 0000</b>。</p>
+<p><b>问</b>:① 现在磁盘上<b>已分配几个块</b>?② 若系统要给某文件分配<b>连续 5 块</b>,会从哪个块号开始分配?分配后位示图怎么变?</p>
+<details>
+<summary>点我看解</summary>
+<p><b>① 数 1 的个数:</b>第 0 字 4 个 1(1111 0100),第 1 字 6 个 1(0011 1111),第 2 字 0 个 1 → 已分配 <b>10 块</b>。</p>
+<p><b>② 找连续 5 个 0:</b>逐位扫:<br>
+· 第 0 字 (0,0)~(0,2) = 1 1 1;<b>(0,3)(0,4) = 0 1</b> 不是连续 5 个 0。<br>
+· 第 1 字 (1,0)~(1,5) = 0 0 1 1 1 1,只开头 2 个 0。<br>
+· 第 2 字 (2,0)~(2,7) = 0 0 0 0 0 0 0 0,有 <b>8 个连续 0</b>,够 5 个,就从这里开始。</p>
+<p>起点块号 n = 2×8 + 0 = <b>16</b>。分配 5 块,n ∈ [16, 20]。</p>
+<p>分配后第 2 字变为 <code>0000 1111</code>(第 0~4 位变 1),第 3~7 位仍为 0。</p>
+</details>
+</div>
+
+<h2 id="s6">⚠️ 6. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 编号从 0 还是从 1 写反:</b> 教材幻灯片 250 给的公式是 i = n/8、j = n%8、n = i×8+j,这默认<b>块号从 0 起</b>。<b>多数教材题</b>(如期末考)用<b>从 1 起</b>(块号 1 ~ N),需要先减 1 再除余。公式答反直接扣光。
+</div>
+<div class="warnbox">
+<b>坑 2 · 字长 L 用错:</b> L 是<b>多少 bit</b>对应一个字。如果题目说"位示图按字节(8 位)组织",L = 8;如果说"按 32 位字组织",L = 32。数字错就全错。
+</div>
+<div class="warnbox">
+<b>坑 3 · 0/1 含义写反:</b> 教材默认 0 空闲、1 已占,但有些教材/题目会反过来。<b>答题时先抄题目口径</b>("由题意,0 表示____,1 表示____"),别直接默写。
+</div>
+
+<h2 id="s7">✅ 7. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 公式速算</h3>
+<p>某系统磁盘共 8192 块,位示图按"32 bit 字"组织。某文件申请得到<b>第 5000 号</b>盘块(从 1 起编号)。求字号 i 和位号 j。</p>
+<details><summary>点我对答案</summary>
+<p><b>i = (5000−1) / 32 = 4999 / 32 = 156</b>(整数除,156×32=4992,余 7)</p>
+<p><b>j = (5000−1) % 32 = 4999 % 32 = 7</b></p>
+<p>验证:156 × 32 + 7 + 1 = 4999 + 1 = 5000 ✓</p>
+<p>位示图大小:8192 bits = 1024 B = 1 KB 常驻内存。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 概念辨析(单选)</h3>
+<p>下面关于位示图法的说法,<b>错误</b>的是?</p>
+<p>A. 位示图占用空间小,可以装入内存<br>
+B. 位示图适合微型机和小型机,如 MS OS<br>
+C. 分配过程要顺序扫描整张位示图,因此分配速度慢<br>
+D. 回收过程要先由块号算出位置信息</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:C</b>。位示图常驻内存、逐位扫描位运算极快(一句 <code>find_first_zero</code> 几个 CPU 周期级),<b>速度并不慢</b>;真正慢的是成组链接要维护空闲盘块栈。A、B、D 都是教材幻灯片 251 的原话。</p>
+</details>
+</div>
+
+<footer>
+第 71 课 · Ch6 文件 · 次重点 · 位示图法:核心公式 n = i×L+j、从 1 起先减 1 再除余。<br>
+上下文 → <a href="./0039-file-logical-vs-physical-structure.html">0039 文件逻辑/物理结构</a> · <a href="./0040-storage-calc-exam-cram.html">0040 存储管理计算</a> · 同章后继 → 待补 0072 磁盘 cache / 0073 外存分配<br>
+次重点全套:0071 位示图 · 0072 磁盘 cache · 0073 外存分配(连续 / 链接 / 索引)
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 64 课 · Ch3 调度 · 重点 · SJF 与时间片结合(最短剩余时间优先 SRTN)</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .gantt{font-family:"SF Mono",monospace;font-size:13px;margin:14px 0;line-height:1.9}
+  .gantt .row{display:grid;grid-template-columns:80px 1fr;gap:6px;align-items:center}
+  .gantt .name{font-weight:700;color:var(--blue);text-align:right}
+  .gantt .bar{background:#fff;border:1px solid var(--line);border-radius:4px;height:24px;display:flex;overflow:hidden}
+  .gantt .seg{padding:2px 6px;color:#fff;font-size:11px;border-right:1px solid #fff}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 64 课 · Ch3 调度 · 重点 · SJF 与时间片结合(最短剩余时间优先 SRTN)</p>
+  <h1>SJF 非抢占 vs SRTN 抢占:甘特图画法 + 交互对比</h1>
+  <p class="sub">这是计算题最高频考点——给一组进程的<b>到达时间 + 服务时间</b>,分别按 SJF(非抢占)和 SRTN(抢占)画甘特图,算周转/带权周转。教材出处:<code>3_处理机调度/ppt文本.md</code> 幻灯片 70–76。关联 → <a href="./0063-multilevel-feedback-queue.html">0063 MLFQ</a> · <a href="./0070-scheduling-metrics.html">0070 调度指标</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·SJF vs SRTN</a>
+    <a href="#s3">3·例题甘特图</a>
+    <a href="#s4">4·交互模拟</a>
+    <a href="#s5">5·饥饿问题</a>
+    <a href="#s6">6·易错</a>
+    <a href="#s7">7·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背三句话:</b><br>
+① <b>SJF(非抢占)</b>= 谁的服务时间最短,谁先跑,跑完才让位。<br>
+② <b>SRTN(抢占,SJF 的抢占版)</b>= 每次有<b>新进程到来</b>,比较它的服务时间与当前进程的<b>剩余时间</b>,谁短谁跑。<br>
+③ SRTN <b>对长作业仍可能饥饿</b>(不断有短作业到来,长作业永远跑不完)。
+</div>
+
+<h2 id="s0">🗺 0. 这道计算题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> SJF 像"银行只开 1 个窗口"——挑最短业务先办,办完才叫下一个;SRTN 像"窗口有新人就重新排队"——队里永远选"剩余最短"那个。
+</div>
+<p>老师常考:① 画 SJF 和 SRTN 各自的甘特图;② 比较两种算法的<b>平均周转时间</b>;③ 答出 SJF/SRTN <b>对长作业的饥饿问题</b>。</p>
+
+<h2 id="s1">📖 1. 是什么:SJF vs SRTN</h2>
+<table>
+<tr><th>算法</th><th>类型</th><th>选择策略</th><th>抢占条件</th></tr>
+<tr><td><b>SJF</b>(Shortest Job First)</td><td>非抢占</td><td>从就绪队列选<b>服务时间最短</b>的进程</td><td>不抢占,跑完才让</td></tr>
+<tr><td><b>SRTN</b>(Shortest Remaining Time Next)</td><td><b>抢占</b></td><td>每有新进程到达,比较其服务时间和当前进程的<b>剩余时间</b>,取较短者</td><td>新进程剩余时间更短 → <b>抢占</b></td></tr>
+</table>
+<div class="key"><b>记忆口诀:</b> SJF 看"<b>总服务时间</b>"(看全集);SRTN 看"<b>剩余时间</b>"(看减后)。</div>
+
+<h2 id="s2">⚡ 2. SJF 与 SRTN 对比</h2>
+<div class="panel">
+<p><b>例题:</b> P1 到达 0,服务 7;P2 到达 2,服务 4;P3 到达 4,服务 1;P4 到达 5,服务 4。</p>
+<p><b>SJF(非抢占)甘特图:</b></p>
+<div class="gantt">
+  <div class="row"><div class="name">P1</div><div class="bar"><div class="seg" style="background:#2b6cb0;flex:7">P1(7)</div></div></div>
+  <div class="row"><div class="name">P2</div><div class="bar"><div class="seg" style="background:#2f855a;flex:4">P2(4)</div></div></div>
+  <div class="row"><div class="name">P3</div><div class="bar"><div class="seg" style="background:#b7791f;flex:1">P3(1)</div></div></div>
+  <div class="row"><div class="name">P4</div><div class="bar"><div class="seg" style="background:#c53030;flex:4">P4(4)</div></div></div>
+</div>
+<pre style="background:#0f1b2d;color:#e6edf3;padding:10px;border-radius:6px;font-size:12px">时间 0──7──8──9──13──16
+     P1    P3  P2     P4
+完成时刻:P1=7, P3=8, P2=12, P4=16</pre>
+
+<p><b>SRTN(抢占)甘特图:</b></p>
+<div class="gantt">
+  <div class="row"><div class="name">P1</div><div class="bar"><div class="seg" style="background:#2b6cb0;flex:2">P1(2)</div><div class="seg" style="background:#2f855a;flex:4">P2(4)</div><div class="seg" style="background:#b7791f;flex:1">P3(1)</div><div class="seg" style="background:#2b6cb0;flex:4">P1(4)</div><div class="seg" style="background:#c53030;flex:4">P4(4)</div></div></div>
+  <div class="row"><div class="name">P2</div><div class="bar"><div class="seg" style="background:#f3e8fb;flex:2"></div><div class="seg" style="background:#2f855a;flex:4">P2(4)</div></div></div>
+  <div class="row"><div class="name">P3</div><div class="bar"><div class="seg" style="background:#f3e8fb;flex:6"></div><div class="seg" style="background:#b7791f;flex:1">P3(1)</div></div></div>
+  <div class="row"><div class="name">P4</div><div class="bar"><div class="seg" style="background:#f3e8fb;flex:11"></div><div class="seg" style="background:#c53030;flex:4">P4(4)</div></div></div>
+</div>
+<pre style="background:#0f1b2d;color:#e6edf3;padding:10px;border-radius:6px;font-size:12px">时间 0──2──6──7──11──15
+     P1    P2  P3  P1   P4
+完成时刻:P1=11, P2=6, P3=7, P4=15
+平均周转 = (11+4+3+10)/4 = 7.0 (SRTN 优于 SJF 的 8.25)</pre>
+</div>
+
+<h2 id="s3">🪜 3. 画甘特图的标准步骤</h2>
+<div class="steps">
+  <div class="step"><span class="n">1</span><b>排序</b><br>把所有"已到达且未完成"的进程按<b>服务时间</b>(SJF)或<b>剩余时间</b>(SRTN)升序。</div>
+  <div class="step"><span class="n">2</span><b>选最短</b><br>队首进程跑一个时间段(直到它完成,或新进程到来)。</div>
+  <div class="step"><span class="n">3</span><b>新进程来了就重排</b><br>SRTN 此时比较:新进程的"剩余"vs 当前"剩余",谁短谁跑。</div>
+  <div class="step"><span class="n">4</span><b>记录完成时刻</b><br>每个进程完成的时刻 = 周转时间计算的关键。</div>
+</div>
+
+<h2 id="s4">🕹 4. 交互模拟器:SRTN vs SJF</h2>
+<div class="panel">
+<h3>玩一玩</h3>
+<p>输入 3 个进程的到达时间和服务时间(逗号分隔):</p>
+<p>到达时间: <input type="text" id="arr" value="0,2,4" style="width:120px;padding:4px;border:1px solid var(--line);border-radius:4px"></p>
+<p>服务时间: <input type="text" id="svc" value="7,4,1" style="width:120px;padding:4px;border:1px solid var(--line);border-radius:4px"></p>
+<button onclick="sim()" style="padding:4px 12px;background:var(--blue);color:#fff;border:0;border-radius:4px;cursor:pointer">模拟 SRTN</button>
+<pre id="simOut" style="background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px;font-size:13px;line-height:1.7"></pre>
+<script>
+function sim(){
+  const a=document.getElementById('arr').value.split(',').map(Number);
+  const s=document.getElementById('svc').value.split(',').map(Number);
+  const n=a.length;
+  let p=a.map((x,i)=>({id:'P'+(i+1),arr:a[i],svc:s[i],rem:s[i],done:0}));
+  let t=0,log=['时间轴 →'];
+  while(p.some(x=>!x.done)){
+    let cur=p.filter(x=>x.arr<=t&&!x.done).sort((a,b)=>a.rem-b.rem)[0];
+    if(!cur){t++;continue;}
+    let run=cur.rem;
+    // 看未来是否有新进程到达且剩余更短
+    let nextArr=p.filter(x=>!x.done&&x.arr>t&&x.arr<t+run).sort((a,b)=>a.arr-b.arr)[0];
+    if(nextArr && nextArr.svc < cur.rem){run=nextArr.arr-t;}
+    cur.rem -= run;
+    log.push(`[${t}→${t+run}] ${cur.id}(剩 ${cur.rem>0?cur.rem:'✓完成'})`);
+    t += run;
+    if(cur.rem<=0) cur.done=t;
+  }
+  let tt=p.map(x=>x.done-x.arr);
+  log.push(`\n周转时间:${tt.join(', ')}`);
+  log.push(`平均周转=${(tt.reduce((s,x)=>s+x,0)/n).toFixed(2)}`);
+  document.getElementById('simOut').innerText=log.join('\n');
+}
+sim();
+</script>
+<p class="hint">默认数据 = 上一节例题 P1/P2/P3。改数字看 SRTN 怎么在 t=2 抢 P1。</p>
+</div>
+
+<h2 id="s5">⚔️ 5. SRTN 的饥饿问题</h2>
+<div class="warnbox">
+<b>为什么 SRTN 仍可能饥饿?</b><br>
+假设不断有<b>服务时间为 1</b> 的短进程到来(比如用户的鼠标点击事件):<br>
+· 当前长作业还剩 100 单位;<br>
+· 新进程服务时间 1 &lt; 100,被抢;<br>
+· 跑 1 单位完成,下一个短作业又来,再抢;<br>
+· 长作业一直跑不完 → <b>饥饿</b>(starvation)。<br>
+<b>解决方案:</b>老化(aging)——<b>随等待时间增长,优先级提升</b>。这就是 HRRN(高响应比优先)的思想。
+</div>
+
+<h2 id="s6">⚠️ 6. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · SRTN 比较的是"剩余"不是"服务时间":</b> 很多同学画图时,把"<b>新进程的服务时间</b>"和"<b>当前进程的服务时间</b>"比,这是 SJF 的做法。<b>SRTN 是和"剩余时间"比</b>。如果当前进程已跑了 3 单位(总服务 7),剩余 = 4,新进程服务 3 → 抢占(3&lt;4)。
+</div>
+<div class="warnbox">
+<b>坑 2 · SJF 不抢占,不要画抢占:</b> 答 SJF 题时,<b>新进程到来时不能打断当前进程</b>——只能放到就绪队列等当前跑完再选最短。
+</div>
+<div class="warnbox">
+<b>坑 3 · 周转时间 = 完成时刻 − 到达时刻:</b> 不是"<b>服务时间</b>"!服务时间只是周转时间的分子之一(带权周转 = 周转 / 服务)。
+</div>
+
+<h2 id="s7">✅ 7. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · SJF vs SRTN 核心区别</h3>
+<p>SJF 和 SRTN 的关键区别是什么?<b>哪个可能让长作业饥饿</b>?</p>
+<details><summary>点我对答案</summary>
+<p>· <b>SJF:</b> 非抢占,选总服务时间最短的,跑完才让。<br>
+· <b>SRTN:</b> 抢占,选剩余时间最短的,新进程剩余更短就抢。<br>
+· <b>SRTN</b> 可能让长作业饥饿(不断被短作业抢)。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 例题(看上面 §2)</h3>
+<p>用 §2 的数据,在 SRTN 下 P1 完成时刻是?</p>
+<details><summary>点我看答案</summary>
+<p><b>P1 完成时刻 = 11</b>。0–2 跑 P1(剩 5),2–6 跑 P2(完成),6–7 跑 P3(完成),7–11 跑 P1 剩余 4 → 完成。周转 = 11−0 = 11。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 简答</h3>
+<p>SJF 调度的优缺点是什么?</p>
+<details><summary>点我看答案</summary>
+<p><b>优点:</b>① 平均周转时间最短;<b>缺点:</b>① 对长作业不利(可能饥饿);② 必须预知服务时间(实际中只能估计);③ 紧迫性作业可能没考虑。</p>
+<p class="hint">教材幻灯片 75–76 原文,展开写能拿满分。</p>
+</details>
+</div>
+
+<footer>
+第 64 课 · Ch3 调度 · 重点 · SJF 与 SRTN 对比。<br>
+背景 → <a href="./0002-scheduling-algorithms.html">0002 调度算法</a> · 相关 → <a href="./0063-multilevel-feedback-queue.html">0063 MLFQ</a> · 指标 → <a href="./0070-scheduling-metrics.html">0070 调度指标</a><br>
+重点全套:0063 MLFQ · 0064 SJF/SRTN · 0065 设备综合 · 0066 文件物理结构 · 0067 文件空间管理 · 0068 成组链接 · 0069 队列图 · 0070 调度指标
+</footer>
+
+</div>
+</body>
+</html>

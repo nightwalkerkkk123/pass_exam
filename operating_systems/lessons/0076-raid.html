@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 76 课 · Ch5 设备 · 非重点 · RAID 磁盘阵列</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 76 课 · Ch5 设备 · 非重点 · RAID 磁盘阵列</p>
+  <h1>RAID 磁盘阵列：独立磁盘冗余阵列的 7 个级别</h1>
+  <p class="sub">非重点了解内容——<b>RAID 通过多磁盘组合提升性能/可靠性</b>。教材出处：汤小丹第5章。</p>
+</header>
+
+<div class="key">
+<b>RAID 核心思想:</b><br>
+① <b>RAID 0 (条带)</b> 性能↑ 可靠性✗ <br>
+② <b>RAID 1 (镜像)</b> 可靠性↑ 性能一般<br>
+③ <b>RAID 5 (条带+校验)</b> 折中方案，最常用
+</div>
+
+<h2 id="s0">🗺 0. 什么是RAID</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 用多个小硬盘拼成一个"大硬盘"，既快又不容易坏——这就是 RAID(Redundant Array of Independent Disks)。
+</div>
+
+<h2 id="s1">📖 1. 七种RAID级别对比</h2>
+<table>
+<tr><th>级别</th><th>名称</th><th>方式</th><th>优点</th><th>缺点</th></tr>
+<tr><td><b>RAID 0</b></td><td>条带化</td><td>数据分块存到多盘</td><td>读写速度最快</td><td>一块坏全坏，无冗余</td></tr>
+<tr><td><b>RAID 1</b></td><td>镜像</td><td>每个盘存相同副本</td><td>可靠性最高</td><td>磁盘利用率50%</td></tr>
+<tr><td><b>RAID 2</b></td><td>海明码校验</td><td>位级条带+海明码</td><td>纠错能力强</td><td>需要多校验盘，已淘汰</td></tr>
+<tr><td><b>RAID 3</b></td><td>专用校验盘</td><td>字节条带+一个校验盘</td><td>并行度好</td><td>校验盘是瓶颈</td></tr>
+<tr><td><b>RAID 4</b></td><td>块级校验</td><td>块条带+一个校验盘</td><td>读写并行</td><td>校验盘仍是瓶颈</td></tr>
+<tr><td><b>RAID 5</b></td><td>分布式校验</td><td>校验信息轮流存各盘</td><td>无单点瓶颈</td><td>写性能略降</td></tr>
+<tr><td><b>RAID 6</b></td><td>双重校验</td><td>2套独立校验</td><td>可坏2块盘</td><td>写性能更差</td></tr>
+</table>
+
+<h2 id="s2">📖 2. 三种最常用RAID详解</h2>
+<div class="panel">
+<h3>RAID 0 - 条带化(性能优先)</h3>
+<p>数据切成条带轮流写入各盘。<b>N块盘并行读写，理论速度提升N倍</b>。</p>
+<p><b>缺点:</b> 任何一块盘坏，所有数据丢失。</p>
+
+<h3>RAID 1 - 镜像(可靠性优先)</h3>
+<p>每块盘都有完整副本。<b>任何一块盘坏，数据不丢</b>。</p>
+<p><b>缺点:</b> 实际可用容量减半，成本高。</p>
+
+<h3>RAID 5 - 条带+分布式校验(折中方案)</h3>
+<p>数据条带化存储，<b>校验信息轮流分布到各盘</b>。允许<b>坏1块盘</b>不丢数据。</p>
+<p><b>优点:</b> 容量利用率 (N-1)/N，没有单点瓶颈。</p>
+<p><b>实际应用:</b> 最常用，企业存储的默认选择。</p>
+</div>
+
+<h2 id="s3">📖 3. 容量与可靠性计算</h2>
+<table>
+<tr><th>RAID级别</th><th>N块盘的可用容量</th><th>允许坏盘数</th></tr>
+<tr><td>RAID 0</td><td>N × 单盘容量</td><td>0</td></tr>
+<tr><td>RAID 1</td><td>1 × 单盘容量</td><td>N-1</td></tr>
+<tr><td>RAID 5</td><td>(N-1) × 单盘容量</td><td>1</td></tr>
+<tr><td>RAID 6</td><td>(N-2) × 单盘容量</td><td>2</td></tr>
+</table>
+
+<h2 id="s4">✅ 4. 自测</h2>
+<div class="panel">
+<p>5块500GB硬盘组成RAID 5，可用容量是？</p>
+<details><summary>答案</summary>
+<p>(5-1) × 500GB = <b>2000GB</b>，其中一块盘容量用于分布式校验。</p>
+</details>
+</div>
+
+<footer>
+第 76 课 · RAID 磁盘阵列。<br>
+非重点全套:0074 文件逻辑结构 · 0075 I/O方式 · 0076 RAID · 0077 OS结构 · 0078 文件系统挂载
+</footer>
+
+</div>
+</body>
+</html>

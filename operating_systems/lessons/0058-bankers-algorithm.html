@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 58 课 · Ch3 死锁 · 大题 · 银行家算法(死锁判断与处理)</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .steps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .step{flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px}
+  .step .n{display:inline-block;background:var(--blue);color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-weight:700;margin-right:6px}
+  .step b{color:var(--blue)}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 58 课 · Ch3 死锁 · 大题 · 银行家算法</p>
+  <h1>银行家算法:5 步操作 + 安全性算法 = 10 分满分</h1>
+  <p class="sub">本章是<b>深大自命题 10 分计算大题</b>的常客——给一组 Allocation / Max / Available,要求判断 T0 是否安全、若进程请求 X 资源能否分配。<b>默写 4 个数据结构 + 5 步操作流程 = 步骤分到手</b>。教材出处:<code>3_处理机调度/ppt文本.md</code> 幻灯片 324-340。原理铺垫见 <a href="./0045-deadlock-conditions-prevention.html">0045 死锁条件与预防</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·4 数据结构</a>
+    <a href="#s3">3·5 步操作</a>
+    <a href="#s4">4·安全性算法</a>
+    <a href="#s5">5·手算例题</a>
+    <a href="#s6">6·答法模板</a>
+    <a href="#s7">7·易错</a>
+    <a href="#s8">8·真题</a>
+    <a href="#s9">9·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背两句话:</b><br>
+① <b>4 个数据结构</b>:Available(可用资源向量)、Max(最大需求矩阵)、Allocation(已分配矩阵)、Need(尚需矩阵 = Max - Allocation)。<br>
+② <b>5 步操作</b>:①Request ≤ Need ②Request ≤ Available ③试分配改 4 个量 ④安全性算法检查 ⑤安全才真分配。
+</div>
+
+<h2 id="s0">🗺 0. 这道大题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 银行家算法就是"<b>先假设你要的,我会先算账——算完确认不会死锁,再真给</b>"。死锁判断 = 找一个安全序列;死锁处理 = 算一次试分配 + 再判安全。
+</div>
+<p>10 分题的标准拿法:<b>写 4 个数据结构(2 分)+ 写 5 步操作流程(2 分)+ 算 T0 时刻安全序列(4 分)+ 处理进程请求(2 分)</b>。流程分和计算分各占一半,<b>写不出来时哪怕只默写流程也能保底 4 分</b>。</p>
+
+<h2 id="s1">📖 1. 是什么:银行家算法 = 死锁避免的代表算法</h2>
+<div class="panel">
+  <p><b>定义:</b> 银行家算法由 <b>Dijkstra</b> 提出,是<b>死锁避免</b>的经典算法——<b>在每次分配资源前,先试探分配,再用安全性算法检查是否会进入不安全状态</b>;若会进入不安全状态则<b>拒绝分配</b>。</p>
+  <p><b>教材原话(幻灯片 320):</b>"最著名的死锁避免算法是 Dijkstra 提出的银行家算法。这是由于该算法能用于银行系统现金贷款的发放而得名。"</p>
+  <p class="hint">背景:出自教材 3.6.3 节(利用银行家算法避免死锁)。本章和 0059 调度算法都是 10 分大题。</p>
+</div>
+
+<h2 id="s2">🧱 2. 4 个数据结构(必默写)</h2>
+<table>
+<tr><th>名字</th><th>类型</th><th>含义</th><th>关键关系</th></tr>
+<tr><td><b>Available</b></td><td>向量(长度 m)</td><td>系统中<b>每类资源的当前可用数</b></td><td>Available[j] = K → 现有 R<sub>j</sub> 类资源 K 个</td></tr>
+<tr><td><b>Max</b></td><td>n×m 矩阵</td><td>每个进程对每类资源的<b>最大需求</b></td><td>Max[i][j] = K → 进程 i 最多需要 R<sub>j</sub> 类 K 个</td></tr>
+<tr><td><b>Allocation</b></td><td>n×m 矩阵</td><td>每个进程<b>已经分到</b>的资源数</td><td>Allocation[i][j] = K → 进程 i 已分得 K 个</td></tr>
+<tr><td><b>Need</b></td><td>n×m 矩阵</td><td>每个进程<b>尚需</b>的资源数</td><td><b>Need[i][j] = Max[i][j] − Allocation[i][j]</b></td></tr>
+</table>
+<div class="key">
+<b>记忆口诀:</b>"<b>有最大、已分配、还差多少</b>"——Max(我要最多多少)、Allocation(已经拿到多少)、Need(还差多少 = Max - Allocation)、Available(系统仓库还剩多少)。<b>四个东西、三类角色、一条减法</b>。
+</div>
+
+<h2 id="s3">🪜 3. 5 步操作流程(必默写)</h2>
+<p>设进程 P<sub>i</sub> 发出请求向量 Request<sub>i</sub>(长度为 m):</p>
+<div class="steps">
+  <div class="step"><span class="n">1</span><b>检 Request ≤ Need</b><br>若 Request<sub>i</sub>[j] &gt; Need<sub>i</sub>[j] 则<b>报错</b>(进程要的比它声称的最大还多,异常)。</div>
+  <div class="step"><span class="n">2</span><b>检 Request ≤ Available</b><br>若 Request<sub>i</sub>[j] &gt; Available[j] 则<b>让 P<sub>i</sub> 等待</b>(系统没货)。</div>
+  <div class="step"><span class="n">3</span><b>试探分配</b><br>修改 4 个量:Available −= Request, Allocation<sub>i</sub> += Request, Need<sub>i</sub> −= Request。<b>暂时分配,未生效</b>。</div>
+  <div class="step"><span class="n">4</span><b>安全性算法检查</b><br>用试分配后的状态跑安全性算法,看能否找到安全序列。</div>
+  <div class="step"><span class="n">5</span><b>分支</b><br>若能找到安全序列 → <b>真分配</b>(把第 3 步的修改落定);否则 → <b>回滚</b>(恢复试分配前的状态,让 P<sub>i</sub> 等待)。</div>
+</div>
+
+<h2 id="s4">🔍 4. 安全性算法(子流程)</h2>
+<div class="panel">
+  <p><b>输入:</b> 试分配后的 Available / Need / Allocation。</p>
+  <p><b>输出:</b> 安全序列 &lt;P<sub>i1</sub>, P<sub>i2</sub>, ..., P<sub>in</sub>&gt; 或 "不安全"。</p>
+  <h3>步骤</h3>
+  <ol>
+    <li>设工作向量 <b>Work = Available</b>,Finish[i] = false(所有进程)。</li>
+    <li>找满足 <b>Finish[i] = false 且 Need<sub>i</sub>[j] ≤ Work[j]</b> 的进程 P<sub>i</sub>。找不到转第 4 步。</li>
+    <li>假装 P<sub>i</sub> 完成:<b>Work += Allocation<sub>i</sub></b>,Finish[i] = true。回到第 2 步。</li>
+    <li>若所有 Finish[i] = true → <b>安全</b>,序列就是找到的顺序;否则 → <b>不安全</b>。</li>
+  </ol>
+</div>
+<div class="key">
+<b>口诀:</b>"<b>找得到就假装完成释放</b>"——找到 Need ≤ Work 的进程,假装它跑完,把 Allocation 加回 Work,继续找下一个。这就是模拟"<b>一个一个进程跑完,系统能否清仓</b>"。
+</div>
+
+<h2 id="s5">✍ 5. 手算例题(教材幻灯片 335-339 改编)</h2>
+<div class="panel">
+  <p><b>题目:</b> 系统有 5 个进程 P0~P4,3 类资源 A/B/C,数量分别为 <b>10/5/7</b>。T0 时刻分配如下:</p>
+  <table>
+  <tr><th rowspan="2">进程</th><th colspan="3">Allocation(已分)</th><th colspan="3">Max(最大需求)</th></tr>
+  <tr><th>A</th><th>B</th><th>C</th><th>A</th><th>B</th><th>C</th></tr>
+  <tr><td>P0</td><td>0</td><td>1</td><td>0</td><td>7</td><td>5</td><td>3</td></tr>
+  <tr><td>P1</td><td>2</td><td>0</td><td>0</td><td>3</td><td>2</td><td>2</td></tr>
+  <tr><td>P2</td><td>3</td><td>0</td><td>2</td><td>9</td><td>0</td><td>2</td></tr>
+  <tr><td>P3</td><td>2</td><td>1</td><td>1</td><td>2</td><td>2</td><td>2</td></tr>
+  <tr><td>P4</td><td>0</td><td>0</td><td>2</td><td>4</td><td>3</td><td>3</td></tr>
+  </table>
+  <p><b>问(1):</b> 计算 Need = Max − Allocation,写出 T0 时刻的 Need 矩阵和 Available 向量。</p>
+  <p><b>问(2):</b> 用安全性算法判断 T0 是否安全,若安全给出一个安全序列。</p>
+  <p><b>问(3):</b> 此时 P1 发出请求 Request<sub>1</sub>=(1, 0, 2),系统能否分配?</p>
+</div>
+
+<h3>5.1 第一步:算 Need 和 Available</h3>
+<p>Need = Max − Allocation(对应位置相减):</p>
+<table>
+<tr><th>进程</th><th>Need A</th><th>Need B</th><th>Need C</th></tr>
+<tr><td>P0</td><td>7−0=7</td><td>5−1=4</td><td>3−0=3</td></tr>
+<tr><td>P1</td><td>3−2=1</td><td>2−0=2</td><td>2−0=2</td></tr>
+<tr><td>P2</td><td>9−3=6</td><td>0−0=0</td><td>2−2=0</td></tr>
+<tr><td>P3</td><td>2−2=0</td><td>2−1=1</td><td>2−1=1</td></tr>
+<tr><td>P4</td><td>4−0=4</td><td>3−0=3</td><td>3−2=1</td></tr>
+</table>
+<p>Available = 总资源 − Σ Allocation = (10,5,7) − (0+2+3+2+0, 1+0+0+1+0, 0+0+2+1+2) = (10,5,7) − (7, 2, 5) = <b>(3, 3, 2)</b></p>
+
+<h3>5.2 第二步:安全性算法(找安全序列)</h3>
+<p>Work = Available = (3, 3, 2),Finish[i] 初始全部 false。</p>
+<table>
+<tr><th>轮次</th><th>找到的 P<sub>i</sub></th><th>Need ≤ Work?</th><th>Work 累加</th><th>Finish</th></tr>
+<tr><td>1</td><td><b>P1</b></td><td>(1,2,2) ≤ (3,3,2) ✓</td><td>Work += Allocation<sub>1</sub> = (3,3,2)+(2,0,0) = <b>(5, 3, 2)</b></td><td>F[P1]=true</td></tr>
+<tr><td>2</td><td><b>P3</b></td><td>(0,1,1) ≤ (5,3,2) ✓</td><td>Work += Allocation<sub>3</sub> = (5,3,2)+(2,1,1) = <b>(7, 4, 3)</b></td><td>F[P3]=true</td></tr>
+<tr><td>3</td><td><b>P0</b></td><td>(7,4,3) ≤ (7,4,3) ✓</td><td>Work += Allocation<sub>0</sub> = (7,4,3)+(0,1,0) = <b>(7, 5, 3)</b></td><td>F[P0]=true</td></tr>
+<tr><td>4</td><td><b>P2</b></td><td>(6,0,0) ≤ (7,5,3) ✓</td><td>Work += Allocation<sub>2</sub> = (7,5,3)+(3,0,2) = <b>(10, 5, 5)</b></td><td>F[P2]=true</td></tr>
+<tr><td>5</td><td><b>P4</b></td><td>(4,3,1) ≤ (10,5,5) ✓</td><td>Work += Allocation<sub>4</sub> = (10,5,5)+(0,0,2) = <b>(10, 5, 7)</b></td><td>F[P4]=true</td></tr>
+</table>
+<p><b>结论:T0 安全,安全序列 &lt;P1, P3, P0, P2, P4&gt;</b>(注意:每次从满足条件的进程中任选一个即可,本答案选了 P1 起手)。</p>
+
+<h3>5.3 第三步:处理 P1 请求 Request<sub>1</sub>=(1, 0, 2)</h3>
+<div class="steps">
+  <div class="step"><span class="n">①</span><b>检 Request ≤ Need</b><br>(1,0,2) ≤ (1,2,2) ✓ 通过</div>
+  <div class="step"><span class="n">②</span><b>检 Request ≤ Available</b><br>(1,0,2) ≤ (3,3,2) ✓ 通过</div>
+  <div class="step"><span class="n">③</span><b>试探分配</b><br>Available=(2,3,0);Allocation<sub>1</sub>=(3,0,2);Need<sub>1</sub>=(0,2,0)</div>
+  <div class="step"><span class="n">④</span><b>安全性算法</b><br>Work=(2,3,0);P1 Need=(0,2,0)≤(2,3,0)✓ → Work+=(3,0,2)=(5,3,2);然后 P3→(7,4,3)→P0→(7,5,3)→P2→(10,5,5)→P4→(10,5,7)全部 Finish=true</div>
+  <div class="step"><span class="n">⑤</span><b>结论</b><br>存在安全序列 &lt;P1,P3,P0,P2,P4&gt;,<b>可以分配</b></div>
+</div>
+
+<h2 id="s6">📐 6. 考场答法模板(4 步拿满分)</h2>
+<div class="tmpl">
+<b>📐 答法模板(默写 4 段,10 分到手)</b>
+<pre style="margin:6px 0 0;background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:6px;font-size:13px">
+(1) 【数据结构 2 分】4 个数据结构定义 + Need = Max − Allocation
+
+(2) 【算法流程 2 分】5 步操作流程(Request ≤ Need → ≤ Available → 试分配 → 安全性算法 → 分支)
+
+(3) 【安全序列 4 分】用表格逐轮找安全序列(每轮记录:哪个进程满足 Need ≤ Work、Work 累加、Finish)
+
+(4) 【请求处理 2 分】进程 Px 请求 Y → ① 检查两不等式 ② 改 4 个量做试分配
+                          → ③ 重跑安全性算法 ④ 安全则分配/否则等待
+</pre>
+</div>
+
+<h2 id="s7">⚠️ 7. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 把 Need = Max + Allocation:</b> 必考易错点!<b>Need = Max − Allocation</b>(还差多少),不是相加。Allocation 是"已分到的",Need 是"还需要的",两者相减。
+</div>
+<div class="warnbox">
+<b>坑 2 · Available 直接抄题:</b> 有些题目<b>不直接给</b> Available,需要自己算:<b>Available = 总资源 − Σ Allocation</b>(按列求和)。
+</div>
+<div class="warnbox">
+<b>坑 3 · 安全性算法 Work 累加忘改:</b> 找到满足 Need ≤ Work 的进程 P<sub>i</sub> 后,<b>Work 要累加 Allocation<sub>i</sub>(不是 Need<sub>i</sub>)</b>——因为进程完成会<b>释放它已分配的全部资源</b>。
+</div>
+<div class="warnbox">
+<b>坑 4 · "可以分配"漏写试分配后的数据:</b> 哪怕判可以分配,也<b>必须写出试分配后的 Available/Allocation/Need 三个新值</b>——这是 2 分的实操分。
+</div>
+
+<h2 id="s8">📝 8. 真题样例(10 分)</h2>
+<div class="panel">
+  <h3>样题(改编自教材幻灯片 368)</h3>
+  <p>系统 5 进程 P0~P4,4 类资源 A/B/C/D,Available = (1, 6, 2, 2)。Allocation / Need 如下:</p>
+  <table>
+  <tr><th rowspan="2">进程</th><th colspan="4">Allocation</th><th colspan="4">Need</th></tr>
+  <tr><th>A</th><th>B</th><th>C</th><th>D</th><th>A</th><th>B</th><th>C</th><th>D</th></tr>
+  <tr><td>P0</td><td>0</td><td>0</td><td>3</td><td>2</td><td>0</td><td>0</td><td>1</td><td>2</td></tr>
+  <tr><td>P1</td><td>1</td><td>0</td><td>0</td><td>0</td><td>1</td><td>7</td><td>5</td><td>0</td></tr>
+  <tr><td>P2</td><td>1</td><td>3</td><td>5</td><td>4</td><td>2</td><td>3</td><td>5</td><td>6</td></tr>
+  <tr><td>P3</td><td>0</td><td>3</td><td>3</td><td>2</td><td>0</td><td>6</td><td>5</td><td>2</td></tr>
+  <tr><td>P4</td><td>0</td><td>0</td><td>1</td><td>4</td><td>0</td><td>6</td><td>5</td><td>6</td></tr>
+  </table>
+  <p><b>问(1):</b> 该系统是否安全?<b>问(2):</b> 若 P2 提出请求 (1, 2, 2, 2),系统能否分配?</p>
+  <details>
+    <summary>点我看参考答案</summary>
+    <p><b>答(1):</b>用安全性算法。Work = (1, 6, 2, 2)。</p>
+    <ul>
+      <li>P0: Need=(0,0,1,2) ≤ (1,6,2,2) ✓ → Work += Alloc<sub>0</sub>=(0,0,3,2) → Work=(1,6,5,4);Finish[P0]=true</li>
+      <li>P2: Need=(2,3,5,6) ≤ (1,6,5,4)?<b>否</b>(A 资源 2>1)。</li>
+      <li>P3: Need=(0,6,5,2) ≤ (1,6,5,4) ✓ → Work+=(0,3,3,2)=(1,9,8,6);Finish[P3]=true</li>
+      <li>P2: Need=(2,3,5,6) ≤ (1,9,8,6)?<b>否</b>。P1/P4 Need 也都 ≥ 当前 Work。</li>
+      <li>剩余进程均无法满足 → <b>系统不安全</b>。</li>
+    </ul>
+    <p><b>答(2):</b>P2 请求 (1,2,2,2)。</p>
+    <ul>
+      <li>① Request=(1,2,2,2) ≤ Need=(2,3,5,6) ✓</li>
+      <li>② Request=(1,2,2,2) ≤ Available=(1,6,2,2) ✓</li>
+      <li>③ 试分配:Available=(0,4,0,0);Alloc<sub>2</sub>=(2,5,7,6);Need<sub>2</sub>=(1,1,3,4)</li>
+      <li>④ Work=(0,4,0,0)。所有进程 Need 第一分量均 ≥ 1(P2=P0 的 1, P0=0)——P0 Need=(0,0,1,2) ≤ (0,4,0,0)?否。找不到满足的进程 → <b>不安全</b>。</li>
+      <li>⑤ <b>不能分配,让 P2 等待</b>。</li>
+    </ul>
+    <p class="hint">出处:<code>3_处理机调度/ppt文本.md</code> 幻灯片 368。</p>
+  </details>
+</div>
+
+<h2 id="s9">✅ 9. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 数据结构默写</h3>
+<p>不看书,默写银行家算法的<b>4 个数据结构 + 它们之间的关系</b>。</p>
+<details><summary>点我对答案</summary>
+<p><b>4 个数据结构</b>:Available(可用资源向量,长度 m)、Max(最大需求矩阵,n×m)、Allocation(已分配矩阵,n×m)、Need(尚需矩阵,n×m)。</p>
+<p><b>关键关系</b>:<b>Need[i][j] = Max[i][j] − Allocation[i][j]</b>(记一个减号,别记成加号)。</p>
+<p class="hint">卡壳了回到 §2 重新读一遍。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 算法流程默写</h3>
+<p>不看书,默写进程 P<sub>i</sub> 请求资源后的<b>5 步操作流程</b>。</p>
+<details><summary>点我对答案</summary>
+<p>①检 Request<sub>i</sub> ≤ Need<sub>i</sub>(否则报错)→ ②检 Request<sub>i</sub> ≤ Available(否则等待)→ ③试探分配(Available−=Request,Allocation+=Request,Need−=Request)→ ④执行安全性算法→ ⑤安全才真分配,不安全则回滚并等待。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 易错辨析</h3>
+<p>下面哪个说法是<b>错的</b>?</p>
+<p>A. Need = Max − Allocation,等于 0 表示进程已分配到最大需求<br>
+B. 安全性算法中,找到满足 Need ≤ Work 的进程后,Work 要 += Allocation(不是 += Need)<br>
+C. 银行家算法是死锁检测算法,允许分配后再检测死锁<br>
+D. 试探分配后若安全性算法检查不安全,系统会让该进程等待并回滚试分配</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:C</b>。银行家算法是<b>死锁避免</b>算法(在分配<b>前</b>试探),不是死锁检测算法(在分配<b>后</b>检测)。A/B/D 都是教材原话。</p>
+</details>
+</div>
+
+<footer>
+第 58 课 · Ch3 死锁 · 大题 · 银行家算法:4 数据结构 + 5 步操作 + 安全性算法。<br>
+背景 → <a href="./0045-deadlock-conditions-prevention.html">0045 死锁条件与预防</a> · 检测与解除 → <a href="./0046-deadlock-detection-recovery.html">0046 检测与解除</a> · 原理铺垫 → <a href="./0003-bankers-algorithm.html">0003 银行家原理<br>
+大题全套:0058 银行家 · 0059 调度 · 0060 分页分段 · 0061 页面置换 · 0062 磁盘调度
+</footer>
+
+</div>
+</body>
+</html>

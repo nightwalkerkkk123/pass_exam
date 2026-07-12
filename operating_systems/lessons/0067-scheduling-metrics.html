@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 67 课 · Ch3 处理机调度 · 重点 · 调度算法的评价指标</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .formula{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 67 课 · Ch3 处理机调度 · 重点 · 调度算法的评价指标</p>
+  <h1>调度算法评价指标：CPU利用率·吞吐量·周转时间·等待时间·响应时间</h1>
+  <p class="sub">重点考点——<b>选择和计算题都会涉及的评价指标</b>。教材出处：汤小丹第3章3.2节。</p>
+</header>
+
+<div class="key">
+<b>考场必背公式:</b><br>
+① <b>周转时间</b> = 完成时间 - 到达时间<br>
+② <b>带权周转时间</b> = 周转时间 / 实际运行时间<br>
+③ <b>等待时间</b> = 周转时间 - 实际运行时间 = 在就绪队列中等待的时间总和
+</div>
+
+<h2 id="s0">🗺 0. 这些指标是干什么的</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 不同调度算法谁好谁坏？不能凭感觉，得有<b>量化指标</b>来衡量！这些就是评判标准。
+</div>
+
+<h2 id="s1">📖 1. 五大评价指标详解</h2>
+<table>
+<tr><th>指标</th><th>定义</th><th>公式</th><th>目标</th></tr>
+<tr><td>CPU利用率</td><td>CPU有效工作时间占总时间的比例</td><td>忙碌时间 / 总时间</td><td>越高越好(理论上限100%)</td></tr>
+<tr><td>吞吐量</td><td>单位时间内完成的作业数</td><td>完成作业数 / 总时间</td><td>越高越好</td></tr>
+<tr><td>周转时间</td><td>从作业提交到完成的总时间</td><td>完成时间 - 提交时间</td><td>越短越好</td></tr>
+<tr><td>等待时间</td><td>作业在就绪队列中等待的时间总和</td><td>周转时间 - 运行时间</td><td>越短越好</td></tr>
+<tr><td>响应时间</td><td>从提交到首次被响应的时间</td><td>首次调度时间 - 提交时间</td><td>越短越好(交互系统重要)</td></tr>
+</table>
+
+<h2 id="s2">📖 2. 计算例题</h2>
+<div class="panel">
+<h3>例题</h3>
+<p>某作业8:00到达，10:00完成，实际运行了1小时。求各项指标。</p>
+<div class="formula">
+周转时间 = 10:00 - 8:00 = 2小时
+带权周转时间 = 2 / 1 = 2
+等待时间 = 2 - 1 = 1小时
+</div>
+<p><b>解读:</b> 这个作业等了1小时，运行了1小时，总共花了2小时才完成。</p>
+</div>
+
+<h2 id="s3">⚠️ 3. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 带权周转时间:</b> 分母是<b>实际运行时间</b>，不是周转时间！它反映的是"等1分钟运行1分钟"还是"等10分钟运行1分钟"。
+</div>
+<div class="warnbox">
+<b>坑 2 · 响应时间 vs 周转时间:</b> 响应时间是<b>首次被调度</b>的时间，周转时间是<b>全部完成</b>的时间。
+</div>
+
+<h2 id="s4">✅ 4. 自测</h2>
+<div class="panel">
+<p>作业A 9:00到达，11:30完成，运行了1小时。求周转时间和带权周转时间。</p>
+<details><summary>答案</summary>
+<p>周转时间 = 2.5小时，带权周转时间 = 2.5/1 = <b>2.5</b></p>
+</details>
+</div>
+
+<footer>
+第 67 课 · 调度算法评价指标。<br>
+重点全套:0063 多级反馈队列 · 0064 抢占式SJF · 0065 设备管理 · 0066 文件物理结构 · 0067 调度指标 · 0068 死锁条件 · 0069 段页式 · 0070 页面抖动
+</footer>
+
+</div>
+</body>
+</html>

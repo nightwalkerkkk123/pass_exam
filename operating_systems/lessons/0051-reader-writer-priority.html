@@ -1,0 +1,571 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 51 课 · Ch2 进程管理 · 读者-写者问题(读者优先) · 一个图彻底讲透</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+    --pink:#d53f8c; --teal:#0d9488;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:980px; margin:0 auto; padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:25px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:38px 0 10px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:18px 0 6px; color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+
+  .panel{background:#fff; border:1px solid var(--line); border-radius:10px; padding:18px; margin:16px 0; box-shadow:0 1px 3px rgba(20,30,60,.04)}
+
+  .btn{font:inherit; font-size:14px; border:1px solid var(--blue); background:#fff; color:var(--blue);
+    padding:6px 14px; border-radius:20px; cursor:pointer; margin:3px; transition:.15s}
+  .btn:hover{background:var(--soft)}
+  .btn.on{background:var(--blue); color:#fff}
+  .btn.reset{border-color:#aaa; color:#666}
+
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top}
+  th{background:#eef2f8}
+
+  footer{margin-top:56px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+  .hint{font-size:12.5px; color:var(--muted); margin:2px 0 6px}
+  details{margin:8px 0} summary{cursor:pointer; color:var(--blue); font-weight:600}
+  details[open] summary{margin-bottom:6px}
+
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 4px}
+  .nav a{font-size:13px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue)}
+  .nav a:hover{background:var(--soft); text-decoration:none}
+
+  /* 代码块 */
+  .code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; background:#0f1b2d; color:#e6edf3;
+    border-radius:8px; padding:14px 16px; overflow-x:auto; line-height:2.0; white-space:pre; margin:12px 0}
+  .code .cm{color:#7d8fa8}
+  .code .k{color:#fbbf24; font-weight:700}
+  .code .r{color:#7ee0a8}
+  .code .w{color:#ffb4b4}
+  .code .p{color:#f0a4ff}
+  .code .v{color:#9ad7ff}
+
+  /* 时间轴:演示读者陆续进门、最后一个人走 */
+  .timeline{position:relative; margin:14px 0 6px; padding:14px 0 6px 0; border-top:1px dashed var(--line); border-bottom:1px dashed var(--line)}
+  .tl-row{display:grid; grid-template-columns:90px 1fr; gap:10px; align-items:start; padding:6px 0; font-size:13.5px}
+  .tl-row .t{color:var(--blue); font-weight:700; font-family:"SF Mono",monospace}
+  .tl-row .a{background:#fff; border:1px solid var(--line); border-radius:6px; padding:6px 10px}
+  .tl-row.first .a{border-left:4px solid var(--green); background:#f1f9f4}
+  .tl-row.last .a{border-left:4px solid var(--pink); background:#fdf2f8}
+  .tl-row.mid .a{border-left:4px solid var(--blue); background:#f7faff}
+  .tl-row .a b{color:var(--ink)}
+
+  /* 两个角色可视化 */
+  .roles{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:14px 0}
+  .role{background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px}
+  .role h4{margin:0 0 8px; font-size:15px}
+  .role.r{background:#f1f9f4; border-color:#b7e4c7}
+  .role.r h4{color:var(--green)}
+  .role.w{background:#fdf2f8; border-color:#f5b8d5}
+  .role.w h4{color:var(--pink)}
+  .role ul{margin:0; padding-left:18px; font-size:13.5px}
+
+  /* 状态灯 */
+  .lamps{display:flex; flex-wrap:wrap; gap:10px; margin:12px 0}
+  .lamp{background:#fff; border:1px solid var(--line); border-radius:8px; padding:8px 12px; font-size:13px; min-width:120px}
+  .lamp .lab{color:var(--muted); font-size:11.5px; display:block; margin-bottom:2px}
+  .lamp .val{font-family:"SF Mono",monospace; font-weight:700; font-size:16px; color:var(--blue)}
+  .lamp.red .val{color:var(--red)}
+  .lamp.green .val{color:var(--green)}
+
+  /* 选择题样式 */
+  .q{background:#fff; border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:10px 0}
+  .q b{color:var(--blue)}
+
+  /* 自测判分区 */
+  .readout{margin-top:10px; font-size:14px; min-height:1.4em; color:var(--blue); font-weight:600}
+  .readout .okc{color:var(--green)}
+  .readout .badc{color:var(--red)}
+
+  @media print{
+    body{background:#fff} .btn,.nav{display:none}
+    .panel,.role{box-shadow:none}
+    .code{background:#fff; color:#111; border:1px solid #ccc}
+    .code .cm{color:#555} .code .k{color:#7a4a00} .code .r{color:#0e6e3a}
+    .code .w{color:#8a1a1a} .code .p{color:#6b21a8} .code .v{color:#1e40af}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 51 课 · Ch2 进程管理 · 经典同步问题 · 专攻读者-写者(读者优先)</p>
+  <h1>读者-写者问题:一个图彻底讲透为什么有 rmutex 和 wmutex 两个</h1>
+  <p class="sub">这张图你在 <a href="./0050-pv-pseudocode-drills.html">第 50 课</a> 默写器里栽过——这一节课只解决一件事:<b>把每行代码为什么在那里,讲到你闭着眼也能讲出来</b>。先看 <a href="./0011-classic-sync.html">第 11 课</a> 的速写版,再用本课把它拆到每行。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·画面</a>
+    <a href="#s2">2·两个锁</a>
+    <a href="#s3">3·读者四步走</a>
+    <a href="#s4">4·写者一行</a>
+    <a href="#s5">5·逐行对照</a>
+    <a href="#s6">6·为什么这样</a>
+    <a href="#s7">7·易错点</a>
+    <a href="#s8">8·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>这一节只要记住两件事:</b><br>
+① <b>rmutex 保护计数器 readcount</b>(读者们抢着改同一个数字,要让"改数字"这步互斥);<br>
+② <b>wmutex 是真正"挡写者"的门</b>——<b>只有第一个读者按门铃抢锁,也只有最后一个读者按门铃放锁</b>,中间读者都不碰它(否则读者之间就不能并发读了)。
+</div>
+
+<!-- ===================== 0. 全局故事线 ===================== -->
+<h2 id="s0">🗺 0. 全局故事线:这张图在考什么</h2>
+<p class="hint">学校自命题里,伪代码 10 分必出一道,读者写者是 PV 信号量最常考的第二个问题(第一个是生产者-消费者)。两个锁、两个角色、一个计数器,三个变量要默写对。</p>
+<div class="eli5">
+<b>🧸 一句话:</b> 想象一个<b>自习室</b>:<b>读者</b>= 来翻书的学生(可以<b>好几个人同时</b>翻);<b>写者</b>= 来改书内容的人(必须<b>独占</b>自习室)。这道题考的是——怎么让<b>学生之间不打架、学生和改书的人不冲突、还让尽量多的学生同时在</b>。
+</div>
+<p>你已经在 0050 里栽过一次:把 rmutex 和 wmutex 搞混、把"if(readcount==0)"写成"if(readcount==1)"、把中间读者也加了 P(wmutex)。这一节我们<b>只做一件事:把每行代码为什么在那里,讲明白</b>。</p>
+
+<!-- ===================== 1. 画面 ===================== -->
+<h2 id="s1">🎬 1. 画面:自习室门口的两个物件</h2>
+<div class="panel">
+  <h3>两个物件 = 两个信号量 + 一个计数器</h3>
+  <table>
+  <tr><th>物件</th><th>对应代码</th><th>真实类比</th><th>初值</th></tr>
+  <tr>
+    <td><b>🔢 借书登记本</b>(<code>readcount</code>)</td>
+    <td><code>int readcount = 0;</code></td>
+    <td>自习室门口的<b>计数器</b>:现在里面有几个学生在翻书</td>
+    <td>0(一开始没人)</td>
+  </tr>
+  <tr>
+    <td><b>🧾 改登记本的笔</b>(<code>rmutex</code>)</td>
+    <td><code>semaphore rmutex = 1;</code></td>
+    <td>改这个计数器只有<b>一支笔</b>——你拿起来改的时候别人不许改,否则数字会乱</td>
+    <td>1(只有一支)</td>
+  </tr>
+  <tr>
+    <td><b>🚪 自习室大门锁</b>(<code>wmutex</code>)</td>
+    <td><code>semaphore wmutex = 1;</code></td>
+    <td>真正"挡住改书的人"的锁:<b>第一个学生进门要锁上</b>(不让改书的人进),<b>最后一个学生走要打开</b>(让改书的人能进)</td>
+    <td>1(一开始门是开的)</td>
+  </tr>
+  </table>
+  <div class="key"><b>关键区分(记住这一条,后面所有坑都解开):</b><br>
+  · <code>rmutex</code> = <b>保护计数器</b>用的"小锁"——每个读者进出<b>都要借/还</b>,但只用来改 readcount 这一个动作;<br>
+  · <code>wmutex</code> = <b>挡写者</b>用的"大门锁"——只有<b>第一个和最后一个</b>读者碰它,中间读者<b>碰都不碰</b>(碰了就错)。
+  </div>
+</div>
+
+<!-- ===================== 2. 两个锁分别做什么 ===================== -->
+<h2 id="s2">🔑 2. 两个锁,各管一摊</h2>
+<div class="roles">
+  <div class="role r">
+    <h4>🧾 rmutex(小笔锁)</h4>
+    <ul>
+      <li><b>作用对象</b>:共享变量 <code>readcount</code></li>
+      <li><b>谁碰</b>:每个读者(进门出门都碰)</li>
+      <li><b>碰几次</b>:每个读者 P 一次 V 一次</li>
+      <li><b>互斥粒度</b>:只锁住"读+改 readcount"这两步,读文件本身不被它锁</li>
+    </ul>
+  </div>
+  <div class="role w">
+    <h4>🚪 wmutex(大门锁)</h4>
+    <ul>
+      <li><b>作用对象</b>:整个"读者群体"作为一个整体,挡住写者</li>
+      <li><b>谁碰</b>:只有<b>第一个读者进门</b>和<b>最后一个读者出门</b>碰</li>
+      <li><b>碰几次</b>:整个读者群体只 P 一次 V 一次</li>
+      <li><b>互斥粒度</b>:锁住的是"写者不能进"这件事</li>
+    </ul>
+  </div>
+</div>
+<div class="warnbox">
+<b>⚠️ 90% 的错都栽在这:</b> 你看到代码里有 <code>P(rmutex)</code> 又 <code>P(wmutex)</code>,就以为"两个锁挨着用,干的事差不多"——错!<b>rmutex 是给计数器上锁,wmutex 是给写者上锁,完全两码事</b>。下面 3、4 节会一行一行拆给你看。
+</div>
+
+<!-- ===================== 3. 读者四步走 ===================== -->
+<h2 id="s3">👀 3. 读者的"四步走"(逐行动画)</h2>
+<p class="hint">下面演示<b>3 个读者依次进门、1 个写者在门外等</b>的完整流程。点"▶ 走一遍"看顺序,也可以单步点 ⏵。</p>
+<div class="panel">
+  <div class="lamps" id="lamps">
+    <div class="lamp"><span class="lab">readcount</span><span class="val" id="L_rc">0</span></div>
+    <div class="lamp green"><span class="lab">rmutex (笔锁)</span><span class="val" id="L_rm">1 空闲</span></div>
+    <div class="lamp green"><span class="lab">wmutex (门锁)</span><span class="val" id="L_wm">1 开着</span></div>
+    <div class="lamp"><span class="lab">屋里读者</span><span class="val" id="L_who">无</span></div>
+    <div class="lamp red"><span class="lab">写者</span><span class="val" id="L_wr">门外等</span></div>
+  </div>
+  <div>
+    <button class="btn" id="btnStep">⏵ 单步</button>
+    <button class="btn" id="btnRun">▶ 走一遍</button>
+    <button class="btn reset" id="btnReset">⟲ 重置</button>
+    <span class="hint" style="margin-left:6px">每步会高亮当前读者 + 更新状态灯 + 在日志里说明发生了什么</span>
+  </div>
+  <div id="log" style="margin-top:10px; background:#0f1b2d; color:#e6edf3; border-radius:6px; padding:10px 12px; font-family:'SF Mono',monospace; font-size:13px; min-height:160px; max-height:280px; overflow:auto; line-height:1.7"></div>
+</div>
+<div class="key">
+<b>读完动画后,记住这四步(任何读者进门都做这四步,顺序死死不能换):</b>
+<ol>
+  <li><b>借笔改数:</b>P(rmutex) → 改 readcount → V(rmutex)(就改一个数字,小锁护一下)</li>
+  <li><b>(第一个读者额外)按门铃锁门:</b>if(readcount==0) P(wmutex)</li>
+  <li><b>读文件:</b>read_file()(这一步不在任何锁里,可以和别的读者并发)</li>
+  <li><b>借笔改数:</b>P(rmutex) → 改 readcount → V(rmutex)</li>
+  <li><b>(最后一个读者额外)按门铃开门:</b>if(readcount==0) V(wmutex)</li>
+</ol>
+</div>
+
+<!-- ===================== 4. 写者一行 ===================== -->
+<h2 id="s4">✍️ 4. 写者:三行搞定</h2>
+<div class="code"><span class="cm">// 写者最简单——只要抢到大门锁,屋里就一定没有读者</span>
+<span class="k">writer</span>() {
+    <span class="v">P</span>(<span class="w">wmutex</span>);         <span class="cm">// 门外等,直到屋里没人</span>
+    <span class="r">write_file</span>();      <span class="cm">// 改书(此时屋里没人,你也独占)</span>
+    <span class="v">V</span>(<span class="w">wmutex</span>);         <span class="cm">// 改完放人进来</span>
+}</div>
+<div class="eli5">
+<b>🧸 一句话:</b> 写者不碰 rmutex(它不关心屋里几个人),只抢大门锁 wmutex。<b>抢到 = 屋里没读者</b>,改完就放人。
+</div>
+
+<!-- ===================== 5. 逐行对照表 ===================== -->
+<h2 id="s5">📖 5. 完整代码 + 逐行解释(贴出来就能默写)</h2>
+<div class="code"><span class="cm">// ====== 信号量与计数器 ======</span>
+<span class="k">semaphore</span> rmutex = <span class="v">1</span>;  <span class="cm">// 保护 readcount 的小笔锁</span>
+<span class="k">semaphore</span> wmutex = <span class="v">1</span>;  <span class="cm">// 挡写者的大门锁</span>
+<span class="k">int</span> readcount = <span class="v">0</span>;          <span class="cm">// 当前屋里有多少读者</span>
+
+<span class="cm">// ====== 读者 ======</span>
+<span class="k">reader</span>() {
+    <span class="cm">// === 进门段:借笔改数 + (首读者)锁门 ===</span>
+    <span class="v">P</span>(<span class="r">rmutex</span>);                       <span class="cm">① 借笔</span>
+    <span class="k">if</span> (readcount == <span class="v">0</span>)
+        <span class="v">P</span>(<span class="w">wmutex</span>);                   <span class="cm">② 第一个读者:锁门挡写者</span>
+    readcount++;                       <span class="cm">③ 计数器 +1</span>
+    <span class="v">V</span>(<span class="r">rmutex</span>);                       <span class="cm">④ 还笔</span>
+
+    <span class="cm">// === 真正干活 ===</span>
+    <span class="r">read_file</span>();                    <span class="cm">⑤ 读文件(此刻 rmutex 已放,可与别人并发读)</span>
+
+    <span class="cm">// === 出门段:借笔改数 + (末读者)开门 ===</span>
+    <span class="v">P</span>(<span class="r">rmutex</span>);                       <span class="cm">⑥ 借笔</span>
+    readcount--;                       <span class="cm">⑦ 计数器 -1</span>
+    <span class="k">if</span> (readcount == <span class="v">0</span>)
+        <span class="v">V</span>(<span class="w">wmutex</span>);                   <span class="cm">⑧ 最后一个读者:开门放写者</span>
+    <span class="v">V</span>(<span class="r">rmutex</span>);                       <span class="cm">⑨ 还笔</span>
+}
+
+<span class="cm">// ====== 写者 ======</span>
+<span class="k">writer</span>() {
+    <span class="v">P</span>(<span class="w">wmutex</span>);                       <span class="cm">① 抢门锁——必须屋里没读者才能进</span>
+    <span class="r">write_file</span>();                   <span class="cm">② 改文件(独占)</span>
+    <span class="v">V</span>(<span class="w">wmutex</span>);                       <span class="cm">③ 放人进来</span>
+}</div>
+
+<table>
+<tr><th>行号</th><th>代码</th><th>为什么在这里</th></tr>
+<tr><td>①</td><td><code>P(rmutex)</code></td><td><b>借笔</b>。准备改计数器 readcount,要独占改的动作</td></tr>
+<tr><td>②</td><td><code>if(readcount==0) P(wmutex)</code></td><td><b>只有屋里空无一人时(我是第一个),才锁大门</b>。如果屋里已经有人,门已经被锁过了,我进门不需要再锁</td></tr>
+<tr><td>③</td><td><code>readcount++</code></td><td>计数器 +1,告诉世界"屋里多了一个我"</td></tr>
+<tr><td>④</td><td><code>V(rmutex)</code></td><td><b>还笔</b>。改完数赶紧放,后面真正读文件不要占着笔</td></tr>
+<tr><td>⑤</td><td><code>read_file()</code></td><td><b>真正读文件</b>。这一步没有 rmutex 也没有 wmutex,可以和别人并发读</td></tr>
+<tr><td>⑥</td><td><code>P(rmutex)</code></td><td>出门前<b>再借一次笔</b>,准备改计数器</td></tr>
+<tr><td>⑦</td><td><code>readcount--</code></td><td>计数器 -1,告诉世界"我走了"</td></tr>
+<tr><td>⑧</td><td><code>if(readcount==0) V(wmutex)</code></td><td><b>只有屋里最后一个人走的时候才开门</b>。屋里还有别人,我开门会让别人冲出去</td></tr>
+<tr><td>⑨</td><td><code>V(rmutex)</code></td><td>还笔,完成</td></tr>
+</table>
+<div class="key">
+<b>一句话浓缩:</b> <b>进门借笔改数,出门借笔改数</b>——两次借笔都是为了改 readcount(所以两次都 P/V rmutex);<b>锁门开门各一次,且只在我是第一个/最后一个时才做</b>。
+</div>
+
+<!-- ===================== 6. 为什么这样设计 ===================== -->
+<h2 id="s6">❓ 6. 为什么这样设计(三层追问)</h2>
+<div class="panel">
+<p><b>第 1 层 · 为什么需要 rmutex?</b></p>
+<p>因为 readcount 是<b>所有读者共享</b>的整数。多个读者同时执行 <code>readcount++</code> 会发生什么?</p>
+<p>举例:readcount 当前是 1,两个读者 A、B 同时读到 readcount=1,同时 +1 写入,结果 readcount=2——但屋里应该 3 个人!<b>少算了一个</b>。</p>
+<p>rmutex 就是让"读 readcount → 改 readcount"这<b>两步绑成一个原子动作</b>,中间不会被打断。</p>
+</div>
+<div class="panel">
+<p><b>第 2 层 · 为什么需要 wmutex?</b></p>
+<p>如果只有 rmutex 没有 wmutex,会出现什么?</p>
+<p>读者 A 在屋里读着;写者进来改文件;A 读到一半,数据已经变了——<b>A 读到旧数据和新数据的拼接</b>,数据损坏。</p>
+<p>所以读者和写者必须<b>互斥</b>。但读者之间不能互斥(否则就一个人看,效率崩了)——所以单独拿一个 wmutex,让读者群体<b>作为整体</b>和写者互斥。</p>
+</div>
+<div class="panel">
+<p><b>第 3 层 · 为什么"第一个"和"最后一个"才碰 wmutex?</b></p>
+<p>关键:读者之间要<b>并发</b>。如果每个读者都 P(wmutex) → 读 → V(wmutex),那同一时刻屋里只能有 1 个读者——这就是普通互斥,不是读者写者。</p>
+<p>技巧:把 wmutex 当成<b>读者的"集体占座"</b>。<b>第一个读者代表全体占座</b>(P(wmutex)),<b>最后一个读者代表全体让座</b>(V(wmutex))。<b>中间读者不算"占座"也不"让座"</b>,所以不碰 wmutex。</p>
+<p>这也回答了"为什么是 if(readcount==0) 不是 if(readcount==1)":进入时屋里 <b>0 个人</b>意味着我是第一个;离开后屋里 <b>0 个人</b>意味着我是最后一个——<b>0 表示"无人"</b>,不是"1 个人"。</p>
+</div>
+
+<!-- ===================== 7. 易错点 ===================== -->
+<h2 id="s7">⚠️ 7. 考场上常踩的 5 个坑</h2>
+<div class="warnbox">
+<b>坑 1 · 把 rmutex 和 wmutex 搞混:</b><br>
+· rmutex = <b>改计数器</b>用的小锁,所有读者都碰;<br>
+· wmutex = <b>挡写者</b>用的大门锁,只有首末读者碰。<br>
+· <b>记反了整段代码全是错的</b>。
+</div>
+<div class="warnbox">
+<b>坑 2 · "if(readcount==0)"写成"if(readcount==1)":</b><br>
+· <code>readcount==0</code> 表示"<b>屋里现在没人,我来当第一个</b>"或"<b>我走了,屋里没人了</b>";<br>
+· 写成 1,逻辑就反了——第一个人进门反而不锁门,最后一个人走反而不开门。
+</div>
+<div class="warnbox">
+<b>坑 3 · 中间读者也 P(wmutex):</b><br>
+· 这样读者之间就互斥了,屋里同时只能 1 人——退化成普通互斥,失去读者写者的意义。<br>
+· <b>记住:中间读者只改 readcount,不碰 wmutex</b>。
+</div>
+<div class="warnbox">
+<b>坑 4 · readcount++ 没放在 P(rmutex) 和 V(rmutex) 之间:</b><br>
+· 这步必须被 rmutex 保护,否则多个读者同时改计数会丢更新。<br>
+· <b>改 readcount 这步必须"借笔—改—还笔"</b>三步走齐。
+</div>
+<div class="warnbox">
+<b>坑 5 · 初值填错:</b><br>
+· rmutex、wmutex 都初值 <b>1</b>(互斥信号量);<br>
+· readcount 初值 <b>0</b>(一开始没人);<br>
+· <b>没有第三个信号量</b>(不要画蛇添足加 mutex)。
+</div>
+
+<!-- ===================== 8. 自测 ===================== -->
+<h2 id="s8">✅ 8. 自测:每题先自己想,再点开答案</h2>
+
+<div class="panel">
+<h3>Q1 · 两个信号量各管什么?</h3>
+<div class="q">
+说出 <code>rmutex</code> 和 <code>wmutex</code> 各自保护什么、谁会碰它。
+</div>
+<details>
+<summary>点我看答案</summary>
+<p>· <b>rmutex</b>:保护<b>计数器 readcount</b>。<b>每个读者</b>进门出门都要 P/V 它,目的是让"改 readcount"这一步互斥。</p>
+<p>· <b>wmutex</b>:把<b>写者</b>挡在门外(让读者群体整体和写者互斥)。<b>只有第一个读者进门时 P,最后一个读者出门时 V</b>,中间读者不碰。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · if(readcount==0) 为什么是 0 不是 1?</h3>
+<div class="q">
+能不能把"if(readcount==0)"写成"if(readcount==1)"?为什么?
+</div>
+<details>
+<summary>点我看答案</summary>
+<p><b>不能</b>。<code>readcount==0</code> 在进门段表示"<b>屋里当前是空的,我是第一个进来的人</b>"——所以要锁门;在出门段表示"<b>我走之后屋里空了</b>"——所以要开门。</p>
+<p>写成 <code>readcount==1</code>,逻辑就反了:第一个人进门时 readcount 已经是 0,根本不等于 1,不会锁门;最后一个人走之前 readcount 是 1 倒是能匹配——但这时候开门会让屋里还在读书的人冲出去。<b>0 = "无人" = "我是第一个/最后一个人"</b>,不是"1 个人"。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 中间读者为什么不碰 wmutex?</h3>
+<div class="q">
+如果中间读者也 P(wmutex) 再 V(wmutex),会发生什么?
+</div>
+<details>
+<summary>点我看答案</summary>
+<p>屋里就<b>只能同时有 1 个读者</b>——读者之间互斥了。这等于退化成普通互斥,失去读者写者问题"多读单写"的意义。</p>
+<p>读者写者问题的核心就是<b>多读</b>(多个读者可以并发读)。中间读者不碰 wmutex,就能让所有读者共享"<b>集体占座</b>"的那把锁,实现"读者群体内部不互斥"。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q4 · 写者饥饿(读者优先的代价)</h3>
+<div class="q">
+这个方案叫"读者优先"。如果有源源不断的读者进来,写者会怎样?
+</div>
+<details>
+<summary>点我看答案</summary>
+<p>写者可能<b>饿死</b>(starvation)。</p>
+<p>原因:只要 readcount > 0,门就被第一个读者锁着,写者一直在 P(wmutex) 上阻塞。每来一个新读者,readcount 又 +1,门继续锁着,写者永远进不去。</p>
+<p>这是"<b>读者优先策略的代价</b>"——公平换吞吐量。<b>想避免饿死,要用写者优先或公平队列方案</b>,但那是另一道题。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q5 · 默写挑战(在纸上闭眼写)</h3>
+<div class="q">
+不看屏幕,把整段读者优先的代码默写出来,包括:
+<ol>
+  <li>三个变量声明(rmutex, wmutex, readcount)</li>
+  <li>reader() 函数的完整 P/V 序列</li>
+  <li>writer() 函数</li>
+</ol>
+</div>
+<details>
+<summary>点我对答案</summary>
+<div class="code"><span class="k">semaphore</span> rmutex = <span class="v">1</span>;
+<span class="k">semaphore</span> wmutex = <span class="v">1</span>;
+<span class="k">int</span> readcount = <span class="v">0</span>;
+
+<span class="k">reader</span>() {
+    <span class="v">P</span>(<span class="r">rmutex</span>);
+    <span class="k">if</span> (readcount == <span class="v">0</span>) <span class="v">P</span>(<span class="w">wmutex</span>);
+    readcount++;
+    <span class="v">V</span>(<span class="r">rmutex</span>);
+    <span class="r">read_file</span>();
+    <span class="v">P</span>(<span class="r">rmutex</span>);
+    readcount--;
+    <span class="k">if</span> (readcount == <span class="v">0</span>) <span class="v">V</span>(<span class="w">wmutex</span>);
+    <span class="v">V</span>(<span class="r">rmutex</span>);
+}
+
+<span class="k">writer</span>() {
+    <span class="v">P</span>(<span class="w">wmutex</span>);
+    <span class="r">write_file</span>();
+    <span class="v">V</span>(<span class="w">wmutex</span>);
+}</div>
+<p>能默写对 = 这道 10 分你拿稳。<b>卡壳在哪一步,就回到第 5 节对照表再读一遍</b>。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q6 · 打乱顺序判断</h3>
+<div class="q">
+下面这段代码是<b>正确</b>的读者优先实现吗?有错的话指出哪行错了,会出什么后果?
+<div class="code"><span class="k">reader</span>() {
+    <span class="v">P</span>(<span class="w">wmutex</span>);              <span class="cm">// (1)</span>
+    readcount++;
+    <span class="v">V</span>(<span class="w">wmutex</span>);              <span class="cm">// (2)</span>
+    <span class="r">read_file</span>();
+    <span class="v">P</span>(<span class="w">wmutex</span>);              <span class="cm">// (3)</span>
+    readcount--;
+    <span class="v">V</span>(<span class="w">wmutex</span>);              <span class="cm">// (4)</span>
+}</div>
+</div>
+<details>
+<summary>点我看答案</summary>
+<p><b>错在三处:</b></p>
+<ol>
+  <li><b>(1)(2) 用 wmutex 保护 readcount++ 是错的</b>——应该用 rmutex。这样会让读者之间也互斥,而且写者会被无意挡住。</li>
+  <li><b>(1) 进门就 P(wmutex) 而非"第一个读者才 P(wmutex)"</b>——每个读者都抢大门锁,屋里只能同时有 1 个读者,退化成普通互斥。</li>
+  <li><b>没有 if(readcount==0) 判断</b>——就算修对锁,也必须首读者才锁、末读者才开,否则门会乱。</li>
+</ol>
+<p>正确版本见 Q5 答案。</p>
+</details>
+</div>
+
+<footer>
+第 51 课 · Ch2 进程管理 · 读者-写者(读者优先):两个锁各管一摊——<b>rmutex 护计数器、wmutex 挡写者</b>。<br>
+原理打底 → <a href="./0010-process-sync.html">第 10 课 · PV 信号量</a> ·
+经典速写 → <a href="./0011-classic-sync.html">第 11 课 · 经典同步问题</a> ·
+默写训练 → <a href="./0050-pv-pseudocode-drills.html">第 50 课 · PV 伪代码默写器</a> ·
+下一题(写者优先 / 公平策略)→ 待补 0052
+</footer>
+
+</div>
+
+<script>
+// =============================================================
+// 读者-写者状态机演示器
+// =============================================================
+var logEl, rcEl, rmEl, wmEl, whoEl, wrEl;
+var step = 0;
+var STEPS = [
+  // 每个步骤: { who:'R1', action:'进门:P(rmutex)', ... }
+  {who:'R1', msg:'R1 进门: <span class="okc">P(rmutex)</span> 借笔', rc:0, rm:0, wm:1, whoTxt:'无', wrTxt:'门外等'},
+  {who:'R1', msg:'R1 看 readcount==0,执行 <span class="badc">P(wmutex)</span> <b>锁大门</b>', rc:0, rm:0, wm:0, whoTxt:'无', wrTxt:'门外等(锁住)'},
+  {who:'R1', msg:'R1 <b>readcount++</b>(0→1),<span class="okc">V(rmutex)</span> 还笔', rc:1, rm:1, wm:0, whoTxt:'R1', wrTxt:'门外等(锁住)'},
+  {who:'R1', msg:'R1 在屋里 <b>read_file()</b> — 此刻不占任何锁,可以并发', rc:1, rm:1, wm:0, whoTxt:'R1', wrTxt:'门外等(锁住)'},
+  {who:'R2', msg:'<b>R2 进门</b>: <span class="okc">P(rmutex)</span> 借笔', rc:1, rm:0, wm:0, whoTxt:'R1', wrTxt:'门外等(锁住)'},
+  {who:'R2', msg:'R2 看 readcount==1(≠0),<b>不锁大门</b>(门已被 R1 锁了)✓', rc:1, rm:0, wm:0, whoTxt:'R1', wrTxt:'门外等(锁住)'},
+  {who:'R2', msg:'R2 readcount++(1→2),<span class="okc">V(rmutex)</span> 还笔', rc:2, rm:1, wm:0, whoTxt:'R1,R2', wrTxt:'门外等(锁住)'},
+  {who:'R2', msg:'R2 在屋里 <b>read_file()</b> — 和 R1 并发读,互不冲突 ✓', rc:2, rm:1, wm:0, whoTxt:'R1,R2', wrTxt:'门外等(锁住)'},
+  {who:'R1', msg:'<b>R1 读完要走</b>: <span class="okc">P(rmutex)</span> 借笔', rc:2, rm:0, wm:0, whoTxt:'R1,R2', wrTxt:'门外等(锁住)'},
+  {who:'R1', msg:'R1 readcount--(2→1),<span class="okc">V(rmutex)</span> 还笔', rc:1, rm:1, wm:0, whoTxt:'R2', wrTxt:'门外等(锁住)'},
+  {who:'R1', msg:'R1 看 readcount==1(≠0),<b>不开门</b>(屋里还有 R2) ✓', rc:1, rm:1, wm:0, whoTxt:'R2', wrTxt:'门外等(锁住)'},
+  {who:'R2', msg:'<b>R2 读完要走</b>: <span class="okc">P(rmutex)</span> 借笔', rc:1, rm:0, wm:0, whoTxt:'R2', wrTxt:'门外等(锁住)'},
+  {who:'R2', msg:'R2 readcount--(1→0),<span class="okc">V(rmutex)</span> 还笔', rc:0, rm:1, wm:0, whoTxt:'无', wrTxt:'门外等(锁住)'},
+  {who:'R2', msg:'R2 看 readcount==0,<b>我是最后一个</b> → <span class="okc">V(wmutex)</span> <b>开大门</b> ✓', rc:0, rm:1, wm:1, whoTxt:'无', wrTxt:'门外等(锁开)'},
+  {who:'W',  msg:'<b>写者 W 终于进了!</b> P(wmutex) 抢锁(成功) → 在屋里 <b>write_file()</b> 独占改文件', rc:0, rm:1, wm:0, whoTxt:'无(只有 W)', wrTxt:'改文件'},
+  {who:'W',  msg:'<b>写完 V(wmutex)</b> 开大门,新读者又能进了 ✓', rc:0, rm:1, wm:1, whoTxt:'无', wrTxt:'完成'}
+];
+
+function $(id){ return document.getElementById(id); }
+
+function renderState(){
+  if(step <= 0){
+    $('L_rc').textContent = '0';
+    $('L_rc').style.color = '';
+    $('L_rm').textContent = '1 空闲';
+    $('L_rm').style.color = '';
+    $('L_wm').textContent = '1 开着';
+    $('L_wm').style.color = '';
+    $('L_who').textContent = '无';
+    $('L_wr').textContent = '门外等';
+    $('L_wr').style.color = '';
+    return;
+  }
+  var s = STEPS[step-1];
+  $('L_rc').textContent = s.rc;
+  $('L_rc').style.color = s.rc>0 ? 'var(--blue)' : '';
+  $('L_rm').textContent = (s.rm===1?'1 空闲':'0 占用中');
+  $('L_rm').style.color = s.rm===1?'var(--green)':'var(--red)';
+  $('L_wm').textContent = (s.wm===1?'1 开着':'0 锁着');
+  $('L_wm').style.color = s.wm===1?'var(--green)':'var(--red)';
+  $('L_who').textContent = s.whoTxt;
+  $('L_wr').textContent = s.wrTxt;
+  $('L_wr').style.color = s.wrTxt.indexOf('锁住')>=0 || s.wrTxt==='改文件'?'var(--red)':'';
+}
+
+function appendLog(s){
+  var div = document.createElement('div');
+  div.innerHTML = '<span style="color:#9ad7ff">['+s.who+']</span> ' + s.msg;
+  logEl.appendChild(div);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+function clearLog(){
+  logEl.innerHTML = '<span style="color:#7d8fa8">—— 状态机演示开始 ——</span>';
+}
+
+function doStep(){
+  if(step >= STEPS.length) return;
+  var s = STEPS[step];
+  step++;
+  renderState();
+  appendLog(s);
+}
+
+function doRun(){
+  if(step >= STEPS.length){ resetAll(); }
+  while(step < STEPS.length){ doStep(); }
+}
+
+function resetAll(){
+  step = 0;
+  renderState();
+  clearLog();
+}
+
+// ===== 初始化 =====
+function init(){
+  logEl = $('log');
+  rcEl = $('L_rc'); rmEl = $('L_rm'); wmEl = $('L_wm');
+  whoEl = $('L_who'); wrEl = $('L_wr');
+  resetAll();
+  $('btnStep').addEventListener('click', doStep);
+  $('btnRun').addEventListener('click', doRun);
+  $('btnReset').addEventListener('click', resetAll);
+}
+init();
+</script>
+</body>
+</html>

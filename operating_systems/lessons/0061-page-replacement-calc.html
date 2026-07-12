@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 61 课 · Ch4 存储器管理 · 大题 · 页面置换算法计算</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .algo-step{background:#f8fafc;border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin:8px 0}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 61 课 · Ch4 存储器管理 · 大题 · 页面置换算法计算</p>
+  <h1>页面置换算法：OPT/FIFO/LRU/CLOCK 计算与缺页率</h1>
+  <p class="sub">大题 10 分核心考点——<b>给定访问序列，计算各算法的缺页次数和缺页率</b>。教材出处：汤小丹第4章4.7节。</p>
+</header>
+
+<div class="key">
+<b>考场必背:</b><br>
+① <b>缺页率</b> = 缺页次数 / 总访问次数 × 100%<br>
+② <b>Belady异常</b>: FIFO算法可能出现物理块增加但缺页次数反而增加的反常现象<br>
+③ <b>LRU</b> 最优实用算法，<b>OPT</b> 理论最优但无法实现
+</div>
+
+<h2 id="s0">🗺 0. 这道大题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 内存满了但还需要新页面，就得把某个老页面"踢出去"。不同踢法(算法)导致的缺页次数不同——考你手算对比！
+</div>
+
+<h2 id="s1">📖 1. 四种置换算法对比</h2>
+<table>
+<tr><th>算法</th><th>中文名</th><th>置换策略</th><th>特点</th></tr>
+<tr><td>OPT</td><td>最佳置换</td><td>淘汰<b>以后永远不用</b>或<b>最晚使用</b>的页</td><td>理论最优，实际无法实现(需预知未来)</td></tr>
+<tr><td>FIFO</td><td>先进先出</td><td>淘汰<b>最先进入</b>内存的页</td><td>简单，可能有Belady异常</td></tr>
+<tr><td>LRU</td><td>最近最久未用</td><td>淘汰<b>最近最久未访问</b>的页</td><td>近似OPT，性能好，开销较大</td></tr>
+<tr><td>CLOCK</td><td>时钟置换</td><td>循环扫描，淘汰<b>访问位=0</b>的页</td><td>LRU的近似实现，开销小</td></tr>
+</table>
+
+<h2 id="s2">📖 2. 例题详解</h2>
+<div class="panel">
+<h3>题目</h3>
+<p>访问序列: 7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2, 1, 2, 0, 1, 7, 0, 1</p>
+<p>物理块数: 3。分别计算 OPT、FIFO、LRU 的缺页次数和缺页率。</p>
+
+<h3>FIFO 计算过程</h3>
+<div class="algo-step">
+<b>初始:</b> []<br>
+7: 缺页 [7] | 0: 缺页 [7,0] | 1: 缺页 [7,0,1] | 2: 缺页，淘汰7 [0,1,2]<br>
+0: 命中 [0,1,2] | 3: 缺页，淘汰0 [1,2,3] | 0: 缺页，淘汰1 [2,3,0]<br>
+4: 缺页，淘汰2 [3,0,4] | 2: 缺页，淘汰3 [0,4,2] | 3: 缺页，淘汰0 [4,2,3]<br>
+0: 缺页，淘汰4 [2,3,0] | 3: 命中 | 2: 命中 | 1: 缺页，淘汰2 [3,0,1]<br>
+2: 缺页，淘汰3 [0,1,2] | 0: 命中 | 1: 命中 | 7: 缺页，淘汰0 [1,2,7]<br>
+0: 缺页，淘汰1 [2,7,0] | 1: 缺页，淘汰2 [7,0,1]
+</div>
+<p><b>FIFO 缺页15次，缺页率 = 15/20 = 75%</b></p>
+
+<h3>LRU 计算过程</h3>
+<div class="algo-step">
+<b>核心:</b> 每次访问后更新"最近使用"顺序，缺页时淘汰最久未用的<br>
+7: 缺页 [7] | 0: 缺页 [7,0] | 1: 缺页 [7,0,1] | 2: 缺页，淘汰7 [0,1,2]<br>
+0: 命中 [1,2,0] | 3: 缺页，淘汰1 [2,0,3] | 0: 命中 [2,3,0] | 4: 缺页，淘汰2 [3,0,4]<br>
+2: 缺页，淘汰3 [0,4,2] | 3: 缺页，淘汰0 [4,2,3] | 0: 缺页，淘汰4 [2,3,0]<br>
+3: 命中 [2,0,3] | 2: 命中 [0,3,2] | 1: 缺页，淘汰0 [3,2,1] | 2: 命中 [3,1,2]<br>
+0: 缺页，淘汰3 [1,2,0] | 1: 命中 [2,0,1] | 7: 缺页，淘汰2 [0,1,7] | 0: 命中 [1,7,0] | 1: 命中 [7,0,1]
+</div>
+<p><b>LRU 缺页12次，缺页率 = 12/20 = 60%</b></p>
+
+<h3>OPT 计算过程</h3>
+<div class="algo-step">
+<b>核心:</b> 看未来，淘汰最晚被用到的(或永远不用的)<br>
+7→0→1→2→0→3→0→4→2→3→0→3→2→1→2→0→1→7→0→1<br>
+前3次都缺页 [7,0,1]<br>
+访问2: 往后看，7最晚用(第18位)，淘汰7 → [0,1,2] 缺页<br>
+访问0: 命中 | 访问3: 往后看，1最晚用(第16位)，淘汰1 → [0,2,3] 缺页<br>
+...(依此类推，每次缺页时看未来哪个页用得最晚)
+</div>
+<p><b>OPT 缺页9次，缺页率 = 9/20 = 45%</b></p>
+</div>
+
+<h2 id="s3">⚠️ 3. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 初始空块也算缺页:</b> 前3次访问都是缺页(虽然内存空着)，别漏算！
+</div>
+<div class="warnbox">
+<b>坑 2 · LRU更新顺序:</b> 每次<b>访问</b>(包括命中)都要更新"最近使用"顺序，不只是缺页时。
+</div>
+<div class="warnbox">
+<b>坑 3 · OPT需要往后看:</b> 如果某页以后再也不用了，优先淘汰它。
+</div>
+
+<h2 id="s4">📝 4. 真题演练</h2>
+<div class="panel">
+<h3>真题</h3>
+<p>访问序列: 1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5，物理块数3。计算FIFO缺页次数。</p>
+<details><summary>答案</summary>
+<p>FIFO过程: [1]→[1,2]→[1,2,3]→缺页淘汰1→[2,3,4]→缺页淘汰2→[3,4,1]→缺页淘汰3→[4,1,2]→缺页淘汰4→[1,2,5]→缺页淘汰1→[2,5,1]→缺页淘汰2→[5,1,2]→缺页淘汰5→[1,2,3]→缺页淘汰1→[2,3,4]→缺页淘汰2→[3,4,5]</p>
+<p><b>缺页9次</b>。注意：这是著名的Belady异常序列，物理块从3增到4缺页反而增加！</p>
+</details>
+</div>
+
+<footer>
+第 61 课 · 页面置换算法计算。<br>
+大题全套:0058 银行家算法 · 0059 调度算法 · 0060 地址计算 · 0061 页面置换 · 0062 磁盘调度
+</footer>
+
+</div>
+</body>
+</html>

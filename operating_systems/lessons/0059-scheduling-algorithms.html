@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 59 课 · Ch3 调度 · 大题 · 进程/作业调度算法(FCFS/SJF/HRRN/RR)</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .steps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .step{flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px}
+  .step .n{display:inline-block;background:var(--blue);color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-weight:700;margin-right:6px}
+  .step b{color:var(--blue)}
+  .gantt{display:flex;margin:8px 0;font-family:"SF Mono",monospace;font-size:13px}
+  .gantt .cell{border:1px solid var(--ink);padding:4px 8px;min-width:30px;text-align:center;background:#fff}
+  .gantt .cell.alt{background:#eef4fb}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 59 课 · Ch3 调度 · 大题 · 进程/作业调度算法</p>
+  <h1>调度算法:5 大算法 + 甘特图 + 3 个时间指标 = 10 分满分</h1>
+  <p class="sub">深大自命题 10 分大题第二类——给一组进程的到达时间 + 服务时间,用 4 种算法各画一遍甘特图,算周转/带权周转/平均等待。<b>默写 5 个算法定义 + 3 个时间公式 = 步骤分到手</b>。教材出处:<code>3_处理机调度/ppt文本.md</code> 幻灯片 54-145(FCFS/SJF/HRRN/RR)。原理铺垫见 <a href="./0044-scheduling-levels-mlfq.html">0044 调度层次</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·5 算法定义</a>
+    <a href="#s3">3·3 个公式</a>
+    <a href="#s4">4·手算例题</a>
+    <a href="#s5">5·对比表</a>
+    <a href="#s6">6·答法模板</a>
+    <a href="#s7">7·易错</a>
+    <a href="#s8">8·真题</a>
+    <a href="#s9">9·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背两句话:</b><br>
+① <b>3 个时间公式</b>:周转时间 T = 完成 − 到达;带权周转 W = T / 服务时间;等待时间 = 开始 − 到达。<br>
+② <b>5 大算法口诀</b>:"<b>先来短响高轮</b>"——FCFS(先来) / SJF(短作业优先) / HRRN(高响应比) / 优先级(优先权高) / RR(轮转)。
+</div>
+
+<h2 id="s0">🗺 0. 这道大题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 调度算法就是"<b>排队规则</b>"——医院叫号:有按先来先看(FCFS)、有按病情轻重(SJF)、有按等待时长加分(HRRN)、有按叫号循环叫(RR)。大题就是给你一组病人,模拟不同叫号规则下的诊疗顺序和等待时长。
+</div>
+<p>10 分题的标准拿法:<b>写 5 个算法定义(2 分)+ 3 个时间公式(2 分)+ 4 种算法各画甘特图(4 分)+ 计算平均指标(2 分)</b>。流程分和计算分各占一半。</p>
+
+<h2 id="s1">📖 1. 是什么:5 大调度算法一览</h2>
+<div class="panel">
+  <p><b>定义:</b> 调度算法是<b>操作系统根据某种策略,从就绪队列中选择下一个获得 CPU 的进程</b>的规则集合。深大常考 4 种:FCFS、SJF、HRRN、RR(优先级常作为补充)。</p>
+  <p><b>教材原话(幻灯片 54):</b>"调度算法是指根据系统的资源分配策略所规定的资源分配算法。目标不同、系统不同,则调度算法各异。"</p>
+  <p class="hint">提示:本章和 0058 银行家算法并列大题常客,通常一年只考一种;但深圳大学 2024/2025 真题同时考过调度和页面置换。</p>
+</div>
+
+<h2 id="s2">🧠 2. 5 大算法定义(必默写)</h2>
+<table>
+<tr><th>算法</th><th>全称</th><th>调度规则</th><th>抢占?</th></tr>
+<tr><td><b>FCFS</b></td><td>First Come First Served(先来先服务)</td><td>按<b>到达时间</b>先后排队</td><td>非抢占</td></tr>
+<tr><td><b>SJF / SPF</b></td><td>Shortest Job First(短作业优先)</td><td>选<b>服务时间最短</b>的进程</td><td>非抢占(SPF 抢占版称 SRTF)</td></tr>
+<tr><td><b>HRRN</b></td><td>Highest Response Ratio Next(高响应比优先)</td><td>选 <b>Rp = 1 + 等待/服务</b> 最大的进程</td><td>非抢占</td></tr>
+<tr><td><b>优先级 HPF</b></td><td>Highest Priority First</td><td>选<b>优先级最高</b>的进程</td><td>可抢占/非抢占</td></tr>
+<tr><td><b>RR</b></td><td>Round Robin(时间片轮转)</td><td>就绪队列<b>轮流</b>各跑<b>一个时间片 q</b></td><td>抢占(时间片到)</td></tr>
+</table>
+<div class="key">
+<b>记忆口诀:</b>"<b>先来短响高轮</b>"——FCFS 按到达、SJF 按服务、HRRN 按响应比、优先级按优先权、RR 按时间片切。<b>只有 RR 是抢占</b>,其它四种默认非抢占。
+</div>
+
+<h2 id="s3">📐 3. 3 个时间公式(必默写)</h2>
+<table>
+<tr><th>指标</th><th>公式</th><th>含义</th></tr>
+<tr><td><b>周转时间 T<sub>i</sub></b></td><td>T<sub>i</sub> = 完成时间 − 到达时间</td><td>从进系统到跑完的总时长</td></tr>
+<tr><td><b>带权周转 W<sub>i</sub></b></td><td>W<sub>i</sub> = T<sub>i</sub> / 服务时间</td><td>周转时间是服务时间的几倍(≥1)</td></tr>
+<tr><td><b>等待时间</b></td><td>等待 = 开始时间 − 到达时间</td><td>在就绪队列里干等多久</td></tr>
+<tr><td><b>平均指标</b></td><td>Σ(指标) / n</td><td>n 个进程算平均</td></tr>
+</table>
+<div class="key">
+<b>口诀:</b>"<b>周转看头尾,带权比服务,等待看起跑</b>"——周转用"完成 - 到达",带权用"周转 / 服务",等待用"开始 - 到达"。<b>注意单位要对齐</b>(都按分钟或秒)。
+</div>
+
+<h2 id="s4">✍ 4. 手算例题(教材幻灯片 576 改编)</h2>
+<div class="panel">
+  <p><b>题目:</b> 5 个作业 A~E,数据如下。要求:(1) 画 FCFS/SJF/HRRN 的甘特图 (2) 算每个作业的周转/带权周转 (3) 算平均周转 + 平均带权周转。</p>
+  <table>
+  <tr><th>作业</th><th>到达时间</th><th>服务时间</th></tr>
+  <tr><td>A</td><td>0</td><td>3</td></tr>
+  <tr><td>B</td><td>2</td><td>6</td></tr>
+  <tr><td>C</td><td>4</td><td>4</td></tr>
+  <tr><td>D</td><td>6</td><td>5</td></tr>
+  <tr><td>E</td><td>8</td><td>2</td></tr>
+  </table>
+</div>
+
+<h3>4.1 算法① FCFS(按到达时间)</h3>
+<p>规则:先到先服务,A 先到先跑。</p>
+<div class="gantt">
+  <div class="cell">A<br>0-3</div>
+  <div class="cell alt">B<br>3-9</div>
+  <div class="cell">C<br>9-13</div>
+  <div class="cell alt">D<br>13-18</div>
+  <div class="cell">E<br>18-20</div>
+</div>
+<table>
+<tr><th>作业</th><th>开始</th><th>完成</th><th>周转 T</th><th>服务</th><th>带权 W</th></tr>
+<tr><td>A</td><td>0</td><td>3</td><td>3-0=3</td><td>3</td><td>1.00</td></tr>
+<tr><td>B</td><td>3</td><td>9</td><td>9-2=7</td><td>6</td><td>1.17</td></tr>
+<tr><td>C</td><td>9</td><td>13</td><td>13-4=9</td><td>4</td><td>2.25</td></tr>
+<tr><td>D</td><td>13</td><td>18</td><td>18-6=12</td><td>5</td><td>2.40</td></tr>
+<tr><td>E</td><td>18</td><td>20</td><td>20-8=12</td><td>2</td><td>6.00</td></tr>
+<tr><td colspan="4"><b>平均</b></td><td><b>T=(3+7+9+12+12)/5=8.6</b></td><td><b>W=(1+1.17+2.25+2.4+6)/5=2.56</b></td></tr>
+</table>
+
+<h3>4.2 算法② SJF(非抢占,短作业优先)</h3>
+<p>规则:每次选服务时间最短的。<b>注意</b>:A 跑完时(时刻 3)只有 B 在就绪(到达 2,服务 6),只能选 B。B 跑完(时刻 9)时 C/D/E 都到了,选服务最短的 E(2)。</p>
+<div class="gantt">
+  <div class="cell">A<br>0-3</div>
+  <div class="cell alt">B<br>3-9</div>
+  <div class="cell">E<br>9-11</div>
+  <div class="cell alt">C<br>11-15</div>
+  <div class="cell">D<br>15-20</div>
+</div>
+<table>
+<tr><th>作业</th><th>开始</th><th>完成</th><th>周转 T</th><th>带权 W</th></tr>
+<tr><td>A</td><td>0</td><td>3</td><td>3</td><td>1.00</td></tr>
+<tr><td>B</td><td>3</td><td>9</td><td>7</td><td>1.17</td></tr>
+<tr><td>E</td><td>9</td><td>11</td><td>11-8=3</td><td>1.50</td></tr>
+<tr><td>C</td><td>11</td><td>15</td><td>15-4=11</td><td>2.75</td></tr>
+<tr><td>D</td><td>15</td><td>20</td><td>20-6=14</td><td>2.80</td></tr>
+<tr><td colspan="3"><b>平均</b></td><td><b>7.6</b></td><td><b>1.84</b></td></tr>
+</table>
+
+<h3>4.3 算法③ HRRN(高响应比优先)</h3>
+<p>规则:每次选 Rp = 1 + 等待/服务 最大的。<b>关键</b>:每次调度时<b>重新计算所有就绪进程的 Rp</b>。</p>
+<p><b>时刻 0</b>:只有 A → 跑 A(0-3)</p>
+<p><b>时刻 3</b>:B 已到(等 1,服务 6,Rp=1+1/6=1.17),只能选 B → 跑 B(3-9)</p>
+<p><b>时刻 9</b>:C(等 5,服务 4,Rp=1+5/4=2.25),D(等 3,服务 5,Rp=1+3/5=1.60),E(等 1,服务 2,Rp=1+1/2=1.50)<b>→ 选 C</b>(Rp 最大)→ 跑 C(9-13)</p>
+<p><b>时刻 13</b>:D(等 7,服务 5,Rp=1+7/5=2.40),E(等 5,服务 2,Rp=1+5/2=3.50)<b>→ 选 E</b>→ 跑 E(13-15)</p>
+<p><b>时刻 15</b>:只剩 D → 跑 D(15-20)</p>
+<div class="gantt">
+  <div class="cell">A<br>0-3</div>
+  <div class="cell alt">B<br>3-9</div>
+  <div class="cell">C<br>9-13</div>
+  <div class="cell alt">E<br>13-15</div>
+  <div class="cell">D<br>15-20</div>
+</div>
+<table>
+<tr><th>作业</th><th>开始</th><th>完成</th><th>周转 T</th><th>带权 W</th></tr>
+<tr><td>A</td><td>0</td><td>3</td><td>3</td><td>1.00</td></tr>
+<tr><td>B</td><td>3</td><td>9</td><td>7</td><td>1.17</td></tr>
+<tr><td>C</td><td>9</td><td>13</td><td>9</td><td>2.25</td></tr>
+<tr><td>E</td><td>13</td><td>15</td><td>15-8=7</td><td>3.50</td></tr>
+<tr><td>D</td><td>15</td><td>20</td><td>20-6=14</td><td>2.80</td></tr>
+<tr><td colspan="3"><b>平均</b></td><td><b>8.0</b></td><td><b>2.14</b></td></tr>
+</table>
+
+<h3>4.4 算法④ RR(时间片轮转,q=2)</h3>
+<p>规则:就绪队列轮流各跑 q=2 个时间单位,新进程到达立刻入队尾。</p>
+<p><b>时刻表</b>(用文字描述,因甘特图过长):</p>
+<ul>
+  <li>t=0:就绪=[A],A 跑(0-2)→ 剩 1;t=2 时 A 入队尾,就绪=[B(到达),A];</li>
+  <li>t=2:B 跑(2-4)→ 剩 4;t=4 时 C(到达)、B 入队尾,就绪=[C,B,A];</li>
+  <li>t=4:C 跑(4-6)→ 剩 2;t=6 时 D(到达)、C 入队尾,就绪=[D,C,B,A];</li>
+  <li>t=6:D 跑(6-8)→ 剩 3;t=8 时 E(到达)、D 入队尾,就绪=[E,D,C,B,A];</li>
+  <li>t=8:E 跑(8-10)→ 完成;就绪=[D,C,B,A];</li>
+  <li>t=10:D 跑(10-12)→ 剩 1;就绪=[C,B,A,D];</li>
+  <li>t=12:C 跑(12-14)→ 完成;就绪=[B,A,D];</li>
+  <li>t=14:B 跑(14-16)→ 剩 2;就绪=[A,D,B];</li>
+  <li>t=16:A 跑(16-17)→ 完成(A 服务=3,16→17 跑完 1);就绪=[D,B];</li>
+  <li>t=17:D 跑(17-18)→ 完成;就绪=[B];</li>
+  <li>t=18:B 跑(18-20)→ 完成。</li>
+</ul>
+<table>
+<tr><th>作业</th><th>完成</th><th>周转 T</th><th>带权 W</th></tr>
+<tr><td>A</td><td>17</td><td>17-0=17</td><td>5.67</td></tr>
+<tr><td>B</td><td>20</td><td>20-2=18</td><td>3.00</td></tr>
+<tr><td>C</td><td>14</td><td>14-4=10</td><td>2.50</td></tr>
+<tr><td>D</td><td>18</td><td>18-6=12</td><td>2.40</td></tr>
+<tr><td>E</td><td>10</td><td>10-8=2</td><td>1.00</td></tr>
+<tr><td colspan="2"><b>平均(q=2)</b></td><td><b>11.8</b></td><td><b>2.91</b></td></tr>
+</table>
+
+<h2 id="s5">📊 5. 算法对比表</h2>
+<table>
+<tr><th>算法</th><th>适用场景</th><th>优点</th><th>缺点</th></tr>
+<tr><td><b>FCFS</b></td><td>作业调度;CPU 繁忙型</td><td>简单公平</td><td>短作业不利;带权周转可能很大</td></tr>
+<tr><td><b>SJF</b></td><td>作业调度;批处理</td><td>平均周转最小(已知服务时间时)</td><td>长作业饥饿;需预知服务时间</td></tr>
+<tr><td><b>HRRN</b></td><td>作业调度;折衷方案</td><td>兼顾短作业和先来者,无饥饿</td><td>每次需算 Rp,系统开销大</td></tr>
+<tr><td><b>优先级</b></td><td>实时系统</td><td>灵活,可照顾关键任务</td><td>低优先级可能饥饿(可老化解决)</td></tr>
+<tr><td><b>RR</b></td><td>分时系统</td><td>公平,响应快,适合交互</td><td>q 太大→ FCFS;q 太小→ 切换开销大</td></tr>
+</table>
+
+<h2 id="s6">📐 6. 考场答法模板(4 步拿满分)</h2>
+<div class="tmpl">
+<b>📐 答法模板(默写 4 段,10 分到手)</b>
+<pre style="margin:6px 0 0;background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:6px;font-size:13px">
+(1) 【算法定义 2 分】4~5 个算法的调度规则 + 是否抢占
+
+(2) 【时间公式 2 分】周转 = 完成 - 到达;带权 = 周转 / 服务;等待 = 开始 - 到达
+
+(3) 【画甘特图 4 分】按算法规则逐步选下一个进程(每步写明"为什么选它"——
+                        FCFS 按到达,SJF 按服务,HRRN 按 Rp,RR 按队列)
+
+(4) 【算指标 2 分】完成时间表 → 周转时间表 → 带权周转时间表 → 平均值
+</pre>
+</div>
+
+<h2 id="s7">⚠️ 7. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · SJF 选"已到达的最短",不是"所有最短":</b> 每次调度时<b>只看已经到达的进程</b>里哪个服务最短,还没到的不能选(除非特别说明 SRTF 抢占式)。
+</div>
+<div class="warnbox">
+<b>坑 2 · HRRN 响应比忘加 1:</b> Rp = <b>1 + 等待/服务</b>,不是单纯 等待/服务。教材原话(Rp = (等待 + 服务)/服务 = 1 + 等待/服务)。
+</div>
+<div class="warnbox">
+<b>坑 3 · RR 新进程到达时机:</b> 在 q 整数倍时刻新到达的进程,要看题目约定——通常是<b>本轮结束后入队</b>(即和被抢占者一起入队尾)。<b>严格按甘特图时间线走</b>。
+</div>
+<div class="warnbox">
+<b>坑 4 · 平均指标算错:</b> <b>平均 = 总和 / 进程数 n</b>,不是 / 题目给的"时间范围"。本例 n=5,不要除以 20。
+</div>
+
+<h2 id="s8">📝 8. 真题样例(10 分)</h2>
+<div class="panel">
+  <h3>样题(改编自教材幻灯片 576)</h3>
+  <p>5 个作业 A~E,数据如下表。用 FCFS、SJF、HRRN 三种算法:(1) 画调度图;(2) 算每个作业的周转时间;(3) 算平均周转时间。</p>
+  <table>
+  <tr><th>作业</th><th>到达时间</th><th>运行时间</th></tr>
+  <tr><td>A</td><td>0</td><td>3</td></tr>
+  <tr><td>B</td><td>2</td><td>6</td></tr>
+  <tr><td>C</td><td>4</td><td>4</td></tr>
+  <tr><td>D</td><td>6</td><td>5</td></tr>
+  <tr><td>E</td><td>8</td><td>2</td></tr>
+  </table>
+  <details>
+    <summary>点我看参考答案</summary>
+    <p><b>FCFS</b>:A(0-3)→B(3-9)→C(9-13)→D(13-18)→E(18-20)</p>
+    <p>周转:A=3, B=7, C=9, D=12, E=12; <b>平均 T = (3+7+9+12+12)/5 = 8.6</b></p>
+    <p><b>SJF(非抢占)</b>:A(0-3)→B(3-9)→E(9-11)→C(11-15)→D(15-20)</p>
+    <p>周转:A=3, B=7, E=3, C=11, D=14; <b>平均 T = (3+7+3+11+14)/5 = 7.6</b></p>
+    <p><b>HRRN</b>:A(0-3)→B(3-9)→C(9-13)→E(13-15)→D(15-20)</p>
+    <p>周转:A=3, B=7, C=9, E=7, D=14; <b>平均 T = (3+7+9+7+14)/5 = 8.0</b></p>
+    <p class="hint">出处:<code>3_处理机调度/ppt文本.md</code> 幻灯片 576 + 582-594。<b>关键结论:SJF 平均周转最小</b>——如果题目问"哪种算法平均周转最小",答 SJF(在服务时间已知前提下)。</p>
+  </details>
+</div>
+
+<h2 id="s9">✅ 9. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 时间公式默写</h3>
+<p>不看书,默写:<b>周转时间 / 带权周转时间 / 等待时间的公式</b>。</p>
+<details><summary>点我对答案</summary>
+<p>周转时间 T<sub>i</sub> = 完成时刻 − 到达时刻</p>
+<p>带权周转 W<sub>i</sub> = T<sub>i</sub> / 服务时间</p>
+<p>等待时间 = 开始时刻 − 到达时刻(也等于 T<sub>i</sub> − 服务时间)</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 算法辨析</h3>
+<p>下列说法哪个是<b>错的</b>?</p>
+<p>A. FCFS 总是非抢占,有利于 CPU 繁忙型长作业<br>
+B. SJF 在已知服务时间时,平均周转时间最小,但长作业可能饥饿<br>
+C. RR 算法时间片越大越好,可以让每个进程跑完<br>
+D. HRRN 的 Rp = 1 + 等待/服务,等待越长 Rp 越大</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:C</b>。RR 时间片<b>太大退化为 FCFS</b>(失去了公平切换的意义),<b>太小则切换开销大</b>——所以要选"合适"的,不是越大越好。A/B/D 都是教材原话。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 简单手算</h3>
+<p>单道批处理系统,3 个作业 J1/J2/J3,到达时间 0/1/2,服务时间 3/5/2。用 SJF(非抢占)算平均周转。</p>
+<details><summary>点我看答案</summary>
+<p>· 时刻 0:只有 J1,跑 J1(0-3)</p>
+<p>· 时刻 3:J2、J3 都到了,选服务短的 J3(2)→ J3(3-5)</p>
+<p>· 时刻 5:跑 J2(5-10)</p>
+<p>· 周转:T1=3, T3=5-2=3, T2=10-1=9;<b>平均 T = (3+3+9)/3 = 5.0</b></p>
+</details>
+</div>
+
+<footer>
+第 59 课 · Ch3 调度 · 大题 · 调度算法:5 算法 + 3 公式 + 4 种甘特图。<br>
+背景 → <a href="./0044-scheduling-levels-mlfq.html">0044 调度层次与多级反馈</a> · 原理铺垫 → <a href="./0002-scheduling-algorithms.html">0002 调度原理<br>
+大题全套:0058 银行家 · 0059 调度 · 0060 分页分段 · 0061 页面置换 · 0062 磁盘调度
+</footer>
+
+</div>
+</body>
+</html>

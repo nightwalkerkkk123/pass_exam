@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 56 课 · Ch3 处理机调度 · 简答 · 高级、中级、低级调度的区别与联系</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 56 课 · Ch3 处理机调度 · 简答 · 高级、中级、低级调度的区别与联系</p>
+  <h1>三级调度:作业进门、内存腾挪、CPU 分配 —— 三层各管一段</h1>
+  <p class="sub">这是简答题 5 分大题的标准答案骨架——<b>高级/中级/低级 = 作业/内存/CPU 三层</b>。教材出处:<code>3_处理机调度/ppt文本.md</code> 幻灯片 26-41(第一节调度层次)。背景见 <a href="./0002-scheduling-algorithms.html">0002 调度算法</a>、<a href="./0044-scheduling-levels-mlfq.html">0044 多级反馈队列</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·高级调度</a>
+    <a href="#s3">3·中级调度</a>
+    <a href="#s4">4·低级调度</a>
+    <a href="#s5">5·对照表</a>
+    <a href="#s6">6·联系</a>
+    <a href="#s7">7·必背</a>
+    <a href="#s8">8·易错</a>
+    <a href="#s9">9·真题</a>
+    <a href="#s10">10·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背两句话:</b><br>
+① <b>三级调度</b> = 高级调度(作业调度)+ 中级调度(内存调度)+ 低级调度(CPU 调度);<b>频率从低到高、对象从粗到细</b>。<br>
+② 高级调度决定"<b>作业能不能进系统</b>",中级调度决定"<b>内存中的要不要换出</b>",低级调度决定"<b>谁上 CPU</b>"。
+</div>
+
+<h2 id="s0">🗺 0. 这道简答题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 把系统想成 "<b>排队办事大厅</b>"——<b>高级</b>是门口<b>放谁进</b>、<b>中级</b>是里面<b>人太多把人请出去歇会</b>、<b>低级</b>是窗口前<b>叫谁过来办</b>。
+</div>
+<p>5 分题的标准答法:<b>三级各 2 句话定义(3 分)+ 区别对照表(1 分)+ 联系一句话收束(1 分)</b>。</p>
+
+<h2 id="s1">📖 1. 是什么:处理机的三级调度</h2>
+<div class="panel">
+  <p><b>调度层次:</b> 在多道程序环境下,处理机的调度并不是一次完成的,而是按<b>调度对象</b>分为三个层次——从外存到内存、再到 CPU——层层递进。</p>
+  <p><b>教材原话(幻灯片 41):</b> "具有三级调度的调度队列模型"——高级、中级、低级共同协调,使系统在<b>宏观(吞吐量)</b>和<b>微观(单进程响应)</b>两方面都取得较好表现。</p>
+</div>
+
+<h2 id="s2">🚪 2. 高级调度(作业调度)</h2>
+<div class="eli5">
+<b>🧸 类比:</b> 公司门口的 <b>HR</b>——决定外面排队的求职者里<b>今天放哪几个进公司</b>。
+</div>
+<ul>
+  <li><b>对象:</b> 处于<b>后备状态(外存)</b>的<b>作业</b>。</li>
+  <li><b>工作:</b> 按算法从<b>后备队列</b>挑作业 →<b>分配内存和外设</b> → 建立<b>进程</b> → 装入内存进入就绪。</li>
+  <li><b>频率:</b> <b>最低</b>(批处理 / 多道程度决定)。</li>
+  <li><b>目的:</b> <b>为多道程序服务</b>,决定系统能"装多少作业"。</li>
+  <li><b>教材原话(幻灯片 27):</b>"高级调度即作业调度,它决定允许哪些作业参与竞争 CPU 和其它系统资源,将一个或一批作业从后备状态变为运行状态;高级调度是为作业分配虚拟处理机,也称宏观调度。"</li>
+</ul>
+
+<h2 id="s3">🔄 3. 中级调度(内存调度)</h2>
+<div class="eli5">
+<b>🧸 类比:</b> 办公椅不够时把短期不用的 <b>人请去休息室"挂起"</b>(腾出工位)、忙的时候再叫回来"激活"。
+</div>
+<ul>
+  <li><b>对象:</b> 已经在内存中的<b>进程</b>。</li>
+  <li><b>工作:</b> 决定哪些内存进程<b>暂时换出到外存</b>(挂起→静止就绪/静止阻塞),哪些<b>再换回内存</b>(激活→活动就绪/活动阻塞)。</li>
+  <li><b>频率:</b> <b>中等</b>(内存吃紧时触发)。</li>
+  <li><b>目的:</b> <b>提高内存利用率和系统吞吐量</b>,处理"内存不足 → 挂起部分进程"的局面。</li>
+  <li><b>教材原话(幻灯片 32):</b>"中级调度决定哪些进程可参与竞争 CPU;中级调度将进程从活动态(活动就绪、活动阻塞)变为静止的挂起态(静止就绪、静止阻塞),或相反;中级调度实际上是实现'挂起'和'激活'操作;中级调度也称为进程交换调度,通常仅用于分时系统。"</li>
+</ul>
+<div class="key">
+<b>关键术语:</b> 中级调度 = "<b>挂起 / 解挂</b>"调度,也叫<b>对换(Swapping)</b>调度。
+</div>
+
+<h2 id="s4">⚡ 4. 低级调度(进程调度 / CPU 调度)</h2>
+<div class="eli5">
+<b>🧸 类比:</b> 窗口前的 <b>柜员叫号</b>——就绪队列里"下一个是谁"。
+</div>
+<ul>
+  <li><b>对象:</b> <b>活动就绪</b>队列中的<b>进程</b>。</li>
+  <li><b>工作:</b> 按算法从中选一个 → <b>分配 CPU</b> → 状态切换为"运行"。</li>
+  <li><b>频率:</b> <b>最高</b>(毫秒级,几十 ms 一调)。</li>
+  <li><b>目的:</b> 让 CPU <b>不停歇</b>、让用户<b>响应及时</b>。</li>
+  <li><b>教材原话(幻灯片 34):</b>"低级调度即进程调度,低级调度决定哪个进程可获得 CPU;低级调度从活动就绪队列中挑选一个进程,将它变为运行态,同时启动 CPU 执行该进程;低级调度也称微观调度。"</li>
+</ul>
+
+<h2 id="s5">📊 5. 三级调度对照表(考场必默)</h2>
+<table>
+<tr><th>维度</th><th>高级调度<br>(作业调度)</th><th>中级调度<br>(内存调度)</th><th>低级调度<br>(进程/CPU 调度)</th></tr>
+<tr><td><b>调度对象</b></td><td><b>作业</b>(后备状态)</td><td><b>进程</b>(活动态)</td><td><b>进程</b>(活动就绪)</td></tr>
+<tr><td><b>发生位置</b></td><td><b>外存 → 内存</b><br>(作业进门)</td><td><b>内存 ↔ 外存</b><br>(挂起/激活)</td><td><b>就绪 → 运行</b><br>(CPU 分配)</td></tr>
+<tr><td><b>发生频率</b></td><td><b>最低</b>(分钟级)</td><td><b>中等</b>(内存紧张时)</td><td><b>最高</b>(毫秒级)</td></tr>
+<tr><td><b>主要目的</b></td><td>为多道程序服务<br>决定多道程序度</td><td>提高内存利用率<br>和系统吞吐量</td><td>让 CPU 不空闲<br>提高响应及时性</td></tr>
+<tr><td><b>影响范围</b></td><td>宏观(系统级)</td><td>中观(进程级)</td><td>微观(CPU 级)</td></tr>
+<tr><td><b>别名</b></td><td>宏观调度<br>长程调度</td><td>交换调度<br>中程调度</td><td>微观调度<br>短程调度</td></tr>
+</table>
+<div class="tmpl">
+<b>📐 考场默写模板:</b>
+<pre style="margin:6px 0 0;background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:6px;font-size:13px">
+三级调度的联系与区别:
+· 高级调度(作业调度):对象=后备作业,发生在"外存→内存",
+  决定多道程序度,频率最低,又称长程调度/宏观调度;
+· 中级调度(内存调度):对象=内存中进程,发生在"内存↔外存",
+  实现挂起/激活,提高内存利用率,频率中等,又称交换调度/中程调度;
+· 低级调度(进程调度):对象=活动就绪进程,发生在"就绪→运行",
+  分配 CPU,频率最高,又称微观调度/短程调度。
+
+联系:三级调度层层递进——高级调度决定"作业能不能进",
+中级调度决定"在内存的要不要出去",低级调度决定"谁上 CPU"。
+</pre>
+</div>
+
+<h2 id="s6">🔗 6. 联系:三级调度层层配合</h2>
+<div class="panel">
+  <p>三级调度不是孤立的——它们共同决定"一个作业从外存到完成"的整个生命周期:</p>
+  <ol>
+    <li><b>高级调度</b> 先放作业进内存(没有它=作业永远进不了系统);</li>
+    <li><b>低级调度</b> 让它们一个个上 CPU 跑(没有它=有 CPU 也用不上);</li>
+    <li><b>中级调度</b> 在内存吃紧时把短期不用的进程挂起腾地方,需要时再激活(没有它=内存满了就死锁)。</li>
+  </ol>
+  <p>三者的分工<b>粒度从粗到细、频率从低到高</b>:<b>高级(粗/低频) → 中级(中/中频) → 低级(细/高频)</b>。</p>
+</div>
+
+<h2 id="s7">📝 7. 必背 4 句话</h2>
+<div class="key">
+<b>①</b> 三级调度 = <b>作业调度(高级)+ 内存调度(中级)+ CPU 调度(低级)</b>。<br>
+<b>②</b> 高级决定"<b>作业能否进系统</b>",中级决定"<b>内存中的要不要换出</b>",低级决定"<b>谁上 CPU</b>"。<br>
+<b>③</b> <b>频率从低到高、粒度从粗到细</b>:高级(分钟级,宏观)→中级(内存紧张时,中观)→低级(毫秒级,微观)。<br>
+<b>④</b> 中级调度的本质是"<b>挂起 / 激活</b>"(对换),不是把所有进程倒来倒去的"交换"。</div>
+
+<h2 id="s8">⚠️ 8. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 把"中级调度"和"交换"画等号:</b> 中级调度是"<b>挂起 / 激活</b>"决策,真正动手搬运页 / 进程是 OS 的对换程序;不是同一件事。<b>答题不要把"中级调度"说成"交换调度"而不提"挂起/激活"</b>。
+</div>
+<div class="warnbox">
+<b>坑 2 · 把"高级调度"和"作业调度"当两件事:</b> <b>是同一件事两个名字</b>(宏观调度 / 长程调度 / 作业调度都一样)。同样,"低级调度 = 进程调度 = CPU 调度"。
+</div>
+<div class="warnbox">
+<b>坑 3 · 频率记反:</b> 高级(最低) → 中级(中等) → 低级(最高)。口诀 "<b>高少低多</b>"(高级调度次数少,低级调度次数多)。
+</div>
+<div class="warnbox">
+<b>坑 4 · "中级调度只在分时系统":</b> 教材明确说中级调度"<b>通常仅用于分时系统</b>"(幻灯片 32)——批处理系统通常不需要,因为批处理是"作业全部装入再调"。
+</div>
+
+<h2 id="s9">📝 9. 真题样例(简答 5 分)</h2>
+<div class="panel">
+  <h3>样题</h3>
+  <p><b>简述处理机的三级调度,并比较高级调度、中级调度和低级调度的主要区别。(5 分)</b></p>
+  <details>
+    <summary>点我看参考答案</summary>
+    <p><b>答:</b></p>
+    <p><b>(1) 三级调度:</b> 在多道程序环境下,处理机的调度按对象和粒度分为三层:<b>高级调度(作业调度)</b>、<b>中级调度(内存调度)</b>和<b>低级调度(进程调度/CPU 调度)</b>。</p>
+    <p><b>(2) 三者的主要区别:</b></p>
+    <ul>
+      <li><b>高级调度</b>:对象是<b>作业</b>,发生在<b>外存到内存</b>之间,<b>频率最低</b>,目的是为多道程序服务,决定多道程序度,也称<b>宏观调度/长程调度</b>。</li>
+      <li><b>中级调度</b>:对象是<b>内存进程</b>,发生在<b>内存与外存</b>之间(挂起/激活),频率中等,目的是提高内存利用率和系统吞吐量,也称<b>交换调度/中程调度</b>,通常仅用于分时系统。</li>
+      <li><b>低级调度</b>:对象是<b>活动就绪进程</b>,发生在<b>就绪到运行</b>之间,频率最高,目的是将 CPU 分配给选中的进程,也称<b>微观调度/短程调度</b>。</li>
+    </ul>
+    <p><b>(3) 联系:</b> 三级调度层层递进、互相配合——高级调度决定"作业能否进系统",中级调度决定"已进系统的要不要换出",低级调度决定"谁上 CPU"。</p>
+    <p class="hint">出处:<code>3_处理机调度/ppt文本.md</code> 幻灯片 26-34、41。<b>关键词:三级调度名 + 频率从低到高</b>。</p>
+  </details>
+</div>
+
+<h2 id="s10">✅ 10. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 默写挑战</h3>
+<p>不看屏幕,默写:<b>三级调度名称、对象、发生位置、频率高低</b>。</p>
+<details><summary>点我对答案</summary>
+<p>· 高级调度:对象=<b>作业</b>,外存→内存,<b>频率最低</b>;</p>
+<p>· 中级调度:对象=<b>内存进程</b>,内存↔外存(挂起/激活),频率中等;</p>
+<p>· 低级调度:对象=<b>活动就绪进程</b>,就绪→运行,<b>频率最高</b>。</p>
+<p class="hint">口诀 "高级→中级→低级,频率从低到高"。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 易错辨析</h3>
+<p>下列说法哪个是<b>错的</b>?</p>
+<p>A. 高级调度又称作业调度、宏观调度、长程调度,对象是处于后备状态的作业<br>
+B. 中级调度又称内存调度、交换调度,实现进程的挂起和激活<br>
+C. 低级调度频率最低,但目标是把 CPU 分给合适的进程<br>
+D. 三级调度频率从高到低依次是低级、中级、高级</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:C</b>。低级调度"<b>频率最高</b>、粒度最细",C 说反了。其它三项正确。D 是正确的——频率从高到低正好就是 低级(高)→中级→高级(低)。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 联系三态</h3>
+<p>中级调度把"活动就绪"挂起会变成什么状态?再激活回什么状态?为什么中级调度常被称为"对换"调度?(提示:见 <a href="./0042-process-state-transition.html">0042 进程状态转换</a>)</p>
+<details><summary>点我对答案</summary>
+<p>· <b>活动就绪</b>(在内存、就绪)被挂起 → <b>静止就绪</b>(在外存、就绪);</p>
+<p>· <b>活动阻塞</b>被挂起 → <b>静止阻塞</b>;</p>
+<p>· 激活则是反向过程(静止就绪→活动就绪,静止阻塞→活动阻塞)。</p>
+<p>· 因为它来回搬运的是<b>整个进程的内存映像</b>——从内存写回外存 / 从外存读回内存,所以叫"<b>对换调度</b>"(swapping)。与分页级别的"页面换出/换入"是<b>不同粒度的对换</b>。</p>
+</details>
+</div>
+
+<footer>
+第 56 课 · Ch3 处理机调度 · 简答 · 三级调度区别与联系。<br>
+背景 → <a href="./0002-scheduling-algorithms.html">0002 调度算法</a> · <a href="./0044-scheduling-levels-mlfq.html">0044 多级反馈队列</a> · <a href="./0042-process-state-transition.html">0042 进程状态</a><br>
+简答全套:0053 进程创建 · 0054 文件系统 · 0055 分页vs分段 · 0056 三级调度 · 0057 SPOOLing
+</footer>
+
+</div>
+</body>
+</html>

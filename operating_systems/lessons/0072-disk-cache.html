@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 72 课 · Ch5 设备 · 次重点 · 磁盘 cache 不在磁盘上,而在内存中</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .steps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .step{flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px}
+  .step .n{display:inline-block;background:var(--blue);color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-weight:700;margin-right:6px}
+  .step b{color:var(--blue)}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 72 课 · Ch5 设备 · 次重点 · 磁盘 cache 不在磁盘上,而在内存中</p>
+  <h1>磁盘 cache:OS 在内存里给磁盘开的"影子盘"</h1>
+  <p class="sub">次重点,常出选择题 2–3 分。<b>最易混淆点:cache 不在磁盘上,而在<b>内存</b>里</b>。教材出处:<code>5_设备管理/ppt文本.md</code> 幻灯片 226(5.6 节)+ <code>textbook/ch08_磁盘存储器管理.md</code> §8.3。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·是什么</a>
+    <a href="#s3">3·为什么在内存</a>
+    <a href="#s4">4·三种替换</a>
+    <a href="#s5">5·读写策略</a>
+    <a href="#s6">6·vs CPU cache</a>
+    <a href="#s7">7·易错</a>
+    <a href="#s8">8·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背两句话:</b><br>
+① <b>磁盘 cache(磁盘高速缓存 / Disk Cache / Page Cache)是 OS 在<b>内存</b>中开辟的一块区域</b>,缓存磁盘扇区/物理页数据,目的是消除磁盘和内存的速度差。<br>
+② <b>两种写策略</b>:<b>写回法 (Write Back,延迟写)</b> 是先改缓存,块被换出时才写磁盘,性能高;<b>写直达法 (Write Through)</b> 是同步写缓存和磁盘,数据安全。
+</div>
+
+<h2 id="s0">🗺 0. 这道题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 磁盘慢得想砸电脑,OS 就在内存里<b>偷偷</b>开个"假盘子"——最近用过的盘块先放这里,下次读就快了 10 万倍。
+</div>
+<p>常见考点:<b>① 辨析 cache 的位置(内存还是磁盘上)</b>;<b>② 三种替换算法名称</b>;<b>③ 写回法 vs 写直达</b>;<b>④ 预读与延迟写的目的</b>。</p>
+
+<h2 id="s1">📖 1. 是什么:OS 在<b>内存</b>里开的一块缓冲</h2>
+<div class="panel">
+  <p><b>定义:</b> 磁盘高速缓存(Disk Cache)是<b>操作系统在主存(内存)中开辟的一块缓冲区</b>,用于<b>缓存最近访问过的磁盘块</b>,以减少磁盘 I/O 次数、提高访问速度。</p>
+  <p><b>教材原话(textbook §8.3):</b>"磁盘的速度比内存慢几个数量级,为了提高磁盘的访问速度,减少磁盘 IO 次数,操作系统会在<b>内存</b>中开辟一块缓冲区,缓存最近访问过的磁盘块,叫做磁盘高速缓存(Disk Cache)或者页高速缓存(Page Cache)。"</p>
+  <p><b>另一个名字</b>叫<b>页高速缓存(Page Cache)</b>——Linux 内核里 Page Cache 就是 disk cache 的实际实现。</p>
+  <p class="hint">⚠ <b>常错点</b>:很多同学以为 cache 是磁盘上的一块"高速盘",<b>错</b>!高速缓存一定在<b>内存</b>里,只是<b>替磁盘服务</b>而已,这是名字带"磁盘"二字误导的地方。</p>
+</div>
+
+<h2 id="s2">📍 2. 为什么不放在磁盘,而放在内存</h2>
+<table>
+<tr><th>存储介质</th><th>访问延迟</th><th>量级</th></tr>
+<tr><td><b>内存 DRAM</b></td><td>~ 100 ns</td><td>0.0000001 秒</td></tr>
+<tr><td><b>SSD</b></td><td>~ 100 μs</td><td>0.0001 秒(慢 1000 倍)</td></tr>
+<tr><td><b>机械磁盘 HDD</b></td><td>~ 10 ms</td><td>0.01 秒(<b>慢 10 万倍</b>)</td></tr>
+</table>
+<p>差<b>约 10<sup>5</sup></b> 倍,如果 cache 放在磁盘上,等于"慢车给快车当备用胎",毫无意义。唯一合理的介质是<b>内存(DRAM)</b>。</p>
+
+<div class="key">
+<b>记忆口诀:</b>"<b>cache 永远跟着速度快的走</b>"——CPU 与内存间有 CPU cache,内存与磁盘间有 disk cache。位置总在<b>靠近 CPU 那一侧</b>。
+</div>
+
+<h2 id="s3">🔄 3. 三种替换算法(置换算法)</h2>
+<table>
+<tr><th>算法</th><th>思想</th><th>优点</th><th>缺点</th><th>实际使用</th></tr>
+<tr><td><b>FIFO</b><br>(先进先出)</td><td>淘汰<b>最早进入</b>缓存的块</td><td>实现最简单</td><td>可能出现 <b>Belady 异常</b>,性能差</td><td>几乎不用</td></tr>
+<tr><td><b>LRU</b><br>(最近最久未用)</td><td>淘汰<b>最长时间没被访问</b>的块</td><td>性能接近最优</td><td>需要记录访问时间,开销大</td><td>近似实现<br><b>CLOCK 算法</b>最常用</td></tr>
+<tr><td><b>LFU</b><br>(最少使用)</td><td>淘汰<b>访问次数最少</b>的块</td><td>性能接近 LRU</td><td>需要计数器,开销大;冷启动时新块易被淘汰</td><td>少见</td></tr>
+</table>
+<div class="key">
+<b>记忆口诀:</b>"<b>F 最早、L 久、L 次</b>"——FIFO 看进入早晚、LRU 看访问久暂、LFU 看访问次数。
+</div>
+<p class="hint">教材 §8.3 还提到 <b>CLOCK 算法</b>,是 LRU 的"近似但便宜"的版本——给每个缓存块加一个引用位,环形扫描,已被使用的位清 0 后跳过,找到第一个引用位为 0 的就淘汰。Linux Page Cache 用的就是 CLOCK 的变种。</p>
+
+<h2 id="s4">✍️ 4. 预读(read-ahead)与延迟写(write-back)</h2>
+<div class="steps">
+  <div class="step"><span class="n">预</span><b>预读(Read Ahead)</b><br>读一个块时,<b>提前</b>把后面相邻的几个块一起读到 cache。依据<b>局部性原理</b>,程序多半会顺序访问。比如 Linux 通常预读 128 KB 或 256 KB。</div>
+  <div class="step"><span class="n">延</span><b>延迟写(Write Back / Write Behind)</b><br>写时只改 cache 并标脏位,不立即写磁盘;<b>等该块要被换出</b>或后台定期刷新时,才真正写回磁盘。</div>
+  <div class="step"><span class="n">直</span><b>写直达(Write Through)</b><br>写时<b>同时</b>改 cache 和磁盘,磁盘写完才返回。一致性好,性能差。</div>
+</div>
+
+<table>
+<tr><th></th><th>写回 Write Back</th><th>写直达 Write Through</th></tr>
+<tr><td><b>性能</b></td><td>高(多次写可合并)</td><td>低(每次都要 I/O)</td></tr>
+<tr><td><b>安全</b></td><td>低(崩溃可能丢脏数据)</td><td>高(磁盘永远最新)</td></tr>
+<tr><td><b>现代 OS</b></td><td>✅ 默认采用</td><td>仅在关键元数据场景(文件系统日志)</td></tr>
+</table>
+<div class="tmpl">
+<b>📐 考场默写模板:</b>
+<pre style="margin:6px 0 0;background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:6px;font-size:13px">
+提高磁盘 I/O 速度的主要途径:
+1. 选性能好的磁盘 + 好的调度算法
+2. 设置磁盘高速缓冲区(磁盘 cache)  ← 在内存里!
+3. 提前读 + 延迟写(依据局部性原理)
+4. 优化物理块分布(同柱面聚簇)
+5. 虚拟盘 / RAID
+</pre>
+</div>
+
+<h2 id="s5">🆚 5. 与 CPU cache 的区别</h2>
+<table>
+<tr><th></th><th>CPU Cache(L1/L2/L3)</th><th>Disk Cache(Page Cache)</th></tr>
+<tr><td><b>位置</b></td><td>CPU 芯片内部 / 主板上</td><td>内存(主存)中</td></tr>
+<tr><td><b>服务</b></td><td>加速 CPU ↔ 内存</td><td>加速 内存 ↔ 磁盘</td></tr>
+<tr><td><b>容量</b></td><td>几 KB ~ 几十 MB</td><td>占空闲内存的相当比例(GB 级)</td></tr>
+<tr><td><b>硬件/软件</b></td><td>硬件实现</td><td>OS 软件管理(也称 page cache)</td></tr>
+</table>
+
+<h2 id="s6">⚠️ 6. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 以为 cache 在磁盘上:</b> 名字虽然叫"磁盘"cache,但<b>物理位置在内存</b>。题型最爱这么绕:"以下哪个是 OS 在磁盘上分配的缓冲区?"答案:无,disk cache 在内存。
+</div>
+<div class="warnbox">
+<b>坑 2 · 替换算法记混:</b> <b>LRU = 时间 L 久</b>(最近最久未用);<b>LFU = 次数</b>(最少使用)。看到"按访问次数淘汰"就是 LFU,不是 LRU。
+</div>
+<div class="warnbox">
+<b>坑 3 · 写回 vs 写直达选反:</b> 想"性能优先"→ 选<b>写回</b>;想"数据安全"→ 选<b>写直达</b>。现代 OS 默认是写回。教材 §8.3 提的"延迟写"就是写回法的另一种说法(课件幻灯片 292)。
+</div>
+
+<h2 id="s7">✅ 7. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 单选</h3>
+<p>关于"磁盘高速缓存(Disk Cache)",下列说法正确的是:</p>
+<p>A. Disk Cache 是磁盘上的一块保留区域,作为高速备份<br>
+B. Disk Cache 的引入是为了弥补内存速度比磁盘慢<br>
+C. 写回法在写操作时立即将数据写入磁盘,以保证一致性<br>
+D. Disk Cache 位于内存,常用 CLOCK 算法近似实现 LRU 置换</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:D</b>。<br>
+A 错:Disk Cache 在<b>内存</b>,不是磁盘上。<br>
+B 错:是弥补<b>磁盘比内存慢</b>(10<sup>5</sup> 倍),主谓反了。<br>
+C 错:写回法是<b>不立即</b>写磁盘、延迟到换出/刷新。<br>
+D 对:Disk Cache 的实现常用 CLOCK 算法,这是 LRU 的近似版。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 简答骨架</h3>
+<p>请列出"<b>提高磁盘 I/O 速度</b>"的 3 种主要方法,并说明磁盘 cache 在其中扮演什么角色。</p>
+<details><summary>点我看参考答案</summary>
+<ol>
+<li><b>选择性能好的磁盘 + 好的磁盘调度算法</b>(FCFS / SSTF / SCAN / CSCAN),减少寻道时间和旋转延迟。</li>
+<li><b>设置磁盘高速缓存(Disk Cache)</b>:在内存中开辟一块缓冲区,缓存最近访问过的磁盘块;配合<b>提前读</b>(依据局部性把邻近块预读到 cache)和<b>延迟写</b>(写时只改 cache、块换出或定期刷新时才写回磁盘)。</li>
+<li><b>优化物理块分布</b>(同柱面聚簇)+ <b>虚拟盘(RAM 盘)</b> + <b>RAID 廉价磁盘冗余阵列</b>。</li>
+</ol>
+<p>Disk cache 的角色:充当磁盘的"备份仓库",命中时省下磁盘 I/O(微秒级 → 纳秒级),典型命中率可达 <b>90%+</b>(教材 §8.3)。</p>
+</details>
+</div>
+
+<footer>
+第 72 课 · Ch5 设备 · 次重点 · 磁盘 cache 在内存里:三种替换算法 + 写回/写直达策略。<br>
+上下文 → <a href="./0047-io-control-methods.html">0047 I/O 控制方式</a> · <a href="./0048-buffering-spooling.html">0048 缓冲与 SPOOLing</a> · 同章 → <a href="./0057-spooling.html">0057 SPOOLing</a> · 关联次重点 → <a href="./0073-external-allocation.html">0073 外存分配</a><br>
+次重点全套:0071 位示图 · 0072 磁盘 cache · 0073 外存分配
+</footer>
+
+</div>
+</body>
+</html>

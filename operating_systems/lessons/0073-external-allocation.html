@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 73 课 · Ch6 文件 · 次重点 · 外存分配方式的区别与原因</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .steps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .step{flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px}
+  .step .n{display:inline-block;background:var(--blue);color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-weight:700;margin-right:6px}
+  .step b{color:var(--blue)}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 73 课 · Ch6 文件 · 次重点 · 外存分配方式的区别与原因</p>
+  <h1>外存分配:连续、链接、索引——三种方式各有取舍</h1>
+  <p class="sub">次重点,常出简答或计算题(5 分)。<b>核心是把"访问速度 / 磁盘碎片 / 文件大小限制 / 可靠性"四个维度对位对比</b>。教材出处:<code>6_文件管理/ppt文本.md</code> 幻灯片 49–101(6.3 节)+ 范例 109–112。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·三种定义</a>
+    <a href="#s3">3·对位对比</a>
+    <a href="#s4">4·混合索引</a>
+    <a href="#s5">5·计算题</a>
+    <a href="#s6">6·易错</a>
+    <a href="#s7">7·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背两句话:</b><br>
+① <b>三种外存分配方式</b>:<b>连续分配</b>(一块挨一块,顺序访问最快)、<b>链接分配</b>(隐式 / FAT,碎片少但难随机访问)、<b>索引分配</b>(单级 / 多级 / 混合,既能顺序又能随机)。<br>
+② <b>现代文件系统主流 = 索引分配的"混合索引"</b>(Unix 风格:10 直 + 1 单间接 + 1 双间接 + 1 三间接,盘块 4 KB 时最大文件 = 40 KB + 4 MB + 4 GB + 4 TB ≈ 4 TB)。
+</div>
+
+<h2 id="s0">🗺 0. 这道题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 外存(磁盘)上怎么"<b>摆</b>"一个文件的多个盘块?有三种摆法——<b>挨着摆</b>(连续)、<b>用线串着摆</b>(链接)、<b>每块贴个门牌表</b>(索引)。三种各有优缺点,典型考题问"为什么不用连续分配?"或"计算混合索引最大文件长度"。
+</div>
+
+<h2 id="s1">📖 1. 是哪三种 + 各自解决什么问题</h2>
+<table>
+<tr><th>方式</th><th>通俗类比</th><th>解决的核心问题</th><th>典型缺陷</th></tr>
+<tr><td><b>连续分配</b></td><td>整个文件占连续一块地盘</td><td><b>顺序访问最快</b>——磁头不用跳</td><td><b>外部碎片</b>;必须事先知道文件长度</td></tr>
+<tr><td><b>链接分配</b></td><td>散着装、用链条穿起来</td><td><b>消除外部碎片</b>、不要求连续</td><td><b>不能高效随机访问</b>;指针占空间;中间一块坏掉全断</td></tr>
+<tr><td><b>索引分配</b></td><td>每文件发一本"地址小本本"</td><td><b>既支持顺序又支持直接(随机)访问</b></td><td>索引块本身占外存;文件巨大时小本本不够装</td></tr>
+</table>
+
+<h2 id="s2">📋 2. 三种定义与具体变种</h2>
+<div class="panel">
+<h3>① 连续分配(Contiguous Allocation)</h3>
+<p>为文件分配<b>一组相邻接的盘块</b>(幻灯片 49)。FCB 只需记两项:<b>首块号</b> + <b>长度</b>(块数)。读第 I 块:物理块号 = 首块号 + I。</p>
+<p>优点:顺序访问快;缺点:<b>存在"碎片"问题</b>(必须事先知道文件长度)。</p>
+</div>
+
+<div class="panel">
+<h3>② 链接分配(Linked Allocation)</h3>
+<p>把属于同一文件的盘块<b>用指针链成一条链</b>(幻灯片 59)。两种实现:</p>
+<ul>
+<li><b>隐式链接</b>:链接指针放在盘块数据区的末尾。</li>
+<li><b>显式链接(FAT)</b>:指针集中存放在一张<b>文件分配表 FAT</b>里,FAT 常驻内存(对随机访问友好,但占内存)。</li>
+</ul>
+<p>优点:<b>无外部碎片</b>;不要求连续;不需要事先知道长度。<br>
+缺点:隐式链接<b>只支持顺序访问</b>;<b>可靠性差</b>(中间任一指针错则后续全丢)。</p>
+</div>
+
+<div class="panel">
+<h3>③ 索引分配(Indexed Allocation)</h3>
+<p>把一个文件所有盘块号<b>集中在一个索引块里</b>(幻灯片 73)。三种深度:</p>
+<ul>
+<li><b>单级索引</b>:一个索引块装满了再开一个;</li>
+<li><b>两级索引</b>:第一级指向第二级索引块(类似页表两级);</li>
+<li><b>混合索引(UNIX 风格)</b>:<b>直接地址 + 单间接 + 双间接 + 三间接</b>,兼顾小文件开销和大文件能力。</li>
+</ul>
+<p>优点:<b>支持直接(随机)存取</b>。<br>
+缺点:索引块本身也占外存;当文件过大时单级索引装不下。</p>
+</div>
+
+<h2 id="s3">⚖️ 3. 对比表(必背 4×4)</h2>
+<table>
+<tr><th>对比维度</th><th>连续分配</th><th>链接分配</th><th>索引分配</th></tr>
+<tr><td><b>顺序访问速度</b></td><td>最快(磁头不跳)</td><td>中(FAT 模式下也较快)</td><td>中</td></tr>
+<tr><td><b>随机访问</b></td><td>✅ 好,O(1) 算偏移</td><td>❌ 隐式链接差;FAT 好</td><td>✅ 好,查索引 O(m)</td></tr>
+<tr><td><b>外部碎片</b></td><td>❌ 有(类似内存动态分区)</td><td>✅ 无</td><td>✅ 无</td></tr>
+<tr><td><b>文件大小限制</b></td><td>不受限(只要磁盘够)</td><td>不受限</td><td>受索引块容量限制(可多级扩展)</td></tr>
+<tr><td><b>可靠性</b></td><td>单点坏</td><td>❌ 中间断链则全损</td><td>索引块单点坏,但可备份</td></tr>
+<tr><td><b>需要预先知道大小</b></td><td>是</td><td>否</td><td>否</td></tr>
+<tr><td><b>额外磁盘开销</b></td><td>几乎为零</td><td>指针占块内 / FAT 占外存</td><td>索引块占外存</td></tr>
+</table>
+<div class="key">
+<b>记忆口诀:</b>"<b>连续求快、链接求碎、索引求全</b>"——三种方式各有追求,正因各自有致命缺陷,才演化出混合索引。
+</div>
+
+<h2 id="s4">🪆 4. 为什么索引分配更通用 + 连续分配为何不淘汰</h2>
+<div class="panel">
+<h3>为什么索引最通用?</h3>
+<p><b>索引块是文件的"地址小本本"</b>——既能顺序遍历又能按偏移直接定位(随机访问),<b>同时拥有</b>连续分配的"直接定位"和链接分配的"无碎片"两种优势。代价是多占一个索引块(对大文件可以多级扩展)。</p>
+</div>
+<div class="panel">
+<h3>为什么连续分配没被淘汰?</h3>
+<p>对于<b>顺序访问的存储介质(磁带 / 光盘 / 顺序写入场景)</b>,连续分配仍是首选——一次定位、顺序读出,中间没有寻道开销。<b>教材幻灯片 47 还把"提高外存利用率"和"提高文件的访问速率"</b>列为外存分配的两大目标。</p>
+</div>
+
+<h2 id="s5">🧮 5. 计算题骨架(混合索引最大文件长度)</h2>
+<div class="panel">
+<h3>例题(标准版,幻灯片 96–100 数据)</h3>
+<p><b>已知</b>:UNIX 混合索引,每块大小 <b>4 KB</b>,每个盘块号占 <b>4 B</b>,FCB 的 i_addr[13] 中:</p>
+<ul>
+<li><b>10 个直接地址项</b>;</li>
+<li><b>1 个一次间接</b>(指向一个 1 级索引块);</li>
+<li><b>1 个二次间接</b>(指向 2 级索引);</li>
+<li><b>1 个三次间接</b>(指向 3 级索引)。</li>
+</ul>
+<p><b>问</b>:该文件系统支持的最大文件长度?</p>
+<details>
+<summary>点我看解</summary>
+<p><b>先算一个索引块能装几个地址项:</b>4 KB / 4 B = <b>1024 项</b>(即 1 K)。</p>
+<p><b>逐级算最大文件大小:</b><br>
+· 直接地址:10 × 4 KB = <b>40 KB</b><br>
+· 一次间接:1 × 1 K × 4 KB = <b>4 MB</b>;加上直接共 <b>40 KB + 4 MB ≈ 4.04 MB</b><br>
+· 二次间接:1 × 1 K × 1 K × 4 KB = <b>4 GB</b>;累计 <b>4.04 MB + 4 GB ≈ 4.04 GB</b><br>
+· 三次间接:1 × 1 K × 1 K × 1 K × 4 KB = <b>4 TB</b>;累计 <b>4.04 GB + 4 TB ≈ 4 TB</b></p>
+<p><b>答:最大文件长度约为 4 TB</b>(精确 = 40 KB + 4 MB + 4 GB + 4 TB)。</p>
+<p class="hint">速算技巧:多级索引每多一级,容量多乘 1024 = 大约多 3 个数量级 (KB → MB → GB → TB)。背这个公式就够应付各种变种题目。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>例题(链接 vs 索引访问次数对比,范例 4 风格)</h3>
+<p><b>已知</b>:20 MB 大文件,块大小 4 KB,每地址 4 B。<br>
+<b>问</b>:用<b>连续分配</b>读第 5.5 KB 要几次磁盘 I/O?用<b>隐式链接</b>读第 (16 MB + 5.5 KB) 要几次?</p>
+<details>
+<summary>点我看解</summary>
+<p><b>连续分配</b>:物理块号 = 首块 + 偏移块号。第 5.5 KB 在第 1 块内(偏移 1.5 KB),只需一次 I/O 读首块 → <b>1 次</b>。</p>
+<p><b>隐式链接</b>:读第 (16 MB + 5.5 KB) 要先沿着链 <b>逐块顺序找</b>,直到找到对应块;偏移块号 = (16 MB + 5.5 KB) / 4 KB = 4097.x 块;要读<b>4097 块拿地址</b>再读 1 块拿数据 = <b>4098 次</b>。这就是链接分配的"不能高效随机访问"的最直观证据。</p>
+<p class="hint">对照教材 ppt 范例 4(行 351)的答案:读完 (16 MB + 5.5 KB) 总共 4098 次 I/O。</p>
+</details>
+</div>
+
+<div class="tmpl">
+<b>📐 考场默写模板:</b>
+<pre style="margin:6px 0 0;background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:6px;font-size:13px">
+外存分配三种方式:
+① 连续分配: 文件占一组相邻盘块,顺序访问最快;有外部碎片,需预知长度。
+② 链接分配: 文件盘块用指针串起来;无碎片,但隐式只能顺序访问;可靠性差。
+③ 索引分配: 文件盘块号集中在索引块;既支持顺序又支持直接(随机)访问。
+现代文件系统的主流做法是 ③ 的"混合索引",兼顾小文件开销和大文件能力。
+</pre>
+</div>
+
+<h2 id="s6">⚠️ 6. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 把"混合索引"叫成"多级索引":</b> 严格说混合索引 = 直接 + 单级 + 多级 的组合;<b>多级索引特指两级及以上</b>(单级索引是多级索引的特例)。考试问"多级索引适用于哪种文件"答大文件,问"混合索引"答兼顾。
+</div>
+<div class="warnbox">
+<b>坑 2 · 链接分配的"指针"放在哪混淆:</b> <b>隐式链接</b>的指针放在<b>盘块数据区末尾</b>(影响存储效率、数据区大小非 2 的幂);<b>显式链接 (FAT)</b> 的指针集中放在<b>FAT 表</b>里(FAT 常驻内存)。
+</div>
+<div class="warnbox">
+<b>坑 3 · 混合索引最大文件算错数量级:</b> 容易把 1024 写成 1000 漏掉一个数量级。速记:<b>每多一级 → 容量多 1024 倍(粗算 1000 倍也凑合)</b>。直接 40 KB、单间接 4 MB、双间接 4 GB、三间接 4 TB —— 正好对位。
+</div>
+
+<h2 id="s7">✅ 7. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 单选</h3>
+<p>下列关于外存分配方式的说法,<b>错误</b>的是:</p>
+<p>A. 连续分配需要预先知道文件长度,且会产生外部碎片<br>
+B. 隐式链接分配的指针放在 FAT 表里,FAT 常驻内存<br>
+C. 索引分配既能支持顺序访问,又能支持随机访问<br>
+D. 混合索引通过直接 + 多级间接的组合兼顾小文件和大文件</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:B</b>。<br>
+B 错:<b>隐式链接</b>的指针放在<b>盘块数据区</b>里,不是 FAT。<b>显式链接 (FAT)</b> 才把指针集中放在 FAT 表里。A、C、D 都是教材原话。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 计算</h3>
+<p>UNIX 混合索引,块大小 = 2 KB,每盘块号占 4 B,i_addr[13] = 10 直 + 1 单间 + 1 双间 + 1 三间。求最大文件长度。</p>
+<details><summary>点我对答案</summary>
+<p>每个索引块可装:2 KB / 4 B = <b>512 项</b>。</p>
+<p>· 直接:10 × 2 KB = <b>20 KB</b><br>
+· 单间:1 × 512 × 2 KB = <b>1 MB</b>;累计 ≈ 1.02 MB<br>
+· 双间:1 × 512 × 512 × 2 KB = <b>512 MB</b>;累计 ≈ 513 MB<br>
+· 三间:1 × 512 × 512 × 512 × 2 KB = <b>256 GB</b>;累计 ≈ 256 GB</p>
+<p><b>答:最大 ≈ 256 GB(数量级)</b>,精确 = 20 KB + 1 MB + 512 MB + 256 GB。</p>
+<p class="hint">数量级速记:每多一级 ≈ 乘 512 ≈ 2.7 个数量级 (KB → MB → 百 MB → 百 GB)。</p>
+</details>
+</div>
+
+<footer>
+第 73 课 · Ch6 文件 · 次重点 · 外存分配:连续 / 链接 / 索引三种方式的取舍。<br>
+上下文 → <a href="./0039-file-logical-vs-physical-structure.html">0039 文件逻辑/物理结构</a> · <a href="./0054-file-system-overview.html">0054 文件系统总览</a> · 同章其他次重点 → <a href="./0071-bitmap-method.html">0071 位示图法</a><br>
+次重点全套:0071 位示图 · 0072 磁盘 cache · 0073 外存分配
+</footer>
+
+</div>
+</body>
+</html>

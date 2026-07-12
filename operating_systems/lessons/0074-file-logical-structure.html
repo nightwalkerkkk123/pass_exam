@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 74 课 · Ch6 文件 · 非重点 · 文件逻辑结构(流式/记录式)</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .steps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .step{flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px}
+  .step .n{display:inline-block;background:var(--blue);color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-weight:700;margin-right:6px}
+  .step b{color:var(--blue)}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 74 课 · Ch6 文件 · 非重点 · 文件逻辑结构(流式/记录式)</p>
+  <h1>文件的逻辑结构:用户眼里文件长啥样</h1>
+  <p class="sub">选择题偶尔出 1 道 2 分。<b>逻辑结构</b> 是用户/程序看到的形态,<b>物理结构</b> 是磁盘上怎么摆放——两者<b>正交</b>。教材出处:<code>6_文件管理/ppt文本.md</code>。物理部分见 <a href="./0039-file-logical-vs-physical-structure.html">0039 逻辑 vs 物理</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·逻辑 vs 物理</a>
+    <a href="#s3">3·无结构流式</a>
+    <a href="#s4">4·有结构记录式</a>
+    <a href="#s5">5·口诀</a>
+    <a href="#s6">6·易错</a>
+    <a href="#s7">7·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背两句话:</b><br>
+① <b>逻辑结构 = 用户视角的文件形态</b>,分两类:<b>无结构流式文件</b>(字节流)和<b>有结构记录式文件</b>(若干记录)。<br>
+② <b>逻辑结构与物理结构正交</b>:同一种逻辑结构可以对应多种物理结构(顺序/链接/索引),反之亦然。
+</div>
+
+<h2 id="s0">🗺 0. 这道题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 一个 txt 文本文件、一张员工表、一个 C 源文件,从用户角度看"形态"完全不同——txt 是字节能流,员工表是一行一行,源文件是 ASCII 字符流。这些"<b>用户看到的样子</b>"就是逻辑结构。
+</div>
+<p>选择题考点:<b>两类逻辑结构的区分 + 4 种记录式文件的组织方式</b>(顺序/索引/直接/相对)。不考伪代码,考概念辨析。</p>
+
+<h2 id="s1">📖 1. 是什么:逻辑结构定义</h2>
+<div class="panel">
+  <p><b>定义:</b> 文件的<b>逻辑结构</b>(Logical File Structure)指文件在用户/应用程序视角下的<b>外部组织形式</b>——操作系统把它<b>呈现给用户</b>的抽象。</p>
+  <p><b>教材原话:</b>"文件的逻辑结构是从用户角度看到的文件组织形式,可分为<b>有结构文件</b>和<b>无结构文件</b>两种。"</p>
+  <p class="hint">与"逻辑结构"配对的概念是"物理结构"——后者描述文件在磁盘上如何存放(顺序、链接、索引),见 <a href="./0039-file-logical-vs-physical-structure.html">0039</a>。</p>
+</div>
+
+<h2 id="s2">⚖️ 2. 逻辑 vs 物理:正交关系</h2>
+<table>
+<tr><th>维度</th><th>逻辑结构(用户视角)</th><th>物理结构(系统视角)</th></tr>
+<tr><td><b>关心什么</b></td><td>文件"看起来"是字节流还是记录集合</td><td>磁盘块"实际"怎么排(顺序/链接/索引)</td></tr>
+<tr><td><b>谁关心</b></td><td>应用程序员、终端用户</td><td>OS 文件系统、磁盘调度</td></tr>
+<tr><td><b>是否可见</b></td><td>可见(打开文件后看到的样子)</td><td>不可见(透明)</td></tr>
+<tr><td><b>分类</b></td><td>无结构流式 / 有结构记录式</td><td>顺序结构 / 链接结构 / 索引结构 / 多级索引</td></tr>
+</table>
+<div class="key">
+<b>记忆口诀:</b>"<b>逻辑 = 长得像,物理 = 摆得开</b>"。一个员工表(逻辑记录式)可以存成顺序文件(物理顺序)也可以存成索引文件(物理索引)——<b>互不影响</b>。
+</div>
+
+<h2 id="s3">🌊 3. 无结构文件:流式文件</h2>
+<div class="panel">
+  <p><b>定义:</b> 无结构文件 = 字节流文件 = 字符流文件。文件内部是<b>一连串有序字节</b>的集合,操作系统不解释其含义。</p>
+  <p><b>特点:</b></p>
+  <ul>
+    <li><b>最简单、最灵活</b>的结构。</li>
+    <li>操作系统只负责按字节/块读写,不管内容边界。</li>
+    <li>应用程序自己定义边界(换行符、特定标记等)。</li>
+    <li>适合源代码、可执行文件、图像、音频等<b>非定长</b>数据。</li>
+  </ul>
+  <p><b>典型例子:</b> Unix 的文本文件、二进制可执行文件、<code>.txt</code>、<code>.c</code>、<code>.jpg</code>。</p>
+  <p class="hint">Unix 哲学"<b>一切皆文件</b>"——所有设备、管道、socket 都被当作字节流看待。</p>
+</div>
+
+<h2 id="s4">📚 4. 有结构文件:记录式文件(4 种组织)</h2>
+<div class="panel">
+  <p><b>定义:</b> 有结构文件 = 记录式文件。文件由若干<b>定长/不定长记录</b>组成,每条记录由若干字段(域)构成,操作系统知道记录边界。</p>
+  <p><b>典型例子:</b> 数据库表文件、员工档案、成绩单、订单记录。</p>
+</div>
+
+<table>
+<tr><th>组织方式</th><th>组织方法</th><th>访问特点</th><th>适用场景</th></tr>
+<tr><td><b>① 顺序文件</b></td><td>记录按顺序排列,顺序存取/搜索</td><td>顺序读最快,改单条要全改</td><td>日志、批量处理、磁带</td></tr>
+<tr><td><b>② 索引文件</b></td><td>为记录建索引表,主关键字→记录地址</td><td>随机访问快,但要维护索引</td><td>数据库、学生成绩</td></tr>
+<tr><td><b>③ 直接文件(哈希)</b></td><td>用哈希函数把关键字映射到地址</td><td>单条查询 O(1),冲突要处理</td><td>键值存储、HashMap</td></tr>
+<tr><td><b>④ 相对文件</b></td><td>按记录号(下标)直接定位</td><td>记录号 → 地址映射</td><td>固定大小、可直接寻址的记录</td></tr>
+</table>
+
+<div class="key">
+<b>记忆口诀:</b>"<b>顺索直相</b>"——顺序 / 索引 / 直接(哈希)/ 相对。或想画面:<b>顺=排队取号、索=字典目录、直=HashMap、相=数组下标</b>。
+</div>
+
+<h2 id="s5">🪜 5. 口诀汇总 + 真题模板</h2>
+<div class="tmpl">
+<b>📐 考场默写模板(简答 5 分):</b>
+<pre style="margin:6px 0 0;background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:6px;font-size:13px">
+文件的逻辑结构分为两类:
+
+(1) 无结构文件(流式文件):文件内部是一串字节流,
+    OS 不解释含义,适合源代码、可执行文件等。
+
+(2) 有结构文件(记录式文件):文件由若干记录组成,
+    又分四种组织:
+    - 顺序文件:顺序存取
+    - 索引文件:按关键字索引
+    - 直接文件:哈希映射
+    - 相对文件:按记录号定位
+
+逻辑结构与物理结构正交,互不影响。
+</pre>
+</div>
+
+<h2 id="s6">⚠️ 6. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 逻辑 = 物理:</b> 很多同学把"<b>顺序文件</b>"理解成物理上的"<b>顺序结构</b>"——错!<b>顺序文件</b>是<b>逻辑</b>上的组织(记录顺序),<b>顺序结构</b>是<b>物理</b>上的存放(磁盘块顺序)。两者<b>不是一回事</b>。
+</div>
+<div class="warnbox">
+<b>坑 2 · 记录式 = 只能用顺序:</b> 错。记录式文件可以组织成<b>顺序、索引、直接、相对</b>四种,不止顺序一种。
+</div>
+<div class="warnbox">
+<b>坑 3 · 流式文件没有结构:</b> 半对半错——<b>流式文件对 OS 没有结构</b>(OS 不解释字节),但<b>应用程序可以自己定义结构</b>(如 CSV 用换行符分记录)。
+</div>
+
+<h2 id="s7">✅ 7. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 概念辨析</h3>
+<p>下面关于"文件逻辑结构"的说法,<b>哪个是错的</b>?</p>
+<p>A. 逻辑结构是用户看到的文件组织形式<br>
+B. 文件的逻辑结构可分为有结构和无结构两类<br>
+C. 一个逻辑上的"记录式文件"在磁盘上只能顺序存放<br>
+D. 流式文件内部是字节序列,OS 不解释内容含义</p>
+<details><summary>点我对答案</summary>
+<p><b>答案:C</b>。逻辑结构与物理结构<b>正交</b>——记录式文件可顺序存也可索引存。C 把逻辑和物理绑死,违背正交原则。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 应用判断</h3>
+<p>下列场景中,最适合用<b>有结构记录式文件</b>存储的是?</p>
+<p>A. 一个 C 语言的源代码文件<br>
+B. 一张员工信息表(姓名、工号、部门、薪资)<br>
+C. 一段 MP3 音频<br>
+D. 一个 JPEG 图片</p>
+<details><summary>点我对答案</summary>
+<p><b>答案:B</b>。员工表有<b>定长字段 + 记录边界</b>,天然适合记录式;其他三个都是不定长字节流,用流式文件。</p>
+</details>
+</div>
+
+<footer>
+第 74 课 · Ch6 文件 · 非重点 · 文件逻辑结构:流式 vs 记录式。<br>
+配套 → <a href="./0039-file-logical-vs-physical-structure.html">0039 逻辑 vs 物理</a> · 索引实现 → <a href="./0009-mixed-index.html">0009 混合索引</a> · 索引分配 → <a href="./0022-index-allocation-visual.html">0022 索引分配可视化</a><br>
+非重点全套:0074 逻辑结构 · <a href="./0075-io-methods-and-buffering.html">0075 I/O 控制+缓冲</a> · <a href="./0076-raid.html">0076 RAID</a> · <a href="./0077-segmented-paging.html">0077 段页式</a> · <a href="./0078-real-time-scheduling-llf.html">0078 实时调度 LLF</a>
+</footer>
+
+</div>
+</body>
+</html>

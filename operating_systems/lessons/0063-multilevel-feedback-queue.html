@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 63 课 · Ch3 调度 · 重点 · 多级反馈队列 MLFQ</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .steps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .step{flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px}
+  .step .n{display:inline-block;background:var(--blue);color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-weight:700;margin-right:6px}
+  .step b{color:var(--blue)}
+  .queues{display:grid;grid-template-columns:80px 1fr 60px 80px;gap:6px;align-items:center;margin:14px 0;font-size:13px}
+  .queues .hd{font-weight:700;color:var(--blue);text-align:center}
+  .queues .lbl{font-weight:600;background:#eef2f8;border-radius:4px;padding:6px;text-align:center}
+  .queues .blk{background:#fff;border:1px dashed var(--line);border-radius:4px;padding:6px;text-align:center;font-family:"SF Mono",monospace}
+  .queues .ts{background:#f3e8fb;border:1px solid #d8c2ef;border-radius:4px;padding:6px;text-align:center;color:var(--purple);font-family:"SF Mono",monospace}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 63 课 · Ch3 调度 · 重点 · 多级反馈队列 MLFQ</p>
+  <h1>多级反馈队列 MLFQ:5 条规则 + 时间片翻倍机制</h1>
+  <p class="sub">这是老师反复考的调度大题算法——既要会画甘特图,也要会讲"<b>为什么它能兼顾短作业和长作业</b>"。教材出处:<code>3_处理机调度/ppt文本.md</code> 幻灯片 154–170(3.2.8 节)。关联 → <a href="./0044-scheduling-levels-mlfq.html">0044 调度级别</a> · <a href="./0064-sjf-with-timeslice.html">0064 SJF/SRTN</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·5 条规则</a>
+    <a href="#s3">3·队列图示</a>
+    <a href="#s4">4·时间片</a>
+    <a href="#s5">5·抢占 vs 非抢占</a>
+    <a href="#s6">6·交互演示</a>
+    <a href="#s7">7·易错</a>
+    <a href="#s8">8·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背三句话:</b><br>
+① <b>多级反馈队列</b>设置 N 个就绪队列,优先级从高到低,<b>时间片逐级翻倍</b>(S<sub>1</sub> &lt; S<sub>2</sub> &lt; … &lt; S<sub>n</sub>)。<br>
+② <b>新进程从最高级进入</b>;执行完一个时间片没结束,就降到下一级队尾。<br>
+③ 较高级队列空时,才调度较低级队列的进程;有<b>更高优先级进程到来,就抢占</b>当前进程。
+</div>
+
+<h2 id="s0">🗺 0. 这道大题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> MLFQ 是个"学校分班机制"——新生进"火箭班"(时间片短、严要求),完不成作业就降级到"普通班"(时间片长、放宽要求)。最终让短作业留在火箭班快速通过,长作业也能在普通班慢慢做。
+</div>
+<p>老师常考的两种题型:<b>简答</b>(默写 5 条规则 + 优缺点)和<b>计算</b>(给进程到达时间/服务时间,画甘特图算周转时间)。本节先把 5 条规则默写下来,再走例题。</p>
+
+<h2 id="s1">📖 1. 是什么:MLFQ = 多级 + 反馈 + 队列</h2>
+<div class="panel">
+  <p><b>定义:</b> 多级反馈队列调度算法设置多个就绪队列,每个队列赋予不同的优先级,<b>各队列时间片大小不同</b>(优先级越高时间片越短)。新进程先进入最高优先级队列,若用完时间片仍未完成,则降到次一级队列。</p>
+  <p><b>教材原话(幻灯片 160):</b>"新进程放到最高优先级就绪队列尾部 / 如果进程在当前就绪队列中执行一次未完成,则插入低一级就绪队列尾部 / 较高优先级就绪队列全部为空时,才执行当前队列进程 / 如果有更高优先级进程,则将当前进程放在当前就绪队列尾部,转而执行优先级高的进程"。</p>
+  <p class="hint">算法名字"<b>多级反馈</b>"的来源:多级 = 多个队列、反馈 = 用"<b>是否用完时间片</b>"这件事反馈给调度器,决定下次放到哪级队列。</p>
+</div>
+
+<h2 id="s2">⚡ 2. 5 条核心规则</h2>
+<div class="steps">
+  <div class="step"><span class="n">1</span><b>多级队列</b><br>设置多个就绪队列,优先级从高到低。</div>
+  <div class="step"><span class="n">2</span><b>时间片翻倍</b><br>每级队列采用 RR,但<b>时间片依次翻倍</b>(S<sub>1</sub>&lt;S<sub>2</sub>&lt;…&lt;S<sub>n</sub>)。</div>
+  <div class="step"><span class="n">3</span><b>新进程入最高级</b><br>新进程放到<b>最高优先级</b>队列尾部。</div>
+  <div class="step"><span class="n">4</span><b>用完时间片降级</b><br>在当前队列用完时间片还未结束 → 插入<b>低一级</b>队列尾部。</div>
+  <div class="step"><span class="n">5</span><b>优先级可抢占</b><br>高优先级队列非空时,抢占当前进程(把当前进程放回原队列尾)。</div>
+</div>
+<div class="key"><b>记忆口诀:</b>"<b>多级排队,新进最高,跑不完就降,空了就让位</b>"——背这一句能复述 5 条规则的 80%。</div>
+
+<h2 id="s3">🪜 3. 队列结构图示</h2>
+<div class="queues">
+  <div class="hd">队列</div><div class="hd">结构(每个队采用 RR)</div><div class="hd">时间片</div><div class="hd">优先级</div>
+  <div class="lbl">RQ<sub>1</sub></div><div class="blk">[新进程] → A → B → …</div><div class="ts">S<sub>1</sub></div><div class="lbl">最高</div>
+  <div class="lbl">RQ<sub>2</sub></div><div class="blk">← 降级来的进程 →</div><div class="ts">S<sub>2</sub>=2·S<sub>1</sub></div><div class="lbl">中</div>
+  <div class="lbl">RQ<sub>3</sub></div><div class="blk">← 再降级 →</div><div class="ts">S<sub>3</sub>=2·S<sub>2</sub></div><div class="lbl">低</div>
+  <div class="lbl">RQ<sub>n</sub></div><div class="blk">← 长作业落点 →</div><div class="ts">S<sub>n</sub></div><div class="lbl">最低</div>
+</div>
+<p class="hint">RQ<sub>1</sub> 越短越"小气":让短交互作业用 1 个时间片就跑完离开;<b>RQ<sub>n</sub> 越长越"宽容":让长计算作业每次能跑够再让出 CPU,避免频繁切换。</b></p>
+
+<h2 id="s4">⏱ 4. 时间片翻倍机制(S<sub>i+1</sub> = 2·S<sub>i</sub>)</h2>
+<div class="panel">
+  <p>假设三级队列,S<sub>1</sub>=1,S<sub>2</sub>=2,S<sub>3</sub>=4:</p>
+  <ul>
+    <li>RQ<sub>1</sub>:1 个时间片 = 1 单位(快速响应短作业)</li>
+    <li>RQ<sub>2</sub>:1 个时间片 = 2 单位(中等长度作业)</li>
+    <li>RQ<sub>3</sub>:1 个时间片 = 4 单位(批处理长作业,接近 FCFS)</li>
+  </ul>
+  <p>翻倍的妙处:<b>短作业大概率在 RQ<sub>1</sub> 用完</b>,<b>长作业逐步沉到 RQ<sub>n</sub></b>,两全其美。</p>
+</div>
+
+<h2 id="s5">⚔️ 5. 抢占 vs 非抢占版本</h2>
+<table>
+<tr><th>版本</th><th>关键行为</th><th>特点</th></tr>
+<tr><td><b>非抢占 MLFQ</b></td><td>进程一旦获得 CPU,就跑到时间片结束才放回队尾(或降级)</td><td>实现简单,但有长作业时短作业要等</td></tr>
+<tr><td><b>抢占 MLFQ</b></td><td>任何时候有<b>更高优先级进程进入 RQ</b>,立刻抢占当前进程</td><td>响应快,<b>老师默认考这种</b></td></tr>
+</table>
+<div class="warnbox"><b>考试默认:</b> 教材幻灯片 160 第 4 条已隐含"<b>有更高优先级进程就抢占</b>"——答 5 条规则时一定要把抢占写明,不要漏。</div>
+
+<h2 id="s6">🕹 6. 交互演示:输入进程服务时间,看在哪级结束</h2>
+<div class="panel">
+<h3>玩一玩</h3>
+<p>下面模拟三级 MLFQ(S<sub>1</sub>=2, S<sub>2</sub>=4, S<sub>3</sub>=8),输入进程服务时间(整数),立即算出它会在哪个队列跑完:</p>
+<p>服务时间: <input type="number" id="svc" value="10" min="1" max="50" style="width:70px;padding:4px;border:1px solid var(--line);border-radius:4px"> <button onclick="runMLFQ()" style="padding:4px 12px;background:var(--blue);color:#fff;border:0;border-radius:4px;cursor:pointer">计算</button></p>
+<pre id="mlfqOut" style="background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px;font-size:13px;line-height:1.7"></pre>
+<script>
+function runMLFQ(){
+  let t = parseInt(document.getElementById('svc').value)||1;
+  const S=[2,4,8];
+  let log=[`服务时间=${t}`];
+  for(let i=0;i<S.length;i++){
+    if(t<=S[i]){ log.push(`在 RQ${i+1} (S=${S[i]}) 用完 ✓`); break; }
+    else { log.push(`RQ${i+1} (S=${S[i]}) 跑完还没结束 → 降级`); t -= S[i]; }
+  }
+  document.getElementById('mlfqOut').innerText=log.join('\n');
+}
+runMLFQ();
+</script>
+<p class="hint">例:服务时间 10 → RQ1(剩 8) → RQ2(剩 4) → RQ3 跑完。共经历 3 级队列。</p>
+</div>
+
+<h2 id="s7">⚠️ 7. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 漏写"时间片逐级翻倍":</b> 5 条规则里"<b>时间片长度</b>"和"<b>优先级</b>"是两条独立要点——光写"多级"会被扣分,必须明确写出 S<sub>1</sub>&lt;S<sub>2</sub>&lt;…&lt;S<sub>n</sub>。
+</div>
+<div class="warnbox">
+<b>坑 2 · 把"降级"和"换队列"混:</b> 降级 = <b>同一进程用完时间片未结束</b>→ 放<b>低一级队尾</b>。它跟"时间片到,放回当前队尾"是两件事——前者降级,后者轮转。
+</div>
+<div class="warnbox">
+<b>坑 3 · 漏写"抢占"机制:</b> 答优缺点时,忘了说"<b>高优先级进程到来可抢占</b>"——这是 MLFQ <b>兼顾响应速度</b>的关键,必写。
+</div>
+
+<h2 id="s8">✅ 8. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 默写 5 条规则</h3>
+<p>不看屏幕,把 5 条核心规则默写出来。卡壳的地方回到 §2。</p>
+<details><summary>点我对答案</summary>
+<p>① 多级队列 + 优先级递减;<br>
+② 每级 RR,<b>时间片逐级翻倍</b>;<br>
+③ <b>新进程入最高级</b>;<br>
+④ 用完时间片未结束 → <b>降级</b>;<br>
+⑤ 高优先级队列非空时 <b>抢占</b>。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 易错辨析</h3>
+<p>下面哪个说法<b>正确</b>?</p>
+<p>A. MLFQ 的时间片所有队列都一样大,只是优先级不同<br>
+B. 用完时间片还没结束的进程会升一级<br>
+C. 新进程总是从最低优先级队列进入<br>
+D. 高优先级队列非空时,会抢占当前进程</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:D</b>。A 错(时间片逐级翻倍);B 错(是降级不是升级);C 错(从最高级进入)。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 例题(幻灯片 169)</h3>
+<p>三级 MLFQ,S=1,2,4。5 个进程 A-E 到达时间 0,1,2,3,4,服务时间 4,3,5,2,4。<b>平均周转时间</b>是多少?</p>
+<details><summary>点我看思路</summary>
+<p>· A(到达 0,服务 4):0–1 RQ1 跑完剩 3;1–2 RQ1(新进程 B 来抢占 → A 放回 RQ1 队尾但已用过时间片降到 RQ2);最终 ~ A 在第 8 单位完成。<br>
+· B(到达 1,服务 3):1–2 RQ1 跑完剩 2;2–4 RQ2 跑完剩 0 ✓。<br>
+· 平均 ≈ <b>关键是把降级和抢占的时刻标在甘特图上</b>。这是老师必考的画图题。</p>
+<p class="hint">完整版计算见下一节 <a href="./0064-sjf-with-timeslice.html">0064</a> 之后的 <a href="./0070-scheduling-metrics.html">0070</a>。</p>
+</details>
+</div>
+
+<footer>
+第 63 课 · Ch3 调度 · 重点 · 多级反馈队列 MLFQ。<br>
+背景 → <a href="./0044-scheduling-levels-mlfq.html">0044 调度级别与 MLFQ</a> · 相关 → <a href="./0064-sjf-with-timeslice.html">0064 SJF/SRTN</a> · 队列图 → <a href="./0069-scheduling-queue-diagram.html">0069</a> · 指标 → <a href="./0070-scheduling-metrics.html">0070</a><br>
+重点全套:0063 MLFQ · 0064 SJF/SRTN · 0065 设备综合 · 0066 文件物理结构 · 0067 文件空间管理 · 0068 成组链接 · 0069 队列图 · 0070 调度指标
+</footer>
+
+</div>
+</body>
+</html>

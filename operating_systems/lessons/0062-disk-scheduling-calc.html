@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 62 课 · Ch8 磁盘管理 · 大题 · 磁盘调度算法计算</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .formula{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 62 课 · Ch8 磁盘管理 · 大题 · 磁盘调度算法计算</p>
+  <h1>磁盘调度算法：FCFS/SSTF/SCAN/C-SCAN 磁头移动计算</h1>
+  <p class="sub">大题 10 分核心考点——<b>计算磁头移动总磁道数和平均寻道长度</b>。教材出处：汤小丹第8章。</p>
+</header>
+
+<div class="key">
+<b>考场必背公式:</b><br>
+① <b>磁头移动总距离</b> = |终点 - 起点| 的累加<br>
+② <b>平均寻道长度</b> = 总移动磁道数 / 访问请求数<br>
+③ <b>SCAN(电梯)</b>: 先往一个方向走到头，再反向<br>
+④ <b>C-SCAN(循环扫描)</b>: 往一个方向走到头，然后<b>直接跳回</b>起点继续同向
+</div>
+
+<h2 id="s0">🗺 0. 这道大题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 硬盘有很多同心圆磁道，磁头移动很费时间。不同"先去哪边"的策略，总移动距离差很多——考你手算对比！
+</div>
+
+<h2 id="s1">📖 1. 四种调度算法对比</h2>
+<table>
+<tr><th>算法</th><th>中文名</th><th>策略</th><th>特点</th></tr>
+<tr><td>FCFS</td><td>先来先服务</td><td>按请求顺序访问</td><td>最公平，但磁头可能来回跳，效率低</td></tr>
+<tr><td>SSTF</td><td>最短寻道优先</td><td>找离当前磁头<b>最近</b>的请求</td><td>效率高，但可能饥饿(远处请求永远等)</td></tr>
+<tr><td>SCAN</td><td>电梯算法</td><td>向一个方向移动，<b>顺路服务</b></td><td>像电梯，到顶再下来，较均衡</td></tr>
+<tr><td>C-SCAN</td><td>循环扫描</td><td>单向移动，到头<b>直接跳回</b></td><td>比SCAN更公平，跳回时不服务</td></tr>
+</table>
+
+<h2 id="s2">📖 2. 例题详解</h2>
+<div class="panel">
+<h3>题目</h3>
+<p>磁盘请求队列: 55, 58, 39, 18, 90, 160, 150, 38, 184</p>
+<p>磁头当前位置: 100，方向: 向大磁道号移动。磁道范围: 0-199</p>
+<p>计算 FCFS、SSTF、SCAN、C-SCAN 的总移动磁道数。</p>
+
+<h3>FCFS (先来先服务)</h3>
+<div class="formula">
+访问顺序: 100 → 55 → 58 → 39 → 18 → 90 → 160 → 150 → 38 → 184
+
+移动: |55-100| + |58-55| + |39-58| + |18-39| + |90-18| + |160-90| + |150-160| + |38-150| + |184-38|
+    = 45 + 3 + 19 + 21 + 72 + 70 + 10 + 112 + 146
+    = <b>498 磁道</b>
+</div>
+
+<h3>SSTF (最短寻道优先)</h3>
+<div class="formula">
+当前100，最近的是90(差10)，然后58(差32)，然后55(差3)...
+访问顺序: 100 → 90 → 58 → 55 → 39 → 38 → 18 → 150 → 160 → 184
+
+总移动: 10+32+3+16+1+20+132+10+24 = <b>268 磁道</b>
+</div>
+
+<h3>SCAN (电梯，向大号方向)</h3>
+<div class="formula">
+向大号走到头(199)，顺路服务: 100 → 150 → 160 → 184 → 199(到头)
+然后反向: 199 → 90 → 58 → 55 → 39 → 38 → 18
+
+注意: SCAN通常走到最远请求(184)或磁道末尾(199)，不同教材定义不同！
+按"走到最远请求184再反向":
+100 → 150 → 160 → 184 → 90 → 58 → 55 → 39 → 38 → 18
+总移动: 50+10+24+94+32+3+16+1+20 = <b>270 磁道</b> (或走到199是282)
+</div>
+
+<h3>C-SCAN (循环扫描)</h3>
+<div class="formula">
+向大号走到头(199)，然后<b>直接跳回0</b>，再从0往大号走服务剩余请求
+
+100 → 150 → 160 → 184 → 199 → <b>跳回0</b> → 18 → 38 → 39 → 55 → 58 → 90
+
+总移动: 50+10+24+15 + 199 + 18+20+1+16+3+32 = <b>408 磁道</b>
+</div>
+</div>
+
+<h2 id="s3">⚠️ 3. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · SCAN的终点:</b> 有的教材走到最远请求就反向，有的走到磁道末端(199)。<b>看题目给的范围</b>！
+</div>
+<div class="warnbox">
+<b>坑 2 · C-SCAN的跳回不服务:</b> 从199跳回0的过程中<b>不服务任何请求</b>，这点与SCAN不同。
+</div>
+<div class="warnbox">
+<b>坑 3 · 绝对值别漏:</b> |a-b| 是距离，别算成 a-b 导致负数！
+</div>
+
+<h2 id="s4">📝 4. 真题演练</h2>
+<div class="panel">
+<h3>真题</h3>
+<p>磁头当前在50，请求: 95, 180, 34, 119, 11, 123, 62, 64。用SSTF计算总移动磁道数。</p>
+<details><summary>答案</summary>
+<p>50最近的是62(差12)→64(差2)→34(差30)→11(差23)→95(差84)→119(差24)→123(差4)→180(差57)</p>
+<p>总移动: 12+2+30+23+84+24+4+57 = <b>236 磁道</b></p>
+</details>
+</div>
+
+<footer>
+第 62 课 · 磁盘调度算法计算。<br>
+大题全套:0058 银行家算法 · 0059 调度算法 · 0060 地址计算 · 0061 页面置换 · 0062 磁盘调度
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 60 课 · Ch4 存储器管理 · 大题 · 分页/分段地址计算</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .formula{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px;line-height:1.9}
+  .calc-box{background:#fff;border:2px solid var(--blue);border-radius:10px;padding:16px;margin:16px 0}
+  .calc-box h4{margin:0 0 10px;color:var(--blue)}
+  .input-row{display:flex;gap:12px;margin:8px 0;flex-wrap:wrap}
+  .input-row label{min-width:120px;font-size:14px}
+  .input-row input{width:100px;padding:6px 10px;border:1px solid var(--line);border-radius:4px}
+  .result{margin-top:12px;padding:12px;background:var(--soft);border-radius:6px}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 60 课 · Ch4 存储器管理 · 大题 · 分页/分段地址计算</p>
+  <h1>分页与分段地址计算：页号·页内偏移·段号·段内地址</h1>
+  <p class="sub">大题 10 分核心考点——<b>逻辑地址 → 物理地址的转换计算</b>。教材出处：汤小丹《计算机操作系统》第4章。</p>
+</header>
+
+<div class="key">
+<b>考场必背公式:</b><br>
+① <b>分页:</b> 逻辑地址 = 页号 × 页大小 + 页内偏移 ; 物理地址 = 块号 × 页大小 + 页内偏移<br>
+② <b>分段:</b> 逻辑地址 = 段号 + 段内地址 ; 物理地址 = 段基址 + 段内地址 (段内地址 < 段长)
+</div>
+
+<h2 id="s0">🗺 0. 这道大题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 程序用的是<b>逻辑地址</b>(从0开始编)，但内存里实际存在<b>物理地址</b>。分页/分段就是两种"地址翻译"机制——大题考你怎么算！
+</div>
+
+<h2 id="s1">📖 1. 分页地址计算</h2>
+<div class="panel">
+<h3>1.1 地址结构</h3>
+<table>
+<tr><th>逻辑地址(32位示例)</th><th>组成</th><th>计算</th></tr>
+<tr><td>页号 P</td><td>高20位</td><td>P = 逻辑地址 / 页大小</td></tr>
+<tr><td>页内偏移 W</td><td>低12位</td><td>W = 逻辑地址 % 页大小 (即取模)</td></tr>
+</table>
+<p class="hint">页大小通常 4KB = 2^12，所以页内偏移占12位，可表示 0~4095。</p>
+
+<h3>1.2 地址转换公式</h3>
+<div class="formula">
+// 已知: 逻辑地址 LA, 页大小 PS, 页表(页号→块号)
+页号 P = LA / PS          // 整数除法
+页内偏移 W = LA % PS      // 取模
+查页表得块号 B
+物理地址 PA = B × PS + W
+</div>
+
+<h3>1.3 例题</h3>
+<p><b>题:</b> 页大小 1KB，逻辑地址 2170，页表：0→2, 1→3, 2→1。求物理地址。</p>
+<details><summary>点我看解答</summary>
+<p>页大小 1KB = 1024</p>
+<p>页号 P = 2170 / 1024 = 2</p>
+<p>页内偏移 W = 2170 % 1024 = 122</p>
+<p>查页表：页号2 → 块号1</p>
+<p>物理地址 = 1 × 1024 + 122 = <b>1146</b></p>
+</details>
+</div>
+
+<h2 id="s2">📖 2. 分段地址计算</h2>
+<div class="panel">
+<h3>2.1 地址结构</h3>
+<table>
+<tr><th>逻辑地址</th><th>组成</th><th>说明</th></tr>
+<tr><td>段号 S</td><td>高位部分</td><td>指示用哪个段</td></tr>
+<tr><td>段内地址 d</td><td>低位部分</td><td>必须 < 段长，否则越界中断</td></tr>
+</table>
+
+<h3>2.2 地址转换</h3>
+<div class="formula">
+// 查段表得: 段基址 base, 段长 limit
+if (段内地址 d >= 段长 limit) 越界中断;
+物理地址 PA = 段基址 base + 段内地址 d;
+</div>
+
+<h3>2.3 例题</h3>
+<p><b>题:</b> 段表：0号段(基址1000, 长度500), 1号段(基址2500, 长度1000)。逻辑地址[1, 300]的物理地址？</p>
+<details><summary>点我看解答</summary>
+<p>段号=1，段内地址=300</p>
+<p>检查：300 < 1000(段长)，合法</p>
+<p>物理地址 = 2500 + 300 = <b>2800</b></p>
+</details>
+</div>
+
+<h2 id="s3">⚠️ 3. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 混淆页号和块号:</b> 页号是逻辑地址拆出来的，块号是页表里查出来的。页号从0开始连续，块号可以不连续。
+</div>
+<div class="warnbox">
+<b>坑 2 · 忘记检查段长:</b> 分段必须检查段内地址 < 段长，否则越界。分页没有越界检查，因为页内偏移天然 < 页大小。
+</div>
+<div class="warnbox">
+<b>坑 3 · 单位换算错误:</b> 1KB = 1024B，不是1000！计算时用 1024。
+</div>
+
+<h2 id="s4">📝 4. 真题演练</h2>
+<div class="panel">
+<h3>真题 1（分页）</h3>
+<p>某系统页大小 4KB，逻辑地址 0x12345678，页表：0x12345 → 块号 0x54321。求物理地址。</p>
+<details><summary>点我看解答</summary>
+<p>4KB = 2^12，页内偏移取低12位 = 0x678</p>
+<p>页号 = 0x12345（高20位）</p>
+<p>查页表得块号 0x54321</p>
+<p>物理地址 = 0x54321 × 4096 + 0x678 = <b>0x54321678</b></p>
+</details>
+
+<h3>真题 2（分段）</h3>
+<p>段表：0(基址2000,长600), 1(基址3500,长800), 2(基址5000,长300)。判断下列地址是否越界：</p>
+<p>A) [0, 500]  B) [1, 800]  C) [2, 299]</p>
+<details><summary>点我看解答</summary>
+<p>A: 500 < 600，合法，物理地址=2500</p>
+<p>B: 800 >= 800，<b>越界</b>！（注意是>=）</p>
+<p>C: 299 < 300，合法，物理地址=5299</p>
+</details>
+</div>
+
+<h2 id="s5">✅ 5. 自测</h2>
+<div class="panel">
+<h3>Q1</h3>
+<p>页大小 2KB，逻辑地址 5000，页表 0→5, 1→2, 2→7。求物理地址。</p>
+<details><summary>答案</summary>
+<p>2KB=2048，P=5000/2048=2，W=5000%2048=904</p>
+<p>块号=7，PA=7×2048+904=15240</p>
+</details>
+</div>
+
+<footer>
+第 60 课 · 分页/分段地址计算。<br>
+大题全套:0058 银行家算法 · 0059 调度算法 · 0060 地址计算 · 0061 页面置换 · 0062 磁盘调度
+</footer>
+
+</div>
+</body>
+</html>

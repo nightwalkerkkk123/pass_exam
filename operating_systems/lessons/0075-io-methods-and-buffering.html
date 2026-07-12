@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 75 课 · Ch5 设备 · 非重点 · I/O 四级控制方式 + 缓冲</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 75 课 · Ch5 设备 · 非重点 · I/O 四级控制方式 + 缓冲</p>
+  <h1>I/O 控制四级 + 缓冲:CPU 越闲越聪明</h1>
+  <p class="sub">设备管理第 5 章非重点节——考大题或选择填空。<b>把 4 级控制按"CPU 介入度递减"背熟,缓冲 4 种背口诀</b>。教材出处:<code>5_设备管理/ppt文本.md</code> 幻灯片 195-280。基础铺垫见 <a href="./0047-io-control-methods.html">0047 I/O 控制方式</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·4 级 I/O 控制</a>
+    <a href="#s3">3·对比表</a>
+    <a href="#s4">4·4 种缓冲</a>
+    <a href="#s5">5·SPOOLing</a>
+    <a href="#s6">6·必背易错</a>
+    <a href="#s7">7·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背两句话:</b><br>
+① <b>I/O 控制 4 级</b>(CPU 介入递减):程序查询 → 中断驱动 → DMA → I/O 通道。<br>
+② <b>缓冲 4 种</b>(适配场景递增):单缓冲 → 双缓冲 → 循环缓冲 → 缓冲池。
+</div>
+
+<h2 id="s0">🗺 0. 这两节在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> CPU 是班里最贵的"老师",I/O 是最慢的"差事"。4 级控制 = 老师陪着干的程度;缓冲 = 让差事排队不堵门口。
+</div>
+<p>出题方式:选择题填"<b>哪种方式 CPU 介入最少</b>"或"<b>双缓冲适用于</b>";简答题 5 分让对比 4 级。</p>
+
+<h2 id="s1">📖 1. 是什么:4 级 I/O 控制 = CPU 让位的 4 个阶段</h2>
+<div class="panel">
+  <p><b>核心矛盾:</b> CPU 速度 ns 级,设备速度 ms 级——CPU 等设备等于"大学教授等小学生写作业"。4 级方式就是逐步<b>把 CPU 从等待中解放出来</b>。</p>
+  <p><b>教材原话(幻灯片 197):</b>"在 I/O 设备输入每个数据的过程中,由于无须 CPU 干预,因而可使 CPU 与 I/O 设备并行工作"。</p>
+</div>
+
+<h2 id="s2">⚡ 2. 4 级控制方式详解</h2>
+
+<h3>① 程序查询方式(轮询,Programmed I/O)</h3>
+<p>CPU 一直<b>死循环读设备状态寄存器</b>,直到"就绪"才搬运 1 个字节。<b>100% 占用 CPU</b>。</p>
+<p class="hint">类比:老师站在差生旁边盯着写作业,啥也干不了。</p>
+
+<h3>② 中断驱动方式(Interrupt-Driven I/O)</h3>
+<p>CPU 发起 I/O 后去干别的;设备每准备好<b>1 个字节</b>就发中断,CPU 来搬一次。<b>CPU 利用率 ~99%</b>(幻灯片 207 给出 100ms 输入 vs 0.1ms 处理的对比)。</p>
+<p class="hint">类比:差生写完一个字就举手,老师过来收一次,中途可以改其他作业。</p>
+
+<h3>③ DMA 方式(直接存储器访问)</h3>
+<p>DMA 控制器接管总线,以<b>数据块(整块)</b>为单位在设备和内存之间直传;只在开始/结束各中断一次 CPU。CPU 不参与搬运,只参与"开门/关门"。</p>
+<p class="hint">类比:差生写完一整本作业自己放进老师抽屉,中间不用举手。</p>
+<p><b>DMA 控制器 4 类寄存器(幻灯片 225):</b>命令/状态寄存器 CR、内存地址寄存器 MAR、数据寄存器 DR、数据计数器 DC。</p>
+
+<h3>④ I/O 通道方式(Channel)</h3>
+<p>通道 = 专门跑 I/O 程序的<b>小型处理机</b>。CPU 只发一条"<b>启动 I/O</b>"指令给通道,通道自己跑通道程序,完成<b>一组数据块</b>的传输。CPU、通道、设备三者并行。</p>
+<p class="hint">类比:差生把作业交给班长(通道),班长自己收齐一摞交给老师。</p>
+
+<h2 id="s3">📊 3. 4 级对比表(必背)</h2>
+<table>
+<tr><th>方式</th><th>传输单位</th><th>CPU 介入时机</th><th>CPU 利用率</th><th>适用设备</th></tr>
+<tr><td><b>程序查询</b></td><td>1 字节</td><td>全程轮询</td><td>极低(等设备)</td><td>极慢设备(键盘早期)</td></tr>
+<tr><td><b>中断驱动</b></td><td>1 字节</td><td>每字节中断 1 次</td><td>高(~99%)</td><td>低速字符设备</td></tr>
+<tr><td><b>DMA</b></td><td>数据块</td><td>块开始 + 块结束</td><td>很高</td><td>高速块设备(磁盘)</td></tr>
+<tr><td><b>I/O 通道</b></td><td>一组数据块</td><td>整组开始 + 整组结束</td><td>最高</td><td>大型机外设群</td></tr>
+</table>
+<div class="key">
+<b>记忆口诀:</b>"<b>字字字块块组</b>"——传输单位从"字(节)"一路升级到"组(块集合)",<b>CPU 介入频次一路降低</b>。
+</div>
+
+<h2 id="s4">🪣 4. 4 种缓冲(缓冲管理,5.3 节)</h2>
+<p><b>缓冲的目的:</b>解决 CPU 和 I/O 设备的<b>速度差</b>——让 CPU 不必等设备,设备不必等 CPU。</p>
+
+<table>
+<tr><th>缓冲类型</th><th>结构</th><th>适用场景</th><th>关键数字</th></tr>
+<tr><td><b>单缓冲</b></td><td>1 个缓冲区</td><td>CPU 与设备串行</td><td>每块处理时间 ≈ max(C, T) + M</td></tr>
+<tr><td><b>双缓冲</b></td><td>2 个缓冲区交替</td><td>流水线型 I/O</td><td>处理时间 ≈ max(C, T)</td></tr>
+<tr><td><b>循环缓冲</b></td><td>n 个缓冲组成环</td><td>突发数据流</td><td>生产者-消费者同步</td></tr>
+<tr><td><b>缓冲池</b></td><td>多缓冲 + 4 类队列</td><td>系统级,多进程共享</td><td>3 类缓冲(空/满/装)+ 4 个队列(空/装入/提取/输出)</td></tr>
+</table>
+<p class="hint">注:C = CPU 处理一块时间,T = 设备输入一块时间,M = 内存搬运时间。双缓冲能近似"流水线",但若 C ≪ T 仍要等。</p>
+
+<div class="key">
+<b>记忆口诀:</b>"<b>单双环池</b>"——从简到繁,从专用到共享。<b>缓冲池最强</b>(系统统一管理多进程),其它都是单进程私用。
+</div>
+
+<h2 id="s5">🖨 5. SPOOLing 简化版(链 0057)</h2>
+<div class="panel">
+  <p><b>SPOOLing(外围设备联机并行操作)</b>是缓冲思想的高级应用:<b>用磁盘模拟多个"虚拟"独占设备</b>,把独占设备改造成可共享。</p>
+  <p><b>经典例子:</b>打印机本来一次只能打一份;SPOOLing 在磁盘开<b>输出井</b>,所有任务排队写入,打印机按队列慢慢打。</p>
+  <p><b>三件套:</b>输入井/输出井(磁盘缓冲) + 输入缓冲/输出缓冲(内存缓冲) + 输入进程/输出进程(搬运)。</p>
+  <p class="hint">详细题解见 <a href="./0057-spooling.html">0057 SPOOLing</a>——本节不展开。</p>
+</div>
+
+<h2 id="s6">⚠️ 6. 易错点 + 必背 4 句话</h2>
+
+<div class="key">
+<b>必背 4 句话:</b><br>
+① 4 级方式按 CPU 介入度递减排:程序查询 > 中断 > DMA > 通道。<br>
+② DMA 的传输单位是"数据块",中断驱动是"字节"——别混。<br>
+③ 缓冲 4 种:单、双、循环、缓冲池,适用场景由简到繁。<br>
+④ SPOOLing 用磁盘模拟独占设备,实现"假共享",本质是缓冲的高级用法。
+</div>
+
+<div class="warnbox">
+<b>坑 1 · 顺序写反:</b> 不少同学把 4 级顺序写成"通道→DMA→中断→程序查询"。记住是"<b>CPU 介入越来越多</b>"的方向反推。
+</div>
+<div class="warnbox">
+<b>坑 2 · DMA 与中断驱动混:</b> 中断驱动每字节中断 1 次,DMA 每数据块只中断 1~2 次——<b>中断次数差几个数量级</b>。
+</div>
+<div class="warnbox">
+<b>坑 3 · 缓冲池当成循环缓冲:</b> 循环缓冲是<b>单进程</b>私有环;缓冲池是<b>系统级</b>共享池(含空队列、输入队列、输出队列、缓冲队列 4 个),别混。
+</div>
+
+<h2 id="s7">✅ 7. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 4 级排序</h3>
+<p>请按 "<b>CPU 介入度从高到低</b>" 排出 4 级 I/O 控制方式,并说出每级传输单位。</p>
+<details><summary>点我对答案</summary>
+<p><b>答案:</b>程序查询(字节,全程轮询)→ 中断驱动(字节,每字节中断)→ DMA(数据块,首尾各中断 1 次)→ I/O 通道(数据块组,启动 + 结束共 2 次)。</p>
+<p class="hint">记忆:<b>介入多→介入少,传输单位由细到粗</b>。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 易错辨析</h3>
+<p>下面哪个说法是<b>错的</b>?</p>
+<p>A. 程序查询方式下 CPU 利用率最低<br>
+B. DMA 方式的数据传输单位是字节<br>
+C. 缓冲池用于多进程共享,循环缓冲用于单进程<br>
+D. SPOOLing 用磁盘模拟独占设备,实现共享</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:B</b>。DMA 的传输单位是"<b>数据块</b>",不是字节——字节是中断驱动的单位。C 项混淆点:缓冲池确实是多进程共享,循环缓冲单进程。</p>
+</details>
+</div>
+
+<footer>
+第 75 课 · Ch5 设备 · 非重点 · I/O 四级控制 + 缓冲。<br>
+基础 → <a href="./0047-io-control-methods.html">0047 I/O 控制方式</a> · 缓冲进阶 → <a href="./0048-buffering-spooling.html">0048 缓冲与 SPOOLing</a> · SPOOLing 大题 → <a href="./0057-spooling.html">0057 SPOOLing 简答<br>
+非重点全套:0074 文件逻辑结构(已存在)· <b>0075 本课</b> · 0076 RAID · 0077 段页式 · 0078 实时调度 LLF
+</footer>
+
+</div>
+</body>
+</html>

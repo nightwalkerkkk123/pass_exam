@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 79 课 · Ch6 文件管理 · 位示图（Bitmap）专题</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .formula{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px;line-height:1.9}
+  .bm-grid{display:grid;grid-template-columns:repeat(16,1fr);gap:4px;margin:14px 0;max-width:560px}
+  .bm-bit{padding:8px 0;text-align:center;border-radius:4px;font-family:"SF Mono",monospace;font-size:13px;font-weight:600}
+  .bm-0{background:#d4f4dd;color:#2f855a}  /* 空闲=0 绿色 */
+  .bm-1{background:#ffd5d5;color:#c53030}  /* 占用=1 红色 */
+  .bm-h{font-size:11px;color:var(--muted);margin-top:4px;text-align:center}
+  pre{background:#0f1b2d;color:#e6edf3;padding:12px 14px;border-radius:6px;font-size:13px;overflow-x:auto;line-height:1.85}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 79 课 · Ch6 文件管理 · 位示图（Bitmap）专题</p>
+  <h1>位示图（Bitmap）：用一位记录一个盘块的状态</h1>
+  <p class="sub">独立专题——<b>位示图是磁盘空闲块管理的核心方法</b>。字号位号必背，常出计算题。教材出处：汤小丹第6章。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·是什么</a>
+    <a href="#s2">2·结构</a>
+    <a href="#s3">3·核心公式</a>
+    <a href="#s4">4·可视化</a>
+    <a href="#s5">5·分配流程</a>
+    <a href="#s6">6·回收流程</a>
+    <a href="#s7">7·真题</a>
+    <a href="#s8">8·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背两个公式:</b><br>
+① <b>块号 → 字号/位号:</b> 字号 = 块号 / 字长（取整） ; 位号 = 块号 % 字长<br>
+② <b>字号/位号 → 块号:</b> 块号 = 字号 × 字长 + 位号<br>
+<b>位示图大小:</b> (盘块总数 / 8) 字节 = 盘块总数 / (字长×8) 个字
+</div>
+
+<h2 id="s0">🗺 0. 这节课解决什么问题</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 磁盘有几万个盘块，怎么记录"哪些是空的、哪些被用了"？位示图就是最简单直接的办法——<b>一块占一位</b>，0=空，1=占。
+</div>
+
+<p>位示图要回答 3 件事：</p>
+<ol>
+<li><b>块号 ↔ 字号/位号</b> 怎么互相换算？</li>
+<li><b>分配时</b> 怎么找一个空闲块？</li>
+<li><b>回收时</b> 怎么把块标记为空？</li>
+</ol>
+
+<h2 id="s1">📖 1. 是什么：位示图的本质</h2>
+<div class="panel">
+<h3>定义</h3>
+<p><b>位示图</b>(Bitmap)：用若干连续字组成的位数组，每个字有 n 位，每个位对应磁盘上的一个物理块。</p>
+<ul>
+<li>位值 <b>0</b>：对应盘块<b>空闲</b></li>
+<li>位值 <b>1</b>：对应盘块<b>已分配</b></li>
+</ul>
+
+<h3>为什么不直接用列表？</h3>
+<table>
+<tr><th>方案</th><th>100万块硬盘的开销</th><th>特点</th></tr>
+<tr><td>空闲链表</td><td>链表节点很多，遍历慢</td><td>分配 O(n) 查找</td></tr>
+<tr><td>空闲表</td><td>连续区段数较小时省空间</td><td>适合连续分配</td></tr>
+<tr><td><b>位示图</b></td><td><b>100万/8 = 125KB</b></td><td>分配 O(n/字长) 位运算极快</td></tr>
+<tr><td>成组链接</b></td><td>Unix 经典方案</td><td>实现稍复杂</td></tr>
+</table>
+</div>
+
+<h2 id="s2">📖 2. 结构：位示图长什么样</h2>
+<div class="panel">
+<p>假设：盘块总数 N=64，每个字长=16位(2字节)，则位示图共有 64/16 = <b>4个字</b>。</p>
+
+<p><b>位示图布局（4字 × 16位）:</b></p>
+<div class="bm-grid" id="bm-grid"></div>
+<p class="hint">绿色=0空闲，红色=1占用。下图展示了块 0、2、5、10、20 已分配的样例。</p>
+
+<h3>字、位、块号的关系</h3>
+<ul>
+<li><b>字号 i</b>：表示在第几个字（行），从 0 开始</li>
+<li><b>位号 j</b>：表示在字的第几位（列），从 0 开始</li>
+<li><b>块号 b</b>：全局盘块编号，从 0 开始</li>
+</ul>
+</div>
+
+<h2 id="s3">📖 3. 核心公式：块号 ↔ 字号位号</h2>
+<div class="panel">
+<h3>公式（字长 = L 位）</h3>
+<div class="formula">
+<b>已知块号 b，求字号 i 和位号 j：</b>
+    i = b / L          // 整除
+    j = b % L          // 取模
+<b>已知字号 i 和位号 j，求块号 b：</b>
+    b = i × L + j
+<b>位示图大小（盘块总数 = N）：</b>
+    位数 = N
+    字节数 = N / 8
+    字数 = N / L       (L为字长位数)
+</div>
+
+<h3>推导来源</h3>
+<p>把位示图想象成一个二维数组 B[i][j]：</p>
+<ul>
+<li>第 0 个字（i=0）存的是块号 0~L-1 的状态</li>
+<li>第 1 个字（i=1）存的是块号 L~2L-1 的状态</li>
+<li>第 i 个字（i）存的是块号 i·L ~ (i+1)·L-1 的状态</li>
+</ul>
+<p>所以块号 b 在第 <code>b/L</code> 个字、第 <code>b%L</code> 位。</p>
+</div>
+
+<h2 id="s4">📖 4. 可视化：动手算字号位号</h2>
+<div class="panel">
+<h3>示例 1：字长=16，求块号 35 的字号位号</h3>
+<div class="formula">
+字号 i = 35 / 16 = 2        // 第3个字
+位号 j = 35 % 16 = 3        // 第4位
+验证: 2 × 16 + 3 = 35 ✓
+</div>
+
+<h3>示例 2：字号 5、位号 8（字长 16），求块号</h3>
+<div class="formula">
+块号 b = 5 × 16 + 8 = 88
+</div>
+
+<h3>示例 3：盘块 N=4096，字长=16，位示图大小？</h3>
+<div class="formula">
+字数 = 4096 / 16 = 256 个字
+字节数 = 4096 / 8 = 512 字节
+</div>
+</div>
+
+<h2 id="s5">📖 5. 分配流程：找一个空闲块</h2>
+<div class="panel">
+<h3>伪代码</h3>
+<pre>procedure get_free_block():
+    for i in 0..bitmap_size:           // 顺序扫描每个字
+        for j in 0..word_length:        // 检查每个位
+            if B[i][j] == 0:            // 找到空闲位
+                B[i][j] = 1             // 标记占用
+                block_no = i * L + j    // 算出块号
+                return block_no
+    return NONE                         // 全部已分配</pre>
+
+<h3>改进：位运算加速</h3>
+<p>现代 OS 不用一位一位查，而是用 CPU 的位扫描指令(BSF/BSR) <b>硬件加速</b>，一次找出 word 中最低/最高的 0 位。</p>
+</div>
+
+<h2 id="s6">📖 6. 回收流程：把块标记为空</h2>
+<div class="panel">
+<h3>伪代码</h3>
+<pre>procedure free_block(b):
+    i = b / L           // 算出字号
+    j = b % L           // 算出位号
+    if B[i][j] == 1:    // 校验：原本是占用状态
+        B[i][j] = 0     // 置 0 表示回收
+    else:
+        error("double free!")   // 异常：重复释放</pre>
+
+<h3>注意</h3>
+<p>回收前必须<b>校验</b>该位是不是 1。如果回收一个<b>已经是空闲</b>的块(位为0)，位示图状态会错乱。</p>
+</div>
+
+<h2 id="s7">📝 7. 真题样例</h2>
+<div class="panel">
+<h3>真题（10 分）</h3>
+<p>某磁盘有 4096 块，字长 32 位。请回答：</p>
+<ol>
+<li>位示图占用多少字节？</li>
+<li>分配一个盘块后，盘块号为 1200，对应位示图中的哪个字号哪个位？</li>
+<li>字号 25、位号 10 对应的盘块号是多少？</li>
+</ol>
+
+<details>
+<summary>点我看答案</summary>
+<div class="formula">
+(1) 位示图字节数 = 4096 / 8 = 512 字节
+    字数 = 4096 / 32 = 128 个字
+
+(2) 块号 1200:
+    字号 = 1200 / 32 = 37
+    位号 = 1200 % 32 = 16
+    → 第 38 个字的第 17 位
+
+(3) 字号 25、位号 10:
+    块号 = 25 × 32 + 10 = 810
+</div>
+</details>
+
+<h3>真题变种（5 分）</h3>
+<p>位示图中第 i 字第 j 位对应盘块号为？</p>
+<details><summary>答案</summary>
+<p><b>块号 = i × L + j</b>（L 为字长）</p>
+</details>
+</div>
+
+<h2 id="s8">✅ 8. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 公式默写</h3>
+<p>不看屏幕默写两个公式：块号 → 字号位号；字号位号 → 块号。</p>
+<details><summary>答案</summary>
+<p>块号 → 字号位号：i = b / L，j = b % L</p>
+<p>字号位号 → 块号：b = i × L + j</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 算一算</h3>
+<p>字长=8 位，求块号 17 的字号和位号。</p>
+<details><summary>答案</summary>
+<p>字号 = 17 / 8 = 2（第3个字）</p>
+<p>位号 = 17 % 8 = 1（第2位）</p>
+<p>验证：2 × 8 + 1 = 17 ✓</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 大小计算</h3>
+<p>某磁盘 16384 块，字长 32 位，位示图占用多少字节？多少字？</p>
+<details><summary>答案</summary>
+<p>字节数 = 16384 / 8 = <b>2048 字节 (2KB)</b></p>
+<p>字数 = 16384 / 32 = <b>512 个字</b></p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q4 · 易错辨析</h3>
+<p>回收一个盘块时，下面哪个说法是<b>错的</b>？</p>
+<p>A. 回收前要计算字号和位号<br>
+B. 回收前要校验该位原本是 1（占用）<br>
+C. 回收时直接把对应位置 0<br>
+D. 重复回收一个块（位已是0）系统会崩溃</p>
+<details><summary>答案</summary>
+<p><b>D</b>。重复回收一般不会"崩溃"，但位示图状态会错乱（实际空闲但位示图显示占用，或反之）。所以要<b>校验</b>后置 0。ABC 都是正确操作。</p>
+</details>
+</div>
+
+<h2 id="s9">📊 9. 位示图 vs 其他空闲块管理方法</h2>
+<table>
+<tr><th>方法</th><th>空间开销</th><th>分配速度</th><th>回收速度</th><th>适用场景</th></tr>
+<tr><td>空闲表法</td><td>极省（只记连续区段）</td><td>中</td><td>中</td><td>连续分配</td></tr>
+<tr><td>空闲链表法</td><td>每块一个指针</td><td>慢 O(n)</td><td>快</td><td>小块数场景</td></tr>
+<tr><td><b>位示图</b></td><td><b>N/8 字节</b></td><td><b>快（位运算）</b></td><td><b>极快</b></td><td><b>通用首选</b></td></tr>
+<tr><td>成组链接法</td><td>每组一个超级块</td><td>中</td><td>中</td><td>Unix 类系统</td></tr>
+</table>
+<p class="hint">位示图最大的优点是<b>位运算极其高效</b>——分配时扫一个字比扫描一条链快几个数量级。</p>
+
+<footer>
+第 79 课 · 位示图（Bitmap）专题。<br>
+相关 → <a href="./0024-bitmap-bitops-visual.html">0024 位图与位运算可视化</a> · <a href="./0071-bitmap-method.html">0071 位图法详解</a> · <a href="./0004-group-linking.html">0004 成组链接法</a> · <a href="./0019-directory-inode-bitmap.html">0019 inode 与位图</a>
+</footer>
+
+</div>
+
+<script>
+// 渲染位示图
+(function(){
+  const grid = document.getElementById('bm-grid');
+  if (!grid) return;
+  const L = 16;
+  const N = 64;
+  const allocated = new Set([0, 2, 5, 10, 20]);
+  for (let b = 0; b < N; b++) {
+    const cell = document.createElement('div');
+    cell.className = 'bm-bit ' + (allocated.has(b) ? 'bm-1' : 'bm-0');
+    cell.textContent = allocated.has(b) ? '1' : '0';
+    cell.title = '块号 ' + b;
+    grid.appendChild(cell);
+  }
+})();
+</script>
+
+</body>
+</html>

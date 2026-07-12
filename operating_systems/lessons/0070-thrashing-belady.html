@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 70 课 · Ch4 存储器管理 · 重点 · 页面抖动与Belady异常</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 70 课 · Ch4 存储器管理 · 重点 · 页面抖动与Belady异常</p>
+  <h1>页面抖动(Thrashing)与Belady异常</h1>
+  <p class="sub">重点考点——<b>页面置换中的两个反常现象</b>。教材出处：汤小丹第4章4.7节。</p>
+</header>
+
+<div class="key">
+<b>核心概念:</b><br>
+① <b>Belady异常:</b> FIFO算法特有的反常——物理块增加，缺页次数反而增加<br>
+② <b>页面抖动:</b> 刚换出的页马上又被访问，导致频繁换入换出，系统吞吐量骤降
+</div>
+
+<h2 id="s0">🗺 0. 这两个概念是什么</h2>
+<div class="eli5">
+<b>🧸 Belady异常:</b> 按理说给更多内存应该表现更好，但FIFO算法有时会"反其道而行"——内存越多，缺页反而越多！<br><br>
+<b>🧸 页面抖动:</b> 系统忙得要死，但啥正事没干——一直在换页面进进出出，就像你拼命翻书却没时间看书的内容。
+</div>
+
+<h2 id="s1">📖 1. Belady异常详解</h2>
+<div class="panel">
+<h3>现象</h3>
+<p>访问序列: 1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5</p>
+<table>
+<tr><th>物理块数</th><th>FIFO缺页次数</th></tr>
+<tr><td>3块</td><td>9次</td></tr>
+<tr><td>4块</td><td><b>10次</b> (反常！)</td></tr>
+</table>
+
+<h3>原因</h3>
+<p>FIFO<b>不考虑访问时机</b>，只是机械地按进入顺序淘汰。当内存变大时，某些页被"过早"换出，导致后续需要时又缺页。</p>
+<p><b>只有FIFO有Belady异常，LRU和OPT不会出现！</b></p>
+</div>
+
+<h2 id="s2">📖 2. 页面抖动(Thrashing)</h2>
+<div class="panel">
+<h3>什么是抖动</h3>
+<p>进程频繁换入换出，CPU利用率<b>骤降</b>，系统几乎卡死。</p>
+
+<h3>产生原因</h3>
+<ul>
+<li>分配给进程的物理块太少</li>
+<li>进程的活跃页面数 > 分配的物理块数</li>
+<li>刚换出的页马上又要用</li>
+</ul>
+
+<h3>解决方法</h3>
+<ul>
+<li><b>工作集模型:</b> 根据进程实际使用的页面数分配内存</li>
+<li><b>页面故障频率(PFF)控制:</b> 缺页率太高就增加物理块</li>
+<li><b>挂起进程:</b> 内存不够时把部分进程换出到外存</li>
+</ul>
+</div>
+
+<h2 id="s3">⚠️ 3. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · Belady异常是FIFO特有:</b> 选择题常考"哪个算法可能出现Belady异常"——<b>只有FIFO</b>！
+</div>
+<div class="warnbox">
+<b>坑 2 · 抖动 vs 缺页:</b> 缺页是正常的，抖动是<b>极度频繁的缺页导致系统性能崩溃</b>。
+</div>
+
+<h2 id="s4">✅ 4. 自测</h2>
+<div class="panel">
+<p>下列哪种算法<b>不可能</b>出现Belady异常？</p>
+<p>A. FIFO  B. LRU  C. OPT  D. B和C</p>
+<details><summary>答案</summary>
+<p><b>D</b>。LRU和OPT都是栈算法，不会出现Belady异常。</p>
+</details>
+</div>
+
+<footer>
+第 70 课 · 页面抖动与Belady异常。<br>
+重点全套:0063 多级反馈队列 · 0064 抢占式SJF · 0065 设备管理 · 0066 文件物理结构 · 0067 调度指标 · 0068 死锁条件 · 0069 段页式 · 0070 页面抖动
+</footer>
+
+</div>
+</body>
+</html>

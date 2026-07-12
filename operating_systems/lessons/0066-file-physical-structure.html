@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 66 课 · Ch6 文件 · 重点 · 文件物理结构(连续/链接/索引)</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .steps{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+  .step{flex:1 1 180px;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fff;font-size:13.5px}
+  .step .n{display:inline-block;background:var(--blue);color:#fff;border-radius:50%;width:24px;height:24px;line-height:24px;text-align:center;font-weight:700;margin-right:6px}
+  .step b{color:var(--blue)}
+  .disk{font-family:"SF Mono",monospace;font-size:12.5px;background:#0f1b2d;color:#e6edf3;padding:10px;border-radius:6px;white-space:pre;overflow-x:auto}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 66 课 · Ch6 文件 · 重点 · 文件物理结构(连续/链接/索引)</p>
+  <h1>连续/链接/索引 三种外存分配方式 + 寻址公式</h1>
+  <p class="sub">这一节是文件管理的"半壁江山"——老师常考"<b>三种分配方式对比</b>"或"<b>求最大文件长度</b>"。教材出处:<code>6_文件管理/ppt文本.md</code> 幻灯片 49–116(6.3 节)。关联 → <a href="./0067-file-space-management.html">0067 空间管理</a> · <a href="./0022-index-allocation-visual.html">0022 索引分配可视化</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·一句话</a>
+    <a href="#s2">2·三种方式</a>
+    <a href="#s3">3·寻址公式</a>
+    <a href="#s4">4·对比表</a>
+    <a href="#s5">5·FAT</a>
+    <a href="#s6">6·UNIX inode</a>
+    <a href="#s7">7·例题</a>
+    <a href="#s8">8·易错</a>
+    <a href="#s9">9·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>考场必背四句话:</b><br>
+① <b>连续分配</b>:文件占相邻盘块,顺序访问最快,但有外部碎片。<br>
+② <b>链接分配</b>:文件占离散盘块,用指针串起来,碎片少但随机访问慢。<br>
+③ <b>索引分配</b>:为每个文件建索引块,块号集中在索引块里,折中。<br>
+④ <b>UNIX inode</b> = 混合索引(10 直接 + 1 一级 + 1 二级 + 1 三级)。
+</div>
+
+<h2 id="s0">🗺 0. 这道大题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 文件的"物理结构"= 文件的各个数据块在磁盘上是怎么摆的——像收拾行李:连续(一个大箱子)、链接(用绳子把几个箱子串起来)、索引(一张清单写着每个箱子在哪)。
+</div>
+<p>常考题型:① 默写三种分配方式的优缺点(简答 5 分);② 给盘块大小、地址长度,求<b>最大文件长度</b>;③ 比较 "<b>连续/链接/索引下读文件第 k 块</b>" 需要多少次 I/O。</p>
+
+<h2 id="s1">📖 1. 是什么:文件物理结构 = 外存上的盘块组织</h2>
+<div class="panel">
+<p><b>定义(幻灯片 27):</b> 文件的物理结构 = 文件在外存上的存储组织形式,关心的是数据块在磁盘上怎么放、用什么方式把它们串成一个完整文件。</p>
+<p><b>三种基本方式:</b></p>
+<ul>
+  <li><b>连续分配</b>:为文件分配一组<b>相邻接的</b>盘块。</li>
+  <li><b>链接分配</b>:将属于同一文件的盘块用<b>指针</b>链接在一起。</li>
+  <li><b>索引分配</b>:把分配给文件的所有盘块号<b>集中在索引块</b>中。</li>
+</ul>
+</div>
+
+<h2 id="s2">⚡ 2. 三种分配方式详解</h2>
+
+<h3>① 连续分配(Contiguous Allocation)</h3>
+<div class="panel">
+<p><b>原理:</b> 文件的 n 个盘块占磁盘上连续的 n 块,起始块号 + 文件长度记在 FCB 里。</p>
+<p><b>寻址公式(幻灯片 56):</b></p>
+<pre class="disk">逻辑块号 I = 逻辑地址 LA / 块大小
+块内位移 d = 逻辑地址 LA mod 块大小
+物理盘块号 J = 起始块号 ADDR + I</pre>
+<p><b>优点:</b> 顺序访问极快、磁头移动最少。</p>
+<p><b>缺点:</b> ① <b>外部碎片</b>(类似动态分区);② 必须<b>事先知道文件长度</b>;③ 文件不能动态增长。</p>
+</div>
+
+<h3>② 链接分配(Linked Allocation)</h3>
+<div class="panel">
+<p><b>原理:</b> 文件的盘块离散在磁盘上,每块尾部存<b>指向下一块的指针</b>。分两个版本:</p>
+<ul>
+  <li><b>隐式链接</b>:指针放在<b>盘块数据区</b>(如 4B),只能顺序访问。</li>
+  <li><b>显式链接(FAT)</b>:指针集中放在一张<b>文件分配表 FAT</b>,FAT 可调入内存,适合随机存取。</li>
+</ul>
+<p><b>FAT 寻址:</b> 查 FAT[J] 即可得到第 i 块的物理位置。</p>
+</div>
+
+<h3>③ 索引分配(Indexed Allocation)</h3>
+<div class="panel">
+<p><b>原理:</b> 每个文件有一个<b>索引块</b>,块中按顺序记录本文件所有数据块的盘块号。</p>
+<p><b>单级索引寻址:</b> 一次 I/O 读索引块,二次 I/O 读数据块。</p>
+<p><b>多级索引:</b> 两级、三级索引支持更大的文件。</p>
+</div>
+
+<h2 id="s3">📐 3. 寻址公式汇总</h2>
+<table>
+<tr><th>方式</th><th>读第 I 块磁盘 I/O 次数</th><th>寻址公式</th></tr>
+<tr><td><b>连续分配</b></td><td>1</td><td>物理块号 = 起始块 + I</td></tr>
+<tr><td><b>隐式链接</b></td><td>I + 1(顺序访问时)</td><td>沿指针链跳 I 次</td></tr>
+<tr><td><b>FAT(显式)</b></td><td>1(FAT 在内存)</td><td>查 FAT 表</td></tr>
+<tr><td><b>单级索引</b></td><td>2</td><td>索引块 + 数据块</td></tr>
+<tr><td><b>两级索引</b></td><td>3</td><td>二级索引 + 一级索引 + 数据块</td></tr>
+</table>
+
+<h2 id="s4">🆚 4. 三种方式对比表(必背)</h2>
+<table>
+<tr><th>对比项</th><th>连续</th><th>链接</th><th>索引</th></tr>
+<tr><td>顺序访问</td><td>★ 最快</td><td>中等</td><td>中等</td></tr>
+<tr><td>随机访问</td><td>★ 最快</td><td>★ 最慢</td><td>中等</td></tr>
+<tr><td>外部碎片</td><td>★ 有</td><td>无</td><td>无</td></tr>
+<tr><td>动态增长</td><td>★ 难</td><td>易</td><td>易</td></tr>
+<tr><td>事先知道长度</td><td>★ 需要</td><td>不需要</td><td>不需要</td></tr>
+<tr><td>可靠性</td><td>高</td><td>隐式:差(指针错全断)</td><td>较高</td></tr>
+<tr><td>占用额外空间</td><td>无</td><td>指针(FAT 较大)</td><td>索引块</td></tr>
+</table>
+<div class="key"><b>记忆口诀:</b> 连续快但有碎片;链接省但慢;索引是折中——<b>UNIX 取折中</b>。</div>
+
+<h2 id="s4b">📊 4b. 例题(幻灯片 104)深度解析</h2>
+<div class="panel">
+<p><b>原题:</b> 一个文件系统中有一个 20MB 大文件和一个 20KB 小文件,每块大小 4096B,每块地址 4B。问连续/链接/二级索引/UNIX 混合四种方案对大、小文件各需要多少次 I/O 读"前面 5.5KB"和"后面 16MB+5.5KB"?</p>
+<p><b>思路:</b></p>
+<ul>
+  <li><b>前面 5.5KB</b> = 第 1 个数据块 + 5.5KB-4KB = 第 1 块 + 第 2 块前 1.5KB。</li>
+  <li><b>16MB+5.5KB</b> ≈ 第 4097 块 + 第 4098 块前 1.5KB。</li>
+</ul>
+<p><b>连续分配:</b> 直接算物理块号 = 起始 + 相对块号,大、小文件都只需 <b>2 次 I/O</b>(前 + 后)。</p>
+<p><b>链接分配(隐式):</b> 读前面要顺序读完第 1 块,再读第 2 块 = 2 次;读后面要顺序读完前 4096 块才能拿到第 4097 块地址 = <b>4098 次 I/O</b>!</p>
+<p><b>FAT(显式):</b> FAT 在内存,直接算 = 2 次 I/O。</p>
+<p><b>二级索引:</b> 读前面需要 1 次读一级索引 + 1 次读数据 = 2 次;读后面还要先读二级索引 = <b>3 次 I/O</b>。</p>
+<p><b>UNIX 混合:</b> 前面 5.5KB 在直接地址区 → 2 次 I/O;后面 16MB+5.5KB 在一级间接区 → 3 次 I/O。</p>
+</div>
+
+<h2 id="s5">📂 5. FAT 文件系统(显式链接)</h2>
+<div class="panel">
+<p><b>FAT 概念:</b> 文件分配表是一张记录"每个盘块下一块在哪"的表。</p>
+<p><b>优点(幻灯片 69):</b>① FAT 占用空间小,可调入内存;② 查找速度快,适合随机存取;③ 不存在碎片。</p>
+<p><b>缺点(幻灯片 70):</b>① FAT 需要占用外存空间(1GB 硬盘需 6MB);② FAT 需要较大内存;③ 不能高效直接存取。</p>
+<p><b>簇(cluster)优化:</b> 1 簇 = 8 个盘块,FAT 占空间从 6MB 降到 3/8 MB。</p>
+</div>
+
+<h2 id="s6">🐧 6. UNIX inode(混合索引分配)</h2>
+<div class="panel">
+<p>假设盘块大小 4KB,每个盘块号 4B(32 位),1 个盘块可放 1024 个盘块号。</p>
+<table>
+<tr><th>部分</th><th>数量</th><th>可寻址范围</th><th>最大文件</th></tr>
+<tr><td><b>10 个直接地址</b></td><td>10 × 4KB</td><td>0~39 KB</td><td>40KB</td></tr>
+<tr><td><b>1 个一级间接</b></td><td>1024 × 4KB</td><td>40KB ~ 4.04MB</td><td>+4MB</td></tr>
+<tr><td><b>1 个二级间接</b></td><td>1024² × 4KB</td><td>~ 4.04GB</td><td>+4GB</td></tr>
+<tr><td><b>1 个三级间接</b></td><td>1024³ × 4KB</td><td>~ 4.04TB</td><td>+4TB</td></tr>
+</table>
+<p><b>总最大文件:</b> 40KB + 4MB + 4GB + 4TB ≈ <b>4TB</b></p>
+</div>
+
+<h2 id="s6b">🎯 6b. inode 直接块 vs 间接块的选择</h2>
+<div class="panel">
+<p><b>为什么要有 10 个直接地址?</b></p>
+<p>大多数文件很小(小于 40KB)。用直接地址可一次 I/O 读到数据(索引块已驻内存);如果只用一级间接,小文件访问也得多 1 次 I/O,浪费。</p>
+<p><b>为什么直接地址只给 10 个?</b></p>
+<p>inode 大小固定(128B 或 256B)。每个直接地址 4B,10 个只占 40B,留出空间给间接地址指针。</p>
+<div class="key"><b>设计哲学:</b> 小文件走直接地址(快);大文件走间接地址(支持更大空间);不常用的极大文件走三级间接(几乎用不到)。</div>
+</div>
+
+<h2 id="s7">💯 7. 例题(幻灯片 102)</h2>
+<div class="panel">
+<p><b>题:</b> 操作系统采用索引分配方式,盘块大小 4KB,每个盘块号 4B。求一级/二级/三级索引支持的最大文件长度。</p>
+<details><summary>点我看答案</summary>
+<p>· 一个盘块可放 4KB / 4B = 1024 个盘块号。<br>
+· <b>一级索引</b>最大:1024 × 4KB = <b>4MB</b>。<br>
+· <b>二级索引</b>最大:1024 × 1024 × 4KB = 4GB = <b>4GB</b>。<br>
+· <b>三级索引</b>最大:1024³ × 4KB = 4TB = <b>4TB</b>。</p>
+</details>
+</div>
+
+<h2 id="s8">⚠️ 8. 易错点</h2>
+<div class="warnbox">
+<b>坑 1 · 隐式链接只能顺序访问:</b> 答"<b>链接分配只适合顺序访问</b>"时,默认是<b>隐式链接</b>。如果是 FAT 显式链接,可以<b>随机存取</b>。
+</div>
+<div class="warnbox">
+<b>坑 2 · 索引分配的 I/O 次数:</b> 单级索引读一个数据块需要 <b>2 次 I/O</b>(1 次索引块 + 1 次数据块),不是 1 次。
+</div>
+<div class="warnbox">
+<b>坑 3 · UNIX inode 是混合的:</b> 不能说"UNIX 是索引分配"——它同时有直接、单级、二级、三级索引,叫"<b>混合索引</b>"。
+</div>
+<div class="warnbox">
+<b>坑 4 · FAT 占空间会算错:</b> 1GB 硬盘,512B 盘块 → 2M 个盘块 × 3B(21 位) ≈ 6MB FAT;若改用 8KB 簇 → 3/8 MB。
+</div>
+
+<h2 id="s9">✅ 9. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 默写三种分配方式</h3>
+<p>不看屏幕,默写连续/链接/索引的优缺点。</p>
+<details><summary>点我对答案</summary>
+<p>· <b>连续:</b> 顺序访问快、有碎片、要预知长度。<br>
+· <b>链接:</b> 无碎片、不可随机(隐式)、FAT 可随机。<br>
+· <b>索引:</b> 折中方案,直接存取但占用额外索引块空间。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 寻址公式</h3>
+<p>连续分配下,起始块号 100,逻辑地址 LA = 8192,盘块 4KB。物理盘块号是?</p>
+<details><summary>点我看答案</summary>
+<p>I = 8192 / 4096 = <b>2</b>;物理块号 = 100 + 2 = <b>102</b>。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 易错辨析</h3>
+<p>单级索引分配读一个数据块需要几次 I/O?</p>
+<p>A. 1 次<br>B. 2 次<br>C. 3 次<br>D. 取决于文件大小</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:B</b>。1 次读索引块 + 1 次读数据块。<b>两级索引</b>才是 3 次。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q4 · 简答(模拟 5 分)</h3>
+<p><b>请简述连续分配、链接分配和索引分配三种外存分配方式的优缺点。</b></p>
+<details><summary>点我看参考答案</summary>
+<p><b>连续分配:</b> 优点:顺序访问快、磁头移动少;缺点:有外部碎片、必须事先知道文件长度、文件不能动态增长。</p>
+<p><b>链接分配:</b> 优点:无外部碎片、不需连续空间、文件可动态增长;缺点:隐式链接只能顺序访问、可靠性差(指针错全断)。FAT 显式链接可随机存取但占用内存。</p>
+<p><b>索引分配:</b> 优点:支持直接存取、文件可动态增长、无外部碎片;缺点:占用额外索引块空间,大文件需要多级索引。</p>
+<p class="hint">出处:<code>6_文件管理/ppt文本.md</code> 幻灯片 54、63–70、78。展开 5 分稳拿。</p>
+</details>
+</div>
+
+<footer>
+第 66 课 · Ch6 文件 · 重点 · 文件物理结构。<br>
+可视化 → <a href="./0022-index-allocation-visual.html">0022 索引可视化</a> · inode → <a href="./0019-directory-inode-bitmap.html">0019 inode</a> · 空间管理 → <a href="./0067-file-space-management.html">0067</a><br>
+重点全套:0063 MLFQ · 0064 SJF/SRTN · 0065 设备综合 · 0066 文件物理结构 · 0067 文件空间管理 · 0068 成组链接 · 0069 队列图 · 0070 调度指标
+</footer>
+
+</div>
+</body>
+</html>
