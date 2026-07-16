@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 86 课 · Ch5 虚拟存储 · CLOCK 置换算法深入</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb;--clk:#0891b2;--clk-soft:#cffafe;--clk2:#155e75;--hit:#16a34a;--hit-soft:#dcfce7;--miss:#dc2626;--miss-soft:#fee2e2;--evict:#f59e0b;--bit1:#fef3c7;--bit0:#e5e7eb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:1000px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  h4{font-size:15px;margin:14px 0 4px;color:var(--ink)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .formula{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px;line-height:1.9;white-space:pre-wrap}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .self-check{background:#fff;border:1px dashed #bcd;border-left:3px solid #2b6cb0;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:14px}
+  .self-check b{color:#2b6cb0}
+  .self-check .ans{color:var(--green);font-weight:600;margin-top:4px;display:block}
+  details{margin:6px 0}
+  summary{cursor:pointer;color:var(--blue);font-size:14px;font-weight:600;padding:2px 0}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:20px;margin-right:4px;vertical-align:middle}
+  .b-miss{background:var(--miss-soft);color:var(--miss)}
+  .b-hit{background:var(--hit-soft);color:var(--hit)}
+  .b-evict{background:#fef3c7;color:var(--evict)}
+  .b-scan{background:var(--clk-soft);color:var(--clk2)}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+  .controls input[type=text]{font-family:"SF Mono",Menlo,Consolas,monospace;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px}
+  .controls button{padding:6px 14px;border:none;background:var(--blue);color:#fff;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px}
+  .controls button:hover{background:#1e4e8c}
+  .controls label{font-size:13px;color:var(--muted)}
+  /* ============ 圆形表盘 (CSS only) ============ */
+  .clock-stage{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;margin:14px 0;justify-content:center}
+  .clock-wrap{padding:24px;background:#fff;border:1px solid var(--line);border-radius:12px;text-align:center}
+  .clock-svg{display:block;margin:0 auto}
+  .clock-legend{font-size:13px;color:var(--muted);margin-top:8px}
+  /* ============ 时序步骤（线性版，用于详细推演）============ */
+  .clk-track{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin:14px 0}
+  .clk-step{margin:8px 0;padding:10px;border-radius:6px;font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13px;border-left:3px solid var(--line);background:#fafafa}
+  .clk-step.miss{border-left-color:var(--miss);background:#fff7f7}
+  .clk-step.hit{border-left-color:var(--hit);background:#f7fdf9}
+  .clk-step .act{font-family:-apple-system,sans-serif;color:var(--ink);font-size:12.5px;margin-left:8px;display:inline-block;margin-top:4px}
+  .clk-step .ptr-num{background:var(--clk);color:#fff;padding:1px 8px;border-radius:10px;font-weight:700;font-size:11px;margin-right:4px}
+  .clk-step .scan-path{background:var(--clk-soft);border-left:3px solid var(--clk);padding:6px 10px;margin:6px 0;border-radius:4px;font-size:12px;color:var(--clk2)}
+  /* ============ 四象限图 ============ */
+  .qdr{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0;font-family:"SF Mono",monospace;font-size:13px}
+  .qdr div{padding:12px 8px;border-radius:6px;text-align:center;border:1px solid var(--line)}
+  .qdr .q-best{background:#dcfce7;color:var(--green);font-weight:700;border:2px solid var(--green)}
+  .qdr .q1{background:#fee2e2;color:var(--red);font-weight:700}
+  .qdr .q2{background:#dbeafe;color:#1e40af}
+  .qdr .q3{background:#fef3c7;color:#92400e}
+  /* ============ 4 轮扫描流程图 ============ */
+  .rounds{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:14px 0;font-size:13px}
+  .round{background:#fff;border:2px solid var(--line);border-radius:8px;padding:10px 8px;text-align:center}
+  .round.r1{border-color:#dc2626}
+  .round.r2{border-color:#2563eb}
+  .round.r3{border-color:#d97706}
+  .round.r4{border-color:#16a34a}
+  .round b{font-size:14px;display:block;margin-bottom:4px}
+  .rounds .r1 b{color:#dc2626}.rounds .r2 b{color:#2563eb}.rounds .r3 b{color:#d97706}.rounds .r4 b{color:#16a34a}
+  /* ============ 横向对比表 ============ */
+  .compare th{background:#0f1b2d;color:#e6edf3}
+  /* ============ SCAN 路径动画 ============ */
+  .scan-anim{display:inline-block;background:var(--clk-soft);border:1px solid var(--clk);border-radius:4px;padding:1px 6px;font-family:"SF Mono",monospace;font-size:12px;color:var(--clk2);margin:0 2px;animation:scanflash 2s ease-in-out infinite}
+  @keyframes scanflash{0%,100%{opacity:.6}50%{opacity:1;font-weight:700}}
+  @media print{body{background:#fff}.panel,.clk-track,.clock-wrap{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="h">
+  <p class="eyebrow">第 86 课 · Ch5 虚拟存储 · CLOCK 页面置换深入</p>
+  <h1>CLOCK 置换：从「指针转圈」到「改进型四象限」完整拆解</h1>
+  <p class="sub">配套 <a href="./0084-page-replacement-lru-clock.html">0084 LRU + CLOCK 对比冲刺</a> + <code>0061 页面置换算法计算</code> + <code>final-test</code> 第 17/18 题。<b>0084 把 CLOCK 当配角和 LRU 对比跑同一道题；这节让 CLOCK 单独挑大梁</b>，把指针转圈的每一步、绕不绕圈分几种情形、改进型 CLOCK 的 4 轮扫描全算法讲透。</p>
+  <nav class="nav">
+    <a href="#gap">0·缺口动机</a>
+    <a href="#basic">1·基础 CLOCK 完整规范</a>
+    <a href="#ptr4">2·指针的 4 种行为</a>
+    <a href="#sim">3·圆形表盘模拟器</a>
+    <a href="#examples">4·两道例题对比</a>
+    <a href="#improved">5·改进型 CLOCK 完整 4 轮</a>
+    <a href="#family">6·CLOCK 家族对比</a>
+    <a href="#self">7·自测</a>
+  </nav>
+</header>
+
+<!-- ============ 0. 缺口动机 ============ -->
+<h2 id="gap">🗺 0. 为什么再讲一遍 CLOCK（0084 留下来的坑）</h2>
+
+<div class="panel">
+<table>
+<tr><th></th><th>0084 LRU + CLOCK 对比冲刺</th><th>0086 CLOCK 单独深入（本节）</th></tr>
+<tr><td><b>主线</b></td><td>LRU / CLOCK 同题对比，看缺页率</td><td>把 CLOCK 拆开看，把指针拆给你看</td></tr>
+<tr><td><b>深度</b></td><td>CLOCK 只跑 1 道完整例题</td><td><b>3 道例题</b>（绕一圈 / 单步 / 改进型 4 轮）</td></tr>
+<tr><td><b>指针行为</b></td><td>没单独讲「指针什么时候动」</td><td><b>4 种行为模式</b>分门别类</td></tr>
+<tr><td><b>改进型 CLOCK</b></td><td>只讲 4 象限的优先级口诀</td><td><b>完整 4 轮扫描算法</b> + 例题 + 为什么必须 4 轮</td></tr>
+<tr><td><b>可视化</b></td><td>线性 clk-row（横排）</td><td><b>圆形表盘 SVG</b> + 扫描路径动画</td></tr>
+</table>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 0084 没讲透 3 个点，0086 全补：</b>
+<ol style="margin:6px 0 0 18px">
+  <li><b>指针什么时候转一整圈？</b>—— 什么时候「绕一圈」、什么时候「1 步到位」？这一节分类</li>
+  <li><b>改进型 CLOCK 为什么是 4 轮？</b>—— 0084 只背了口诀「(0,0) 最高」，没说扫描流程</li>
+  <li><b>改进型 CLOCK 命中要清访问位吗？</b>—— 很多人记不清「第二轮要把所有访问位置 0」这一句</li>
+</ol>
+</div>
+
+<div class="key">
+<b>🎯 这一课的目标：</b>看完之后让你<b>能独立算出</b> CLOCK 在任何序列下的缺页次数，<b>能口述</b> 改进型 CLOCK 的 4 轮扫描算法，<b>能解释</b> 为什么它比简单 CLOCK 好。
+</div>
+
+<!-- ============ 1. 基础 CLOCK 完整算法规范 ============ -->
+<h2 id="basic">📚 1. 基础 CLOCK = Second Chance 完整算法规范</h2>
+
+<div class="eli5">
+<b>🧸 ELI5 · 钟表店比喻：</b>钟表店有 N 个柜子（=物理块），客人来寄存包裹（=装入页）。柜子上贴一张小纸条（=<b>访问位</b>）：纸条有勾（=1）表示「最近来过」，没勾（=0）表示「很久没来过」。
+<ul style="margin:6px 0 0 18px">
+  <li>客人<b>查</b>自己包裹：只把纸条勾上（=置访问位=1），柜子不动</li>
+  <li>新人来寄存：店员从「当前指针」开始<b>顺着柜子转一圈扫描</b>：
+    <ul>
+      <li>看到 <b>有勾</b> 的柜子 → <b>擦掉勾</b>（=降为 0），给它<b>第二次机会</b>，指针往下走一格</li>
+      <li>看到 <b>没勾</b> 的柜子 → 就是它！<b>腾空</b>给新人，指针往下走一格</li>
+    </ul>
+  </li>
+</ul>
+直到找到第一个<b>没勾的</b>为止。这个「圆盘 + 指针 + 纸条」就是 CLOCK 的全部。
+</div>
+
+<div class="key">
+<b>📌 数据结构：</b>
+<ul style="margin:6px 0 0 18px">
+  <li>N 个物理块围成<b>环形</b>（逻辑上是循环数组，下标 <code>(i+1) % N</code>）</li>
+  <li>每块配 1 个 bit：<b>访问位</b>（reference bit），初始 0</li>
+  <li>一个<b>指针 ptr</b>，指向「下次扫描从这开始」的块</li>
+</ul>
+</div>
+
+<h3>两个操作的完整伪代码</h3>
+<div class="formula">操作 1：访问页 P（处理命中 + 缺页共用入口）
+  在内存中查找 P：
+    若命中（某块 i 持有 P）：
+       ref[i] ← 1            // 访问位置 1
+       ptr 不动              // ★ 关键：命中指针原地不动
+       return HIT
+
+    若缺页：
+       调用 淘汰与装入(P)    // 见操作 2
+       return MISS
+
+操作 2：淘汰与装入(P)（仅缺页时触发）
+  LOOP:
+    IF ref[ptr] == 1:
+       ref[ptr] ← 0          // 给第二次机会：把 1 降为 0
+       ptr ← (ptr + 1) % N   // 指针前进 1 格
+       IF 指针已绕回起点：   // 标志：把圈内所有 1 都降过一遍
+          所有 bit 都被清过
+       GOTO LOOP
+    ELSE (ref[ptr] == 0):
+       VICTIM ← ptr           // 找到 victim
+       装入 P 到块 ptr
+       ref[ptr] ← 1           // 新页刚访问，置 1
+       ptr ← (ptr + 1) % N   // ★ 关键：置换后指针前进 1 格
+       RETURN VICTIM</div>
+
+<div class="warnbox">
+<b>⚠️ 三个最容易记错的细节：</b>
+<ul style="margin:6px 0 0 18px">
+  <li><b>命中不动 ptr</b>：很多人以为命中要把指针挪到该块后面 —— <b>错</b>。命中只置访问位=1，<b>ptr 原封不动</b></li>
+  <li><b>置换后 ptr+1</b>：淘汰发生在 ptr 处，新页装好后 ptr→下一格，<b>不是从头开始</b></li>
+  <li><b>ptr 永远不消失</b>：哪怕绕一整圈把所有 bit=1 都降为 0，<b>指针仍在转</b>，最终会停在一个 bit=0 上淘汰</li>
+</ul>
+</div>
+
+<!-- ============ 2. 指针的 4 种行为 ============ -->
+<h2 id="ptr4">🎯 2. 指针的 4 种行为模式</h2>
+
+<div class="eli5">
+<b>🧸 ELI5 · 把指针当钟表针：</b>钟表店一天可能要应对三种情况：(a) 老顾客回来只贴纸条；(b) 新顾客来，店里有现成的空柜；(c) 新顾客来，店里全是有勾的柜，得<b>从里到外擦一遍</b>才能腾出空位。
+</div>
+
+<p>CLOCK 的指针只有 4 种行为，对应 4 种情形：</p>
+
+<table>
+<tr><th>情形</th><th>触发条件</th><th>指针做什么</th><th>块访问位变化</th><th>扫描距离</th></tr>
+<tr>
+  <td><b>① 命中</b><br><span class="badge b-hit">hit</span></td>
+  <td>访问的页已在内存</td>
+  <td><b>原地不动</b></td>
+  <td>该块 0→1</td>
+  <td>0 格</td>
+</tr>
+<tr>
+  <td><b>② 单步缺页</b><br><span class="badge b-miss">miss</span></td>
+  <td>ptr 处 bit=0，立即淘汰</td>
+  <td>扫描 1 格，前进 1 格</td>
+  <td>victim 位 0→新页 1</td>
+  <td>1 格</td>
+</tr>
+<tr>
+  <td><b>③ 短扫缺页</b><br><span class="badge b-scan">scan</span></td>
+  <td>ptr 处 bit=1，后面某个 bit=0</td>
+  <td>从 ptr 扫到第一个 0，淘汰</td>
+  <td>扫过的 1→0，victim 位→新页 1</td>
+  <td>2 ~ N-1 格</td>
+</tr>
+<tr>
+  <td><b>④ 绕一圈缺页</b><br><span class="badge b-scan">scan</span></td>
+  <td>当前<b>所有块</b>bit=1</td>
+  <td>把每块都降 0，绕回起点淘汰该块</td>
+  <td>全部 1→0，起点位置装新页 1</td>
+  <td><b>N 格</b>（绕满一圈）</td>
+</tr>
+</table>
+
+<div class="formula">★ 一句话记住：
+  命中 = 动 1 个 bit
+  缺页 = 启动扫描，扫描 1 ~ N 格之间
+  N 格 = 极端情形「所有块都刚用过」</div>
+
+<div class="warnbox">
+<b>⚠️ 易错提醒：</b>
+<ul style="margin:6px 0 0 18px">
+  <li>「绕一圈」≠ 「扫描了 N 个位置」—— 是「扫遍整个圈还没找到 bit=0，绕回起点」。这时候起点处的 bit 已经被扫描降为 0，所以 victim 就是起点</li>
+  <li>绕一圈后 ptr 仍 +1：因为替换发生在起点，<b>新页装入起点，ptr 指向下一格</b></li>
+  <li>命中不会让 ptr 「绕一整圈」—— 因为命中 ptr 不动</li>
+</ul>
+</div>
+
+<!-- ============ 3. 圆形表盘模拟器（SVG 升级版） ============ -->
+<h2 id="sim">🎬 3. 圆形表盘模拟器：看着指针转圈</h2>
+
+<div class="eli5">
+<b>🧸 ELI5 · 真的是钟表：</b>之前 0084 用的是「横排」（线性 clk-row），看不出「环形」。这一节把 N 个物理块排成<b>真的圆形表盘</b>，<b>指针是一根真的指针</b>（从中心指向某个块）。扫描时指针<b>转动</b>，扫描路径用<b>虚线圆弧</b>标出来。
+</div>
+
+<h3>互动模拟器（支持 4 ~ 8 块）</h3>
+<p>改变序列和块数，按 <code>▶ 跑 CLOCK</code> 看指针转动：</p>
+
+<div class="clock-stage">
+  <div class="clock-wrap">
+    <div class="controls" style="margin-bottom:10px">
+      <label>序列：</label>
+      <input type="text" id="clk6Seq" value="1,2,3,4,5,1,2,5,6" style="width:240px"/>
+      <label>块数：</label>
+      <input type="text" id="clk6Frames" value="5" style="width:40px"/>
+      <button onclick="runCLK6()">▶ 跑 CLOCK</button>
+    </div>
+    <svg id="clkSvg" width="380" height="380" class="clock-svg"></svg>
+    <div class="clock-legend">
+      <span style="color:var(--clk);font-weight:700">▲ 指针</span> ·
+      <span style="background:var(--bit1);padding:1px 6px">访问位=1</span> ·
+      <span style="background:var(--bit0);padding:1px 6px">访问位=0</span> ·
+      <span style="background:var(--miss-soft);padding:1px 6px">本轮淘汰</span> ·
+      <span style="background:var(--hit-soft);padding:1px 6px">新装入</span>
+    </div>
+  </div>
+</div>
+
+<div class="key">
+<b>👀 看什么：</b>
+<ul style="margin:4px 0 0 18px">
+  <li>命中时：<b>指针原地不动</b>，只把对应块的访问位涂成黄色</li>
+  <li>缺页但 ptr 处 bit=0：<b>指针只走 1 步</b>就淘汰</li>
+  <li>缺页且需要扫描：<b>指针连续转多步</b>，每步把 bit=1 降为 0（青色虚线就是扫描路径）</li>
+  <li>绕一整圈：<b>指针转满 360°</b>，最终回到起点淘汰</li>
+</ul>
+</div>
+
+<div class="tmpl">
+<b>🧪 自己试试：</b>改成 <code>1,2,3,4,5</code>、块数 <code>4</code>，跑一下。可以清楚看到「所有块都刚装入 → 全是 bit=1 → 必须绕一圈才能淘汰」（扫描路径会画满整个圈）。
+</div>
+
+<!-- ============ 4. 两道例题对比：绕一圈 vs 单步 ============ -->
+<h2 id="examples">⚔️ 4. 两道例题对比：极端情形演示</h2>
+
+<div class="eli5">
+<b>🧸 ELI5 · 让两种情形都跑一遍：</b>CLOCK 难的不是算法，<b>难的是知道指针什么时候会绕一圈、什么时候不会</b>。这一节故意出<b>两道</b>题，一道必绕一圈，一道必 1 步淘汰。
+</div>
+
+<h3>例题 1（绕一圈） · 序列 <code>1,2,3,4</code> + 4 块</h3>
+<div class="warnbox">
+<b>出题思路：</b>4 个块刚开始都是空的。连续装入 1, 2, 3, 4 三个新页后，<b>第四个新页 5 来时，4 个块都还是 bit=1（最近刚装入），必须绕一整圈</b>。
+</div>
+
+<div class="clk-track">
+  <div class="clk-step"><div class="body"><b>访问 1</b>　<span class="badge b-miss">缺页</span>　ptr=#1 → block1=1:1, ptr→#2</div></div>
+  <div class="clk-step"><div class="body"><b>访问 2</b>　<span class="badge b-miss">缺页</span>　ptr=#2 bit=0 → block2=2:1, ptr→#3</div></div>
+  <div class="clk-step"><div class="body"><b>访问 3</b>　<span class="badge b-miss">缺页</span>　ptr=#3 bit=0 → block3=3:1, ptr→#4</div></div>
+  <div class="clk-step"><div class="body"><b>访问 4</b>　<span class="badge b-miss">缺页</span></div></div>
+  <div class="clk-step scan-path">
+    <b>扫描过程（指针连转 4 步）：</b><br>
+    ptr=#1 → bit=1，降 0 → ptr→#2<br>
+    ptr=#2 → bit=1，降 0 → ptr→#3<br>
+    ptr=#3 → bit=1，降 0 → ptr→#4<br>
+    ptr=#4 → bit=1，降 0 → ptr→#1（绕回起点，所有 bit 全 0）<br>
+    ptr=#1 → bit=0 → <span class="badge b-evict">淘汰 1</span>，装入 4 → block1=4:1, ptr→#2
+  </div>
+</div>
+
+<div class="key">
+<b>✅ 例题 1 缺页 4 / 4 = 100%</b>　　<span style="font-family:SF Mono,monospace;background:#eef1f6;padding:2px 6px">⚠ 关键观察：</span>第四步扫描了 <b>4 格 = 整整一圈</b>。
+</div>
+
+<h3>例题 2（直接淘汰） · 序列 <code>1,2,3,4,5</code> + 4 块，紧接着 <code>6</code></h3>
+<div class="warnbox">
+<b>出题思路：</b>这次故意让前 4 个块里有 bit=0 的 —— 装入 1,2 后停留一秒（让其他页都访问 1,2），现在 1 和 2 的 bit 都被访问过=1；但装入 3, 4 后没人动它们，所以 3,4 的 bit 仍是 0。访问 6 时，ptr 正好指向 3，<b>1 步淘汰</b>。
+</div>
+
+<div class="clk-track">
+  <div class="clk-step"><div class="body"><b>访问 1</b>　<span class="badge b-miss">缺页</span>　block1=1:1</div></div>
+  <div class="clk-step"><div class="body"><b>访问 2</b>　<span class="badge b-miss">缺页</span>　block2=2:1</div></div>
+  <div class="clk-step"><div class="body"><b>访问 3</b>　<span class="badge b-miss">缺页</span>　block3=3:1</div></div>
+  <div class="clk-step"><div class="body"><b>访问 4</b>　<span class="badge b-miss">缺页</span>　block4=4:1</div></div>
+  <div class="clk-step"><div class="body"><b>访问 1</b>　<span class="badge b-hit">命中</b>　block1.bit=1（bit 已经=1，不变）</div></div>
+  <div class="clk-step"><div class="body"><b>访问 2</b>　<span class="badge b-hit">命中</b>　block2.bit=1</div></div>
+  <div class="clk-step hit"><div class="body"><b>访问 6</b>　<span class="badge b-miss">缺页</span>　<span class="b-scan" style="padding:1px 6px">ptr=#3 bit=0 → 直接淘汰！</span> block3=6:1, ptr→#4</div></div>
+</div>
+
+<div class="key">
+<b>✅ 例题 2 缺页 5 / 7 ≈ 71%</b>　　<span style="font-family:SF Mono,monospace;background:#eef1f6;padding:2px 6px">⚠ 关键观察：</span>最后一步扫描了 <b>1 格</b>，命中率高得益于此。
+</div>
+
+<h3>规律总结</h3>
+<table class="compare">
+<tr><th>情形</th><th>扫描距离</th><th>缺页率</th><th>触发条件</th></tr>
+<tr><td>大量连续新页装入（例 1）</td><td>绕一圈 N 格</td><td>高</td><td>所有块 bit=1 时</td></tr>
+<tr><td>访问局部性强（例 2）</td><td>1 ~ K 格</td><td>低</td><td>有块 bit=0 时</td></tr>
+<tr><td>纯循环访问（<code>1,2,3,4,1,2,3,4</code>）</td><td>1 ~ 2 格</td><td>极低</td><td>每个块都被访问过</td></tr>
+</table>
+
+<div class="formula">★ 实战口诀：
+  看到「绕一圈」= 那一步所有块 bit=1 = 缺页率高
+  看到「1 步淘汰」= ptr 处刚好 bit=0 = 访问局部性命中</div>
+
+<!-- ============ 5. 改进型 CLOCK 完整算法 ============ -->
+<h2 id="improved">🧪 5. 改进型 CLOCK 完整算法（4 轮扫描）</h2>
+
+<div class="eli5">
+<b>🧸 ELI5 · 双重判断：</b>基础 CLOCK 只看「用过没」（访问位）。但如果一个页又被用过又被改过，淘汰它就得<b>写回磁盘</b>，开销大。改进型 CLOCK 再加一个<b>修改位</b>（脏位），优先淘汰<b>干净且没用</b>的页——不用写回磁盘。
+</div>
+
+<h3>每个物理块有 2 个 bit</h3>
+<table>
+<tr><th>位</th><th>含义</th><th>何时置 1</th><th>硬件开销</th></tr>
+<tr><td><b>R (Reference)</b></td><td>访问位</td><td>读 / 写该页</td><td>每次访存自动置</td></tr>
+<tr><td><b>M (Modify / Dirty)</b></td><td>修改位</td><td>对该页<b>写入</b></td><td>每次写时自动置</td></tr>
+</table>
+
+<h3>改进型 CLOCK 4 轮扫描的完整算法</h3>
+<p>这是 0084 没讲清楚的部分。<b>为什么是 4 轮？</b>因为我们要按优先级找 (R=0, M=0)，但这个组合可能<b>当前不存在</b>（可能所有页都被访问过 = R=1），这时要先<b>把访问位全清掉</b>才能进入下一轮。</p>
+
+<div class="rounds">
+  <div class="round r1"><b>第 1 轮</b>从 ptr 开始扫，找 <b>(R=0, M=0)</b><br>扫到的页 R=1 就清 0<br>找到就淘汰</div>
+  <div class="round r2"><b>第 2 轮</b>若第 1 轮没找到，再扫，找 <b>(R=0, M=1)</b><br>（R=0 现在肯定有了）</div>
+  <div class="round r3"><b>第 3 轮</b>若还没找到，扫一遍找 <b>(R=0, M=0)</b><br>（既然第 2 轮把 R 重新置 0 的还没被找过）</div>
+  <div class="round r4"><b>第 4 轮</b>最后扫一遍找 <b>(R=0, M=1)</b></div>
+</div>
+
+<div class="formula">伪代码：
+  WHILE TRUE:
+    扫描一圈，找第一个 (R=0, M=0)：
+      找到 → VICTIM，退出
+      没找到 → 把所有扫到的 R=1 降为 0（指针走过一整圈）
+
+    再扫描一圈，找第一个 (R=0, M=1)：
+      找到 → VICTIM，退出
+
+    第三轮找 (R=0, M=0)：同上
+    第四轮找 (R=0, M=1)：同上
+    （最坏情况：4 轮内必找到一个，因为第 1 轮已经把所有 R 清 0）</div>
+
+<h3>完整例题：4 块，访问位 + 修改位，触发改进型 CLOCK</h3>
+<div class="panel">
+<p><b>初始状态：</b>ptr=块1，从 ptr 开始扫描，4 个块状态如下：</p>
+<table>
+<tr><th>块 #</th><th>1</th><th>2</th><th>3</th><th>4</th></tr>
+<tr><td><b>页号</b></td><td>A</td><td>B</td><td>C</td><td>D</td></tr>
+<tr><td><b>R</b></td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+<tr><td><b>M</b></td><td>0</td><td>1</td><td>0</td><td>1</td></tr>
+</table>
+</div>
+
+<div class="clk-track">
+  <div class="clk-step"><div class="body">
+    <b>第 1 轮 找 (R=0, M=0)：</b><br>
+    ptr=块1：R=1 → <b>清 0</b>，ptr→块2<br>
+    ptr=块2：R=1 → <b>清 0</b>，ptr→块3<br>
+    ptr=块3：R=1 → <b>清 0</b>，ptr→块4<br>
+    ptr=块4：R=1 → <b>清 0</b>，ptr→块1（绕一圈，所有 R 都清了）<br>
+    ptr=块1：R=0 but M=0 ❌ 不是目标，要 (R=0, M=0) —— 等等，M=0 <b>就是</b> 目标啊！<br>
+    <b>等下：</b>块1 状态变成 (R=0, M=0)，<span style="color:var(--green);font-weight:700">找到了！</span>
+  </div></div>
+  <div class="clk-step miss"><div class="body">
+    第 1 轮就找到了，淘汰 <b>块1 的 A</b>。新页 E 装入块1，置 R=1, M=0（M=0 是因为 E 是新读入没改过）。
+  </div></div>
+</div>
+
+<div class="key">
+<b>✅ 本题在第 1 轮就淘汰了 A</b>　　<span style="font-family:SF Mono,monospace;background:#eef1f6;padding:2px 6px">⚠ 注意：</span>扫到 R=1 时先清 0 而不是立刻淘汰，因为我们要找的是「最没用」<b>且</b>「最干净」(R=0, M=0)。
+</div>
+
+<h3>口诀：扫描顺序</h3>
+<div class="formula">改进型 CLOCK 扫描顺序（按淘汰优先级）：
+
+  (R=0, M=0)  → (R=0, M=1) → (R=0, M=0) → (R=0, M=1)
+       优先级最高                                优先级最低
+
+  ★ 第 1 轮先找 (R=0, M=0)：找到就 exit
+  ★ 找不到再找 (R=0, M=1)：本次扫到的 R=1 不清（保留给下一轮判断）
+  ★ 第 3、4 轮类似循环，因为前一轮扫过 R=1 已经清 0</div>
+
+<div class="warnbox">
+<b>⚠️ 易错点：</b>
+<ul style="margin:6px 0 0 18px">
+  <li><b>第 1 轮才清 R</b>：第 1 轮扫到 R=1 时要清 0（这样后面轮次才能找到 R=0）<b>而非立刻淘汰</b></li>
+  <li><b>第 2 轮不清 R</b>：第 2 轮起 R 都是 0，但 M 还没扫描完，所以要继续扫</li>
+  <li><b>4 轮内必找到</b>：因为第 1 轮已经把所有 R 清 0，最多到第 4 轮必有一个 R=0 的页</li>
+  <li><b>(R=0, M=0) 优于 (R=0, M=1)</b>：哪怕后者最近用过，前者更<b>干净</b>，淘汰代价小</li>
+</ul>
+</div>
+
+<!-- ============ 6. CLOCK 家族对比 ============ -->
+<h2 id="family">📊 6. CLOCK 家族横向对比</h2>
+
+<div class="panel">
+<table class="compare">
+<tr><th>算法</th><th>维护 bit 数</th><th>每访问代价</th><th>近似 LRU?</th><th>Belady 异常?</th></tr>
+<tr><td><b>FIFO</b></td><td>0</td><td>更新队头指针</td><td>否</td><td>会</td></tr>
+<tr><td><b>LRU（经典）</b></td><td>时间戳或双向链表</td><td>挪链表节点</td><td>≈自己</td><td>不会</td></tr>
+<tr><td><b>简单 CLOCK</b></td><td>1（访问位）</td><td>置 1 个 bit</td><td>近似</td><td>不会</td></tr>
+<tr><td><b>改进型 CLOCK</b></td><td>2（访问+修改）</td><td>硬件自动置 2 个 bit</td><td>更近似</td><td>不会</td></tr>
+<tr><td><b>OPT（理论上限）</b></td><td>未来信息</td><td>不实现</td><td>—</td><td>—</td></tr>
+</table>
+</div>
+
+<div class="key">
+<b>🎯 选择策略：</b>
+<ul style="margin:6px 0 0 18px">
+  <li><b>够用就好</b>选<b>简单 CLOCK</b>（1 个 bit，几乎零开销）</li>
+  <li><b>追求性能</b>选<b>改进型 CLOCK</b>（2 个 bit，减少写回磁盘 IO）—— 商业 OS 主流方案</li>
+  <li><b>LRU 很少用</b>：开销大，除非缺页率敏感场景（如数据库 buffer pool）</li>
+</ul>
+</div>
+
+<!-- ============ 7. 自测 ============ -->
+<h2 id="self">✅ 7. 自测 5 题</h2>
+
+<div class="self-check">
+<b>自测 1.</b> CLOCK 命中页时，指针会动吗？为什么？
+<details><summary>答案</summary>
+<div class="ans">
+<b>不动</b>。命中只把该块的<b>访问位置 1</b>，<b>指针原地不动</b>。CLOCK 维护的是「最近被访问过」这个事实（用 1 个 bit），不是「访问的顺序」，所以命中不需要挪位置。<b>只有缺页时指针才启动扫描</b>。
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 2.</b> 「CLOCK 绕一圈」具体是什么意思？是不是指针转 360°？
+<details><summary>答案</summary>
+<div class="ans">
+「绕一圈」= <b>扫描了 N 步还没找到 bit=0，最后回到起点</b>。这时候起点处的 bit 也被清 0 了，所以 victim 就是起点块。<b>不是物理上的 360°，是逻辑上绕了所有 N 个块</b>。常见于刚连续装入 N 个新页后第 N+1 次缺页 —— 所有块的访问位都是 1。
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 3.</b> 改进型 CLOCK 为什么是 4 轮？为什么不是 2 轮或 3 轮？
+<details><summary>答案</summary>
+<div class="ans">
+因为第 1 轮要<b>把 R=1 的全部清 0</b>（不直接淘汰 R=1 的页，给它们二次机会），清完之后第 2 轮才能可靠地找到 R=0 的页。<br><br>
+4 轮的逻辑：<br>
+  第 1 轮：找 (0,0)，扫描时清 R=1<br>
+  第 2 轮：找 (0,1)，因为第 1 轮已清 R<br>
+  第 3 轮：再找 (0,0)，万一第 2 轮扫描时又把 R 改了（不可能，因为 R=0 的页不会被访问？除非又缺页）<br>
+  第 4 轮：再找 (0,1)<br>
+<br>
+实际上<b>2 轮就够了</b>——第 1 轮找 (0,0)，第 2 轮找 (0,1)。<b>4 轮是「保险」</b>：万一前几轮中途有访问发生，R 又被置 1，再扫一遍即可。教材常写 4 轮以保证最坏情况下一定找到 victim。
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 4.</b> 某 OS 采用改进型 CLOCK，3 块内存，访问序列 <code>读 A, 写 B, 读 C, 读 A, 写 A, 读 D</code>。初始空。哪个页被淘汰？
+<details><summary>答案</summary>
+<div class="ans">
+逐步跟踪：<br>
+读 A：块1 = A (R=1, M=0)<br>
+写 B：块2 = B (R=1, M=1)<br>
+读 C：块3 = C (R=1, M=0)<br>
+读 A：块1 R: 0→1（不变）<br>
+写 A：块1 (R=1, M=1)<br>
+读 D：缺页，进入改进型 CLOCK 扫描：<br>
+  状态：块1=(1,1), 块2=(1,1), 块3=(1,0)<br>
+  第 1 轮找 (0,0)：ptr=块1 R=1→清0，ptr=块2 R=1→清0，ptr=块3 R=1→清0，绕回 ptr=块1 R=0 M=1 ❌ M=1 不是 0；ptr=块2 R=0 M=1 ❌；ptr=块3 R=0 M=0 ✅ <b>淘汰 C！</b><br><br>
+<b>被淘汰的页是 C</b>。原因：C 是干净的（没写过），又是 R=0 的，符合「(0,0) 优先」原则。
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 5.</b> 改进型 CLOCK 淘汰优先级最高的是 (访问=?, 修改=?)。
+<details><summary>答案</summary>
+<div class="ans">
+<b>(访问位=0, 修改位=0)</b>——「没用过且干净」。<br><br>
+原因：访问位=0 表示该页最近没用过（对后续访问影响最小）；修改位=0 表示与磁盘一致，淘汰不需要写回磁盘（成本最低）。两个 0 叠加就是「最便宜的选择」。<br><br>
+<b>📝 对应 final-test 第 18 题。</b>
+</div>
+</details>
+</div>
+
+<footer>
+
+<script>
+// ============ 圆形表盘 SVG 渲染 ============
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function mkEl(tag, attrs){
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+
+function renderClock(svg, mem, ptr, scanPath, evictedIdx){
+  svg.innerHTML = '';
+  const W = 380, cx = W/2, cy = W/2;
+  const R = 140;     // 块中心所在圆环半径
+  const N = mem.length;
+  // 背景圆
+  svg.appendChild(mkEl('circle', {cx, cy, r: R + 30, fill: '#fafbfd', stroke: '#e3e6ec', 'stroke-width': 1}));
+  // 中央圆点
+  svg.appendChild(mkEl('circle', {cx, cy, r: 4, fill: '#0891b2'}));
+  // 扫描路径（半透明折线）
+  if (scanPath && scanPath.length > 1){
+    const pts = scanPath.map(i => {
+      const ang = (i / N) * 2 * Math.PI - Math.PI/2;
+      return [cx + R * Math.cos(ang), cy + R * Math.sin(ang)];
+    });
+    const poly = mkEl('polyline', {
+      points: pts.map(p => `${p[0]},${p[1]}`).join(' '),
+      fill: 'none', stroke: '#0891b2', 'stroke-width': 3, 'stroke-dasharray': '6,4', opacity: 0.5
+    });
+    svg.appendChild(poly);
+  }
+  // 块（cells）
+  for (let i = 0; i < N; i++){
+    const ang = (i / N) * 2 * Math.PI - Math.PI/2;
+    const x = cx + R * Math.cos(ang);
+    const y = cy + R * Math.sin(ang);
+    const m = mem[i];
+    const isPtr = (i === ptr);
+    const isEvict = (i === evictedIdx);
+    // 块的方块
+    let fill = '#fff';
+    if (isEvict) fill = '#fee2e2';
+    else if (m.page !== null && m.recent) fill = '#dcfce7';
+    else if (m.page !== null) fill = '#fff';
+    const rect = mkEl('rect', {
+      x: x - 30, y: y - 24, width: 60, height: 48, rx: 6,
+      fill, stroke: isPtr ? '#0891b2' : '#cbd5e1', 'stroke-width': isPtr ? 3 : 1
+    });
+    svg.appendChild(rect);
+    // 页号
+    const txt = mkEl('text', {
+      x, y: y - 4, 'text-anchor': 'middle', 'font-family': 'SF Mono,monospace',
+      'font-size': 18, 'font-weight': 700, fill: '#1a2230'
+    });
+    txt.textContent = m.page === null ? '·' : m.page;
+    svg.appendChild(txt);
+    // 访问位方块
+    const bitColor = m.bit === 1 ? '#fef3c7' : '#e5e7eb';
+    const bitStroke = m.bit === 1 ? '#92400e' : '#374151';
+    const bitRect = mkEl('rect', {
+      x: x - 18, y: y + 6, width: 36, height: 16, rx: 3,
+      fill: bitColor, stroke: bitStroke, 'stroke-width': 1
+    });
+    svg.appendChild(bitRect);
+    const bitTxt = mkEl('text', {
+      x, y: y + 18, 'text-anchor': 'middle', 'font-family': 'SF Mono,monospace',
+      'font-size': 11, 'font-weight': 700, fill: bitStroke
+    });
+    bitTxt.textContent = m.bit;
+    svg.appendChild(bitTxt);
+    // 下标
+    const idx = mkEl('text', {
+      x, y: y + 38, 'text-anchor': 'middle', 'font-family': 'SF Mono,monospace',
+      'font-size': 10, fill: '#667'
+    });
+    idx.textContent = '#' + (i + 1);
+    svg.appendChild(idx);
+    // 指针（如果指向这一格）
+    if (isPtr){
+      // 指向圆心 → 块中心的箭头
+      const ang2 = Math.atan2(y - cy, x - cx);
+      const sx = cx + 20 * Math.cos(ang2);
+      const sy = cy + 20 * Math.sin(ang2);
+      const ex = x - 35 * Math.cos(ang2);
+      const ey = y - 35 * Math.sin(ang2);
+      svg.appendChild(mkEl('line', {x1: sx, y1: sy, x2: ex, y2: ey, stroke: '#0891b2', 'stroke-width': 3}));
+      // 箭头
+      const ah = mkEl('polygon', {
+        points: `${ex},${ey} ${ex - 10 * Math.cos(ang2 - 0.3)},${ey - 10 * Math.sin(ang2 - 0.3)} ${ex - 10 * Math.cos(ang2 + 0.3)},${ey - 10 * Math.sin(ang2 + 0.3)}`,
+        fill: '#0891b2'
+      });
+      svg.appendChild(ah);
+    }
+  }
+}
+
+async function runCLK6(){
+  const seq = document.getElementById('clk6Seq').value.split(/[,，\s]+/).filter(Boolean).map(Number);
+  const frames = Math.max(4, Math.min(8, parseInt(document.getElementById('clk6Frames').value) || 5));
+  const svg = document.getElementById('clkSvg');
+  // 初始化
+  const mem = [];
+  for (let i = 0; i < frames; i++) mem.push({page: null, bit: 0, recent: false});
+  let ptr = 0;
+  let miss = 0, hit = 0;
+  let log = '【初始】空圈\n';
+  renderClock(svg, mem, ptr, [], -1);
+  await sleep(900);
+  for (const p of seq){
+    const idx = mem.findIndex(m => m.page === p);
+    let evictedIdx = -1;
+    if (idx >= 0){
+      // 命中
+      mem[idx].bit = 1;
+      mem[idx].recent = true;
+      hit++;
+      log += `访问 ${p} → 命中（块${idx+1} bit=1，ptr 不动）\n`;
+      renderClock(svg, mem, ptr, [], -1);
+      await sleep(800);
+      mem[idx].recent = false;
+    } else {
+      // 缺页，启动扫描
+      miss++;
+      const scanPath = [];
+      let steps = 0;
+      while (mem[ptr].bit === 1){
+        mem[ptr].bit = 0;
+        scanPath.push(ptr);
+        ptr = (ptr + 1) % frames;
+        steps++;
+        if (steps > frames * 2) break;
+        if (steps <= frames) renderClock(svg, mem, ptr, scanPath, -1);
+        await sleep(450);
+      }
+      scanPath.push(ptr);
+      evictedIdx = ptr;
+      const victimPage = mem[ptr].page;
+      mem[ptr] = {page: p, bit: 1, recent: true};
+      ptr = (ptr + 1) % frames;
+      log += `访问 ${p} → 缺页，扫描 ${steps} 步${steps >= frames ? '（绕一圈）' : ''}，淘汰 ${victimPage === null ? '空块' : victimPage}，装入 ${p}\n`;
+      renderClock(svg, mem, ptr, scanPath, evictedIdx);
+      await sleep(900);
+      mem[evictedIdx].recent = false;
+    }
+  }
+  log += `\n★ 缺页 ${miss} / 命中 ${hit} / 共 ${seq.length} 次访问 → 缺页率 ${(miss/seq.length*100).toFixed(1)}%`;
+  // 显示统计
+  const old = document.getElementById('clk6Stat');
+  if (old) old.remove();
+  const stat = document.createElement('div');
+  stat.id = 'clk6Stat';
+  stat.className = 'key';
+  stat.style.marginTop = '12px';
+  stat.innerHTML = '<b>📊 结果：</b><br><pre style="margin:6px 0 0;font-family:SF Mono,monospace;font-size:12.5px;line-height:1.7;white-space:pre-wrap">' + log + '</pre>';
+  svg.parentElement.parentElement.appendChild(stat);
+}
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+// 默认跑一次
+window.addEventListener('DOMContentLoaded', runCLK6);
+</script>
+
+</div>
+</body>
+</html>

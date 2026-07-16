@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>操作系统期末 · 小题 + 问答题速记</title>
+<style>
+:root{
+  --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+  --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+  --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  --hi:#c53030; --hi-bg:#fdecec; --hi-bd:#f3c4c4;
+  --mid:#b7791f; --mid-bg:#fdf6e9; --mid-bd:#ecd9ad;
+  --low:#5a6270; --low-bg:#eef1f5; --low-bd:#d6dbe3;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+.wrap{max-width:900px; margin:0 auto; padding:28px 20px 90px}
+a{color:var(--blue); text-decoration:none} a:hover{text-decoration:underline}
+code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+header.hero{border-bottom:2px solid var(--ink); padding-bottom:18px; margin-bottom:10px}
+.eyebrow{color:var(--blue); font-weight:800; letter-spacing:.12em; font-size:12px}
+h1{font-size:28px; margin:6px 0 6px}
+.lede{color:var(--muted); font-size:14px; margin:0; max-width:70ch}
+
+.scorebar{display:flex; height:44px; border-radius:8px; overflow:hidden; border:1px solid var(--line); margin:16px 0 8px; font-size:12px; font-weight:700}
+.seg{display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff; padding:2px; text-align:center; line-height:1.15}
+.seg small{font-weight:600; opacity:.9; font-size:10px}
+.seg.sel{background:var(--blue)} .seg.fill{background:var(--blue2)} .seg.judge{background:#4a90c9}
+.seg.short{background:var(--amber)} .seg.calc{background:var(--red)}
+
+.topbar{position:sticky; top:0; z-index:20; background:rgba(247,248,251,.95); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--line); margin:14px -20px 22px; padding:10px 20px;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.btn{font:inherit; font-size:12.5px; font-weight:700; border:1px solid var(--line); background:#fff;
+  padding:5px 12px; border-radius:16px; cursor:pointer; transition:.15s}
+.btn:hover{background:var(--soft)}
+.btn.primary{border-color:var(--red); color:var(--red)}
+.btn.primary.on{background:var(--red); color:#fff}
+.nav{display:flex; gap:5px; flex-wrap:wrap; margin-left:auto}
+.nav a{font-size:12px; padding:4px 10px; border-radius:14px; color:var(--blue); border:1px solid transparent}
+.nav a:hover{background:var(--soft); text-decoration:none}
+
+h2.zone{font-size:20px; margin:36px 0 6px; border-left:5px solid var(--blue); padding-left:11px; scroll-margin-top:60px}
+h3.chap{font-size:16px; margin:22px 0 10px; color:var(--ink); padding-bottom:5px; border-bottom:1px dashed var(--line)}
+
+.card{background:#fff; border:1px solid var(--line); border-radius:10px; margin:10px 0; overflow:hidden;
+  box-shadow:0 1px 3px rgba(20,30,60,.04)}
+.card .q{display:flex; align-items:flex-start; gap:10px; padding:12px 14px; cursor:pointer; user-select:none}
+.card .q:hover{background:#fafbfc}
+.card .freq{width:5px; align-self:stretch; flex-shrink:0}
+.card.hi .freq{background:var(--hi)} .card.mid .freq{background:var(--mid)} .card.low .freq{background:var(--low)}
+.card .badge{font-size:10px; font-weight:800; padding:1px 6px; border-radius:4px; flex-shrink:0}
+.card.hi .badge{background:var(--hi-bg); color:var(--hi); border:1px solid var(--hi-bd)}
+.card.mid .badge{background:var(--mid-bg); color:var(--mid); border:1px solid var(--mid-bd)}
+.card.low .badge{background:var(--low-bg); color:var(--low); border:1px solid var(--low-bd)}
+.card .title{flex:1; font-weight:700; font-size:14.5px}
+.card .arrow{color:var(--muted); font-size:12px; transition:.15s}
+.card.open .arrow{transform:rotate(90deg)}
+.card .a{display:none; padding:0 14px 14px 29px; font-size:13.7px; color:var(--ink); border-top:1px dashed var(--line)}
+.card.open .a{display:block}
+.card .a p{margin:6px 0}
+.card .a ul{margin:6px 0; padding-left:20px}
+.card .a li{margin:4px 0}
+.card .a b{color:var(--red)}
+
+.mines{background:#fff; border:1px solid var(--hi-bd); border-radius:10px; padding:14px 16px; margin:14px 0}
+.mine{padding:8px 0; border-bottom:1px dashed var(--line)}
+.mine:last-child{border-bottom:none}
+.mine .q{font-weight:800; color:var(--hi); font-size:13.5px; margin-bottom:3px}
+.mine .a{font-size:13px}
+.mine .a b{color:var(--hi)}
+
+.note{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:8px; padding:12px 14px; margin:16px 0; font-size:13.5px}
+.note b{color:var(--green)}
+
+footer{margin-top:50px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:12.5px}
+
+body.only-hi .card.mid, body.only-hi .card.low{display:none}
+body.only-hi h3.chap:has(+ .card){display:block}
+
+@media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} .btn,.nav a{transition:none} }
+@media (max-width:520px){ h1{font-size:24px} .wrap{padding:20px 15px 80px} .topbar{margin-left:-15px; margin-right:-15px; padding-left:15px; padding-right:15px} }
+
+@media print{
+  body{background:#fff}
+  .topbar,.btn{display:none !important}
+  .card .a{display:block !important}
+  .card .arrow{display:none}
+  .card{box-shadow:none; break-inside:avoid}
+  h2.zone{break-after:avoid}
+  a{color:var(--ink)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">操作系统 · 学校自命题期末 · 考前速记</p>
+    <h1>小题 + 问答题速记</h1>
+    <p class="lede">考前 30 分钟专用：先想答案，再点开核对。红色标签 = 高频必看，橙色 = 中频，灰色 = 低频。</p>
+    <div class="scorebar" role="img" aria-label="选择40分 填空20分 判断10分 简答10分 计算20分">
+      <div class="seg sel" style="flex:40">选择 40<small>20×2</small></div>
+      <div class="seg fill" style="flex:20">填空 20<small>10×2</small></div>
+      <div class="seg judge" style="flex:10">判断 10<small>10×1</small></div>
+      <div class="seg short" style="flex:10">简答 10<small>2×5</small></div>
+      <div class="seg calc" style="flex:20">计算 20<small>4×5</small></div>
+    </div>
+  </header>
+
+  <div class="topbar">
+    <button class="btn primary" id="filterBtn" aria-pressed="false">只看高频</button>
+    <button class="btn" id="expandBtn">全部展开</button>
+    <button class="btn" id="collapseBtn">全部收起</button>
+    <nav class="nav" aria-label="页内导航">
+      <a href="#small">小题</a>
+      <a href="#qa">问答</a>
+      <a href="#traps">雷区</a>
+    </nav>
+  </div>
+</div>
+<script>
+  /* JS 将在 Task 8 填充 */
+</script>
+</body>
+</html>

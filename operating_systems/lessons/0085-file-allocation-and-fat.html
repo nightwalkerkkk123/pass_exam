@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 85 课 · Ch6 文件系统 · 文件分配方案 4 种对比 + FAT 排障</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb;--fat:#0e7490;--blk:#a3e635;--idx:#fbbf24;--data:#7dd3fc;--miss-bg:#fef2f2}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:1040px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  h4{font-size:15px;margin:14px 0 4px;color:var(--ink)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .formula{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px;line-height:1.9}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .self-check{background:#fff;border:1px dashed #bcd;border-left:3px solid #2b6cb0;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:14px}
+  .self-check b{color:#2b6cb0}
+  .self-check .ans{color:var(--green);font-weight:600;margin-top:4px;display:block}
+  details{margin:6px 0}
+  summary{cursor:pointer;color:var(--blue);font-size:14px;font-weight:600;padding:2px 0}
+  /* 盘块可视化 */
+  .disk{background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px;margin:12px 0;font-family:"SF Mono",monospace;font-size:13px}
+  .block{display:inline-block;width:46px;height:46px;border:1.5px solid var(--ink);border-radius:4px;text-align:center;line-height:46px;margin:2px;font-size:13px;font-weight:700;vertical-align:middle}
+  .block.data{background:var(--data);color:#0c4a6e}
+  .block.idx{background:var(--idx);color:#78350f}
+  .block.empty{background:#f3f4f6;color:#9ca3af;font-weight:400}
+  .block.cont{background:#d8b4fe;color:#581c87}
+  .block.linked{background:#fde68a;color:#854d0e}
+  .arrow{display:inline-block;color:var(--muted);margin:0 2px;font-weight:700}
+  /* FAT 表 */
+  .fat{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin:10px 0;font-family:"SF Mono",monospace;font-size:12.5px}
+  .fat-cell{padding:6px 4px;border:1px solid var(--line);border-radius:4px;text-align:center;background:#fff}
+  .fat-cell .idx{display:block;font-size:11px;color:var(--muted);margin-bottom:2px}
+  .fat-cell .val{display:block;font-weight:700;font-size:13px}
+  .fat-cell.eof{background:#dcfce7;color:#15803d}
+  .fat-cell.bad{background:#fee2e2;color:#b91c1c}
+  .fat-cell.empty{background:#f3f4f6;color:#9ca3af}
+  .fat-cell.chain{background:#fef3c7;color:#92400e}
+  .fat-cell.start{border:2px solid #2563eb;background:#dbeafe;color:#1e40af}
+  /* 文件块组 */
+  .fileblk{padding:4px 8px;border-radius:4px;display:inline-block;margin:2px;font-size:12.5px;font-weight:600}
+  .fileblk.f1{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
+  .fileblk.f2{background:#fce7f3;color:#9d174d;border:1px solid #f9a8d4}
+  .fileblk.f3{background:#dcfce7;color:#166534;border:1px solid #86efac}
+  .fileblk.f4{background:#fef3c7;color:#92400e;border:1px solid #fcd34d}
+  /* 索引树 */
+  .tree{display:flex;flex-direction:column;gap:8px;margin:10px 0;font-family:"SF Mono",monospace;font-size:13px}
+  .trow{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .tnode{padding:6px 12px;border-radius:6px;background:#fff;border:1.5px solid var(--line);text-align:center;font-weight:600;min-width:60px}
+  .tnode.root{background:#f3e8ff;border-color:#a855f7;color:#6b21a8}
+  .tnode.lvl1{background:#fef3c7;border-color:#d97706;color:#92400e}
+  .tnode.lvl2{background:#dbeafe;border-color:#2563eb;color:#1e40af}
+  .tnode.data{background:var(--data);border-color:#0284c7;color:#0c4a6e}
+  .tnode.empty{background:#f3f4f6;color:#9ca3af;font-weight:400}
+  .tnode.target{outline:3px solid var(--red);outline-offset:2px;background:#fee2e2}
+  @media print{body{background:#fff}.panel,.disk{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 85 课 · Ch6 文件系统 · 文件分配 4 方案 + FAT 排障</p>
+  <h1>文件分配方案：连续 / 链接 / 二级索引 / UNIX 混合索引 + FAT 表排障</h1>
+  <p class="sub">配套 <code>final-test</code> 第 26/27/28 题（老师课件范例）。这一课解决三件事：① 4 种分配方案孰优孰劣 ② 同一道题 20MB 大文件 vs 20KB 小文件，谁更省 ③ 给你一段 FAT 怎么读出有几个文件、再写入 2 块新文件怎么改 FAT。</p>
+  <nav class="nav">
+    <a href="#map">0·地图</a>
+    <a href="#base">1·基础</a>
+    <a href="#schemes">2·4 种方案</a>
+    <a href="#compare">3·同题对比</a>
+    <a href="#unix">4·UNIX 最大</a>
+    <a href="#fat">5·FAT 排障</a>
+    <a href="#self">6·自测</a>
+  </nav>
+</header>
+<h2 id="map">🗺 0. 这 3 道题在考什么</h2>
+<table>
+<tr><th>题号</th><th>题型</th><th>考什么</th><th>用到的知识</th></tr>
+<tr><td><b>Q26</b></td><td>4 方案对比</td><td>同一道题，20MB 大文件 vs 20KB 小文件，比较连续/链接/二级索引/UNIX 混合</td><td>4 种方案原理 + IO 次数 + 专用块数</td></tr>
+<tr><td><b>Q27</b></td><td>UNIX 最大文件长度</td><td>盘块 4KB + 盘块号 4B，混合索引能存多大？</td><td>每块地址项数 + 各级容量求和</td></tr>
+<tr><td><b>Q28</b></td><td>FAT 排障</td><td>给一段 FAT，识别有几个文件 + 各占哪些块；存 2 块新文件后 FAT 怎么变</td><td>FAT[块号] = 下一块号的语义</td></tr>
+</table>
+<div class="key">
+<b>🎯 这一课的目标：</b>把 4 种分配方案的「结构图」刻在脑子里，再遇到 Q26/Q27/Q28 直接套公式默写。
+</div>
+
+<h2 id="base">🔧 1. 两个基本参数（全课通用）</h2>
+<div class="eli5">
+<b>🧸 ELI5 · 文件柜比喻：</b>硬盘像一柜子抽屉，<b>每个抽屉 = 1 个盘块</b>。文件 = 把柜子里<b>某些抽屉的内容</b>串起来读出来。
+</div>
+<div class="key">
+<b>📌 老师题目约定：</b>
+<ul style="margin:4px 0 0 18px">
+<li><b>盘块大小 B = 4 KB = 2¹² B</b>（一个抽屉装 4KB 数据）</li>
+<li><b>盘块号长度 A = 4 B = 2² B</b>（写一个抽屉编号要 4B）</li>
+<li><b>每块地址项数 N = B / A = 4KB / 4B = 1024 = 2¹⁰</b></li>
+</ul>
+</div>
+<div class="formula">
+N = B / A = 1024 = 2^10
+  ① 每个索引块能装 1024 个盘块号
+  ② 2 级索引 = 1024² = 1M 个盘块
+  ③ 3 级索引 = 1024³ = 1G 个盘块
+</div>
+
+<h2 id="schemes">📐 2. 4 种分配方案一览</h2>
+
+<h3>① 连续分配（Contiguous）</h3>
+<div class="eli5">
+<b>🧸 衣橱比喻：</b>一个文件 = 衣橱里<b>连续 3 个抽屉</b>。FCB 写「首抽屉号 + 总长度」。
+</div>
+<div class="disk">
+  <b>结构：</b> <span class="block cont">块 5</span><span class="block cont">块 6</span><span class="block cont">块 7</span> 　<b>FCB：</b> 首块=5，长度=3
+</div>
+<div class="key">
+<b>✅ 优点：</b>顺序 / 随机访问都最快（<b>1 次 IO</b>拿到首块，剩下按偏移算）。<br>
+<b>❌ 缺点：</b><b>外部碎片</b>（像衣橱空一块没法塞）；<b>文件长度固定</b>（扩展时可能撞别人）。
+</div>
+
+<h3>② 链接分配（Linked，隐式）</h3>
+<div class="eli5">
+<b>🧸 寻宝比喻：</b>一个文件 = 一串抽屉，每个抽屉里贴张纸条<b>写「下一个抽屉在哪」</b>。读完一个抽屉才知道下一个在哪。
+</div>
+<div class="disk">
+  <b>结构：</b> <span class="block linked">块 5</span><span class="arrow">→</span><span class="block linked">块 9</span><span class="arrow">→</span><span class="block linked">块 12</span><span class="arrow">→</span><span style="color:var(--red);font-weight:700">✗</span> 　<b>FCB：</b> 首块=5
+</div>
+<div class="key">
+<b>✅ 优点：</b>无外部碎片（抽屉可以散落各处）。<br>
+<b>❌ 缺点：</b><b>随机访问极慢</b>（要顺着链走一遍才能找到第 N 块）；指针占空间（每块 4B）。
+</div>
+
+<h3>③ 二级索引（Two-level Index）</h3>
+<div class="eli5">
+<b>🧸 图书馆比喻：</b>FCB 里存「一级抽屉号」→ 一级抽屉里存「二级抽屉号」→ 二级抽屉里才是<b>真正的数据</b>。
+</div>
+<div class="tree">
+  <div class="trow"><span class="tnode root">FCB</span><span class="arrow">→</span><span class="tnode lvl1">一级索引（1 块）</span></div>
+  <div class="trow" style="margin-left:60px"><span class="tnode lvl1">一级[0]</span><span class="arrow">→</span><span class="tnode lvl2">二级索引（1 块）</span><span class="tnode lvl1">一级[1]</span><span class="arrow">→</span><span class="tnode lvl2">二级索引（1 块）</span><span class="tnode empty">…</span></div>
+  <div class="trow" style="margin-left:120px"><span class="tnode lvl2">二级[0]</span><span class="arrow">→</span><span class="tnode data">数据</span><span class="tnode lvl2">二级[1]</span><span class="arrow">→</span><span class="tnode data">数据</span><span class="tnode empty">…</span></div>
+</div>
+<div class="key">
+<b>📐 最大文件：</b>N² × B = 1024² × 4KB = 1M × 4KB = <b>4 GB</b><br>
+<b>📐 IO 次数：</b>固定 <b>3 次</b>（FCB → 一级 → 二级 → 数据）<br>
+<b>❌ 缺点：</b>无论文件多小，<b>都要先花 3 次 IO 走索引</b>，小文件亏；专用块数随文件大小线性增长。
+</div>
+
+<h3>④ UNIX 混合索引（Multi-level / Inode）</h3>
+<div class="eli5">
+<b>🧸 书包比喻：</b>FCB 里直接塞 10 张「数据抽屉票」（小文件直接用这 10 张），再加 1 张「一级抽屉目录」（装 1024 张数据票）、1 张「二级目录」（装 1024 张一级目录票）、1 张「三级目录」（装 1024 张二级目录票）。
+</div>
+<div class="formula">
+<b>UNIX 混合索引的 4 类抽屉：</b>
+直接  10 块 × 4KB = <b>40 KB</b>
+一级  1  × 1024 × 4KB = <b>4 MB</b>
+二级  1  × 1024² × 4KB = <b>4 GB</b>
+三级  1  × 1024³ × 4KB = <b>4 TB</b>
+<b>最大文件 = 40KB + 4MB + 4GB + 4TB ≈ 4 TB</b>
+</div>
+<div class="key">
+<b>✅ 优点：</b>小文件<b>不浪费索引块</b>（直接块在 FCB 里就有）；大文件可扩展到 TB 级。<br>
+<b>📐 小文件 IO：</b>1 次（直接块）；<b>📐 大文件 IO：</b>3-4 次（走间接级数）。
+</div>
+
+<h2 id="compare">⚖️ 3. 同题对比：20MB 大文件 vs 20KB 小文件</h2>
+<div class="key">
+<b>📌 题目复述：</b>盘块 4KB，盘块号 4B。比较 4 种方案在 <b>20MB 大文件</b> 和 <b>20KB 小文件</b> 上的「最大文件 / 专用块数 / 读 5.5KB / 读 16MB+5.5KB」表现。
+</div>
+
+<h3>基础数据</h3>
+<table>
+<tr><th>指标</th><th>20KB 小文件</th><th>20MB 大文件</th></tr>
+<tr><td>占盘块数</td><td>20KB / 4KB = <b>5 块</b></td><td>20MB / 4KB = <b>5120 块</b></td></tr>
+<tr><td>数据量</td><td>5 块</td><td>5120 块</td></tr>
+</table>
+
+<h3>① 连续分配</h3>
+<table>
+<tr><th></th><th>20KB</th><th>20MB</th></tr>
+<tr><td>最大文件</td><td colspan="2" style="text-align:center">受盘块总数限制（理论 = 总块数 × 4KB，假设 1TB 盘 ≈ 2²⁰ 块 → <b>无上限</b>）</td></tr>
+<tr><td>专用块数</td><td colspan="2" style="text-align:center"><b>0 块</b>（FCB 只存首块号 + 总块数）</td></tr>
+<tr><td>读 5.5KB</td><td colspan="2" style="text-align:center">1 次 IO（首块内偏移读）</td></tr>
+<tr><td>读 16MB+5.5KB</td><td colspan="2" style="text-align:center">1 次 IO（首块号 = (16MB+5.5KB)/4KB = 4098，offset = 1482B）</td></tr>
+</table>
+
+<h3>② 链接分配</h3>
+<table>
+<tr><th></th><th>20KB（5 块）</th><th>20MB（5120 块）</th></tr>
+<tr><td>最大文件</td><td colspan="2" style="text-align:center">受盘块总数限制（理论无上限，但有指针开销）</td></tr>
+<tr><td>专用块数</td><td colspan="2" style="text-align:center"><b>0 块</b>（FCB 存首块号 + 末块号，每块尾部存 next）</td></tr>
+<tr><td>读 5.5KB</td><td colspan="2" style="text-align:center"><b>1 次 IO</b>（5.5KB 在首块内）</td></tr>
+<tr><td>读 16MB+5.5KB</td><td colspan="2" style="text-align:center"><b>4097 次 IO</b>（顺链读前 4097 块拿 next 才能定位到第 4098 块），如顺读整段则 <b>4098 次 IO</b></td></tr>
+</table>
+<div class="warnbox">
+<b>⚠️ 链接的痛点：</b>随机访问性能<b>灾难级</b>。要找第 N 块就要走 N-1 次 IO。这也是为啥引入了索引方案。
+</div>
+
+<h3>③ 二级索引</h3>
+<table>
+<tr><th></th><th>20KB（5 块）</th><th>20MB（5120 块）</th></tr>
+<tr><td>最大文件</td><td colspan="2" style="text-align:center">N² × B = 1024² × 4KB = <b>4 GB</b></td></tr>
+<tr><td>专用块数</td><td>1 (一级) + 1 (二级) = <b>2 块</b></td><td>1 (一级) + ⌈5120/1024⌉ = 1 + 5 = <b>6 块</b></td></tr>
+<tr><td>读 5.5KB</td><td colspan="2" style="text-align:center"><b>3 次 IO</b>（FCB → 一级索引 → 二级索引 → 数据）</td></tr>
+<tr><td>读 16MB+5.5KB</td><td colspan="2" style="text-align:center"><b>3 次 IO</b>（同上，但走二级索引中正确的那个）</td></tr>
+</table>
+<div class="key">
+<b>💡 对比感受：</b>20KB 文件用 2 个索引块「保护」5 个数据块 ——<b>专用块开销达 40%</b>！这就是为啥 UNIX 要引入「直接块」。
+</div>
+
+<h3>④ UNIX 混合索引</h3>
+<table>
+<tr><th></th><th>20KB（5 块）</th><th>20MB（5120 块）</th></tr>
+<tr><td>最大文件</td><td colspan="2" style="text-align:center">40KB + 4MB + 4GB + 4TB ≈ <b>4 TB</b></td></tr>
+<tr><td>专用块数</td><td><b>0 块</b>（5 块全在直接块里）</td><td>1 (一级) + ⌈(5120-10-1024)/1024²⌉ = 1 + 4 = <b>5 块</b>（直接块 10 + 一级 1024 + 二级 4086）</td></tr>
+<tr><td>读 5.5KB</td><td colspan="2" style="text-align:center"><b>1 次 IO</b>（在直接块里）</td></tr>
+<tr><td>读 16MB+5.5KB</td><td colspan="2" style="text-align:center"><b>3 次 IO</b>（FCB → 二级索引 → 数据）</td></tr>
+</table>
+<div class="key">
+<b>🎯 终极对比：</b>UNIX 混合索引 = 「小文件省、大文件够、IO 次数稳」。这正是为啥几乎所有现代文件系统（ext4 / NTFS / APFS / Btrfs）都用类似结构。
+</div>
+
+<h3>汇总对比表（必背）</h3>
+<table>
+<tr><th>方案</th><th>最大文件</th><th>专用块 (20KB)</th><th>专用块 (20MB)</th><th>读 5.5KB</th><th>读 16MB+5.5KB</th></tr>
+<tr><td>连续</td><td>≈盘大小</td><td>0</td><td>0</td><td>1</td><td>1</td></tr>
+<tr><td>链接</td><td>≈盘大小</td><td>0</td><td>0</td><td>1</td><td>4098</td></tr>
+<tr><td>二级索引</td><td>4 GB</td><td>2</td><td>6</td><td>3</td><td>3</td></tr>
+<tr><td><b>UNIX 混合</b></td><td><b>4 TB</b></td><td><b>0</b></td><td><b>5</b></td><td><b>1</b></td><td><b>3</b></td></tr>
+</table>
+
+<h2 id="unix">🏆 4. UNIX 混合索引最大文件长度（公式必背）</h2>
+
+<div class="key">
+<b>📌 题目复述：</b>UNIX 混合索引，盘块 4KB，盘块号 4B。问最大文件长度？
+</div>
+
+<h3>三步走</h3>
+<div class="formula">
+<b>第 1 步：算每块地址项数</b>
+  N = B / A = 4KB / 4B = 1024 = 2^10
+
+<b>第 2 步：算各级容量</b>
+  直接  = 10 × 4KB = 40 KB
+  一级  = 1 × 1024 × 4KB = 4 MB
+  二级  = 1 × 1024^2 × 4KB = 4 GB
+  三级  = 1 × 1024^3 × 4KB = 4 TB
+
+<b>第 3 步：求和</b>
+  最大 = 40KB + 4MB + 4GB + 4TB ≈ <b>4 TB</b>
+</div>
+
+<h3>统一公式（任何混合索引都套这个）</h3>
+<div class="formula">
+<b>第 k 级间接块能表示的数据量 = N^k × B</b>
+  k=0 直接：N^0 × 块大小 × 直接块数 = 1 × 4KB × 10 = 40KB
+  k=1 一级：N^1 × B × 1 = 1024 × 4KB = 4MB
+  k=2 二级：N^2 × B × 1 = 1024^2 × 4KB = 4GB
+  k=3 三级：N^3 × B × 1 = 1024^3 × 4KB = 4TB
+</div>
+
+<div class="tmpl">
+<b>📝 答题模板：</b>
+<pre style="margin-top:6px;color:#e6edf3;background:#0f1b2d;padding:10px 14px;border-radius:6px;font-size:12.5px;line-height:1.7">N = B/A = 4KB/4B = 1024 = 2^10
+直接  = 10 × 4KB = 40KB
+一级  = 1 × 1024 × 4KB = 4MB
+二级  = 1 × 1024^2 × 4KB = 4GB
+三级  = 1 × 1024^3 × 4KB = 4TB
+最大文件 = 40KB + 4MB + 4GB + 4TB ≈ 4TB</pre>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 易错点：</b>
+<ul style="margin:4px 0 0 18px">
+<li><b>忘算单位</b>：4KB/4B = 1024 别写成 1000（OS 永远 1024 进位）</li>
+<li><b>忘记"10 直接"</b>：直接块不是 1 块，是 10 块（FCB 里就有 10 个指针）</li>
+<li><b>"间接块数"×1</b>：每级只占 1 个「目录块」，但能指向 1024^k 个数据块</li>
+<li><b>加和不分先后</b>：各级容量加在一起就是最大文件，加法可换序</li>
+</ul>
+</div>
+
+<h2 id="fat">🔍 5. FAT 表排障：给一段 FAT，读出文件清单 + 写入新文件</h2>
+
+<div class="eli5">
+<b>🧸 ELI5 · 寻宝图比喻：</b>FAT 表 = 一个<b>寻宝图</b>，每格写着「从这里出发，下一站在哪」。<b>0 = 没东西</b>（空抽屉），<b>-1 = 寻宝结束</b>（最后一个抽屉），<b>-2 = 这块坏了</b>（跳过）。
+</div>
+
+<div class="key">
+<b>📌 FAT 三种特殊值：</b>
+<ul style="margin:4px 0 0 18px">
+<li><b>0</b> = 该块空闲（无文件占用）</li>
+<li><b>-1 (EOF)</b> = 文件的最后一个块</li>
+<li><b>-2 (BAD)</b> = 坏块，文件系统跳过不用</li>
+</ul>
+其余正数 = 下一个块的块号
+</div>
+
+<h3>例题：读出 FAT 里的所有文件</h3>
+<p>给定 FAT（12 项）：</p>
+<div class="fat">
+  <div class="fat-cell empty"><span class="idx">块 0</span><span class="val">0</span></div>
+  <div class="fat-cell start chain"><span class="idx">块 1</span><span class="val">5</span></div>
+  <div class="fat-cell empty"><span class="idx">块 2</span><span class="val">0</span></div>
+  <div class="fat-cell chain"><span class="idx">块 3</span><span class="val">-1</span></div>
+  <div class="fat-cell eof"><span class="idx">块 4</span><span class="val">-1</span></div>
+  <div class="fat-cell chain"><span class="idx">块 5</span><span class="val">3</span></div>
+  <div class="fat-cell start eof"><span class="idx">块 6</span><span class="val">-1</span></div>
+  <div class="fat-cell empty"><span class="idx">块 7</span><span class="val">0</span></div>
+  <div class="fat-cell empty"><span class="idx">块 8</span><span class="val">0</span></div>
+  <div class="fat-cell start chain"><span class="idx">块 9</span><span class="val">4</span></div>
+  <div class="fat-cell empty"><span class="idx">块 10</span><span class="val">0</span></div>
+  <div class="fat-cell start eof"><span class="idx">块 11</span><span class="val">-1</span></div>
+</div>
+
+<h4>为什么 0085 老版本你看不懂？先纠正一个错的判别式</h4>
+<div class="warnbox">
+<b>❌ 旧版的错误判别式（已删除）：</b>「FAT[k] ≠ 0 且 FAT[k] ≠ -1 且 FAT[k] ≠ -2 且没有其他块指向 k」<br>
+<b>这个条件自相矛盾！</b>看块 6 和块 11：FAT[6]=FAT[11]=<b>-1</b>，却被列为起点 —— 所以「FAT[k] ≠ -1」这条不能要。<br><br>
+<b>✅ 正确的唯一判别式只有一条：</b><b>没有其他块的 FAT 值等于 k</b>。即「<b>入度 = 0</b>」。FAT[k] 本身的值（是 0/-1/其他）跟「是不是起点」无关。
+</div>
+
+<h4>FAT 的双向语义（看图就懂）</h4>
+<table>
+<tr><th></th><th>出度方向（FAT[k] 的值）</th><th>入度方向（谁指向我）</th></tr>
+<tr><td><b>含义</b></td><td>k 的「下一个块号」</td><td>是否有人把我当下一个</td></tr>
+<tr><td><b>如何看</b></td><td>看 FAT[k] 那一格写什么</td><td>扫描所有 FAT[j]，找出 j 其中 FAT[j]=k</td></tr>
+<tr><td><b>关键作用</b></td><td><b>沿链走</b>：k → FAT[k] → FAT[FAT[k]] → …</td><td><b>找起点</b>：入度=0 的块就是某个文件的第一块</td></tr>
+</table>
+
+<div class="eli5">
+<b>🧸 ELI5 · 单链表比喻：</b>FAT 就是 12 个节点的<b>单链表</b>，<b>可能分成几条互不相交的链</b>（每条链 = 一个文件）。
+<ul style="margin:6px 0 0 18px">
+  <li><b>表头</b> = 入度=0 的节点（没人在前面指向它）</li>
+  <li><b>表尾</b> = FAT[k] = -1 的节点（后面没人了）</li>
+  <li><b>中间节点</b> = 入度=1 且 FAT[k] ≠ -1（前面有人、后面也有人）</li>
+  <li><b>孤立节点（空块）</b> = FAT[k] = 0（无链可用）</li>
+</ul>
+所以「找文件」问题就 = 「在链表里找表头」—— 只需要找入度=0 的节点。
+</div>
+
+<h4>排障三步法（修正版）</h4>
+
+<div class="tmpl">
+<b>第 1 步 · 建「入度表」</b>：对每个 j（0..11），如果 FAT[j] ≥ 0，就让<b>块 FAT[j] 的入度 +1</b>。<br>
+入度表就是「哪些块被人当下一个」。<b>入度 = 0 的块 = 候选起点</b>。
+</div>
+
+<table>
+<tr><th>块 k</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th></tr>
+<tr><td><b>FAT[k]</b></td><td>0</td><td>5</td><td>0</td><td>-1</td><td>-1</td><td>3</td><td>-1</td><td>0</td><td>0</td><td>4</td><td>0</td><td>-1</td></tr>
+<tr><td><b>入度</b></td><td>0</td><td><b style="color:var(--green)">0</b></td><td>0</td><td><b style="color:var(--red)">1</b>（块5指）</td><td><b style="color:var(--red)">1</b>（块9指）</td><td><b style="color:var(--red)">1</b>（块1指）</td><td><b style="color:var(--green)">0</b></td><td>0</td><td>0</td><td><b style="color:var(--green)">0</b></td><td>0</td><td><b style="color:var(--green)">0</b></td></tr>
+</table>
+
+<div class="tmpl">
+<b>第 2 步 · 候选起点 = 入度=0 的块</b>：<br>
+→ 块 1（无人指，FAT[1]=5 → 文件首块指向第二个块）<br>
+→ 块 6（无人指，FAT[6]=-1 → 1 块文件）<br>
+→ 块 9（无人指，FAT[9]=4 → 文件首块指向第二个块）<br>
+→ 块 11（无人指，FAT[11]=-1 → 1 块文件）<br>
+→ 块 0/2/7/8/10 也入度=0，但 FAT=0 → <b>空闲块</b>，不是文件起点
+</div>
+
+<div class="tmpl">
+<b>第 3 步 · 从每个候选起点顺链走，直到 FAT[k] = -1</b>。
+</div>
+
+<div class="key">
+<b>📁 文件清单：</b>
+<ul style="margin:4px 0 0 18px">
+<li>📁 <b>文件 1：</b> 1 → 5 → 3 → -1　<span class="fileblk f1">块 1</span> <span class="fileblk f1">块 5</span> <span class="fileblk f1">块 3</span>　（3 个块）</li>
+<li>📁 <b>文件 2：</b> 6 → -1　<span class="fileblk f2">块 6</span>　（1 个块）</li>
+<li>📁 <b>文件 3：</b> 9 → 4 → -1　<span class="fileblk f3">块 9</span> <span class="fileblk f3">块 4</span>　（2 个块）</li>
+<li>📁 <b>文件 4：</b> 11 → -1　<span class="fileblk f4">块 11</span>　（1 个块）</li>
+</ul>
+<b>共 4 个文件，占用 7 个块，剩余空闲 5 个块（0/2/7/8/10）。</b>
+</div>
+
+<div class="key">
+<b>★ 一句话总结排障：</b>找文件 = 找<b>入度=0</b>的块 = 没人在前面指向我。<b>入度表</b>是核心工具。
+</div>
+
+<div class="warnbox">
+<b>⚠️ 修正后易错点（重写）：</b>
+<ul style="margin:4px 0 0 18px">
+<li><b>起点判定只看入度</b>：FAT[k] 写的是什么（5/-1/3）跟「是否起点」<b>无关</b> —— 只看「有没有人指向我」</li>
+<li><b>0 ≠ EOF</b>：FAT[k]=0 是<b>空闲块</b>；FAT[k]=-1 是 EOF；FAT[k]=-2 是坏块</li>
+<li><b>FAT 项数 = 盘块总数</b>：12 项 FAT → 这块盘最多 12 个块</li>
+<li><b>入度=0 但 FAT=0</b>：这是空闲块，不是文件起点（因为没有链可走）</li>
+<li><b>单块文件</b>：FAT[k] = -1，自己是 EOF 也是起点 → 1 个块的文件</li>
+</ul>
+</div>
+
+<h3>写入新文件：存 2 块文件，FAT 怎么变？</h3>
+<div class="key">
+<b>📌 任务：</b>现在要存一个 2 块的新文件（文件 5），FAT 怎么改？
+</div>
+
+<div class="tmpl">
+<b>第 1 步 · 找两个空闲块</b>：扫描 FAT 找 FAT[k]=0 的位置，挑前两个：块 2 和块 8。
+</div>
+
+<div class="tmpl">
+<b>第 2 步 · 改 FAT</b>：
+<ul style="margin:4px 0 0 18px">
+<li>FAT[2] = <b>8</b>　（块 2 的下一个是块 8）</li>
+<li>FAT[8] = <b>-1</b>　（块 8 是最后一个，EOF）</li>
+</ul>
+其他 FAT 项不变。
+</div>
+
+<div class="formula">
+改后 FAT（变化的两项高亮）：
+  [0, 5, <b>8</b>, -1, -1, 3, -1, 0, <b>-1</b>, 4, 0, -1]
+                ↑      ↑
+              块2变   块8变
+</div>
+
+<div class="warnbox">
+<b>⚠️ 写入易错点：</b>
+<ul style="margin:4px 0 0 18px">
+<li><b>第一块写「下一块号」，最后块写 -1</b>：别把第一块写成 -1（那是单块文件的写法）</li>
+<li><b>必须用空闲块</b>：不能占用已有文件的块（会破坏原文件链）</li>
+<li><b>改 FAT 后更新「空闲块计数」</b>：实际文件系统会同步减 2（题目通常不要求）</li>
+</ul>
+</div>
+
+<h2 id="self">✅ 6. 自测 4 题</h2>
+
+<div class="self-check">
+<b>自测 1.</b> 盘块 4KB，盘块号 4B。20MB 文件用「二级索引」需要多少专用块？用「UNIX 混合索引」呢？
+<details><summary>答案</summary>
+<div class="ans">
+N = 1024。二级索引：1 (一级) + ⌈5120/1024⌉ = 1 + 5 = <b>6 块</b>。<br>
+UNIX 混合：10 直接装 10 块 + 1 一级装 1024 块 = 前 1034 块不进二级；剩余 5120-1034 = 4086 块在二级 ⌈4086/1024²⌉ = <b>1</b> 个二级索引块。<br>
+专用块数 = 1 (一级) + 1 (二级) = <b>2 块</b>（直接块存在 FCB 里，不占专用块）。
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 2.</b> FAT = [0, 8, 0, 10, 3, -1, 0, 5, -1, -1, -1, 0]，问有几个文件、各占哪些块？
+<details><summary>答案</summary>
+<div class="ans">
+<b>★ 用入度表做（推荐方法）：</b><br>
+对每个 j 扫一遍，找 FAT[j] ≥ 0 的 k = FAT[j]，让块 k 的入度 +1。<br>
+得到入度表：<br>
+<pre style="background:#eef1f6;padding:6px 10px;border-radius:4px;font-size:13px;margin:6px 0">
+块 k       0  1  2  3  4  5  6  7  8  9  10 11
+FAT[k]     0  8  0  10 3  -1 0  5  -1 -1 -1 0
+入度       0  0  0  1  0  1  0  0  1  0  1  0
+其中:块3被块4指，块5被块7指，块8被块1指，块10被块3指
+</pre>
+<b>入度=0 的块</b>：0,1,2,4,6,7,9,11 — 其中 FAT=0 的 (0,2,6,11) 是空闲块，FAT≠0 的 (1,4,7,9) 是文件起点。<br><br>
+<b>顺链走：</b><br>
+→ 块 1 (FAT=8)：1 → 8 (FAT=-1) = <b>文件 1：[块 1, 块 8]</b> (2 块)<br>
+→ 块 4 (FAT=3)：4 → 3 (FAT=10) → 10 (FAT=-1) = <b>文件 2：[块 4, 块 3, 块 10]</b> (3 块)<br>
+→ 块 7 (FAT=5)：7 → 5 (FAT=-1) = <b>文件 3：[块 7, 块 5]</b> (2 块)<br>
+→ 块 9 (FAT=-1)：9 自己 = <b>文件 4：[块 9]</b> (1 块)<br><br>
+<b>共 4 个文件，占用 8 个块，剩余空闲 4 个块（0/2/6/11）。</b><br><br>
+<b>★ 易错提醒：</b>如果还在用「FAT[k]≠0 且 FAT[k]≠-1」找起点，<b>块 9 的 FAT=-1 会被漏掉</b>！这就是为什么必须用入度法。
+</div>
+</details>
+</div>
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 3.</b> 链接分配下，读 16MB+5.5KB 的数据需要多少次 IO？为什么？
+<details><summary>答案</summary>
+<div class="ans">
+<b>4097 次 IO</b>（如要把第 4098 块读完，还需 +1 次 = 4098 次）。<br>
+原因：链接分配的「下一块号」存在当前块尾部。要读到第 4098 块的位置，<b>必须顺着链读完前 4097 块</b>（每块都读一次拿 next），最后再读 1 次拿到第 4098 块本身。<br>
+这就是链接分配的<b>致命弱点：随机访问 = O(N) 次 IO</b>。
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 4.</b> 改进型 CLOCK 和 FAT 排障有什么共同点？
+<details><summary>答案</summary>
+<div class="ans">
+都是「<b>沿指针/链表追踪 + 状态位判断</b>」的题型。<br>
+- 改进型 CLOCK：访问位 + 修改位的 4 种组合决定淘汰优先级<br>
+- FAT 排障：FAT[块号] 的 3 种特殊值（0/-1/-2）+ 顺链追踪<br>
+两者都需要<b>对状态字段的语义熟记于心</b>，且都需要<b>追踪到终止条件</b>（CLOCK 找到 bit=0 就停；FAT 找到 -1 就停）。
+</div>
+</details>
+</div>
+
+<footer>
+<p>📚 关联课：<a href="./0019-file-system-overview.html">0019 文件系统概述</a> · <a href="./0020-file-allocation.html">0020 文件分配</a> · <a href="./0021-fat-file-system.html">0021 FAT 文件系统</a> · <a href="./0022-index-file-system.html">0022 索引文件系统</a> · <a href="./0024-unix-file-system-inode.html">0024 UNIX inode</a> · <a href="./0084-page-replacement-lru-clock.html">0084 LRU + CLOCK</a></p>
+<p>🎯 试卷入口：<a href="../exams/final-test.html">final-test.html</a>（第 26/27/28 题即本课 3 道范例）</p>
+<p>第 85 课 · 文件分配 4 方案 + FAT 排障 · 由 Agens 老师按本仓库 AGENTS.md 规范生成</p>
+</footer>
+
+</div>
+</body>
+</html>

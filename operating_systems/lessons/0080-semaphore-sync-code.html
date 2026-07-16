@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 80 课 · Ch2 进程管理 · 期末 PV 同步代码 6 题冲刺</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .formula{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px;line-height:1.9}
+  pre{background:#0f1b2d;color:#e6edf3;padding:12px 14px;border-radius:6px;font-size:13px;overflow-x:auto;line-height:1.85}
+  pre .c{color:#8b949e}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .qbadge{display:inline-block;background:#e7f0fb;color:var(--blue);font-size:12px;font-weight:700;padding:1px 8px;border-radius:20px;margin-right:6px;vertical-align:middle}
+  .self-check{background:#fff;border:1px dashed #bcd;border-left:3px solid #2b6cb0;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:14px}
+  .self-check b{color:#2b6cb0}
+  .self-check .ans{color:var(--green);font-weight:600;margin-top:4px;display:block}
+  details{margin:6px 0}
+  summary{cursor:pointer;color:var(--blue);font-size:14px;font-weight:600;padding:2px 0}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 80 课 · Ch2 进程管理 · 期末 PV 同步代码 6 题冲刺</p>
+  <h1>期末 PV 同步代码 6 题冲刺：信号量经典题型一锅端</h1>
+  <p class="sub">配套 <code>final-test.html</code> 的代码题 33–38。所有题都靠"信号量表 → P/V 顺序"两步走，方法论统一，题面各不同。本节把 6 道题的<strong>信号量含义、初值、代码骨架、易错点</strong>横向并排，看完即可默写。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·方法论</a>
+    <a href="#q33">2·Q33 PQR+Buf</a>
+    <a href="#q34">3·Q34 前趋图</a>
+    <a href="#q35">4·Q35 苹果/桔子</a>
+    <a href="#q36">5·Q36 哲学家</a>
+    <a href="#q37">6·Q37 读者写者</a>
+    <a href="#q38">7·Q38 司机售票员</a>
+    <a href="#compare">8·信号量表对比</a>
+    <a href="#self">9·自测</a>
+  </nav>
+</header>
+
+<!-- ===================== 0. 全局线 ===================== -->
+<h2 id="s0">🗺 0. 这 6 题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话：</b> 6 道题全是「<b>用信号量把多个进程安排成对的样子</b>」。不管题面是生产-消费、前趋图、还是司机-售票员，本质都是——
+<ul style="margin:6px 0 0 18px">
+  <li>谁先谁后 → <b>同步信号量</b>（初值 0，先做的人 V）</li>
+  <li>同一时刻只许一个 → <b>互斥信号量</b>（初值 1）</li>
+  <li>同类资源 N 个 → <b>资源信号量</b>（初值 N）</li>
+</ul>
+</div>
+
+<table>
+<tr><th>题号</th><th>题型</th><th>考点</th><th>关键口诀</th></tr>
+<tr><td><b>Q33</b></td><td>PQR + BufI/BufO</td><td>双缓冲 + 最大并行</td><td>两个同步 S1/S2 + 两个互斥 mutex1/mutex2</td></tr>
+<tr><td><b>Q34</b></td><td>6 进程前趋图</td><td>边的起点 V、终点 P</td><td>「边 = 信号量」</td></tr>
+<tr><td><b>Q35</b></td><td>苹果/桔子 + 盘子</td><td>生产者-消费者变体</td><td>S=盘子空, So=桔, Sa=苹；S 初值 1</td></tr>
+<tr><td><b>Q36</b></td><td>哲学家奇偶分拿</td><td>破坏循环等待</td><td>奇数先左后右, 偶数先右后左</td></tr>
+<tr><td><b>Q37</b></td><td>读者-写者（读者优先）</td><td>计数器 + 双锁</td><td>第一个读者锁 wmutex，最后一个解锁</td></tr>
+<tr><td><b>Q38</b></td><td>司机-售票员</td><td>同步初值判别</td><td>同步信号量初值 <b>0</b>（先做者 V）</td></tr>
+</table>
+
+<!-- ===================== 1. 方法论 ===================== -->
+<h2 id="s1">🧠 1. 做题 5 步法（背下来就能套）</h2>
+<div class="tmpl">
+<b>📐 5 步法：</b>
+<ol style="margin:6px 0 0 20px; line-height:1.9">
+  <li><b>画进程/箭头</b>：把所有进程和"先后依赖"画出来（箭头 = 谁等谁）</li>
+  <li><b>列信号量</b>：每条"先后依赖"配 1 个同步信号量；每个临界资源配 1 个互斥信号量</li>
+  <li><b>定初值</b>：同步 = 0；互斥 = 1；同类资源数 = N</li>
+  <li><b>写代码</b>：先做者 V 末尾；后做者 P 开头；互斥夹在临界区前后</li>
+  <li><b>查死锁</b>：P(mutex) 顺序不能颠倒；多 P 时必对应同序 V</li>
+</ol>
+</div>
+
+<div class="key">
+<b>初值速查表（必背）：</b>
+<table style="margin-top:6px">
+<tr><th>类型</th><th>含义</th><th>初值</th><th>典型名字</th></tr>
+<tr><td>同步</td><td>「某事件已发生」</td><td><b>0</b></td><td>S, S1, S2, S12…</td></tr>
+<tr><td>互斥</td><td>「临界资源空闲」</td><td><b>1</b></td><td>mutex, wmutex, rmutex</td></tr>
+<tr><td>资源计数</td><td>「资源还剩 N 个」</td><td><b>N</b></td><td>empty, full, chopstick[i]</td></tr>
+</table>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 易错三连：</b>
+<ol style="margin:6px 0 0 20px">
+  <li>同步/互斥搞混 → 初值写错（同步 = 0，互斥 = 1）</li>
+  <li>P 顺序颠倒 → 死锁（V 顺序无所谓，P 顺序不能换）</li>
+  <li>忘 V → 全部阻塞（一次 P 必须配一次 V）</li>
+</ol>
+</div>
+
+<!-- ===================== 2. Q33 PQR + BufI/BufO ===================== -->
+<h2 id="q33"><span class="qbadge">Q33</span>P、Q、R 三进程 + BufI/BufO 双缓冲（最大并行）</h2>
+
+<h3>题面</h3>
+<p>P 读入到 BufI，Q 把 BufI 变换后送 BufO，R 从 BufO 输出。要求<strong>最大并行性</strong>。</p>
+
+<h3>分析</h3>
+<ul>
+  <li>P→Q：BufI 有数据 → 同步信号量 <code>S1</code>（初值 0）</li>
+  <li>Q→R：BufO 有数据 → 同步信号量 <code>S2</code>（初值 0）</li>
+  <li>BufI 是临界资源 → 互斥信号量 <code>mutex1</code>（初值 1）</li>
+  <li>BufO 是临界资源 → 互斥信号量 <code>mutex2</code>（初值 1）</li>
+</ul>
+
+<h3>信号量表</h3>
+<table>
+<tr><th>信号量</th><th>含义</th><th>初值</th><th>类型</th></tr>
+<tr><td><code>S1</code></td><td>BufI 里有数据（可取）</td><td>0</td><td>同步</td></tr>
+<tr><td><code>S2</code></td><td>BufO 里有数据（可取）</td><td>0</td><td>同步</td></tr>
+<tr><td><code>mutex1</code></td><td>BufI 临界资源空闲</td><td>1</td><td>互斥</td></tr>
+<tr><td><code>mutex2</code></td><td>BufO 临界资源空闲</td><td>1</td><td>互斥</td></tr>
+</table>
+
+<h3>代码</h3>
+<pre><span class="c">// 进程 P：读入到 BufI</span>
+P: P(mutex1);
+   Add to BufI;
+   V(mutex1);
+   V(S1);           <span class="c">// 通知 Q：BufI 有数据了</span>
+
+<span class="c">// 进程 Q：变换 BufI → BufO</span>
+Q: P(S1);           <span class="c">// 等 BufI 有数据</span>
+   P(mutex1);
+   Remove from BufI;
+   V(mutex1);
+   P(mutex2);
+   Add to BufO;
+   V(mutex2);
+   V(S2);           <span class="c">// 通知 R：BufO 有数据了</span>
+
+<span class="c">// 进程 R：从 BufO 输出</span>
+R: P(S2);           <span class="c">// 等 BufO 有数据</span>
+   P(mutex2);
+   Remove from BufO;
+   V(mutex2);
+   Output;
+</pre>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>只写 S1/S2 不写 mutex1/mutex2 = 漏一半分；忘 V(S2) = R 永远等。
+</div>
+
+<!-- ===================== 3. Q34 6 进程前趋图 ===================== -->
+<h2 id="q34"><span class="qbadge">Q34</span>6 进程 P1…P6 前趋图（7 条边 = 7 个信号量）</h2>
+
+<h3>题面</h3>
+<p>前趋关系：P1→P2, P1→P3, P1→P4；P2→P6；P3→P5；P4→P5；P5→P6。用 7 个初值 = 0 的信号量 s12,s13,s14,s26,s35,s45,s56 写出同步代码。</p>
+
+<h3>分析</h3>
+<div class="key">
+<b>口诀：「边 = 信号量」</b>，每条边配一个同步信号量（初值 0）；<b>边起点 P 在动作完成后 V，终点 P 在动作开始前 P</b>。
+</div>
+
+<h3>代码</h3>
+<pre><span class="c">// 入度 = 出度统计：P1=3出, P2=1出1入, P3=1出1入, P4=1出1入, P5=1出2入, P6=0出2入</span>
+
+P1: ...; V(s12); V(s13); V(s14);   <span class="c">// P1 是三条边的起点</span>
+
+P2: P(s12); ...; V(s26);           <span class="c">// P2 收 P1 的信号，发给 P6</span>
+
+P3: P(s13); ...; V(s35);           <span class="c">// P3 收 P1 的信号，发给 P5</span>
+
+P4: P(s14); ...; V(s45);           <span class="c">// P4 收 P1 的信号，发给 P5</span>
+
+P5: P(s35); P(s45); ...; V(s56);   <span class="c">// P5 收 P3+P4 的信号，发给 P6</span>
+
+P6: P(s26); P(s56); ...;           <span class="c">// P6 收 P2+P5 的信号，终点</span>
+</pre>
+
+<details><summary>🎯 速算技巧：数每个进程的入边和出边</summary>
+<div style="margin-top:6px">
+<table>
+<tr><th>进程</th><th>入边（前趋）</th><th>出边（后继）</th><th>代码动作</th></tr>
+<tr><td>P1</td><td>0</td><td>3</td><td>开头直接做事，末尾 3 个 V</td></tr>
+<tr><td>P2</td><td>1</td><td>1</td><td>1 个 P，1 个 V</td></tr>
+<tr><td>P3</td><td>1</td><td>1</td><td>1 个 P，1 个 V</td></tr>
+<tr><td>P4</td><td>1</td><td>1</td><td>1 个 P，1 个 V</td></tr>
+<tr><td>P5</td><td>2</td><td>1</td><td>2 个 P，1 个 V</td></tr>
+<tr><td>P6</td><td>2</td><td>0</td><td>2 个 P，0 个 V</td></tr>
+</table>
+<b>结论：起点的 V 数 = 出边数；终点的 P 数 = 入边数。</b>
+</div>
+</details>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>把"边方向"记反（P 写 V 写错位置）= 进程永远等不到。判断方法：<b>箭头指向谁，谁先 P；箭头离开谁，谁后 V</b>。
+</div>
+
+<!-- ===================== 4. Q35 苹果/桔子 ===================== -->
+<h2 id="q35"><span class="qbadge">Q35</span>爸爸放苹果/桔子，儿子吃桔子，女儿吃苹果</h2>
+
+<h3>题面</h3>
+<p>桌上 1 个空盘（容量 1），爸爸放苹果/桔子，儿子只吃桔子，女儿只吃苹果。3 个信号量 S, So, Sa 初值 1, 0, 0。</p>
+
+<h3>分析</h3>
+<ul>
+  <li><code>S</code> 初值 1：盘子空才能放（资源信号量）</li>
+  <li><code>So</code> 初值 0：盘里是桔子才能吃（同步信号量）</li>
+  <li><code>Sa</code> 初值 0：盘里是苹果才能吃（同步信号量）</li>
+</ul>
+
+<h3>代码</h3>
+<pre>Father: P(S);            <span class="c">// 等盘子空</span>
+        if (桔子) V(So);
+        else       V(Sa);
+
+Son:    P(So);           <span class="c">// 等盘里是桔子</span>
+        取桔子;
+        V(S);            <span class="c">// 释放盘子</span>
+        吃;
+
+Daughter: P(Sa);         <span class="c">// 等盘里是苹果</span>
+          取苹果;
+          V(S);          <span class="c">// 释放盘子</span>
+          吃;
+</pre>
+
+<div class="key">
+<b>为何 S 初值 = 1？</b> 盘子容量为 1，初始时空着可以放，所以 S 资源数 = 1。吃完 V(S) 释放盘子，下一个水果才能进。
+</div>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>把 So/Sa 当成资源信号量写初值 1（应该是 0——没人通知你盘里有桔子前不能吃）。
+</div>
+
+<!-- ===================== 5. Q36 哲学家奇偶分拿 ===================== -->
+<h2 id="q36"><span class="qbadge">Q36</span>哲学家进餐（奇偶分拿防死锁）</h2>
+
+<h3>题面</h3>
+<p>5 个哲学家，5 根筷子 <code>chopstick[5]</code>（初值 1）。用奇偶分拿写出 5 个哲学家进程的伪代码。</p>
+
+<h3>分析</h3>
+<div class="key">
+<b>死锁根因：</b>5 个人同时「先左后右」→ 每人左手各占一根 → 没人能凑齐两根 → 死锁。<br>
+<b>奇偶分拿：</b>奇数号先拿左、偶数号先拿右 → 相邻哲学家拿筷顺序相反，<b>不会同时持同一根</b>。
+</div>
+
+<ul>
+  <li>奇数号 (1,3)：<code>chopstick[i]</code> 是左，<code>chopstick[(i+4)%5]</code> 是右</li>
+  <li>偶数号 (0,2,4)：<code>chopstick[i]</code> 是左，<code>chopstick[(i+1)%5]</code> 是右</li>
+</ul>
+
+<h3>代码</h3>
+<pre>Pi: do {
+        P(chopstick[i]);              <span class="c">// 先拿左边</span>
+        if (i % 2 == 0) {
+            P(chopstick[(i+1)%5]);    <span class="c">// 偶数：再拿右边</span>
+        } else {
+            P(chopstick[(i+4)%5]);    <span class="c">// 奇数：再拿右边 (即左邻的左)</span>
+        }
+        吃;
+        V(chopstick[i]);              <span class="c">// 放回两根</span>
+        V(chopstick[(i+1)%5]);
+        if (i % 2 == 0) {
+            V(chopstick[(i+4)%5]);
+        } else {
+            V(chopstick[(i+1)%5]);
+        }
+    } while (1);
+</pre>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>
+<ul style="margin:4px 0 0 18px">
+  <li>(i+1)%5 是右边，(i+4)%5 = (i-1)%5 是左边 —— 别算反</li>
+  <li>奇偶的 if/else 必须写成「不一样」的样子（如果一样 = 退化成先左后右，仍会死锁）</li>
+  <li>放回时 V 的顺序不影响（V 不阻塞，顺序无所谓）</li>
+</ul>
+</div>
+
+<!-- ===================== 6. Q37 读者写者 ===================== -->
+<h2 id="q37"><span class="qbadge">Q37</span>读者-写者问题（读者优先）</h2>
+
+<h3>题面</h3>
+<p>用 <code>rmutex</code>、<code>wmutex</code>、<code>readcount</code> 三个信号量/变量，写出完整伪代码。</p>
+
+<h3>分析</h3>
+<ul>
+  <li><code>readcount</code>：当前读者数（普通 int 变量，初值 0）</li>
+  <li><code>rmutex</code>：保护 readcount 的互斥（初值 1）</li>
+  <li><code>wmutex</code>：写者与第一个/最后一个读者互斥（初值 1）</li>
+</ul>
+<div class="key">
+<b>关键三句话：</b>
+<ol style="margin:6px 0 0 20px">
+  <li><b>第一个读者</b>进来时 P(wmutex) 锁住写者</li>
+  <li><b>最后一个读者</b>出去时 V(wmutex) 释放写者</li>
+  <li>所有读者进出 readcount 时用 rmutex 互斥</li>
+</ol>
+</div>
+
+<h3>代码</h3>
+<pre><span class="c">// 共享变量</span>
+readcount = 0;
+rmutex = 1;
+wmutex = 1;
+
+Reader:
+    P(rmutex);
+    if (readcount == 0)    <span class="c">// 第一个读者：锁写者</span>
+        P(wmutex);
+    readcount++;
+    V(rmutex);
+    读;
+    P(rmutex);
+    readcount--;
+    if (readcount == 0)    <span class="c">// 最后一个读者：放写者</span>
+        V(wmutex);
+    V(rmutex);
+
+Writer:
+    P(wmutex);              <span class="c">// 写者单刀直入</span>
+    写;
+    V(wmutex);
+</pre>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>
+<ul style="margin:4px 0 0 18px">
+  <li><code>if (readcount == 1)</code> —— 错！应该是 <code>== 0</code>（"从 0 变 1"才是第一个读者进入）</li>
+  <li>忘 P(rmutex) 保护 readcount++ —— 多读者并发改 readcount 会乱</li>
+  <li>「读者优先」= 写者饥饿；「写者优先」= 读者饥饿 —— 题面说读者优先就用这个模板</li>
+</ul>
+</div>
+
+<!-- ===================== 7. Q38 司机售票员 ===================== -->
+<h2 id="q38"><span class="qbadge">Q38</span>司机-售票员问题（同步初值判别）</h2>
+
+<h3>题面</h3>
+<p>司机 <code>P(S1)</code> 启动车辆，售票员 <code>V(S1)</code> 关门。<strong>S1 初值 = ?，S2 初值 = ?</strong></p>
+
+<h3>分析</h3>
+<div class="key">
+<b>判断同步还是互斥？看「谁等谁」。</b>
+<ul style="margin:6px 0 0 18px">
+  <li>司机启动前要等"门已关"（<b>关门是司机的先决条件</b>）→ S1 是同步</li>
+  <li>售票员开门前要等"车已停"（<b>停车是开门员的先决条件</b>）→ S2 是同步</li>
+</ul>
+</div>
+
+<h3>答案</h3>
+<ul>
+  <li><b>S1 初值 = 0</b>（S1 表示"车已停好可以启动"——初始时车没停，所以 = 0）</li>
+  <li><b>S2 初值 = 0</b>（S2 表示"门已关好可以开门"——初始时门没关，所以 = 0）</li>
+</ul>
+
+<h3>完整代码</h3>
+<pre>Driver:    <span class="c">// 司机</span>
+  P(S1);          <span class="c">// 等"门已关"</span>
+  启动车辆;
+  正常运行;
+  到站停车;
+  V(S2);          <span class="c">// 通知"车已停"</span>
+
+Conductor:  <span class="c">// 售票员</span>
+  关门;
+  V(S1);          <span class="c">// 通知"门已关"</span>
+  售票;
+  P(S2);          <span class="c">// 等"车已停"</span>
+  开门;
+</pre>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>看到"两个进程"就以为是互斥写 1。本题司机和售票员是<strong>协作关系</strong>（"司机等门关、售票员等车停"），都是同步信号量，初值都是 0。
+</div>
+
+<!-- ===================== 8. 信号量表对比 ===================== -->
+<h2 id="compare">📊 8. 6 道题信号量横向对比</h2>
+<table>
+<tr><th>题</th><th>同步（S 初值 0）</th><th>互斥（mutex 初值 1）</th><th>资源（初值 N）</th></tr>
+<tr><td>Q33</td><td>S1, S2</td><td>mutex1, mutex2</td><td>—</td></tr>
+<tr><td>Q34</td><td>s12, s13, s14, s26, s35, s45, s56（7 个）</td><td>—</td><td>—</td></tr>
+<tr><td>Q35</td><td>So, Sa</td><td>—</td><td>S（盘子容量 1）</td></tr>
+<tr><td>Q36</td><td>—</td><td>—</td><td>chopstick[5] × 5（每根 1）</td></tr>
+<tr><td>Q37</td><td>—</td><td>rmutex, wmutex</td><td>—</td></tr>
+<tr><td>Q38</td><td>S1, S2</td><td>—</td><td>—</td></tr>
+</table>
+
+<div class="key">
+<b>一图总结「什么类型配什么初值」：</b><br>
+① <b>同步</b>（谁等谁）→ 0<br>
+② <b>互斥</b>（同一时刻一个）→ 1<br>
+③ <b>资源计数</b>（同类资源 N 个）→ N
+</div>
+
+<!-- ===================== 9. 自测 ===================== -->
+<h2 id="self">✅ 9. 自测 3 题（动手写，再看答案）</h2>
+
+<div class="self-check">
+<b>自测 1.</b> 若 Q33 的"最大并行性"不要求（允许 Q 等 P 全部完成），S1 初值应改为多少？<br>
+<details><summary>答案</summary>
+<div class="ans">仍可保持 S1=0（同步信号量初值永远是 0，初值 = 0 不影响并行度）。所谓"最大并行"指 P 还没结束 Q 就可以开始取走 BufI 处理。要真正"串行等全部完成"应改用 join/wait() 同步，不是改 S1 初值。</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 2.</b> Q36 哲学家奇偶分拿，如果写成了"奇数先右后左、偶数先左后右"，死锁吗？<br>
+<details><summary>答案</summary>
+<div class="ans">不死锁。"奇偶分拿"只要保证相邻哲学家拿筷顺序相反即可，先左后右还是先右后左均可。题目给的"奇数先左偶数先右"是惯例写法之一，不是唯一解。判断口诀：「<b>邻座拿序相反</b>」即可。</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 3.</b> Q37 读者写者，如果把 <code>if (readcount == 0) P(wmutex)</code> 改成 <code>if (readcount == 1) P(wmutex)</code>，会出什么问题？<br>
+<details><summary>答案</summary>
+<div class="ans">出错。语义反了：第 1 个读者进入时，readcount 从 0 → 1，应该在 <b>== 0</b> 时锁写者；第 N 个读者进来时 readcount = 1, 2, 3... 不应再锁写者（写者已被第一个读者锁了）。如果用 == 1，每个读者都会重复 P(wmutex)，死锁；或者写者永远进不来（取决于初值细节，但一定错）。</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 4.</b> Q38 司机-售票员，售票员代码写成"P(S1); 关门; V(S1); 售票"对吗？<br>
+<details><summary>答案</summary>
+<div class="ans">不对。S1 是"门已关"的同步信号量，应该由关门动作完成后 V，不是先 P 再 V。正确顺序：<code>关门; V(S1); 售票; P(S2); 开门;</code>。P(S1) 应该是司机做的事，不是售票员。</div>
+</details>
+</div>
+
+<footer>
+<p>📚 关联课：<a href="./0050-pv-pseudocode-drills.html">0050 PV 默写训练</a> · <a href="./0051-reader-writer-priority.html">0051 读者优先专攻</a> · <a href="./0052-dining-philosophers.html">0052 哲学家专攻</a> · <a href="./0010-process-sync.html">0010 进程同步</a> · <a href="./0011-classic-sync.html">0011 经典同步</a></p>
+<p>🎯 试卷入口：<a href="../exams/final-test.html">final-test.html</a>（题号 33-38 即本页 6 道题）</p>
+<p>第 80 课 · 配套试卷 final-test 6 道代码题冲刺 · 由 Agens 老师按本仓库 AGENTS.md 规范生成</p>
+</footer>
+
+</div>
+</body>
+</html>

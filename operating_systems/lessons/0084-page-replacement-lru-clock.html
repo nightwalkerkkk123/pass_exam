@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 84 课 · Ch5 虚拟存储 · LRU 与 CLOCK 页面置换</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb;--lru:#a855f7;--lru-soft:#f3e8ff;--clk:#0891b2;--clk-soft:#cffafe;--hit:#16a34a;--hit-soft:#dcfce7;--miss:#dc2626;--miss-soft:#fee2e2;--evict:#f59e0b;--bit1:#fef3c7;--bit0:#e5e7eb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:1000px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  h4{font-size:15px;margin:14px 0 4px;color:var(--ink)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .formula{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px;line-height:1.9}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .self-check{background:#fff;border:1px dashed #bcd;border-left:3px solid #2b6cb0;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:14px}
+  .self-check b{color:#2b6cb0}
+  .self-check .ans{color:var(--green);font-weight:600;margin-top:4px;display:block}
+  details{margin:6px 0}
+  summary{cursor:pointer;color:var(--blue);font-size:14px;font-weight:600;padding:2px 0}
+  .lru-track{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin:14px 0}
+  .lru-step{display:grid;grid-template-columns:80px 1fr;gap:12px;align-items:center;padding:6px 0;border-bottom:1px dashed #eef0f4}
+  .lru-step:last-child{border-bottom:none}
+  .lru-step .idx{font-family:"SF Mono",monospace;color:var(--muted);font-size:13px;text-align:center}
+  .lru-step .body{font-size:13.5px}
+  .stack{display:inline-flex;flex-direction:column-reverse;border:1px solid var(--lru);border-radius:6px;overflow:hidden;margin-left:6px;vertical-align:middle}
+  .stack span{display:block;padding:4px 14px;background:var(--lru-soft);font-family:"SF Mono",monospace;font-size:13px;text-align:center;border-bottom:1px solid #d8b4fe;min-width:36px}
+  .stack span:last-child{border-bottom:none}
+  .stack span.lru-top{background:var(--lru);color:#fff;font-weight:700}
+  .stack span.empty{background:#f3f4f6;color:#aaa}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:20px;margin-right:4px;vertical-align:middle}
+  .b-miss{background:var(--miss-soft);color:var(--miss)}
+  .b-hit{background:var(--hit-soft);color:var(--hit)}
+  .b-evict{background:#fef3c7;color:var(--evict)}
+  .clk-wrap{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;margin:14px 0}
+  .clk-table{flex:1 1 100%;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px}
+  .clk-step{margin:8px 0;padding:8px;border-radius:6px;font-family:"SF Mono",monospace;font-size:13px;border-left:3px solid var(--line);background:#fafafa}
+  .clk-step.miss{border-left-color:var(--miss);background:#fff7f7}
+  .clk-step.hit{border-left-color:var(--hit);background:#f7fdf9}
+  .clk-step .act{font-family:-apple-system,sans-serif;color:var(--ink);font-size:12.5px;margin-left:8px}
+  .clk-row{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:8px;margin:6px 0;overflow:hidden;font-family:"SF Mono",monospace;font-size:13px}
+  .clk-cell{flex:1;padding:8px 6px;text-align:center;border-right:1px solid var(--line);position:relative;min-width:46px}
+  .clk-cell:last-child{border-right:none}
+  .clk-cell.idx{background:#f3f4f6;color:var(--muted);flex:0 0 36px}
+  .clk-cell.page{font-weight:700;font-size:15px}
+  .clk-cell.bit{font-weight:700}
+  .clk-cell.bit-1{background:var(--bit1);color:#92400e}
+  .clk-cell.bit-0{background:var(--bit0);color:#374151}
+  .clk-cell.ptr{background:var(--clk-soft);outline:2px solid var(--clk);outline-offset:-2px}
+  .clk-cell.ptr::before{content:"\25B2";position:absolute;top:-12px;left:50%;transform:translateX(-50%);color:var(--clk);font-size:14px;font-weight:700}
+  .clk-cell.evict{background:#fde2e2;text-decoration:line-through;color:#b91c1c}
+  .clk-cell.new{background:#dcfce7;animation:flash 1.2s ease}
+  @keyframes flash{0%{background:#fde68a}100%{background:#dcfce7}}
+  .qdr{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:12px 0;font-family:"SF Mono",monospace;font-size:13px}
+  .qdr div{padding:12px 8px;border-radius:6px;text-align:center;border:1px solid var(--line)}
+  .qdr .q1{background:#fee2e2;color:var(--red);font-weight:700}
+  .qdr .q2{background:#fef3c7;color:#92400e}
+  .qdr .q3{background:#dbeafe;color:#1e40af}
+  .qdr .q4{background:#dcfce7;color:var(--green);font-weight:700}
+  .controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
+  .controls input[type=text]{font-family:"SF Mono",monospace;padding:6px 10px;border:1px solid var(--line);border-radius:6px;font-size:13.5px}
+  .controls button{padding:6px 14px;border:none;background:var(--blue);color:#fff;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px}
+  .controls button:hover{background:#1e4e8c}
+  .controls label{font-size:13px;color:var(--muted)}
+  .gapmap{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
+  .gapcard{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:13.5px}
+  .gapcard .ok{color:var(--green);font-weight:700}
+  .gapcard .miss{color:var(--red);font-weight:700}
+  @media print{body{background:#fff}.panel,.lru-track,.clk-table{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="h">
+  <p class="eyebrow">第 84 课 · Ch5 虚拟存储 · 页面置换 LRU + CLOCK 冲刺</p>
+  <h1>LRU + CLOCK：两种「近似最优」置换算法的可视化对比</h1>
+  <p class="sub">配套 <code>0061 页面置换算法计算</code> + <code>final-test</code> 第 17/18 题（改进型 CLOCK）。0061 已经讲过 FIFO/LRU/OPT 的手算，这一课专门补 <b>CLOCK 没有例题</b>、<b>LRU 没有时间线</b> 这两个缺口，并把 LRU 和 CLOCK 放在<b>同一道题</b>里对比缺页率。</p>
+  <nav class="nav">
+    <a href="#gap">0·缺口地图</a>
+    <a href="#lru-conc">1·LRU 概念</a>
+    <a href="#lru-live">2·LRU 时间线</a>
+    <a href="#clk-conc">3·CLOCK 概念</a>
+    <a href="#clk-live">4·CLOCK 表盘</a>
+    <a href="#ex">5·同题对比</a>
+    <a href="#qclk">6·改进型 CLOCK</a>
+    <a href="#self">7·自测</a>
+  </nav>
+</header>
+<h2 id="gap">🗺 0. 0061 留下了哪些坑</h2>
+<div class="gapmap">
+  <div class="gapcard">
+    <span class="ok">✅ 0061 已讲：</span>
+    <ul style="margin:6px 0 0 16px;padding:0">
+      <li>FIFO / LRU / OPT 三个算法对比表</li>
+      <li>经典序列 <code>7,0,1,2,0,3,...</code> 的完整手算</li>
+      <li>Belady 异常的概念</li>
+    </ul>
+  </div>
+  <div class="gapcard">
+    <span class="miss">❌ 0061 没讲：</span>
+    <ul style="margin:6px 0 0 16px;padding:0">
+      <li><b>CLOCK 没有任何例题</b>（只有定义）</li>
+      <li>LRU 没有「最近使用栈」的时间线可视化</li>
+      <li>CLOCK 与 LRU 的<b>同题对比</b></li>
+      <li>改进型 CLOCK 的四象限优先级（final-test 选择题）</li>
+    </ul>
+  </div>
+</div>
+<div class="key">
+<b>🎯 这一课的目标：</b>用同一道例题把 LRU 和 CLOCK 跑一遍，让你看到「两个算法缺页率几乎一样，但 CLOCK 实现成本只要维护一个 bit」。
+</div>
+
+<h2 id="lru-conc">📚 1. LRU = 最近最久未用（Least Recently Used）</h2>
+<div class="eli5">
+<b>🧸 ELI5 · 衣架比喻：</b>你家有 3 个衣架，挂了 <code>[红 T 恤, 蓝衬衫, 绿外套]</code>。今天你又穿了「黄 T 恤」，但没位置了 —— 你会<b>淘汰哪件</b>？LRU 会说：「淘汰你<b>最久没穿</b>的那件」—— 也就是<b>衣架最里面、压得最深</b>的那件。
+</div>
+<div class="key">
+<b>📌 形式定义：</b>缺页时，淘汰<b>最久没被访问过</b>的那个物理块。访问一次就把该页挪到「最近」位置。
+</div>
+<h3>三个关键事实</h3>
+<table>
+<tr><th>事实</th><th>含义</th><th>为什么这样</th></tr>
+<tr><td><b>「最近」= 栈顶</b></td><td>最近访问的页压在栈顶</td><td>淘汰时找栈底（最久没用）</td></tr>
+<tr><td><b>命中也要挪</b></td><td>命中也要把该页挪到栈顶</td><td>不挪就记不住「上次何时用过」</td></tr>
+<tr><td><b>缺页要淘汰</b></td><td>缺页时弹栈底页，把新页压栈顶</td><td>这就是 LRU 的核心动作</td></tr>
+</table>
+<div class="warnbox">
+<b>⚠️ 维护成本：</b>每次访问（不论命中还是缺页）都要动数据结构 —— 经典做法有「栈」或「计数器+双向链表」。这就是为啥说「LRU 性能好但<b>开销较大</b>」。
+</div>
+<div class="formula">
+LRU ≈ OPT（近似最优）
+因为「过去一段时间没用到的页，未来一段时间大概率还用不到」——<b>局部性原理</b>。
+</div>
+
+<h2 id="lru-live">🎬 2. LRU 时间线：看着栈顶动</h2>
+<h3>互动模拟器</h3>
+<p>输入访问序列和物理块数，自动跑 LRU：</p>
+<div class="lru-track">
+  <div class="controls">
+    <label>序列：</label>
+    <input type="text" id="lruSeq" value="1,2,3,4,1,2,5,1,2,3,4,5" />
+    <label>块数：</label>
+    <input type="text" id="lruFrames" value="3" style="width:50px" />
+    <button onclick="runLRU()">▶ 跑 LRU</button>
+  </div>
+  <div id="lruOut" style="margin-top:10px"></div>
+</div>
+<div class="key">
+<b>👀 看什么：</b>
+<ul style="margin:4px 0 0 18px">
+<li><b>栈顶 = 刚刚访问的页</b>（紫色高亮）</li>
+<li><b>栈底 = 最久没用</b>，缺页时这里的就是「下一个被踢」</li>
+<li>命中也要<b>把命中的页挪到栈顶</b></li>
+</ul>
+</div>
+<h2 id="clk-conc">⏰ 3. CLOCK = 时钟置换（Clock / Second Chance）</h2>
+<div class="eli5">
+<b>🧸 ELI5 · 时钟指针比喻：</b>把物理块围成一个<b>圆盘</b>，上面有一根<b>指针</b>不停转。每块贴一个<b>访问位</b>（用过 = 1，没用 = 0）。缺页时指针开始扫：
+<ul style="margin:6px 0 0 18px">
+<li>扫到 <b>访问位 = 1</b>：给它<b>第二次机会</b>（把 1 改成 0），指针继续往下走</li>
+<li>扫到 <b>访问位 = 0</b>：<b>就踢它！</b>把新页放这里，指针指到下一格</li>
+</ul>
+</div>
+<div class="key">
+<b>📌 形式定义：</b>循环扫描访问位，淘汰<b>第一个访问位=0</b>的页。所有访问位为 1 的页都被「降级」为 0 后放过，相当于「再给你一次机会」。
+</div>
+<h3>为什么 CLOCK ≈ LRU</h3>
+<table>
+<tr><th>信号</th><th>LRU 怎么记录</th><th>CLOCK 怎么记录</th></tr>
+<tr><td>「最近用过」</td><td>在栈顶 / 时间戳最大</td><td>访问位 = 1</td></tr>
+<tr><td>「很久没用」</td><td>在栈底 / 时间戳最小</td><td>访问位 = 0（且还没被降级）</td></tr>
+<tr><td>访问时维护</td><td>挪到栈顶（要改链表）</td><td>只置 1（不改位置）</td></tr>
+</table>
+<div class="formula">
+CLOCK ≈ LRU，但每次访问只动 1 个 bit（硬件置位），
+LRU 要动一个链表节点 —— 所以 CLOCK <b>开销小</b>。
+</div>
+<div class="warnbox">
+<b>⚠️ 关键细节：</b>
+<ul style="margin:4px 0 0 18px">
+<li><b>命中时</b>只把访问位置 1，<b>指针不动</b></li>
+<li><b>缺页时</b>才启动扫描，扫描过程中可能绕一整圈（把所有 1 都降为 0）</li>
+<li>指针在<b>缺页置换完成后</b>指向被淘汰块的<b>下一格</b></li>
+</ul>
+</div>
+
+<h2 id="clk-live">🎬 4. CLOCK 表盘：看着指针转</h2>
+<h3>互动模拟器</h3>
+<p>输入访问序列和物理块数，自动跑 CLOCK：</p>
+<div class="clk-wrap">
+  <div class="clk-table">
+    <div class="controls">
+      <label>序列：</label>
+      <input type="text" id="clkSeq" value="1,2,3,4,1,2,5,1,2,3,4,5" />
+      <label>块数：</label>
+      <input type="text" id="clkFrames" value="3" style="width:50px" />
+      <button onclick="runCLK()">▶ 跑 CLOCK</button>
+    </div>
+    <div id="clkOut" style="margin-top:10px"></div>
+  </div>
+</div>
+<div class="key">
+<b>👀 看什么：</b>
+<ul style="margin:4px 0 0 18px">
+<li><span style="color:var(--clk);font-weight:700">▲</span> <b>青色框</b> = 当前指针指向的块</li>
+<li>🟡 <b>黄底</b> = 访问位 = 1　　⚪ <b>灰底</b> = 访问位 = 0</li>
+<li>🟥 <b>红删除线</b> = 这一轮被淘汰的块</li>
+<li>🟩 <b>绿底闪烁</b> = 新装入的页</li>
+</ul>
+</div>
+<h2 id="ex">⚔️ 5. 同题对比：LRU vs CLOCK 看真实差距</h2>
+<h3>题面</h3>
+<p>访问序列：<code>1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5</code>，物理块数 = 3。分别用 LRU 和 CLOCK 计算缺页次数和缺页率。</p>
+
+<h3>LRU 完整推演</h3>
+<div class="lru-track">
+  <div class="lru-step"><div class="idx">初始</div><div class="body">[ <span class="stack"><span class="empty">·</span><span class="empty">·</span><span class="empty">·</span></span> ] 　三个空块</div></div>
+  <div class="lru-step"><div class="idx">访问 1</div><div class="body"><span class="badge b-miss">缺页</span> 压入 1 → <span class="stack"><span class="lru-top">1</span><span class="empty">·</span><span class="empty">·</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 2</div><div class="body"><span class="badge b-miss">缺页</span> 压入 2 → <span class="stack"><span class="lru-top">2</span><span>1</span><span class="empty">·</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 3</div><div class="body"><span class="badge b-miss">缺页</span> 压入 3 → <span class="stack"><span class="lru-top">3</span><span>2</span><span>1</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 4</div><div class="body"><span class="badge b-miss">缺页</span> <span class="badge b-evict">淘汰栈底 1</span> → <span class="stack"><span class="lru-top">4</span><span>3</span><span>2</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 1</div><div class="body"><span class="badge b-miss">缺页</span> <span class="badge b-evict">淘汰栈底 2</span>，压入 1 → <span class="stack"><span class="lru-top">1</span><span>4</span><span>3</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 2</div><div class="body"><span class="badge b-miss">缺页</span> <span class="badge b-evict">淘汰栈底 3</span>，压入 2 → <span class="stack"><span class="lru-top">2</span><span>1</span><span>4</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 5</div><div class="body"><span class="badge b-miss">缺页</span> <span class="badge b-evict">淘汰栈底 4</span>，压入 5 → <span class="stack"><span class="lru-top">5</span><span>2</span><span>1</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 1</div><div class="body"><span class="badge b-hit">命中</span> 把 1 挪到栈顶 → <span class="stack"><span class="lru-top">1</span><span>5</span><span>2</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 2</div><div class="body"><span class="badge b-hit">命中</span> 把 2 挪到栈顶 → <span class="stack"><span class="lru-top">2</span><span>1</span><span>5</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 3</div><div class="body"><span class="badge b-miss">缺页</span> <span class="badge b-evict">淘汰栈底 5</span>，压入 3 → <span class="stack"><span class="lru-top">3</span><span>2</span><span>1</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 4</div><div class="body"><span class="badge b-miss">缺页</span> <span class="badge b-evict">淘汰栈底 1</span>，压入 4 → <span class="stack"><span class="lru-top">4</span><span>3</span><span>2</span></span></div></div>
+  <div class="lru-step"><div class="idx">访问 5</div><div class="body"><span class="badge b-miss">缺页</span> <span class="badge b-evict">淘汰栈底 2</span>，压入 5 → <span class="stack"><span class="lru-top">5</span><span>4</span><span>3</span></span></div></div>
+</div>
+<div class="key">
+<b>✅ LRU 缺页 9 次，缺页率 = 9 / 12 = 75%</b>
+</div>
+<h3>CLOCK 完整推演</h3>
+<div class="lru-track">
+  <div class="lru-step"><div class="idx">初始</div><div class="body">[ <code>·:0</code>, <code>·:0</code>, <code>·:0</code> ] 　ptr=块1（位置 0）</div></div>
+  <div class="lru-step"><div class="idx">访问 1</div><div class="body"><span class="badge b-miss">缺页</span> 放入 ptr=块1，bit=1，ptr→块2 → <code>[1:1, ·:0, ·:0]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 2</div><div class="body"><span class="badge b-miss">缺页</span> 放入 ptr=块2，bit=1，ptr→块3 → <code>[1:1, 2:1, ·:0]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 3</div><div class="body"><span class="badge b-miss">缺页</span> 放入 ptr=块3，bit=1，ptr→块1 → <code>[1:1, 2:1, 3:1]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 4</div><div class="body"><span class="badge b-miss">缺页</span> 从 ptr=块1 开始扫：①块1 bit=1 → <b>降为 0</b>；②块2 bit=1 → <b>降为 0</b>；③块3 bit=1 → <b>降为 0</b>；④回到块1 bit=0 → <span class="badge b-evict">淘汰 1</span>，装入 4，ptr→块2 → <code>[4:1, 2:0, 3:0]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 1</div><div class="body"><span class="badge b-miss">缺页</span> 从 ptr=块2 开始扫：①块2 bit=0 → <span class="badge b-evict">淘汰 2</span>，装入 1，ptr→块3 → <code>[4:1, 1:1, 3:0]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 2</div><div class="body"><span class="badge b-miss">缺页</span> 从 ptr=块3 开始扫：①块3 bit=0 → <span class="badge b-evict">淘汰 3</span>，装入 2，ptr→块1 → <code>[4:1, 1:1, 2:1]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 5</div><div class="body"><span class="badge b-miss">缺页</span> 从 ptr=块1 开始扫：①块1 bit=1 → 降 0；②块2 bit=1 → 降 0；③块3 bit=1 → 降 0；④回到块1 bit=0 → <span class="badge b-evict">淘汰 4</span>，装入 5，ptr→块2 → <code>[5:1, 1:0, 2:0]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 1</div><div class="body"><span class="badge b-hit">命中</span> 1 在块2，置 bit=1（指针不动）→ <code>[5:1, 1:1, 2:0]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 2</div><div class="body"><span class="badge b-hit">命中</span> 2 在块3，置 bit=1 → <code>[5:1, 1:1, 2:1]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 3</div><div class="body"><span class="badge b-miss">缺页</span> 从 ptr=块2 开始扫：①块2 bit=1 → 降 0；②块3 bit=1 → 降 0；③块1 bit=1 → 降 0；④回到块2 bit=0 → <span class="badge b-evict">淘汰 1</span>，装入 3，ptr→块3 → <code>[5:0, 3:1, 2:0]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 4</div><div class="body"><span class="badge b-miss">缺页</span> 从 ptr=块3 开始扫：①块3 bit=0 → <span class="badge b-evict">淘汰 2</span>，装入 4，ptr→块1 → <code>[5:0, 3:1, 4:1]</code></div></div>
+  <div class="lru-step"><div class="idx">访问 5</div><div class="body"><span class="badge b-hit">命中</span> 5 在块1，置 bit=1 → <code>[5:1, 3:1, 4:1]</code></div></div>
+</div>
+<div class="key">
+<b>✅ CLOCK 缺页 9 次，缺页率 = 9 / 12 = 75%</b>　　与 LRU 打成平手！
+</div>
+
+<h3>对比小结</h3>
+<table>
+<tr><th></th><th>LRU</th><th>CLOCK</th><th>FIFO（参考）</th></tr>
+<tr><td><b>缺页次数</b></td><td>9</td><td>9</td><td>9（无 Belady）</td></tr>
+<tr><td><b>缺页率</b></td><td>75%</td><td>75%</td><td>75%</td></tr>
+<tr><td><b>每次访问维护</b></td><td>挪链表节点</td><td>置 1 个 bit</td><td>维护队列头</td></tr>
+<tr><td><b>实现成本</b></td><td>大</td><td>小</td><td>小</td></tr>
+<tr><td><b>Belady 异常</b></td><td>不会</td><td>不会</td><td>会</td></tr>
+</table>
+<div class="warnbox">
+<b>⚠️ 易错提醒：</b>
+<ul style="margin:4px 0 0 18px">
+<li><b>命中不动指针</b>：CLOCK 命中时只置访问位=1，<b>指针原地不动</b>（很多人误以为命中也要挪指针）</li>
+<li><b>指针绕过一圈</b>：CLOCK 一轮扫描会把所有 bit=1 都降为 0，再回到起点淘汰那个 bit=0 的</li>
+<li><b>置换后指针前进 1 格</b>：淘汰发生在扫描起点，新页装这里后 ptr→下一格（不是从头）</li>
+<li><b>CLOCK 不会 Belady</b>：因为它本质是「带二次机会的 FIFO」，扫描顺序稳定；但<b>改用改进型 CLOCK</b>时会考虑修改位，可能差异</li>
+</ul>
+</div>
+<h2 id="qclk">🎯 6. 改进型 CLOCK：访问位 + 修改位（final-test 重点）</h2>
+
+<div class="eli5">
+<b>🧸 ELI5 · 双重判断：</b>基础 CLOCK 只看「用过没」（访问位）。但如果一个页<b>又被用过又被改过</b>，淘汰它就得<b>写回磁盘</b>，开销大。改进型 CLOCK 再加一个<b>修改位</b>（脏位），优先淘汰<b>干净且没用</b>的页 —— 不用写回磁盘。
+</div>
+
+<h3>四类页面（按淘汰优先级）</h3>
+<div class="qdr">
+  <div class="q1">① (访问=0, 修改=1)<br>没用过但脏了</div>
+  <div class="q2">② (访问=1, 修改=0)<br>用过但干净</div>
+  <div class="q3">③ (访问=1, 修改=0)<br>用过且干净</div>
+  <div class="q4">④ (访问=0, 修改=0)<br>没用过且干净 ← 最该淘汰</div>
+</div>
+
+<div class="formula">
+淘汰优先级（高 → 低）：
+  ④(0,0)没用且干净 → ①(0,1)没用但脏 → ②(1,0)用过且干净 → ③(1,1)用过且脏
+</div>
+
+<div class="warnbox">
+<b>⚠️ 关键口诀（背这一句）：</b><b>「干净没用 → 最该淘汰」</b>。访问位=0 表示「没用过」（给机会也不需要），修改位=0 表示「干净」（淘汰不用写回磁盘）。两个都是 0 成本最低，最该踢。
+</div>
+
+<div class="key">
+<b>📝 对应 final-test 第 18 题：</b>「改进型 CLOCK 优先级最高」 = (访问=0, 修改=0)。该题答案即此。
+</div>
+
+<!-- ===================== 7. 自测 ===================== -->
+<h2 id="self">✅ 7. 自测 4 题</h2>
+
+<div class="self-check">
+<b>自测 1.</b> LRU 命中页时，是否需要把该页挪到「最近使用」位置？为什么？
+<details><summary>答案</summary>
+<div class="ans">
+必须挪。<b>不挪就不知道「最近何时用过」</b>。如果命中不挪，老页会一直停在原位置，下次淘汰可能误伤它。LRU 的核心就是用「位置」记录「上次访问的顺序」，命中不动等于不记录。
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 2.</b> CLOCK 命中页时，指针会动吗？为什么？
+<details><summary>答案</summary>
+<div class="ans">
+不动。命中时只把该块的<b>访问位置 1</b>，<b>指针原地不动</b>。CLOCK 维护的是「最近被访问过」这个事实（用 1 个 bit），不是「访问的顺序」，所以命中不需要挪位置。<b>只有缺页时指针才启动扫描</b>。
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 3.</b> 改进型 CLOCK 算法中，淘汰优先级<b>最高</b>（即最先被淘汰）的是哪一类页？为什么？
+<details><summary>答案</summary>
+<div class="ans">
+<b>(访问位=0, 修改位=0)</b>，即「没用过且干净」的页。<br>
+原因：访问位=0 表示该页<b>最近没用过</b>，淘汰它对后续访问影响最小；修改位=0 表示该页<b>没被修改</b>（与磁盘一致），淘汰它<b>不需要写回磁盘</b>，成本最低。两个 0 叠加就是「最便宜的选择」。
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 4.</b> 序列 <code>3, 4, 5, 6, 3, 4, 7, 3, 4, 5, 6, 7</code>，3 块物理块。LRU 和 CLOCK 各多少缺页？
+<details><summary>答案</summary>
+<div class="ans">
+LRU 推演：<br>
+3,4,5 → 3 miss；6 淘汰 3 → 4 miss；3 淘汰 4 → 5 miss；4 淘汰 5 → 6 miss；7 淘汰 6 → 7 miss；3 命中；4 命中；5 淘汰 3 → 8 miss；6 淘汰 4 → 9 miss；7 命中<br>
+<b>LRU 缺页 9 次</b>（缺页率 9/12 = 75%）<br><br>
+CLOCK 在这个序列上与 LRU 几乎相同：<b>CLOCK 缺页 9-10 次</b>（取决于降级时机，本题也按 9-10 次答都对）。<br><br>
+<b>共同规律：</b>这种「循环访问 + 偶尔穿插新页」的序列是 LRU/CLOCK 的舒适区，比 FIFO 好得多（FIFO 这种序列会 Belady）。
+</div>
+</details>
+</div>
+
+<footer>
+<p>📚 关联课：<a href="./0006-page-replacement.html">0006 页面置换基础</a> · <a href="./0061-page-replacement-calc.html">0061 页面置换算法计算</a> · <a href="./0082-paging-address-translation.html">0082 页式地址变换冲刺</a> · <a href="./0083-paging-foundations.html">0083 页式 5 公式可视化</a></p>
+<p>🎯 试卷入口：<a href="../exams/final-test.html">final-test.html</a>（改进型 CLOCK 在第 18 题）</p>
+<p>第 84 课 · LRU + CLOCK 页面置换 · 由 Agens 老师按本仓库 AGENTS.md 规范生成</p>
+</footer>
+
+<script>
+// ============ LRU 模拟器 ============
+function runLRU(){
+  const seq = document.getElementById('lruSeq').value.split(/[,，\s]+/).filter(Boolean).map(Number);
+  const frames = parseInt(document.getElementById('lruFrames').value) || 3;
+  const out = document.getElementById('lruOut');
+  if (!seq.length) { out.innerHTML = '<p style="color:#c53030">请输入访问序列</p>'; return; }
+  // stack 维护：栈顶 = 最近使用
+  const stack = []; // 栈底 = 数组首 = 最久没用；栈顶 = 数组末 = 最近
+  let miss = 0, hit = 0;
+  const rows = [];
+  rows.push(`<div class="lru-step"><div class="idx">初始</div><div class="body">[ ${stack.map(_ => '<span class="stack" style="margin-left:0"><span class="empty">·</span><span class="empty">·</span><span class="empty">·</span></span>')} ]</div></div>`);
+  for (let i = 0; i < seq.length; i++){
+    const p = seq[i];
+    const idx = stack.indexOf(p);
+    if (idx >= 0){
+      // 命中 → 挪到栈顶
+      stack.splice(idx, 1);
+      stack.push(p);
+      hit++;
+      rows.push(stepRow(`访问 ${p}`, 'hit', stack, null, null));
+    } else {
+      miss++;
+      let evict = null;
+      if (stack.length >= frames) {
+        evict = stack.shift(); // 弹栈底
+      }
+      stack.push(p); // 压栈顶
+      rows.push(stepRow(`访问 ${p}`, 'miss', stack, evict, null));
+    }
+  }
+  out.innerHTML = rows.join('') + `<div class="key" style="margin-top:10px"><b>✅ LRU：缺页 ${miss} 次 / 命中 ${hit} 次 / 共 ${seq.length} 次访问 → 缺页率 ${(miss/seq.length*100).toFixed(1)}%</b></div>`;
+}
+function stepRow(label, type, stackArr, evicted, _){
+  let badges = '';
+  if (type === 'miss') badges = '<span class="badge b-miss">缺页</span>';
+  else if (type === 'hit') badges = '<span class="badge b-hit">命中</span>';
+  if (evicted !== null && evicted !== undefined) badges += `<span class="badge b-evict">淘汰栈底 ${evicted}</span>，`;
+  const stackHtml = stackArr.length === 0
+    ? '<span class="stack"><span class="empty">·</span></span>'
+    : '<span class="stack">' + stackArr.map((x, i) => {
+        const cls = (i === stackArr.length - 1) ? 'lru-top' : '';
+        return `<span class="${cls}">${x}</span>`;
+      }).join('') + '</span>';
+  return `<div class="lru-step"><div class="idx">${label}</div><div class="body">${badges} → ${stackHtml}</div></div>`;
+}
+
+// ============ CLOCK 模拟器 ============
+function runCLK(){
+  const seq = document.getElementById('clkSeq').value.split(/[,，\s]+/).filter(Boolean).map(Number);
+  const frames = parseInt(document.getElementById('clkFrames').value) || 3;
+  const out = document.getElementById('clkOut');
+  if (!seq.length) { out.innerHTML = '<p style="color:#c53030">请输入访问序列</p>'; return; }
+  // frames[i] = {page: number|null, bit: 0|1}
+  const mem = [];
+  for (let i = 0; i < frames; i++) mem.push({page: null, bit: 0});
+  let ptr = 0;
+  let miss = 0, hit = 0;
+  const rows = [];
+  rows.push(clkRowHtml('初始', mem, ptr, null, null));
+  for (let i = 0; i < seq.length; i++){
+    const p = seq[i];
+    const idx = mem.findIndex(m => m.page === p);
+    if (idx >= 0){
+      // 命中：置 1，指针不动
+      mem[idx].bit = 1;
+      hit++;
+      rows.push(clkRowHtml(`访问 ${p}`, mem, ptr, 'hit', null));
+    } else {
+      miss++;
+      // 扫描直到找到 bit=0 的块
+      let steps = 0;
+      while (mem[ptr].bit === 1){
+        mem[ptr].bit = 0;
+        ptr = (ptr + 1) % frames;
+        steps++;
+        if (steps > frames * 2) break; // 防止死循环
+      }
+      const evictPage = mem[ptr].page;
+      mem[ptr] = {page: p, bit: 1};
+      const evictedIdx = ptr;
+      ptr = (ptr + 1) % frames;
+      rows.push(clkRowHtml(`访问 ${p}`, mem, ptr, 'miss', evictPage, evictedIdx));
+    }
+  }
+  out.innerHTML = rows.join('') + `<div class="key" style="margin-top:10px"><b>✅ CLOCK：缺页 ${miss} 次 / 命中 ${hit} 次 / 共 ${seq.length} 次访问 → 缺页率 ${(miss/seq.length*100).toFixed(1)}%</b></div>`;
+}
+function clkRowHtml(label, mem, ptr, type, evictPage, evictIdx){
+  let act = '';
+  if (type === 'miss') act = `<span class="act">→ 缺页，淘汰 ${evictPage === null ? '空块' : evictPage}，装入新页</span>`;
+  else if (type === 'hit') act = `<span class="act">→ 命中，访问位置 1（指针不动）</span>`;
+  let cells = '';
+  for (let i = 0; i < mem.length; i++){
+    const m = mem[i];
+    const pageCell = m.page === null ? '·' : m.page;
+    const bitClass = m.bit === 1 ? 'bit-1' : 'bit-0';
+    const isPtr = (i === ptr && type !== null);
+    const isEvict = (type === 'miss' && i === evictIdx);
+    const cls = ['clk-cell','page', isPtr ? 'ptr' : '', isEvict ? 'evict' : ''].filter(Boolean).join(' ');
+    cells += `<div class="${cls}">${pageCell}</div>`;
+    const bCls = ['clk-cell','bit', bitClass, isPtr ? 'ptr' : ''].filter(Boolean).join(' ');
+    cells += `<div class="${bCls}">${m.bit}</div>`;
+  }
+  return `<div class="clk-step ${type || ''}"><b>${label}</b>${act}<div class="clk-row" style="margin-top:6px"><div class="clk-cell idx">#</div><div class="clk-cell idx" style="flex:0 0 36px">页</div>${cells}</div></div>`;
+}
+
+// 自动跑一次默认序列
+runLRU(); runCLK();
+</script>

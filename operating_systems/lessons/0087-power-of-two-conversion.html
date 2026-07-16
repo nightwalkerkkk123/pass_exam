@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 87 课 · Ch4/5/6 通用 · 2 的幂次换算专题</title>
+<style>
+  :root{
+    --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
+    --blue:#2b6cb0; --blue2:#3182ce; --green:#2f855a; --amber:#b7791f;
+    --red:#c53030; --purple:#6b46c1; --soft:#eef4fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.7; font-size:16px}
+  .wrap{max-width:880px; margin:0 auto; padding:32px 22px 80px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:22px}
+  .eyebrow{color:var(--blue); font-weight:700; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:19px; margin:34px 0 12px; border-left:4px solid var(--blue); padding-left:10px; scroll-margin-top:14px}
+  h3{font-size:16px; margin:22px 0 8px; color:var(--blue)}
+  p{margin:10px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#eef1f6; padding:1px 5px; border-radius:3px}
+
+  .eli5{background:#fff7ed; border:1px solid #f0d9b5; border-left:4px solid var(--amber); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5; border:1px solid #b7e4c7; border-left:4px solid var(--green); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec; border:1px solid #f2b8b8; border-left:4px solid var(--red); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb; border:1px solid #d8c2ef; border-left:4px solid var(--purple); border-radius:6px; padding:12px 14px; margin:14px 0}
+  .tmpl b{color:var(--purple)}
+
+  table{border-collapse:collapse; width:100%; margin:10px 0; font-size:14.5px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eef2f8}
+  td:first-child{text-align:left; font-weight:600}
+
+  .nav{display:flex; flex-wrap:wrap; gap:6px; margin:12px 0 6px}
+  .nav a{font-size:12.5px; border:1px solid var(--line); background:#fff; border-radius:20px; padding:4px 11px; color:var(--blue); text-decoration:none}
+  .nav a:hover{background:var(--soft)}
+
+  .step{display:flex; gap:12px; margin:10px 0; align-items:flex-start}
+  .step .n{flex:0 0 28px; height:28px; border-radius:50%; background:var(--blue); color:#fff; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700}
+  .step .c{flex:1 1 auto}
+
+  .calc-box{background:#fff; border:2px solid var(--line); border-radius:8px; padding:14px 16px; margin:12px 0}
+  .calc-box .eq{font-size:18px; font-family:"SF Mono",Menlo,Consolas,monospace; color:var(--ink); margin:6px 0}
+  .calc-box .arrow{color:var(--green); font-weight:700}
+
+  .bit-table td,.bit-table th{text-align:center; font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px}
+  .bit-table th{background:#f0f4f8}
+
+  footer{margin-top:48px; padding-top:14px; border-top:1px solid var(--line); color:var(--muted); font-size:13px}
+  a{color:var(--blue)} a:hover{text-decoration:none}
+  .mono{font-family:"SF Mono",Menlo,Consolas,monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 87 课 · Ch4/5/6 通用基础 · 2 的幂次换算</p>
+  <h1>OS 考试必会：2 的幂次单位换算（4MB = 2²² B）</h1>
+  <p class="sub">配套 0082/0083/0040 等所有涉及「页面大小」「盘块大小」「地址空间」的计算题。核心技能：把 KB/MB/GB 快速转成 2ⁿ B。</p>
+  <nav class="nav">
+    <a href="#why">0·为什么</a>
+    <a href="#table">1·速查表</a>
+    <a href="#rules">2·三条规则</a>
+    <a href="#calc">3·拆解计算</a>
+    <a href="#examples">4·实战例题</a>
+    <a href="#trap">5·常见错误</a>
+    <a href="#self">6·自测</a>
+  </nav>
+</header>
+
+<!-- ===================== 0. 为什么要用 2 的幂次 ===================== -->
+<h2 id="why">🎯 0. 为什么 OS 考试必须用 2 的幂次，不是 10 的幂次？</h2>
+
+<div class="eli5">
+<b>🧸 一句话：</b>计算机是二进制生物，所有地址、页号、块号都是按 2 的幂次对齐的。用 2ⁿ 算，页号才能直接用「高位截取」得到；用 10ⁿ 算，你会把地址算错。
+</div>
+
+<div class="key">
+<b>📌 关键事实：</b><br>
+• 1 KB = 1024 B = 2¹⁰ B（不是 1000 B）<br>
+• 1 MB = 1024 KB = 2²⁰ B（不是 1000² B）<br>
+• 1 GB = 1024 MB = 2³⁰ B<br>
+• <b>指数规律：</b>每升一级单位，指数 +10
+</div>
+
+<p>OS 里的「页面大小 4KB」「盘块大小 4KB」都是 2 的幂次设计，因为：</p>
+<ul>
+  <li>地址拆分（页号 + 页内偏移）必须用二进制位运算</li>
+  <li>4KB = 4096 = 2¹²，页内偏移正好占 12 位</li>
+  <li>如果页面是 5000 B（不是 2 的幂次），页号就不能用简单的位截取了</li>
+</ul>
+
+<!-- ===================== 1. 速查表 ===================== -->
+<h2 id="table">📋 1. 必背速查表：单位 ↔ 2 的幂次</h2>
+
+<table class="bit-table">
+<tr><th>单位</th><th>等于多少 B</th><th>2 的幂次</th><th>指数记忆法</th></tr>
+<tr><td>1 KB</td><td>1024 B</td><td>2¹⁰ B</td><td>10 = 10</td></tr>
+<tr><td>1 MB</td><td>1,048,576 B</td><td>2²⁰ B</td><td>20 = 10×2</td></tr>
+<tr><td>1 GB</td><td>1,073,741,824 B</td><td>2³⁰ B</td><td>30 = 10×3</td></tr>
+<tr><td>1 TB</td><td>约 1.1 万亿 B</td><td>2⁴⁰ B</td><td>40 = 10×4</td></tr>
+</table>
+
+<div class="key">
+<b>★ 背诵口诀：</b>K(ilo) 是 10，M(ega) 是 20，G(iga) 是 30，T(era) 是 40。逢单位升一级，指数加 10。
+</div>
+
+<p>常用页面/盘块大小对照：</p>
+<table>
+<tr><th>常见大小</th><th>展开计算</th><th>2 的幂次</th><th>页内偏移位数</th></tr>
+<tr><td>1 KB</td><td>1 × 2¹⁰</td><td>2¹⁰ B</td><td>10 位</td></tr>
+<tr><td>2 KB</td><td>2¹ × 2¹⁰ = 2¹¹</td><td>2¹¹ B</td><td>11 位</td></tr>
+<tr><td>4 KB</td><td>2² × 2²⁰ = 2²²</td><td>2¹² B</td><td>12 位</td></tr>
+<tr><td>8 KB</td><td>2³ × 2¹⁰ = 2¹³</td><td>2¹³ B</td><td>13 位</td></tr>
+<tr><td>4 MB</td><td>2² × 2²⁰ = 2²²</td><td>2²² B</td><td>22 位</td></tr>
+</table>
+
+<!-- ===================== 2. 三条核心规则 ===================== -->
+<h2 id="rules">⚡ 2. 三条核心规则（解题时用）</h2>
+
+<div class="step">
+  <div class="n">1</div>
+  <div class="c">
+    <b>规则一：把系数拆成 2 的幂次</b><br>
+    任何数先拆成 2ⁿ：1=2⁰, 2=2¹, 4=2², 8=2³, 16=2⁴, 32=2⁵, 64=2⁶, 128=2⁷, 256=2⁸, 512=2⁹, 1024=2¹⁰
+  </div>
+</div>
+
+<div class="step">
+  <div class="n">2</div>
+  <div class="c">
+    <b>规则二：指数相加，不是相乘</b><br>
+    2ᵃ × 2ᵇ = 2ᵃ⁺ᵇ（同底数幂相乘，指数相加）<br>
+    <span class="mono">例：4 MB = 4 × 1 MB = 2² × 2²⁰ = 2²⁺²⁰ = 2²²</span>
+  </div>
+</div>
+
+<div class="step">
+  <div class="n">3</div>
+  <div class="c">
+    <b>规则三：单位换算就是加 10</b><br>
+    KB→B 加 10，MB→B 加 20，GB→B 加 30<br>
+    <span class="mono">例：8 GB = 8 × 2³⁰ B = 2³ × 2³⁰ B = 2³³ B</span>
+  </div>
+</div>
+
+<!-- ===================== 3. 拆解计算示范 ===================== -->
+<h2 id="calc">🔧 3. 拆解计算示范（手写公式还原）</h2>
+
+<div class="tmpl">
+<b>📐 你发的手写公式还原：</b>
+<div class="calc-box">
+  <div class="eq">4 MB = 4 × 1 MB</div>
+  <div class="eq arrow">↓</div>
+  <div class="eq">= 2² × 2²⁰ B</div>
+  <div class="eq arrow">↓ （指数相加：2 + 20 = 22）</div>
+  <div class="eq">= <b>2²² B</b></div>
+</div>
+</div>
+
+<h3>步骤拆解</h3>
+<div class="step">
+  <div class="n">①</div>
+  <div class="c">
+    <b>把 4 拆成 2 的幂次：</b>4 = 2 × 2 = 2²
+  </div>
+</div>
+<div class="step">
+  <div class="n">②</div>
+  <div class="c">
+    <b>把 MB 换成 2²⁰ B：</b>1 MB = 2²⁰ B（背表：M 是 20）
+  </div>
+</div>
+<div class="step">
+  <div class="n">③</div>
+  <div class="c">
+    <b>指数相加：</b>2² × 2²⁰ = 2²⁺²⁰ = 2²²
+  </div>
+</div>
+
+<div class="key">
+<b>💡 为什么要算成 2²² B？</b><br>
+在地址计算中，如果页面大小是 4MB = 2²² B，那么页内偏移占 22 位，剩下的高位就是「页号」。<br>
+例：32 位逻辑地址中，页号占 32-22 = 10 位，最多有 2¹⁰ = 1024 个页面。
+</div>
+
+<!-- ===================== 4. 实战例题 ===================== -->
+<h2 id="examples">📚 4. 实战例题（OS 考试高频）</h2>
+
+<h3>例题 1：页面大小 4KB，求页内偏移位数</h3>
+<div class="calc-box">
+  <div class="eq">4 KB = 4 × 2¹⁰ B = 2² × 2¹⁰ B = 2¹² B</div>
+  <div class="eq">∴ 页内偏移需要 <b>12 位</b>（二进制地址的低 12 位）</div>
+</div>
+
+<h3>例题 2：盘块大小 4MB，求一块能装多少个 4B 的盘块号</h3>
+<div class="calc-box">
+  <div class="eq">块大小 = 4 MB = 2²² B</div>
+  <div class="eq">盘块号长度 = 4 B = 2² B</div>
+  <div class="eq">每块地址项数 = 2²² ÷ 2² = 2²²⁻² = <b>2²⁰ = 1,048,576 个</b></div>
+</div>
+
+<h3>例题 3：逻辑地址空间 4GB，页面大小 4KB，求页表项数</h3>
+<div class="calc-box">
+  <div class="eq">地址空间 = 4 GB = 2² × 2³⁰ = 2³² B（32 位地址）</div>
+  <div class="eq">页面大小 = 4 KB = 2¹² B</div>
+  <div class="eq">页面数 = 2³² ÷ 2¹² = 2³²⁻¹² = <b>2²⁰ = 1M 个页面</b></div>
+</div>
+
+<h3>例题 4：8MB 文件，盘块大小 4KB，需要多少个盘块？</h3>
+<div class="calc-box">
+  <div class="eq">8 MB = 2³ × 2²⁰ = 2²³ B</div>
+  <div class="eq">4 KB = 2¹² B</div>
+  <div class="eq">盘块数 = 2²³ ÷ 2¹² = 2¹¹ = <b>2048 个盘块</b></div>
+</div>
+
+<!-- ===================== 5. 常见错误 ===================== -->
+<h2 id="trap">⚠️ 5. 常见错误（避坑指南）</h2>
+
+<div class="warnbox">
+<b>错误 1：用 1000 代替 1024</b><br>
+❌ 错：1 MB = 10⁶ B = 1,000,000 B<br>
+✅ 对：1 MB = 2²⁰ B = 1,048,576 B<br>
+<small>OS 考试永远用 1024（2¹⁰），除非题目明确说「按 1000 计算」。</small>
+</div>
+
+<div class="warnbox">
+<b>错误 2：指数相乘而不是相加</b><br>
+❌ 错：2² × 2²⁰ = 2²ˣ²⁰ = 2⁴⁰<br>
+✅ 对：2² × 2²⁰ = 2²⁺²⁰ = 2²²<br>
+<small>记住公式：2ᵃ × 2ᵇ = 2ᵃ⁺ᵇ（同底数幂相乘，指数相加）</small>
+</div>
+
+<div class="warnbox">
+<b>错误 3：忘记拆系数</b><br>
+❌ 错：4 MB 直接当成 2²⁰<br>
+✅ 对：4 MB = 4 × MB = 2² × 2²⁰ = 2²²<br>
+<small>前面的系数（4/8/16）也要拆成 2 的幂次参与计算。</small>
+</div>
+
+<div class="warnbox">
+<b>错误 4：除法指数减反了</b><br>
+❌ 错：2²² ÷ 2² = 2²²⁺² = 2²⁴<br>
+✅ 对：2²² ÷ 2² = 2²²⁻² = 2²⁰<br>
+<small>同底数幂相除，指数相减：2ᵃ ÷ 2ᵇ = 2ᵃ⁻ᵇ</small>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="self">✅ 6. 自测 5 题</h2>
+
+<div class="calc-box">
+<b>自测 1.</b> 8 KB = 2^? B
+<details>
+<summary>答案</summary>
+8 = 2³，KB = 2¹⁰<br>
+8 KB = 2³ × 2¹⁰ = <b>2¹³ B</b>
+</details>
+</div>
+
+<div class="calc-box">
+<b>自测 2.</b> 16 MB = 2^? B
+<details>
+<summary>答案</summary>
+16 = 2⁴，MB = 2²⁰<br>
+16 MB = 2⁴ × 2²⁰ = <b>2²⁴ B</b>
+</details>
+</div>
+
+<div class="calc-box">
+<b>自测 3.</b> 页面大小 8KB，32 位逻辑地址，页号占多少位？
+<details>
+<summary>答案</summary>
+8 KB = 2¹³ B，页内偏移 13 位<br>
+页号 = 32 - 13 = <b>19 位</b>
+</details>
+</div>
+
+<div class="calc-box">
+<b>自测 4.</b> 盘块 4KB，盘块号 4B，每块能装多少个盘块号？
+<details>
+<summary>答案</summary>
+4 KB = 2¹² B，4 B = 2² B<br>
+2¹² ÷ 2² = <b>2¹⁰ = 1024 个</b>
+</details>
+</div>
+
+<div class="calc-box">
+<b>自测 5.</b> 64GB 的内存，按字节编址，需要多少位地址线？
+<details>
+<summary>答案</summary>
+64 = 2⁶，GB = 2³⁰<br>
+64 GB = 2⁶ × 2³⁰ = <b>2³⁶ B</b>，需要 <b>36 位</b> 地址线
+</details>
+</div>
+
+<footer>
+📚 关联课：
+<a href="./0082-paging-address-translation.html">0082 页式地址变换</a> ·
+<a href="./0083-paging-foundations.html">0083 页式 5 公式可视化</a> ·
+<a href="./0040-storage-calc-exam-cram.html">0040 存储计算冲刺</a> ·
+<a href="./0009-mixed-index.html">0009 混合索引</a><br>
+第 87 课 · 2 的幂次换算专题 · 由 Agens 老师按本仓库 AGENTS.md 规范生成
+</footer>
+
+</div>
+</body>
+</html>

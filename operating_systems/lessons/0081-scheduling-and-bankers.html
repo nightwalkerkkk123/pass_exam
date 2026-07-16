@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 81 课 · Ch3 处理机调度 + Ch2 银行家 · 期末计算大题 5 题冲刺</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .formula{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px;line-height:1.9}
+  pre{background:#0f1b2d;color:#e6edf3;padding:12px 14px;border-radius:6px;font-size:13px;overflow-x:auto;line-height:1.85}
+  pre .c{color:#8b949e}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .qbadge{display:inline-block;background:#e7f0fb;color:var(--blue);font-size:12px;font-weight:700;padding:1px 8px;border-radius:20px;margin-right:6px;vertical-align:middle}
+  .self-check{background:#fff;border:1px dashed #bcd;border-left:3px solid #2b6cb0;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:14px}
+  .self-check b{color:#2b6cb0}
+  .self-check .ans{color:var(--green);font-weight:600;margin-top:4px;display:block}
+  details{margin:6px 0}
+  summary{cursor:pointer;color:var(--blue);font-size:14px;font-weight:600;padding:2px 0}
+  /* 甘特图：每个作业一行，色块表示占用 */
+  .gantt{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px}
+  .gt-head{display:grid;grid-template-columns:60px 1fr;background:#eef2f8;font-weight:600}
+  .gt-head .gt-cells{display:grid}
+  .gt-row{display:grid;grid-template-columns:60px 1fr}
+  .gt-row + .gt-row{border-top:1px solid var(--line)}
+  .gt-label{padding:8px 6px;text-align:right;font-weight:600;border-right:1px solid var(--line);background:#f7f8fb}
+  .gt-cells{display:grid;gap:0}
+  .gt-cell{padding:8px 0;text-align:center;color:#fff;font-weight:600;font-size:12px;min-width:0;overflow:hidden;border-right:1px solid rgba(255,255,255,.2)}
+  .gt-cell:last-child{border-right:none}
+  .gt-empty{background:#fafbfc;color:#aab}
+  .gt-time{display:grid;border-top:1px solid var(--line);background:#f7f8fb;font-size:11px;color:#666}
+  .gt-time span{padding:4px 0;text-align:center;border-right:1px solid var(--line)}
+  .gt-time span:last-child{border-right:none}
+  .gt-A{background:#2b6cb0}.gt-B{background:#2f855a}.gt-C{background:#b7791f}
+  .gt-D{background:#6b46c1}.gt-E{background:#c53030}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 81 课 · Ch3 处理机调度 + Ch2 银行家算法 · 期末计算大题 5 题冲刺</p>
+  <h1>调度三算法 + 银行家算法：期末计算大题一锅端</h1>
+  <p class="sub">配套 <code>final-test.html</code> 计算大题。3 道调度（FCFS / SJF / RR·q=2）+ 2 道银行家（安全性判断 + 请求试探）。每题「题面 → 甘特图/计算表 → 平均值 → 易错」四步走，看完即可上考场。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·做题通用套路</a>
+    <a href="#q1">2·Q26-1 FCFS</a>
+    <a href="#q2">3·Q26-2 SJF</a>
+    <a href="#q3">4·Q26-3 RR(q=2)</a>
+    <a href="#compare">5·三算法对比</a>
+    <a href="#q4">6·Q27-1 银行家·安全性</a>
+    <a href="#q5">7·Q27-2 银行家·请求试探</a>
+    <a href="#self">8·自测</a>
+  </nav>
+</header>
+
+<!-- ===================== 0. 全局线 ===================== -->
+<h2 id="s0">🗺 0. 这 5 题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话：</b>前 3 题考「<b>调度算法的执行过程 + 周转/带权指标</b>」，后 2 题考「<b>死锁避免（银行家）的安全性判断 + 请求分配</b>」。前者要画甘特图，后者要跑表格——两类都靠<b>按套公式一步步画</b>，不靠背诵。
+</div>
+
+<table>
+<tr><th>题号</th><th>题型</th><th>考点</th><th>关键口诀</th></tr>
+<tr><td><b>Q26-1</b></td><td>FCFS 先来先服务</td><td>按到达顺序排队，跑到自然结束</td><td>开始=上一个结束时间，结束=开始+服务</td></tr>
+<tr><td><b>Q26-2</b></td><td>SJF 短作业优先 (非抢占)</td><td>每次取队里服务时间最短的</td><td>「到点重排」，开始前挑最短</td></tr>
+<tr><td><b>Q26-3</b></td><td>RR(q=2) 时间片轮转</td><td>公平分时，时间片到就放队尾</td><td>新作业 / 时间片到 都插队尾</td></tr>
+<tr><td><b>Q27-1</b></td><td>银行家·安全性判断</td><td>Need ≤ Available 的进程放行</td><td>迭代找安全序列，能找到就安全</td></tr>
+<tr><td><b>Q27-2</b></td><td>银行家·请求试探</td><td>Req ≤ Need、Req ≤ Available、试探后仍安全</td><td>三道闸门缺一不可</td></tr>
+</table>
+
+<!-- ===================== 1. 通用套路 ===================== -->
+<h2 id="s1">🧠 1. 做题通用套路（背下来就能套）</h2>
+
+<h3>调度题三公式</h3>
+<div class="key">
+<b>调度题三公式（必背）：</b>
+<table style="margin-top:6px">
+<tr><th>指标</th><th>公式</th><th>含义</th></tr>
+<tr><td>周转时间 T</td><td><b>T = 完成时刻 − 到达时刻</b></td><td>作业从「入队」到「干完」的总时长</td></tr>
+<tr><td>带权周转 W</td><td><b>W = T ÷ 服务时间</b></td><td>「等多久才算真正在干活」的比例，≥1</td></tr>
+<tr><td>平均指标</td><td><b>= 所有作业之和 ÷ 作业数</b></td><td>整批作业的平均表现</td></tr>
+</table>
+</div>
+
+<h3>银行家四表</h3>
+<div class="tmpl">
+<b>银行家四表（必背）：</b>
+<table style="margin-top:6px">
+<tr><th>表</th><th>公式</th><th>含义</th></tr>
+<tr><td>Allocation</td><td>已分得的资源（题目给）</td><td>当前各进程手里有什么</td></tr>
+<tr><td>Max</td><td>最大需求（题目给）</td><td>进程声明「最多需要多少」</td></tr>
+<tr><td><b>Need</b></td><td><b>Need = Max − Allocation</b></td><td>「还需要多少」才能完成</td></tr>
+<tr><td><b>Available</b></td><td><b>Available = 总资源 − ΣAllocation</b></td><td>当前空闲资源池</td></tr>
+</table>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 易错三连：</b>
+<ol style="margin:6px 0 0 20px">
+<li>周转公式记反 → T = 完成 − 到达（不是到达 − 完成）</li>
+<li>带权公式忘除 → 带权 = T ÷ 服务时间（必须除，少除就丢分）</li>
+<li>银行家忘了 Need = Max − Allocation → 后面安全序列全崩</li>
+</ol>
+</div>
+
+<!-- ===================== 2. Q1 FCFS ===================== -->
+<h2 id="q1"><span class="qbadge">Q26-1</span>FCFS 先来先服务</h2>
+
+<h3>题面</h3>
+<p>5 个作业 A/B/C/D/E，到达时间 0/1/2/3/4，服务时间 4/3/4/2/4。求平均周转时间和平均带权周转时间。</p>
+
+<h3>FCFS 口诀</h3>
+<div class="key">
+<b>「先来的先跑，跑到自然结束才换下一个」</b>。每个作业的<strong>开始时刻 = 上一个作业的完成时刻</strong>，与到达时间无关（除 A 之外）。
+</div>
+
+<h3>调度时序</h3>
+<table>
+<tr><th>作业</th><th>到达</th><th>开始</th><th>服务</th><th>结束</th></tr>
+<tr><td>A</td><td>0</td><td>0</td><td>4</td><td><b>4</b></td></tr>
+<tr><td>B</td><td>1</td><td>4</td><td>3</td><td><b>7</b></td></tr>
+<tr><td>C</td><td>2</td><td>7</td><td>4</td><td><b>11</b></td></tr>
+<tr><td>D</td><td>3</td><td>11</td><td>2</td><td><b>13</b></td></tr>
+<tr><td>E</td><td>4</td><td>13</td><td>4</td><td><b>17</b></td></tr>
+</table>
+
+<h3>甘特图</h3>
+<div class="gantt" id="g-fcfs">
+  <div class="gt-head">
+    <div class="gt-label">作业</div>
+    <div class="gt-cells" id="g-fcfs-head"></div>
+  </div>
+  <div id="g-fcfs-body"></div>
+  <div class="gt-head gt-time">
+    <div class="gt-label">时间</div>
+    <div class="gt-cells" id="g-fcfs-time"></div>
+  </div>
+</div>
+
+<h3>周转 + 带权 + 平均</h3>
+<table>
+<tr><th>作业</th><th>到达</th><th>服务</th><th>完成</th><th>周转 T = 完成 − 到达</th><th>带权 W = T ÷ 服务</th></tr>
+<tr><td>A</td><td>0</td><td>4</td><td>4</td><td>4</td><td>1.00</td></tr>
+<tr><td>B</td><td>1</td><td>3</td><td>7</td><td>6</td><td>2.00</td></tr>
+<tr><td>C</td><td>2</td><td>4</td><td>11</td><td>9</td><td>2.25</td></tr>
+<tr><td>D</td><td>3</td><td>2</td><td>13</td><td>10</td><td>5.00</td></tr>
+<tr><td>E</td><td>4</td><td>4</td><td>17</td><td>13</td><td>3.25</td></tr>
+<tr style="background:#fff7ed"><td colspan="5"><b>📊 平均</b></td><td><b>8.4</b></td><td><b>2.70</b></td></tr>
+</table>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>D 的带权 <b>5.0 是最大值</b>（D 服务时间只要 2，却等了 10 个时刻才被调度）。这就是 FCFS 的「护航效应」(convoy effect)：长作业挤占 CPU，短作业全在后面干等。
+</div>
+
+<!-- ===================== 3. Q2 SJF ===================== -->
+<h2 id="q2"><span class="qbadge">Q26-2</span>SJF 短作业优先（非抢占）</h2>
+
+<h3>题面（同 Q26-1）</h3>
+
+<h3>SJF 口诀</h3>
+<div class="key">
+<b>「队列里服务时间最短的先跑，跑完才考虑下一个」</b>。<b>开始新作业前</b>挑队里最短的；相同 → 按到达顺序或字母序。
+</div>
+
+<h3>调度时序（逐步推）</h3>
+<table>
+<tr><th>时刻</th><th>事件</th><th>已到达队列（按服务时间升序）</th><th>本轮选中</th></tr>
+<tr><td>t=0</td><td>A 到达（队: A(4)）</td><td>A(4)</td><td><b>A</b></td></tr>
+<tr><td>t=1</td><td>B 到达（队: A(4), B(3)）</td><td>—</td><td>A 继续</td></tr>
+<tr><td>t=2</td><td>C 到达（队: A(4), B(3), C(4)）</td><td>—</td><td>A 继续</td></tr>
+<tr><td>t=3</td><td>D 到达（队: A(4), B(3), C(4), D(2)）</td><td>—</td><td>A 继续（非抢占）</td></tr>
+<tr><td>t=4</td><td>A 完成 → 重新选最短</td><td><b>D(2)</b>, B(3), C(4), E(4)</td><td><b>D</b></td></tr>
+<tr><td>t=6</td><td>D 完成 → 重新选最短</td><td><b>B(3)</b>, C(4), E(4)</td><td><b>B</b></td></tr>
+<tr><td>t=9</td><td>B 完成 → C 与 E 并列（都 4）→ 按字母序取 C</td><td><b>C(4)</b>, E(4)</td><td><b>C</b></td></tr>
+<tr><td>t=13</td><td>C 完成</td><td>E(4)</td><td><b>E</b></td></tr>
+<tr><td>t=17</td><td>E 完成</td><td>—</td><td>—</td></tr>
+</table>
+
+<h3>甘特图</h3>
+<div class="gantt" id="g-sjf">
+  <div class="gt-head">
+    <div class="gt-label">作业</div>
+    <div class="gt-cells" id="g-sjf-head"></div>
+  </div>
+  <div id="g-sjf-body"></div>
+  <div class="gt-head gt-time">
+    <div class="gt-label">时间</div>
+    <div class="gt-cells" id="g-sjf-time"></div>
+  </div>
+</div>
+
+<h3>周转 + 带权 + 平均</h3>
+<table>
+<tr><th>作业</th><th>到达</th><th>服务</th><th>完成</th><th>周转 T</th><th>带权 W</th></tr>
+<tr><td>A</td><td>0</td><td>4</td><td>4</td><td>4</td><td>1.00</td></tr>
+<tr><td>B</td><td>1</td><td>3</td><td>9</td><td>8</td><td>2.67</td></tr>
+<tr><td>C</td><td>2</td><td>4</td><td>13</td><td>11</td><td>2.75</td></tr>
+<tr><td>D</td><td>3</td><td>2</td><td>6</td><td>3</td><td>1.50</td></tr>
+<tr><td>E</td><td>4</td><td>4</td><td>17</td><td>13</td><td>3.25</td></tr>
+<tr style="background:#fff7ed"><td colspan="5"><b>📊 平均</b></td><td><b>7.80</b></td><td><b>2.23</b></td></tr>
+</table>
+
+<div class="key">
+<b>🧠 关键观察：</b>D 是 SJF 的真正受益者——FCFS 下 D 周转 = 10，SJF 下 D 周转 = <b>3</b>（D 服务时间 2，等 1）。这就是「SJF 偏爱短作业」的具体体现。
+</div>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>SJF「<b>非抢占</b>」意味着 A 在 t=0 开始跑后中途不会被打断——即使后面来了更短的 D 也不能换。如果题面写「<b>抢占</b> SJF / SRTF」才允许中断。本题明确「非抢占」。
+</div>
+
+<details><summary>🔍 拓展：本题如果是 SJF 抢占 (SRTF) 会怎样？</summary>
+<div style="margin-top:8px">
+SJF 抢占（又称 SRTF）允许新到作业打断当前作业——只要<b>新作业的服务时间 < 当前作业的剩余时间</b>。<br><br>
+本例中 A 在 t=0 开始（服 4），到 t=3 时 A 剩 1，D 刚到（服 2）。2 > 1，<b>不抢占</b>。所以本例 SRTF 和非抢占 SJF 结果相同，都是完成时刻 4/6/9/13/17。<br><br>
+但如果 D 的服务时间是 <b>1</b> 而不是 2，t=3 时 D(1) < A(剩 1)？仍然相等不抢占。所以本例无论抢占非抢占都一样。
+</div>
+</details>
+
+<!-- ===================== 4. Q3 RR ===================== -->
+<h2 id="q3"><span class="qbadge">Q26-3</span>RR(q=2) 时间片轮转</h2>
+
+<h3>题面（同 Q26-1，q=2）</h3>
+
+<h3>RR 口诀</h3>
+<div class="key">
+<b>「先来先服务 + 时间片到就放队尾」</b>。每个作业最多跑 q 个时间单位；<b>新到的作业直接插队尾</b>；时间片到了还没干完的也<b>插队尾</b>。
+</div>
+
+<h3>时刻表（逐步推，q=2）</h3>
+<table>
+<tr><th>时刻</th><th>调度队头</th><th>运行 1 个时间片后剩余</th><th>新到的 / 时间片到的 → 插队尾</th><th>更新后的就绪队列</th></tr>
+<tr><td>t=0</td><td>A(4)</td><td>—</td><td>—</td><td>[A]</td></tr>
+<tr><td>t=0→2</td><td>—</td><td>A(剩 2)</td><td>t=1 B 到；t=2 A 到 + C 到</td><td>[B(3), A(2), C(4)]</td></tr>
+<tr><td>t=2→4</td><td>B(3)</td><td>B(剩 1)</td><td>t=3 D 到；t=4 B 到</td><td>[A(2), C(4), D(2), B(1)]</td></tr>
+<tr><td>t=4→6</td><td>A(2) ← 剩 0 → <b>完成!</b></td><td>—</td><td>t=4 E 到</td><td>[C(4), D(2), B(1), E(4)]</td></tr>
+<tr><td>t=6→8</td><td>C(4)</td><td>C(剩 2)</td><td>t=8 C 到</td><td>[D(2), B(1), E(4), C(2)]</td></tr>
+<tr><td>t=8→10</td><td>D(2) ← 剩 0 → <b>完成!</b></td><td>—</td><td>—</td><td>[B(1), E(4), C(2)]</td></tr>
+<tr><td>t=10→11</td><td>B(1) ← 剩 0 → <b>完成!</b></td><td>—</td><td>—</td><td>[E(4), C(2)]</td></tr>
+<tr><td>t=11→13</td><td>E(4)</td><td>E(剩 2)</td><td>t=13 E 到</td><td>[C(2), E(2)]</td></tr>
+<tr><td>t=13→15</td><td>C(2) ← 剩 0 → <b>完成!</b></td><td>—</td><td>—</td><td>[E(2)]</td></tr>
+<tr><td>t=15→17</td><td>E(2) ← 剩 0 → <b>完成!</b></td><td>—</td><td>—</td><td>[]</td></tr>
+</table>
+
+<h3>甘特图</h3>
+<div class="gantt" id="g-rr">
+  <div class="gt-head">
+    <div class="gt-label">作业</div>
+    <div class="gt-cells" id="g-rr-head"></div>
+  </div>
+  <div id="g-rr-body"></div>
+  <div class="gt-head gt-time">
+    <div class="gt-label">时间</div>
+    <div class="gt-cells" id="g-rr-time"></div>
+  </div>
+</div>
+
+<h3>周转 + 带权 + 平均</h3>
+<table>
+<tr><th>作业</th><th>到达</th><th>服务</th><th>完成</th><th>周转 T</th><th>带权 W</th></tr>
+<tr><td>A</td><td>0</td><td>4</td><td>6</td><td>6</td><td>1.50</td></tr>
+<tr><td>B</td><td>1</td><td>3</td><td>11</td><td>10</td><td>3.33</td></tr>
+<tr><td>C</td><td>2</td><td>4</td><td>15</td><td>13</td><td>3.25</td></tr>
+<tr><td>D</td><td>3</td><td>2</td><td>10</td><td>7</td><td>3.50</td></tr>
+<tr><td>E</td><td>4</td><td>4</td><td>17</td><td>13</td><td>3.25</td></tr>
+<tr style="background:#fff7ed"><td colspan="5"><b>📊 平均</b></td><td><b>9.80</b></td><td><b>3.37</b></td></tr>
+</table>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>
+<ul style="margin:4px 0 0 18px">
+<li>RR 下 A 的完成时刻不是 4（FCFS）也不是 4（SJF），而是 <b>6</b>——A 被切了两段（0-2, 4-6）才跑完</li>
+<li>「时间片到」与「新作业到达」<b>都插队尾</b>，不分先后</li>
+<li>RR 本质是「公平但慢」，平均周转通常比 FCFS 还差，但<b>响应快</b>（每个作业最多等一个时间片就能跑）</li>
+</ul>
+</div>
+
+<!-- ===================== 5. 三算法对比 ===================== -->
+<h2 id="compare">📊 5. 三种调度算法横向对比</h2>
+<table>
+<tr><th>算法</th><th>平均周转</th><th>平均带权</th><th>长作业</th><th>短作业</th><th>响应</th><th>适用</th></tr>
+<tr><td><b>FCFS</b></td><td>8.4</td><td>2.70</td><td>友好</td><td>不友好（护航）</td><td>差</td><td>批处理</td></tr>
+<tr><td><b>SJF (非抢占)</b></td><td><b>7.8 ↓</b></td><td><b>2.23 ↓</b></td><td>不友好</td><td>友好</td><td>差</td><td>已知服务时间的批处理</td></tr>
+<tr><td><b>RR(q=2)</b></td><td>9.8</td><td>3.37</td><td>中等</td><td>中等</td><td><b>好</b></td><td><b>分时系统 / 交互</b></td></tr>
+</table>
+
+<div class="key">
+<b>🧠 一图记忆：</b>
+<ul style="margin:6px 0 0 18px">
+<li><b>周转最优 = SJF</b>（但会导致长作业饥饿）</li>
+<li><b>响应最优 = RR</b>（但周转不是最优）</li>
+<li><b>最简单 = FCFS</b>（但短作业会被拖死）</li>
+<li>没有「三种指标都最优」的算法——这是调度的<a href="https://en.wikipedia.org/wiki/Scheduling_(computing)" target="_blank">经典权衡</a></li>
+</ul>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 老师课上的「经验公式」校对：</b>「RR 适合分时系统，平均周转比 FCFS 差」——本例 RR 平均 9.8 vs FCFS 8.4，<b>差 1.4，方向吻合</b>。但「SJF 周转最小」本例是 7.8 也吻合。带权也是 SJF 最小。
+</div>
+
+<!-- ===================== 6. Q4 银行家安全性 ===================== -->
+<h2 id="q4"><span class="qbadge">Q27-1</span>银行家算法·安全性判断</h2>
+
+<h3>题面</h3>
+<p>5 个进程 P0~P4，3 类资源 A/B/C 共 10/5/7。T0 时刻：</p>
+<table>
+<tr><th>进程</th><th>Allocation (A,B,C)</th><th>Max (A,B,C)</th></tr>
+<tr><td>P0</td><td>(0,1,0)</td><td>(7,5,3)</td></tr>
+<tr><td>P1</td><td>(2,0,0)</td><td>(3,2,2)</td></tr>
+<tr><td>P2</td><td>(3,0,2)</td><td>(9,0,2)</td></tr>
+<tr><td>P3</td><td>(2,1,1)</td><td>(2,2,2)</td></tr>
+<tr><td>P4</td><td>(0,0,2)</td><td>(4,3,3)</td></tr>
+</table>
+<p>求：① Need 矩阵；② Available；③ 判断 T0 是否安全？</p>
+
+<h3>步骤 1·算 Need = Max − Allocation</h3>
+<table>
+<tr><th>进程</th><th>Max</th><th>Allocation</th><th><b>Need = Max − Allocation</b></th></tr>
+<tr><td>P0</td><td>(7,5,3)</td><td>(0,1,0)</td><td><b>(7,4,3)</b></td></tr>
+<tr><td>P1</td><td>(3,2,2)</td><td>(2,0,0)</td><td><b>(1,2,2)</b></td></tr>
+<tr><td>P2</td><td>(9,0,2)</td><td>(3,0,2)</td><td><b>(6,0,0)</b></td></tr>
+<tr><td>P3</td><td>(2,2,2)</td><td>(2,1,1)</td><td><b>(0,1,1)</b></td></tr>
+<tr><td>P4</td><td>(4,3,3)</td><td>(0,0,2)</td><td><b>(4,3,1)</b></td></tr>
+</table>
+
+<h3>步骤 2·算 Available = 总 − ΣAllocation</h3>
+<div class="formula">
+ΣAllocation = (0+2+3+2+0, 1+0+0+1+0, 0+0+2+1+2) = (7, 2, 5)
+
+Available = (10−7, 5−2, 7−5) = <b>(3, 3, 2)</b>
+</div>
+
+<h3>步骤 3·找安全序列（迭代选 Need ≤ Available）</h3>
+<table>
+<tr><th>轮次</th><th>候选进程（Need ≤ Available）</th><th>选中</th><th>释放 Allocation</th><th>新 Available</th></tr>
+<tr><td>1</td><td><b>只有 P3(0,1,1)</b>（其他 Need 都超 Avail）</td><td>P3</td><td>(2,1,1)</td><td>(3+2, 3+1, 2+1) = <b>(5,4,3)</b></td></tr>
+<tr><td>2</td><td>P1(1,2,2) ≤ (5,4,3) ✓<br>P2(6,0,0) ≤ (5,4,3)? ✗（6>5）<br>P4(4,3,1) ≤ (5,4,3)? ✗（3=3 但 4≤5? 是；但 1≤3? 是；都行？检查 (4,3,1) ≤ (5,4,3)：4≤5✓ 3≤4✓ 1≤3✓）→ ✓</td><td>P1（服务时间最短?一样；按编号取 P1）</td><td>(2,0,0)</td><td>(5+2, 4+0, 3+0) = <b>(7,4,3)</b></td></tr>
+<tr><td>3</td><td>P2(6,0,0) ≤ (7,4,3)? ✓<br>P4(4,3,1) ≤ (7,4,3)? ✓</td><td>P2</td><td>(3,0,2)</td><td>(7+3, 4+0, 3+2) = <b>(10,4,5)</b></td></tr>
+<tr><td>4</td><td>P4(4,3,1) ≤ (10,4,5)? ✓</td><td>P4</td><td>(0,0,2)</td><td>(10,4,7)</td></tr>
+<tr><td>5</td><td>P0(7,4,3) ≤ (10,4,7)? ✓</td><td>P0</td><td>(0,1,0)</td><td>(10,5,7) ✓</td></tr>
+</table>
+
+<div class="key">
+<b>✅ 安全序列：P3 → P1 → P2 → P4 → P0</b><br>
+（其实只要 P3 第一个确定，后面的顺序可以换。比如 P3→P1→P4→P2→P0 也安全，但 P3 必须先，因为一开始只有它能完成）
+</div>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>
+<ul style="margin:4px 0 0 18px">
+<li>第一轮「只剩 P3」很容易看错——P2 的 Need(6,0,0) 虽然 A 类少，但加上 B/C 后整体看，<b>逐分量比较</b>不是「总和」</li>
+<li>P4 的 Need(4,3,1) vs Avail(5,4,3)：<b>是 ≤ 的</b>，但前面轮次 Avail 还没到 5，别看错时机</li>
+<li>Need 比较是<b>逐分量独立</b>：Need(i) ≤ Available 当且仅当每个分量都 ≤（不是总和比）</li>
+</ul>
+</div>
+
+<!-- ===================== 7. Q5 银行家请求试探 ===================== -->
+<h2 id="q5"><span class="qbadge">Q27-2</span>银行家算法·请求试探</h2>
+
+<h3>题面</h3>
+<p>P1 提出请求 <code>Request(1, 0, 2)</code>，能否立即分配？</p>
+
+<h3>三道闸门</h3>
+<div class="tmpl">
+<b>📐 银行家请求试探三道闸门：</b>
+<ol style="margin:6px 0 0 20px">
+  <li><b>闸 1：Request ≤ Need</b>（不能超过声明需求）</li>
+  <li><b>闸 2：Request ≤ Available</b>（不能超过空闲资源）</li>
+  <li><b>闸 3：试探分配后系统仍安全</b>（找得到安全序列）</li>
+</ol>
+任一不通过 → <b>等待</b>。
+</div>
+
+<h3>闸 1：Request(1,0,2) ≤ Need[P1](1,2,2)？</h3>
+<div class="formula">
+1 ≤ 1 ✓
+0 ≤ 2 ✓
+2 ≤ 2 ✓
+→ <b>通过闸 1</b> ✓
+</div>
+
+<h3>闸 2：Request(1,0,2) ≤ Available(3,3,2)？</h3>
+<div class="formula">
+1 ≤ 3 ✓
+0 ≤ 3 ✓
+2 ≤ 2 ✓
+→ <b>通过闸 2</b> ✓
+</div>
+
+<h3>闸 3：试探分配后找安全序列</h3>
+<h4>3.1 假装分配后，更新三个表</h4>
+<table>
+<tr><th>项目</th><th>旧</th><th>新</th></tr>
+<tr><td>Available</td><td>(3,3,2)</td><td>(3−1, 3−0, 2−2) = <b>(2,3,0)</b></td></tr>
+<tr><td>Allocation[P1]</td><td>(2,0,0)</td><td>(2+1, 0+0, 0+2) = <b>(3,0,2)</b></td></tr>
+<tr><td>Need[P1]</td><td>(1,2,2)</td><td>(1−1, 2−0, 2−2) = <b>(0,2,0)</b></td></tr>
+</table>
+
+<h4>3.2 用新 Available 找安全序列</h4>
+<table>
+<tr><th>轮次</th><th>Avail</th><th>候选 (Need ≤ Avail)</th><th>选中</th><th>释放 → 新 Avail</th></tr>
+<tr><td>1</td><td>(2,3,0)</td><td>P0(7,4,3) ✗<br>P1(0,2,0) ✓<br>P2(6,0,0) ✗ (6>2)<br>P3(0,1,1) ✗ (1>0)<br>P4(4,3,1) ✗</td><td><b>P1</b></td><td>(2+3, 3+0, 0+2) = <b>(5,3,2)</b></td></tr>
+<tr><td>2</td><td>(5,3,2)</td><td>P0 ✗<br>P2(6,0,0) ✗ (6>5)<br>P3(0,1,1) ✓<br>P4(4,3,1) ✓</td><td><b>P3</b></td><td>(5+2, 3+1, 2+1) = <b>(7,4,3)</b></td></tr>
+<tr><td>3</td><td>(7,4,3)</td><td>P0(7,4,3) ✓<br>P2(6,0,0) ✓<br>P4(4,3,1) ✓</td><td>P2（或者 P0、P4 都行）</td><td>—</td></tr>
+<tr><td>4</td><td>—</td><td>剩余任选</td><td>—</td><td>—</td></tr>
+</table>
+
+<div class="key">
+<b>✅ 试探后安全序列：P1 → P3 → P2 → P4 → P0</b>（或 P1 → P3 → P0 → P2 → P4 等多种）<br>
+→ <b>通过闸 3</b> ✓
+</div>
+
+<h3>结论</h3>
+<div class="key">
+<b>🎯 三道闸门全部通过 → 可以立即分配</b>。
+<br><br>
+具体动作：
+<pre><span class="c">// 把 P1 的请求当真分配</span>
+Available = (2,3,0)
+Allocation[P1] = (3,0,2)
+Need[P1] = (0,2,0)
+<span class="c">// 然后让系统按 P1→P3→P2→P4→P0 的顺序推进即可</span>
+</pre>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 易错：</b>
+<ul style="margin:4px 0 0 18px">
+<li>只验闸 1+2 就说「能分配」→ 大错！必须<b>三道闸门都通过</b>才能分配</li>
+<li>「试探」是临时假设——如果闸 3 不通过要回滚（Available、Allocation、Need 恢复原值，让 P1 等）</li>
+<li>第一轮只能选 P1 是因为 P1 的 Need 退化为 (0,2,0) 极小——这是「试探」带 P1 占便宜的副作用</li>
+</ul>
+</div>
+
+<!-- ===================== 8. 自测 ===================== -->
+<h2 id="self">✅ 8. 自测 4 题（动手写，再看答案）</h2>
+
+<div class="self-check">
+<b>自测 1 · Q26 调度.</b> FCFS 下 D 的带权 5.0 怎么来的？如果改成 RR(q=4)，D 的带权会变大还是变小？<br>
+<details><summary>答案</summary>
+<div class="ans">FCFS：D 周转 = 完成 13 − 到达 3 = 10，D 服务 = 2，所以带权 = 10 ÷ 2 = <b>5.0</b>。<br><br>
+改成 RR(q=4)：D 在 t=3 到达，t=8 轮上只需 1 个时间片就完成（t=8 → t=9），完成时刻变成 9，周转 = 9 − 3 = 6，带权 = 6 ÷ 2 = <b>3.0</b>，比 5.0 小。<br><br>
+结论：<b>时间片越大，RR 越像 FCFS；时间片越小，RR 越公平但周转越长。</b></div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 2 · Q26 调度.</b> SJF 「非抢占」下，如果某个作业到达时 CPU 空闲，谁先占用？为什么？<br>
+<details><summary>答案</summary>
+<div class="ans">CPU 空闲 + 队列里有等它的作业 → <b>队里最短的</b>先跑。本题 t=4 时 CPU 空，队列是 A(4)/B(3)/C(4)/D(2)/E(4)，最短的 D 先跑（A 已经完成）——这正是 SJF 强调「选最短」的核心。<br><br>
+容易错的点：如果多个最短相同（比如 C 和 E 都 4），就退化为 FCFS（按到达顺序）或按字母序——题目默认前者。</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 3 · Q27 银行家.</b> 如果 P4 提出 Request(0, 0, 1)，能分配吗？（提示：原题是 P1 申请 (1,0,2)）<br>
+<details><summary>答案</summary>
+<div class="ans"><b>能</b>。<br>
+闸 1：Request(0,0,1) ≤ Need[P4](4,3,1)? 0≤4✓ 0≤3✓ 1≤1✓ 通过。<br>
+闸 2：Request(0,0,1) ≤ Available(3,3,2)? 0≤3✓ 0≤3✓ 1≤2✓ 通过。<br>
+闸 3：试探后 Available = (3,3,1)，找安全序列——尝试 P3(0,1,1) ≤ (3,3,1) ✓ → 释放 → Avail = (5,4,2)... 然后 P1/P2/P4/P0 都能找到，三道闸门全过，<b>能分配</b>。</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 4 · Q27 银行家.</b> 如果 P1 改成请求 Request(2, 0, 2)，闸门哪道会卡住？<br>
+<details><summary>答案</summary>
+<div class="ans"><b>闸 1 卡住</b>。Request(2,0,2) ≤ Need[P1](1,2,2)? 第 1 分量 2 ≤ 1? <b>不成立</b>。<br>
+结论：P1 申请 2 个 A 类资源，但 Need 里 A 只剩 1——超过声明需求，<b>必须等待</b>。这种情况 P1 应该修改自己的 Max 声明（如果需要），但在当前 Max 下不能批准。</div>
+</details>
+</div>
+
+<footer>
+<p>📚 关联课：<a href="./0067-scheduling-metrics.html">0067 调度算法的评价指标</a> · <a href="./0040-storage-mgmt-final.html">0040 存储管理大题冲刺</a> · <a href="./0080-semaphore-sync-code.html">0080 PV 同步代码 6 题冲刺</a></p>
+<p>🎯 试卷入口：<a href="../exams/final-test.html">final-test.html</a>（题号 26-27 即本页 5 道题）</p>
+<p>第 81 课 · 期末计算大题冲刺 · 由 Agens 老师按本仓库 AGENTS.md 规范生成</p>
+</footer>
+
+</div>
+
+<script>
+// =============== 甘特图渲染（FCFS / SJF / RR 共享一套工具） ===============
+function renderGantt(headId, bodyId, timeId, jobs, segments, totalUnits) {
+  // head: 顶部时间轴
+  const head = document.getElementById(headId);
+  head.style.gridTemplateColumns = 'repeat(' + totalUnits + ', 1fr)';
+  for (let i = 0; i < totalUnits; i++) {
+    const c = document.createElement('div');
+    head.appendChild(c);
+  }
+  // body: 每个作业一行
+  const body = document.getElementById(bodyId);
+  jobs.forEach(j => {
+    const row = document.createElement('div');
+    row.className = 'gt-row';
+    const label = document.createElement('div');
+    label.className = 'gt-label';
+    label.textContent = j;
+    const cells = document.createElement('div');
+    cells.className = 'gt-cells';
+    cells.style.gridTemplateColumns = 'repeat(' + totalUnits + ', 1fr)';
+    for (let i = 0; i < totalUnits; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'gt-empty';
+      cell.textContent = '·';
+      cells.appendChild(cell);
+    }
+    segments.forEach(s => {
+      if (s.job === j && s.start >= 0) {
+        for (let k = s.start; k < s.start + s.len && k < totalUnits; k++) {
+          const cell = cells.children[k];
+          cell.className = 'gt-cell gt-' + j;
+          cell.textContent = j;
+        }
+      }
+    });
+    row.appendChild(label);
+    row.appendChild(cells);
+    body.appendChild(row);
+  });
+  // time scale
+  const time = document.getElementById(timeId);
+  time.style.gridTemplateColumns = 'repeat(' + totalUnits + ', 1fr)';
+  for (let i = 0; i < totalUnits; i++) {
+    const c = document.createElement('span');
+    c.textContent = i;
+    time.appendChild(c);
+  }
+}
+
+// FCFS: A 0-4, B 4-7, C 7-11, D 11-13, E 13-17
+renderGantt('g-fcfs-head', 'g-fcfs-body', 'g-fcfs-time',
+  ['A','B','C','D','E'],
+  [{job:'A',start:0,len:4},{job:'B',start:4,len:3},{job:'C',start:7,len:4},{job:'D',start:11,len:2},{job:'E',start:13,len:4}],
+  17);
+
+// SJF: A 0-4, D 4-6, B 6-9, C 9-13, E 13-17
+renderGantt('g-sjf-head', 'g-sjf-body', 'g-sjf-time',
+  ['A','B','C','D','E'],
+  [{job:'A',start:0,len:4},{job:'D',start:4,len:2},{job:'B',start:6,len:3},{job:'C',start:9,len:4},{job:'E',start:13,len:4}],
+  17);
+
+// RR: A 0-2, B 2-4, A 4-6, C 6-8, D 8-10, B 10-11, E 11-13, C 13-15, E 15-17
+renderGantt('g-rr-head', 'g-rr-body', 'g-rr-time',
+  ['A','B','C','D','E'],
+  [
+    {job:'A',start:0,len:2},{job:'B',start:2,len:2},{job:'A',start:4,len:2},
+    {job:'C',start:6,len:2},{job:'D',start:8,len:2},{job:'B',start:10,len:1},
+    {job:'E',start:11,len:2},{job:'C',start:13,len:2},{job:'E',start:15,len:2}
+  ],
+  17);
+</script>
+
+</body>
+</html>

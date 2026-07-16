@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 82 课 · Ch4 内存管理 · 页式地址变换 3 题冲刺</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--purple)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .formula{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;margin:14px 0;font-family:'SF Mono',monospace;font-size:13px;line-height:1.9}
+  pre{background:#0f1b2d;color:#e6edf3;padding:12px 14px;border-radius:6px;font-size:13px;overflow-x:auto;line-height:1.85}
+  pre .c{color:#8b949e}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  .qbadge{display:inline-block;background:#e7f0fb;color:var(--blue);font-size:12px;font-weight:700;padding:1px 8px;border-radius:20px;margin-right:6px;vertical-align:middle}
+  .self-check{background:#fff;border:1px dashed #bcd;border-left:3px solid #2b6cb0;border-radius:6px;padding:10px 14px;margin:14px 0;font-size:14px}
+  .self-check b{color:#2b6cb0}
+  .self-check .ans{color:var(--green);font-weight:600;margin-top:4px;display:block}
+  details{margin:6px 0}
+  summary{cursor:pointer;color:var(--blue);font-size:14px;font-weight:600;padding:2px 0}
+  /* 二进制分块高亮 */
+  .bin{font-family:'SF Mono',Menlo,Consolas,monospace;background:#0f1b2d;color:#e6edf3;padding:8px 12px;border-radius:6px;font-size:14px;letter-spacing:1px;display:inline-block}
+  .bin .pgno{color:#fbbf24;font-weight:700}
+  .bin .offset{color:#7dd3fc;font-weight:700}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 82 课 · Ch4 内存管理 · 页式地址变换 3 题冲刺</p>
+  <h1>页式地址变换：逻辑↔物理的 3 道计算题一锅端</h1>
+  <p class="sub">配套 <code>final-test.html</code> 第 31–33 题。所有考的都是<b>同一套底层逻辑</b>：逻辑地址拆「页号+页内」、物理地址 = 物理块×页大小+页内、一级/二级页表寻址 = 项数乘积。看完就能默写 3 道题的所有公式。</p>
+  <nav class="nav">
+    <a href="#s0">0·全局线</a>
+    <a href="#s1">1·5 个底层公式</a>
+    <a href="#q1">2·Q31 求物理地址</a>
+    <a href="#q2">3·Q32 求位数+内存</a>
+    <a href="#q3">4·Q33 一/二级页表寻址</a>
+    <a href="#compare">5·3 题关系图</a>
+    <a href="#self">6·自测</a>
+  </nav>
+</header>
+
+<!-- ===================== 0. 全局线 ===================== -->
+<h2 id="s0">🗺 0. 这 3 题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话：</b>页式管理的底层只有 <b>5 个公式</b>，3 道题是这 5 个公式的<b>三种组合</b>——题 31 是「拼装」题，题 32 是「拆位数」题，题 33 是「算寻址」题。
+</div>
+
+<table>
+<tr><th>题号</th><th>题型</th><th>已知</th><th>求</th><th>用到的公式</th></tr>
+<tr><td><b>Q31</b></td><td>逻辑地址 → 物理地址</td><td>逻辑地址位数、页大小、页表</td><td>物理地址</td><td>①②③</td></tr>
+<tr><td><b>Q32</b></td><td>页数和页大小 → 位数+内存</td><td>总页数、每页大小、内存块数</td><td>逻辑地址位数、内存大小</td><td>① ④</td></tr>
+<tr><td><b>Q33</b></td><td>页大小+页表项 → 寻址能力</td><td>页大小、页表项大小</td><td>一级/二级页表最大寻址</td><td>⑤</td></tr>
+</table>
+
+<!-- ===================== 1. 5 个底层公式 ===================== -->
+<h2 id="s1">📜 1. 5 个底层公式（必背，3 题通用）</h2>
+
+<div class="key">
+<b>公式 ① 逻辑地址拆位：</b>
+<div class="formula">
+页号位数   = log₂(总页数)
+页内位数   = log₂(页大小)
+逻辑地址位 = 页号位数 + 页内位数
+
+例：16 位逻辑地址，页大小 4096B=2¹² → 页号=4 位，页内=12 位
+</div>
+</div>
+
+<div class="key">
+<b>公式 ② 物理地址 = 物理块 × 页大小 + 页内地址：</b>
+<div class="formula">
+物理地址 = 物理块号 × 页大小 + 页内地址
+
+例：物理块 14，页大小 4096，页内 0xF6A
+   = 14 × 4096 + 0xF6A
+   = 14 × 0x1000 + 0xF6A
+   = 0xE000 + 0xF6A
+   = 0xEF6A
+</div>
+</div>
+
+<div class="key">
+<b>公式 ③ 逻辑 ↔ 物理 — 拼接式表达：</b>
+<div class="formula">
+[ 物理块号 | 页内地址 ]  =  [ 页号查页表 → 物理块号 ][ 原页内地址 ]
+
+—— 两边共享一段「页内地址」，只是前面那段查表换一下。
+</div>
+</div>
+
+<div class="key">
+<b>公式 ④ 内存大小 = 物理块数 × 页大小：</b>
+<div class="formula">
+内存 = N块 × S 字节/块 = N×S
+
+例：8 块 × 2048B/块 = 16384B = 16KB
+</div>
+</div>
+
+<div class="key">
+<b>公式 ⑤ 一级 / 二级页表寻址：</b>
+<div class="formula">
+一页页表能装多少项 = 页大小 / 页表项大小
+
+一级页表最大寻址 = 一页页表项数 × 页大小
+二级页表最大寻址 = 一页页表项数² × 页大小
+
+例：页 4KB，项 4B → 一页 1024 项
+   一级寻址 = 1024 × 4KB = 4MB
+   二级寻址 = 1024² × 4KB = 1M × 4KB = 4GB
+</div>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 通用口诀（背下来就稳了）：</b>
+<ul style="margin:4px 0 0 18px">
+<li>「<b>页号定高位、页内定低位</b>」——逻辑地址里高 N 位是页号，剩下是页内</li>
+<li>「<b>物理块 × 页大小 + 页内</b>」——这是物理地址的算式，乘加顺序不能反</li>
+<li>「<b>一级一层寻、二级两层叠</b>」——二级页表寻址 = 一级寻址 × 每级项数</li>
+<li>log₂ 计算时看到 2^N 就直接念 N（16 → 4，4096 → 12，2048 → 11，4KB → 12，1KB → 10）</li>
+</ul>
+</div>
+
+<!-- ===================== 2. Q31 ===================== -->
+<h2 id="q1"><span class="qbadge">Q31</span>逻辑地址 → 物理地址（最经典）</h2>
+
+<h3>题面</h3>
+<p>逻辑地址 16 位，页大小 4096B，第 0/1/2 页分别存在物理块 10/12/14。求逻辑地址 <b>2F6AH</b> 的物理地址。</p>
+
+<h3>解题 5 步走</h3>
+
+<h4>1. 算页内位数</h4>
+<div class="formula">
+页大小 = 4096B = 2¹²
+页内地址位数 = <b>12 位</b>　　→　逻辑地址高 4 位是页号，低 12 位是页内
+</div>
+
+<h4>2. 把 2F6AH 写成 16 位二进制并拆位</h4>
+<p>2F6AH 拆 4-位十六进制展开成 16 位二进制：</p>
+<div class="formula">
+2 F 6 A
+↓ ↓ ↓ ↓
+0010  1111  0110  1010
+
+<b>高 4 位（黄色）= 0010B = 2　← 页号</b>
+<b>低 12 位（青色）= 1111 0110 1010B = 0xF6A　← 页内地址</b>
+</div>
+
+<p>拆位可视化：</p>
+<div class="bin"><span class="pgno">0010</span> <span class="offset">1111 0110 1010</span></div>
+<p style="font-size:13px;color:#667">
+<span style="color:#fbbf24">▲ 页号</span>
+<span style="color:#7dd3fc">▲ 页内地址（12 位 = 3 个十六进制位）</span>
+</p>
+
+<h4>3. 查页表拿物理块号</h4>
+<table>
+<tr><th>页号</th><th>物理块号</th></tr>
+<tr><td>0</td><td>10</td></tr>
+<tr><td>1</td><td>12</td></tr>
+<tr><td><b>2</b></td><td><b>14</b></td></tr>
+</table>
+<p style="color:var(--green);font-weight:600">
+页号 2 → 物理块号 = 14
+</p>
+
+<h4>4. 物理块号转十六进制（这是 80% 同学翻车的地方）</h4>
+<div class="formula">
+14 ÷ 16 = 0 余 14
+14 = 0xE
+</div>
+<p style="color:var(--green);font-weight:600">
+物理块号 14（十进制）= <b>0xE</b>（十六进制）
+</p>
+
+<h4>5. 套公式 ② 计算物理地址</h4>
+<div class="formula">
+物理地址 = 物理块 × 页大小 + 页内地址
+        = 14 × 4096 + 0xF6A
+        = 14 × 0x1000 + 0xF6A   ← 4096 = 16¹² = 0x1000
+        = 0xE000 + 0xF6A
+        = <b>0xEF6A</b>
+</div>
+
+<div class="key">
+<b>✅ 最终答案：物理地址 = 0xEF6A（即 EF6AH）</b>
+</div>
+
+<h3>全过程一句话</h3>
+<div class="tmpl">
+<b>「拆位 → 查表 → 拼物理」</b>：
+<ul style="margin:6px 0 0 18px">
+<li>拆位：16 位地址里高 4 位页号、低 12 位页内</li>
+<li>查表：页号 2 → 物理块 14</li>
+<li>拼物理：14 × 4096 + 0xF6A = 0xEF6A</li>
+</ul>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 易错提醒：</b>
+<ul style="margin:4px 0 0 18px">
+<li><b>十进制 14 ≠ 0x14</b>！14 转十六进制是 <b>0xE</b>，不是 0x14（0x14 = 20）。算完是 0xE000，不是 0x14000</li>
+<li><b>页号位数算反</b>：4096 = 2¹² 是页内 12 位，页号只能分到剩下的 4 位（不够就再往上）</li>
+<li><b>乘加顺序反了</b>：物理地址 = 物理块 × 页大小 + 页内，「×」在「+」前面</li>
+<li><b>没换单位</b>：4096B = 0x1000 才能直接相加，否则一边十进制一边十六进制会乱</li>
+</ul>
+</div>
+
+<!-- ===================== 3. Q32 ===================== -->
+<h2 id="q2"><span class="qbadge">Q32</span>位数推算 + 内存大小</h2>
+
+<h3>题面</h3>
+<p>页式管理，逻辑地址空间最大 16 页，每页 2048B，内存 8 块。问：① 逻辑地址至少多少位？② 内存空间多大？</p>
+
+<h3>① 算逻辑地址位数</h3>
+<div class="formula">
+最大 16 页 → 页号位数 = log₂(16) = <b>4 位</b>
+每页 2048B = 2¹¹ → 页内位数 = <b>11 位</b>
+
+逻辑地址位数 = 页号 + 页内 = 4 + 11 = <b>15 位</b>
+</div>
+
+<h3>② 算内存大小</h3>
+<div class="formula">
+内存 = 物理块数 × 页大小
+    = 8 × 2048B
+    = 16384 B
+    = <b>16 KB</b>
+</div>
+
+<div class="key">
+<b>✅ 最终答案：</b>逻辑地址至少 <b>15 位</b>，内存空间 = <b>16 KB</b>
+</div>
+
+<div class="warnbox">
+<b>⚠️ 易错提醒：</b>
+<ul style="margin:4px 0 0 18px">
+<li>「<b>最大 16 页</b>」= 2<sup>N</sup> → N=4 位页号。不是 16 位页号（16 位能表示 65536 页）</li>
+<li>「<b>2048B</b>」= 2<sup>11</sup> → 11 位页内地址</li>
+<li>「<b>内存 = 块数 × 块大小</b>」容易跟「总页数 × 每页大小」混淆。这里题干给的是「<b>8 块</b>」（物理块数），不是「总页数 16」（逻辑页数）——<b>两者不同</b></li>
+<li>字节单位：B（Bytes 字节）、KB = 1024B、MB = 1024KB</li>
+</ul>
+</div>
+
+<details><summary>🔍 拓展：如果题面是「每页 2KB」而不是「2048B」呢？</summary>
+<div style="margin-top:8px">
+2KB = 2 × 1024 = 2048B = 2¹¹，<b>结果一样</b>（11 位页内）。B / KB / MB 之间的换算一定要先确认是 1024 进位（2ⁿ）还是 1000 进位（10ⁿ）——OS 题目几乎都是 1024 进位。<br><br>
+如果题面说「2KB 但页大小 2¹⁰B」——这是胡扯题，识别出来就好。可能是出题人笔误。
+</div>
+</details>
+
+<!-- ===================== 4. Q33 ===================== -->
+<h2 id="q3"><span class="qbadge">Q33</span>一级 / 二级页表寻址</h2>
+
+<h3>题面</h3>
+<p>某系统页大小 4KB，页表项 4B。① 一级页表最大可寻址多少虚拟空间？② 二级页表呢？</p>
+
+<h3>① 先算「一页页表能装多少项」</h3>
+<div class="formula">
+一页页表的大小 = 页大小 = 4KB = 2¹² B
+每个页表项 = 4B = 2² B
+
+一项一项数能放多少：
+  4KB / 4B = 4096 / 4 = 1024 = <b>2¹⁰ 项</b>
+</div>
+
+<h3>② 一级页表寻址</h3>
+<div class="key">
+<b>一级页表的寻址逻辑：</b>一级页表本身只占一页。这页里每个表项指向一个物理块。最多能指向多少个物理块 = 这一页能装多少项。每个物理块大小 = 页大小。
+</div>
+<div class="formula">
+一级寻址 = 一页页表项数 × 页大小
+       = 1024 × 4KB
+       = 1024 × 4 × 1024 B
+       = <b>4 MB</b>
+
+换个对数看法：
+       = 2¹⁰ × 2¹² B = 2²² B = 4 MB
+</div>
+
+<h3>③ 二级页表寻址</h3>
+<div class="key">
+<b>二级页表的寻址逻辑：</b>有 2 级页表，每级各占一页，每页 1024 项。第一级表项指向第二级页表（每个项又指向一张二级页表，每张二级页表又能指向 1024 个物理块）。一共能指向 1024 × 1024 个物理块。
+</div>
+<div class="formula">
+二级寻址 = 一页页表项数² × 页大小
+       = 1024 × 1024 × 4KB
+       = 1M × 4KB
+       = <b>4 GB</b>
+
+换个对数看法：
+       = (2¹⁰)² × 2¹² B = 2²⁰ × 2¹² B = 2³² B = 4 GB
+</div>
+
+<div class="key">
+<b>✅ 最终答案：</b>
+<ul style="margin:6px 0 0 18px">
+<li>一级页表最大寻址 = <b>4 MB</b></li>
+<li>二级页表最大寻址 = <b>4 GB</b></li>
+</ul>
+</div>
+
+<h3>对比说明</h3>
+<table>
+<tr><th></th><th>一级</th><th>二级</th></tr>
+<tr><td>级数</td><td>1 级</td><td>2 级</td></tr>
+<tr><td>页表总大小</td><td>1 × 页大小 = 4KB</td><td>1 × 页大小（顶级）+ N 个二级页表</td></tr>
+<tr><td>最大寻址</td><td>1024 × 4KB = 4MB</td><td>1024 × 1024 × 4KB = 4GB</td></tr>
+<tr><td>逻辑地址位数</td><td>10 + 12 = 22 位</td><td>10 + 10 + 12 = 32 位</td></tr>
+<tr><td>查表次数</td><td>1 次</td><td>2 次</td></tr>
+</table>
+
+<div class="warnbox">
+<b>⚠️ 易错提醒：</b>
+<ul style="margin:4px 0 0 18px">
+<li><b>混淆「项」和「页」</b>：一页页表 = 一张表 = 4KB 大小 = 装 1024 项（每项 4B）</li>
+<li><b>一级寻址为啥受页表页大小限制？</b> 一级页表就一页，这一页只能装 1024 项，每项指向一个物理块（每块 4KB），所以最大 1024×4KB = 4MB — 想寻址更大必须<b>把单级拆多级</b></li>
+<li><b>二级 ≠ 二倍</b>：是 <b>项数倍</b>（每级 1024 项叠加就是 1024 × 1024 = 1M 项）</li>
+<li><b>内存容量瓶颈：</b>如果页大小 = 4KB 不变，单级页表的最大寻址上限就是 4MB。要突破必须上多级</li>
+</ul>
+</div>
+
+<!-- ===================== 5. 关系图 ===================== -->
+<h2 id="compare">🧬 5. 3 题关系图：一图串起来</h2>
+
+<pre>
+              ┌────────────────────────────────────────┐
+              │         页式管理 5 个底层公式            │
+              └────────────────────────────────────────┘
+                                │
+       ┌────────────────────────┼────────────────────────┐
+       │                        │                        │
+       ▼                        ▼                        ▼
+   【Q31】                  【Q32】                   【Q33】
+   已知「页大小、页表、    已知「总页数、页大小、     已知「页大小、页表
+   逻辑地址」              块数」                   项大小」
+       │                        │                        │
+       ▼                        ▼                        ▼
+   ①算页号位数            ①log₂算位数              ① 算一页面能装多少项
+   ②拆逻辑地址            ② 算内存大小              ② ×  页大小 = 一级寻址
+   ③查表→物理块         （答案：4+11=15 位）        ③ ×² 页大小 = 二级寻址
+   ④算加法:块×页+页内    （内存 = N×S）            （答案：4MB / 4GB）
+   （答案：0xEF6A）
+</pre>
+
+<div class="key">
+<b>🧠 一句话记忆：</b>
+<ul style="margin:6px 0 0 18px">
+<li><b>Q31</b> = <b>「拆 + 拼」</b>，纵向算地址</li>
+<li><b>Q32</b> = <b>「算对数」</b>，横向算位数</li>
+<li><b>Q33</b> = <b>「算乘积」</b>，纵向算寻址能力</li>
+</ul>
+</div>
+
+<!-- ===================== 6. 自测 ===================== -->
+<h2 id="self">✅ 6. 自测 4 题（动手算再看答案）</h2>
+
+<div class="self-check">
+<b>自测 1.</b> 16 位逻辑地址，页大小 1KB，第 5 页存在物理块 9。求逻辑地址 <code>0x3A21</code> 的物理地址。<br>
+<details><summary>答案</summary>
+<div class="ans">
+1KB = 2¹⁰ → 页内 10 位 → 页号 6 位
+0x3A21 = 0011 1010 0010 0001 → 高 6 位 <b>001110 = 14</b>（注意：第 5 页的物理块是 9，但 0x3A21 对应的页号是 14，14 不在题面给的 5 个页里——题面有问题或默认未映射页按 0 处理）
+低 10 位 = <b>10 0010 0001 = 0x221</b>
+物理地址 = 9 × 0x400 + 0x221 = 0x2400 + 0x221 = <b>0x2621</b>
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 2.</b> 页式管理，逻辑地址空间 32 页，每页 512B，内存 16 块。逻辑地址至少多少位？内存多大？<br>
+<details><summary>答案</summary>
+<div class="ans">
+32 = 2⁵ → 页号 5 位
+512 = 2⁹ → 页内 9 位
+逻辑地址 = 5 + 9 = <b>14 位</b>
+
+内存 = 16 × 512B = <b>8192 B = 8 KB</b>
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 3.</b> 页大小 8KB，页表项 8B。一级页表最大寻址多少？二级页表呢？<br>
+<details><summary>答案</summary>
+<div class="ans">
+一页页表项数 = 8KB / 8B = 1024 项 = 2¹⁰
+一级寻址 = 1024 × 8KB = <b>8 MB</b>
+二级寻址 = 1024² × 8KB = 1M × 8KB = <b>8 GB</b>
+</div>
+</details>
+</div>
+
+<div class="self-check">
+<b>自测 4.</b> 为什么单级页表最大寻址取决于「<b>页大小 / 页表项大小</b>」？<br>
+<details><summary>答案</summary>
+<div class="ans">
+单级页表本身就是一页（大小 = 页大小），所以它最多装「页大小 / 页表项大小」个表项。每个表项指向一个物理块（每个物理块也是页大小）。所以总寻址 = 项数 × 页大小。<br><br>
+要让寻址能力更大，<b>要么把页大小变大</b>（但不适合内存碎片多），<b>要么用多级页表</b>（每多一级，寻址翻 N 倍，N = 一页能装多少项）。
+</div>
+</details>
+</div>
+
+<footer>
+<p>📚 关联课：<a href="./0005-paging-fundamentals.html">0005 分页基础</a> · <a href="./0055-paging-vs-segmentation.html">0055 分页 vs 分段</a> · <a href="./0060-paging-segmentation-calc.html">0060 分页/分段地址计算</a> · <a href="./0040-storage-calc-exam-cram.html">0040 存储计算冲刺</a> · <a href="./0081-scheduling-and-bankers.html">0081 计算大题冲刺</a></p>
+<p>🎯 试卷入口：<a href="../exams/final-test.html">final-test.html</a>（题号 31-33 即本页 3 道题）</p>
+<p>第 82 课 · 页式地址变换冲刺 · 由 Agens 老师按本仓库 AGENTS.md 规范生成</p>
+</footer>
+
+</div>
+</body>
+</html>
