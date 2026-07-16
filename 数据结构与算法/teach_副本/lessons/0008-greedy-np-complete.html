@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 8 课 · 贪婪算法与 NP 完全问题 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第一部分《算法图解》⑧ · 对应 ch08</div>
+  <h1>第 8 课:贪婪算法与 NP 完全问题 —— 复习 + 集合覆盖近似解的坑</h1>
+  <div class="sub">上一课(第7课)学了 Dijkstra 算法求带权图最短路径,以及它对负权边的限制。这节课换一个思路:遇到根本没有已知高效精确解法的问题,怎么办?约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>直觉类比:没有"标准答案"的选择题,只能一步步赌"当下最好"。</b>
+  Dijkstra 能算出唯一正确的最短路径,是因为这类问题有已知的高效精确算法。但很多问题不是这样——比如"用最少数量的广播台,覆盖全美 50 个州"。
+  这类问题精确解需要枚举<b class="hl">幂集(power set)</b>,规模一大直接算不动。<b class="hl">贪婪算法</b>的思路很朴素:每一步都不去想"这样选对后面有没有影响",只问"现在这一步,哪个选项当下看起来最好",选完就往下走,不回头、不后悔。
+</div>
+
+<h2>一、贪婪算法:每一步都赌"眼前最好"</h2>
+<p><b>贪婪算法(Greedy Algorithm)</b>反复执行同一条规则——"在当前所有可选项中挑出<b class="hl">局部最优解</b>,然后在剩余问题上重复",直到问题被完全解决。它不做全局回溯或穷举,不保证总能得到<b class="hl">全局最优解</b>,但实现极其简单、速度快,往往能得到与最优解足够接近的近似解。</p>
+
+<p>先看一个贪婪策略"恰好就是最优解"的例子——<b>教室排课(活动选择)问题</b>:给定一组有时间冲突的课程,要选出数量最多、互不冲突的一组。贪婪解法是:</p>
+<ol>
+  <li>在所有课程中选<b>结束时间最早</b>的一堂,定为已选课程;</li>
+  <li>在剩余课程中,只保留与已选课程不冲突(开始时间晚于上一堂课结束时间)的课程,再从中选结束最早的一堂;</li>
+  <li>重复直到无课可选。</li>
+</ol>
+<p>这个贪婪策略对这一问题<b>恰好能得到全局最优解</b>——这是本章里贪婪算法"运气好"的正例,但不能因此就以为贪婪算法处处都这么可靠。</p>
+
+<h2>二、NP 完全问题:暴力解不动的信号</h2>
+<p><b>NP 完全问题(NP-complete Problem)</b>是一类以难解著称的问题(如旅行商问题、集合覆盖问题),目前<b class="hl">没有已知的可以快速求解的算法</b>。旅行商问题的可能路线数按<b>阶乘函数</b>增长,城市数一多就直接算不动:</p>
+
+<table>
+  <tr><th>城市数量</th><th>可能路线数</th></tr>
+  <tr><td>2</td><td>2</td></tr>
+  <tr><td>3</td><td>6</td></tr>
+  <tr><td>4</td><td>24</td></tr>
+  <tr><td>6</td><td>720</td></tr>
+  <tr><td>7</td><td>5040</td></tr>
+  <tr><td>8</td><td>40320</td></tr>
+  <tr><td>10</td><td>3628800(即 10!)</td></tr>
+</table>
+
+<p>判断 NP 完全问题没有充分条件,只有一些经验性的蛛丝马迹:</p>
+<table>
+  <tr><th>识别 NP 完全问题的蛛丝马迹</th></tr>
+  <tr><td>元素较少时算法运行速度快,但元素数量增加后速度骤降</td></tr>
+  <tr><td>涉及"所有组合"的问题</td></tr>
+  <tr><td>问题无法拆分成小问题,必须考虑各种可能情况</td></tr>
+  <tr><td>问题涉及序列(如城市访问顺序)且难以解决</td></tr>
+  <tr><td>问题涉及集合(如广播台覆盖)且难以解决</td></tr>
+  <tr><td>问题可转换为集合覆盖问题或旅行商问题</td></tr>
+</table>
+
+<div class="callout big">
+  <b>面对疑似 NP 完全问题该怎么办?</b> 不要死磕精确算法——继续硬算只会让运行时间随规模爆炸式增长(10 个城市的旅行商问题就已经有超过 300 万条路径要比较)。应该及时转向<b class="hl">近似算法(Approximation Algorithm)</b>,用速度换一个"足够接近"最优解的答案。贪婪算法就是最常用的近似算法之一。
+</div>
+
+<h2>三、集合覆盖问题的贪婪近似解法(C 代码)</h2>
+<p><b>集合覆盖问题(Set Covering Problem)</b>:需要从一批候选集合中,选出数量最少、并集能覆盖目标全集的子集组合(如用广播台覆盖 50 个州)。精确解需要枚举幂集,共 2ⁿ 个子集,运行时间 <code>O(2ⁿ)</code>,n 稍大就完全不可行。贪婪近似算法的步骤:</p>
+<ol>
+  <li>在所有候选集合中,选出能覆盖"<b class="hl">当前还未被覆盖的元素</b>"最多的那一个(哪怕它同时覆盖了一些已覆盖的元素也没关系);</li>
+  <li>从"待覆盖集合"中减去它已覆盖的部分;</li>
+  <li>重复①②,直到待覆盖集合为空。</li>
+</ol>
+<p>运行时间 <code>O(n²)</code>,得到的是近似解,不一定是元素最少的组合,但非常接近。</p>
+
+<p>下面把原书的 Python <code>set</code> 版本改写成 C:8 个州用一个 <code>unsigned int</code> 的 8 个二进制位表示(位掩码),集合的交集用 <code>&amp;</code>、差集用 <code>&amp;= ~x</code> 实现,对应 Python 里的 <code>&amp;</code> 和 <code>-=</code>。</p>
+
+<h3>C 代码(带边界条件详解)</h3>
+<pre>#define MT (1&lt;&lt;0)
+#define WA (1&lt;&lt;1)
+#define OR (1&lt;&lt;2)
+#define ID (1&lt;&lt;3)
+#define NV (1&lt;&lt;4)
+#define UT (1&lt;&lt;5)
+#define CA (1&lt;&lt;6)
+#define AZ (1&lt;&lt;7)
+#define NUM_STATIONS 5
+
+int count_bits(unsigned int mask) {      <span class="c">// 数一个位掩码里有几个 1(几个"已覆盖"的州)</span>
+    int count = 0;
+    while (mask) {
+        count += mask & 1;
+        mask >>= 1;
+    }
+    return count;
+}
+
+void set_cover_greedy(void) {
+    unsigned int station[NUM_STATIONS] = {
+        ID | NV | UT,   <span class="c">/* kone   */</span>
+        WA | ID | MT,   <span class="c">/* ktwo   */</span>
+        OR | NV | CA,   <span class="c">/* kthree */</span>
+        NV | UT,        <span class="c">/* kfour  */</span>
+        CA | AZ         <span class="c">/* kfive  */</span>
+    };
+    const char *name[NUM_STATIONS] = {"kone","ktwo","kthree","kfour","kfive"};
+    unsigned int states_needed = MT|WA|OR|ID|NV|UT|CA|AZ;  <span class="c">// 全部 8 个州待覆盖</span>
+    int i;
+
+    while (states_needed != 0) {          <span class="c">// ② 终止条件:待覆盖集合是否已空</span>
+        int best = -1;
+        int best_count = 0;
+        for (i = 0; i < NUM_STATIONS; i++) {
+            unsigned int covered = states_needed & station[i];  <span class="c">// ① 只看"新增覆盖"</span>
+            int c = count_bits(covered);
+            if (c > best_count) {         <span class="c">// 严格 &gt;:打平手时保留先遍历到的那个</span>
+                best = i;
+                best_count = c;
+            }
+        }
+        if (best == -1) break;            <span class="c">// 防御性退出:正常输入不会触发</span>
+        states_needed &= ~station[best];  <span class="c">// 差集:减掉刚选中台已覆盖的部分</span>
+        printf("选中 %s,剩余待覆盖州掩码 0x%02X\n", name[best], states_needed);
+    }
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 每轮比较的必须是"新增覆盖数"<code>count_bits(states_needed &amp; station[i])</code>,不是"该台元素总数"<code>count_bits(station[i])</code>。</b>
+    如果误写成后者,算法会优先选"自身州最多"的台,而不是"对当前局面最有用"的台——这正是集合覆盖贪婪算法的核心,也是本章最容易被考试当作找茬题的地方。</li>
+  <li><b>② while 循环的终止条件是 <code>states_needed != 0</code>(是否所有元素都已覆盖),不是遍历完一遍候选集合就退出。</b>
+    如果把 <code>while</code> 误写成对 <code>station</code> 数组只跑一遍的 <code>for</code> 循环,只会选出一个台就提前结束,后面还没覆盖的州会被漏掉。</li>
+  <li><b>③ 这里用 <code>unsigned int</code> 的位掩码代替 Python 的 <code>set</code>,前提是元素总数不超过这个整数类型的位数(这里 8 个州装进 32 位整数完全够用)。</b>
+    如果换成"覆盖全国 3000 多个县"这种规模,一个 <code>unsigned int</code> 装不下,就要改用位数组或 <code>unsigned long long</code>,这是从 Python 的无限大 <code>set</code> 翻译成 C 时特有的边界,原书代码不需要考虑这一点。</li>
+</ol>
+
+<h3>按源书讲解示例逐轮走一遍</h3>
+<p>候选广播台:<code>kone={id,nv,ut}</code>、<code>ktwo={wa,id,mt}</code>、<code>kthree={or,nv,ca}</code>、<code>kfour={nv,ut}</code>、<code>kfive={ca,az}</code>,目标覆盖 8 个州。</p>
+<table>
+  <tr><th>轮次</th><th>待覆盖州</th><th>各台新增覆盖数</th><th>选中</th></tr>
+  <tr><td>1</td><td>{mt,wa,or,id,nv,ut,ca,az}(8个)</td><td>kone=3,ktwo=3,kthree=3,kfour=2,kfive=2</td><td>kone(三者打平手,任选其一)</td></tr>
+  <tr><td>2</td><td>{mt,wa,or,ca,az}(5个)</td><td>ktwo={mt,wa}=2,kthree={or,ca}=2</td><td>ktwo(与 kthree 打平手,任选其一)</td></tr>
+  <tr><td>3</td><td>{or,ca,az}(3个)</td><td>kthree={or,ca}=2,kfive={ca,az}=2</td><td>kthree(与 kfive 打平手,任选其一)</td></tr>
+  <tr><td>4</td><td>{az}(1个)</td><td>只有 kfive={az}=1</td><td>kfive(唯一选择,循环结束)</td></tr>
+</table>
+<p class="sub" style="margin-top:-4px">补充一句:第 2 轮其实 <code>kfive</code> 对剩余州的交集也是 2(覆盖 ca、az),与 ktwo、kthree 同样打平手——贪婪算法本来就允许平局时任选其一,不影响最终选出的电台总数。</p>
+<p>最终 <code>final_stations = {kone, ktwo, kthree, kfive}</code>,共 4 个广播台——与精确算法可能给出的最优解(如 <code>{ktwo, kthree, kfour, kfive}</code>)站点数量相同、具体组合不同,这说明贪婪算法找到的是"足够好"的近似解,不保证与精确解完全一致。</p>
+
+<h2>四、常见陷阱:贪婪不是万能药</h2>
+<div class="callout warn">
+  <b>常见陷阱:误以为贪婪算法在所有问题上都能得到最优解。</b> 本章用<b>背包问题(35 磅背包)</b>直接证伪:如果贪婪策略是"每步偷当前最贵的商品",会先偷最贵的音响,把背包塞满,导致放不下笔记本电脑和吉他,总价只有 <b class="hl">3000 美元</b>;而换一种组合能拿到 <b class="hl">3500 美元</b>。贪婪策略只是"每步局部最优",不代表全局最优,必须针对每个问题单独证明或验证其正确性——教室排课问题里贪婪恰好最优,背包问题里贪婪就会失效,两者不能一概而论。
+</div>
+
+<h2>五、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 以下四条,哪一条<b>不是</b>本章讲的"识别 NP 完全问题的蛛丝马迹"?</div>
+  <button class="opt" data-ok="0">问题元素数量少时能快速解决,一旦数量增多,运行时间骤然变慢</button>
+  <button class="opt" data-ok="0">问题涉及需要考虑"所有组合"的穷举</button>
+  <button class="opt" data-ok="1">问题可以清晰地拆分成互不相关的小问题,分别求解后再合并结果</button>
+  <button class="opt" data-ok="0">问题涉及序列或集合,且很难找到简单的解法</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 集合覆盖问题第 1 轮,<code>states_needed</code> 是全部 8 个州,kone/ktwo/kthree 都恰好覆盖 3 个未覆盖的州(打平手),kfour 只覆盖 2 个,kfive 只覆盖 2 个。贪婪算法这一步应该怎么选?</div>
+  <button class="opt" data-ok="1">kone、ktwo、kthree 三者选哪个都可以——贪婪算法只要求选出"覆盖数最多"的那个,打平手时任选其一不影响正确性</button>
+  <button class="opt" data-ok="0">必须选 kone,因为它在候选列表里排在最前面,贪婪算法规定平局时优先选第一个</button>
+  <button class="opt" data-ok="0">必须选 kfour,因为它覆盖的 nv、ut 后续更难被其他台覆盖</button>
+  <button class="opt" data-ok="0">都不能选,覆盖数打平手时贪婪算法无法继续执行,需要报错退出</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段集合覆盖贪婪算法的比较逻辑改了一行,选出问题所在。</div>
+  <pre>for (i = 0; i < NUM_STATIONS; i++) {
+    int c = count_bits(station[i]);      <span class="c">// ← 这一行</span>
+    if (c > best_count) {
+        best = i; best_count = c;
+    }
+}</pre>
+  <button class="opt" data-ok="1"><code>count_bits(station[i])</code> 统计的是该台自身元素总数,应改成 <code>count_bits(states_needed &amp; station[i])</code>,统计的才是它能新覆盖多少"未覆盖"的州</button>
+  <button class="opt" data-ok="0"><code>best_count</code> 的初始值应该是 -1,不能是 0</button>
+  <button class="opt" data-ok="0">循环变量 <code>i</code> 的范围写错了</button>
+  <button class="opt" data-ok="0">比较符应该用 <code>&gt;=</code> 而不是 <code>&gt;</code></button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq">Q4. 本章提到的"教室排课(活动选择)问题"——每轮选结束时间最早的课——这个贪婪策略得到的结果是?</div>
+  <button class="opt" data-ok="1">恰好就是全局最优解——这是本章里贪婪算法与最优解重合的例子</button>
+  <button class="opt" data-ok="0">和集合覆盖问题一样,只是足够接近最优的近似解,不保证最优</button>
+  <button class="opt" data-ok="0">和背包问题一样,贪婪策略在这里会失效,得不到最优解</button>
+  <button class="opt" data-ok="0">无法判断,要看具体的课程数量</button>
+  <div class="fb"></div>
+</div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"贪婪算法每一步在做什么选择,为什么它不保证全局最优?"<br>
+  ②"集合覆盖问题贪婪算法的每一轮,该比较的是什么数字,为什么不能用'该集合自身元素总数'来比较?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 9 课(动态规划)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 9 课):</b> 动态规划——用网格记住子问题的最优解,给出背包问题这种贪婪算法失效场景下的精确最优解法。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/bhargava-algorithms/chapters/ch08-greedy-algorithms.md</code>
+  (《算法图解》第8章,原书 Python 代码已改写为 C)。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!前五条(元素少快、元素多慢;涉及所有组合;涉及序列或集合难解;可转换为集合覆盖/旅行商问题)都是本章给出的真实信号。这一条说反了——真正的信号是"问题无法拆分成小问题",而不是"可以清晰拆分"。能干净拆分成独立子问题、分别求解再合并的问题,通常不是 NP 完全的。',
+      bad:'再看一遍本章的"识别 NP 完全问题的蛛丝马迹"表格:真正的信号是"问题无法拆分成小问题,必须考虑各种可能情况"。题目里这一条说的是"可以清晰拆分",正好和真实信号反着说,这才是找茬的答案。'},
+  q2:{good:'对!本章原文就是这么处理平局的:"kone、ktwo、kthree 都覆盖 3 个未覆盖州,取其一"。贪婪算法只关心"当前谁覆盖得最多",打平手时选哪一个都不影响算法的正确性,也不影响后续能否覆盖全部州。',
+      bad:'再想想:贪婪算法的规则只有"选覆盖数最多的那个",从来没有规定"平局时选列表里排最前的"或"要考虑后续难易度"。源书的讲解示例里,kone/ktwo/kthree 打平手时就是"取其一",选哪个都合法。'},
+  q3:{good:'对!这正是集合覆盖贪婪算法最核心、也最容易写错的一步:必须比较"新增覆盖数"(与 states_needed 的交集),而不是这个台自身一共覆盖多少个州。写成 count_bits(station[i]) 会让算法总是偏向"自身规模大"的台,即使它对当前局面没有新增覆盖。',
+      bad:'对照正确版本再看一眼:正确写法是 count_bits(states_needed & station[i]),先用 & 求出"这个台能新覆盖多少个还没被覆盖的州",再数 1 的个数。题目里这一行漏掉了 states_needed &,变成统计该台自身元素总数,这就选错了比较对象。'},
+  q4:{good:'对!这是本章特意提到的例外:教室排课问题里"每轮选结束最早的课"这个贪婪策略,恰好能拿到全局最优解——但这不代表贪婪算法处处都行,背包问题就是反例,不能把这个正例推广到所有问题上。',
+      bad:'再回忆一下本章原文:教室排课问题被明确当作"贪婪算法恰好等于最优解"的正例来讲的,和集合覆盖(近似解)、背包问题(贪婪失效)都不一样。三个例子结论不同,正是本章要考的"贪婪算法要针对具体问题验证"这一点。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

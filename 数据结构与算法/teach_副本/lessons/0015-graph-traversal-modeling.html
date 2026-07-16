@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 15 课 · 图的遍历与建模 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第二部分《啊哈!算法》⑤ · 对应 ch05</div>
+  <h1>第 15 课 · 图的遍历与建模</h1>
+  <div class="sub">上一课(第14课)学了 DFS 用递归/栈实现、BFS 用队列实现、以及 Flood Fill 染色法——这节课把同一套"遍历"框架第一次用在"图"这种数据结构上:先学会把图存进矩阵,再用 DFS/BFS 分别解决"求最短路径"和"求最少中转"两类不同问题。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>从"地图"到"矩阵":图到底在存什么?</b> 想象一张城市地图:每个城市是一个<b class="hl">顶点(vertex)</b>,
+  城市之间的道路是<b class="hl">边(edge)</b>。地图本身是一堆线条和圆点,计算机没法直接"看懂"它——但只要你能回答
+  "任意两个城市之间是否有一条直接的路(以及这条路有多长)",这张地图就能被完整翻译成一张二维表格:
+  <b class="hl">邻接矩阵(Adjacency Matrix)</b>。这节课要做的事,就是把图这种看起来很自由的结构,
+  套进你已经很熟悉的"二维数组"里。
+</div>
+
+<table>
+  <tr><th></th><th>1号城市</th><th>2号城市</th><th>3号城市</th></tr>
+  <tr><th>1号城市</th><td>0</td><td>5</td><td>∞</td></tr>
+  <tr><th>2号城市</th><td>5</td><td>0</td><td>3</td></tr>
+  <tr><th>3号城市</th><td>∞</td><td>3</td><td>0</td></tr>
+</table>
+<p class="sub" style="margin-top:-6px">这是一张<b>无向图</b>的邻接矩阵(1↔2 距离5,2↔3 距离3,1和3之间没有直接的路记为∞)——
+注意它沿对角线<b>对称</b>,这正是"无向"的数学体现;对角线本身是0,表示"自己到自己不算一段路程"。</p>
+
+<h2>一、邻接矩阵 —— 怎么存图</h2>
+<p>用二维数组 <code>e[i][j]</code> 表示顶点 <code>i</code> 到顶点 <code>j</code> 是否有边(或者边的权值)。
+几条约定:</p>
+<ul>
+  <li><b>有向图 vs 无向图</b>:边有方向叫有向图(Directed Graph),此时 <code>e[i][j]</code> 和 <code>e[j][i]</code>
+  可以不同;边没有方向叫无向图(Undirected Graph),意味着"i 能到 j,j 也一定能到 i",此时邻接矩阵沿主对角线<b>对称</b>。</li>
+  <li><b>自己到自己(<code>i==j</code>)</b>:通常设为 0,表示"不算一段路程"。</li>
+  <li><b>不存在的边</b>:设为一个足够大的数(书中用 <code>99999999</code> 代表正无穷),表示"不可达",避免用特殊值
+  处理带来的额外分支判断。</li>
+  <li><b>适用场景</b>:顶点数不太大、需要频繁判断"i 到 j 是否有边"时,邻接矩阵是最直观的入门存法——查询是
+  <code>O(1)</code>,代价是空间恒为 <code>O(n²)</code>,图很稀疏时会浪费大量空间(后续章节会讲更省空间的邻接表)。</li>
+</ul>
+
+<h2>二、用 DFS 暴力求最短路径</h2>
+<p>本章"城市地图"一节的做法:从起点出发,用 DFS <b>递归地尝试所有不重复经过已在路径中的顶点</b>的走法;
+每走一步就累加当前路程 <code>dis</code>;一旦到达终点,就用全局变量 <code>min</code> 更新已发现的最小路程;
+<b class="hl">回溯时一定要把 <code>book[j]</code> 重新置 0(取消标记)</b>,否则会漏掉其他分支本该走到的路径。
+可以加剪枝:如果 <code>dis</code> 已经超过当前 <code>min</code>,立即返回,不再往下搜。</p>
+
+<p>书中给出的例子:小哼从1号城市走到5号城市,枚举出的全部路径是
+<code>1→2→3→4→5</code>(路程14)、<code>1→3→2→5</code>(路程9)、<code>1→5</code>(路程10)——
+三条比较后最短是 <b>1→3→2→5,长度9</b>。把同一张地图改成无向图重新计算,因为边可以双向走,反而找到了
+更短的 <code>1→3→5</code>(长度7)——这说明"图是有向还是无向"直接决定了可达路径集合,进而影响最短路径的结果。</p>
+
+<div class="callout warn">
+  <b>常见陷阱:把 DFS 暴力枚举当成"最短路径算法"用在大图上。</b> 这种做法本质是枚举所有路径,时间复杂度
+  随顶点数<b class="hl">指数级增长</b>,只适合本章教学演示的小规模例子;顶点一多,路径条数会爆炸式膨胀,
+  程序实际跑不完。真正处理大规模最短路径问题,要用下一课的 Floyd / Dijkstra / Bellman-Ford。
+  另外两个同样容易在考试里被抓包的细节:<b>DFS 忘记回溯</b>(退出某个分支前忘了把 <code>book[j]</code> 改回 0,
+  会导致其他分支误以为该顶点"已经走过",漏掉本该存在的路径)和<b>有向图/无向图初始化搞混</b>
+  (无向图要同时给 <code>e[a][b]</code> 和 <code>e[b][a]</code> 赋值,只赋一侧就变成有向图)。
+</div>
+
+<h2>三、用 BFS 求最少中转次数</h2>
+<p>本章"最少转机"一节把同一套邻接矩阵换成 BFS:所有边权重相同(这里是"一条航线算一次转机"),
+只关心最少经过几条边到达终点,不关心具体走了哪条路径。做法:给队列中每个元素额外附带一个字段
+(书中用结构体 <code>struct note{x, s}</code>,<code>x</code> 是城市编号,<code>s</code> 是到达该城市已经历的转机次数);
+每次扩展新顶点时,令其转机次数等于当前顶点转机次数 +1;一旦扩展到目标城市就立刻停止,
+此时该顶点携带的次数即为全局最少值。</p>
+
+<p>书中例子:小哼和小哈从1号城市飞到5号城市,BFS 从1号城市入队开始逐层扩展——第一层能到达2、3号城市;
+从2号城市能再扩展到3、4号城市(3号已入队,只需新入队4号);从3号城市能扩展到4、5号城市(4号已入队,
+只需新入队5号)。5号城市是在"从2号、3号城市继续扩展"这一层第一次被加入队列的——也就是说,从1号出发,
+只需要经停恰好一个中间城市就能到达5号,这一步数正是全局最少转机数,不需要再比较其他走法。
+这正体现了 BFS"逐层扩散、第一次抵达即最优"的核心性质。</p>
+
+<div class="callout big">
+  <b>DFS 还是 BFS,怎么选?</b> 边权相同、只求"最少经过几条边/几个中转点"时,优先用 BFS——它按"距起点的层数"
+  逐层扩展,第一次摸到目标的那一层保证就是最优解,不需要像 DFS 那样枚举完所有路径再比较。
+  当问题需要枚举完整路径、结合权重做穷举,或者天然是"选择—递归—回溯"结构时,才轮到 DFS。
+</div>
+
+<h2>四、三种做法的适用场景对比</h2>
+<table>
+  <tr><th>方法</th><th>解决什么问题</th><th>时间/空间量级</th><th>局限</th></tr>
+  <tr><td>邻接矩阵存图</td><td>快速查询"i 到 j 是否有边/边权"</td>
+      <td>空间 <code>O(n²)</code>,单次查询 <code>O(1)</code></td>
+      <td>图很稀疏时浪费空间(后续讲邻接表)</td></tr>
+  <tr><td>DFS 暴力求最短路径</td><td>枚举起点到终点的所有路径,取总路程最小的一条</td>
+      <td>路径数随顶点数<b class="bad">指数级</b>增长</td>
+      <td>只适合小图教学演示,大图会跑不动</td></tr>
+  <tr><td>BFS 求最少中转</td><td>边权相同时,求起点到终点最少经过几条边</td>
+      <td>每个顶点/边最多入队处理一次,约 <code>O(n+m)</code></td>
+      <td>只对"边权相同"的问题成立,边权不同就不能直接用</td></tr>
+</table>
+
+<h3>C 代码:建图(邻接矩阵初始化 + 读入边,带边界条件详解)</h3>
+<pre>#include &lt;stdio.h&gt;
+#define INF 99999999
+int e[101][101];     <span class="c">// 邻接矩阵,顶点编号按 1~n 使用,数组要开到 n+1 才够</span>
+int n, m;             <span class="c">// n 个顶点,m 条边</span>
+
+int main(void) {
+    int i, j, a, b, w;
+    scanf("%d %d", &n, &m);
+
+    for (i = 1; i <span class="c">/*①*/</span> <= n; i++) {
+        for (j = 1; j <= n; j++) {
+            if (i == j) e[i][j] = 0;     <span class="c">// ② 对角线:先按"不算路径"处理成 0</span>
+            else e[i][j] = INF;          <span class="c">//    不确定的边先当成"不可达"</span>
+        }
+    }
+
+    for (i = 1; i <= m; i++) {
+        scanf("%d %d %d", &a, &b, &w);
+        e[a][b] = w;                     <span class="c">// a 到 b 这条边</span>
+        e[b][a] = w;                      <span class="c">// ③ 无向图:漏了这一行,图就变成"单向"的了</span>
+    }
+    return 0;
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 顶点编号从 0 还是 1 开始,决定数组下标怎么用。</b> 如果题目顶点编号是 1~n,
+    数组要开 <code>e[n+1][n+1]</code> 或以上,循环也要写成 <code>for (i = 1; i <= n; i++)</code>;
+    如果你混用 0-indexed 的循环写法(<code>for (i = 0; i < n; i++)</code>)却仍按 1~n 读入顶点编号,
+    要么漏掉编号为 <code>n</code> 的顶点,要么把不存在的"0号顶点"也纳入计算,读到脏数据。</li>
+  <li><b>② 对角线 <code>e[i][i]</code> 初始化成 0 还是无穷大,要看题目定义,不能想当然。</b>
+    本章邻接矩阵约定"自己到自己"记为0(不算作路径),但如果题目问的是"是否存在从 i 出发经过若干步骤
+    回到 i 的环",对角线就不能默认成"可达的0",需要按题意重新判断,直接套用同一种初始化方式容易出错。</li>
+  <li><b>③ 无向图必须对称赋值 <code>e[a][b]</code> 和 <code>e[b][a]</code>,漏掉一个方向就变成有向图。</b>
+    这是本章"常见陷阱"里明确点出的坑:无向图意味着 i 能到 j、j 也能到 i;只写了 <code>e[a][b]=w</code>
+    却漏了 <code>e[b][a]=w</code>,DFS/BFS 遍历时会出现"能从 a 走到 b,却不能从 b 走回 a"的错误结果,
+    而且程序不会报错,只会在某些测试用例里悄悄算错答案。</li>
+</ol>
+
+<h2>五、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 一张<b>无向图</b>有4个顶点(编号1~4,顶点编号从1开始),边为:1-2、1-3、2-4、3-4(边权都看作1,没有列出的边记为无穷大)。这张图的邻接矩阵里,<code>e[2][3]</code> 应该填什么?</div>
+  <button class="opt" data-ok="0">1,因为2号顶点能通过其他顶点间接走到3号顶点</button>
+  <button class="opt" data-ok="1">无穷大,因为邻接矩阵只记录"直接相连"的边,2和3之间没有直接给出的边</button>
+  <button class="opt" data-ok="0">0,因为2和3都是图里的顶点,理应互相可达</button>
+  <button class="opt" data-ok="0">无法确定,取决于图是不是连通的</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 两个任务:①判断从武汉到北京最少需要经过几个城市(每条道路的权重都看成相同);②在一张不大的城市地图上,求武汉到北京总路程最短的一条具体路线(道路长度各不相同)。分别该用什么做法?</div>
+  <button class="opt" data-ok="0">两个都用 DFS,因为 DFS 能枚举所有可能</button>
+  <button class="opt" data-ok="0">两个都用 BFS,因为 BFS 总是比 DFS 快</button>
+  <button class="opt" data-ok="1">①用 BFS(边权相同、求最少步数,逐层扩展且第一次到达即最优);②可以用 DFS 暴力枚举所有路径比较(图不大,可以接受指数级代价)</button>
+  <button class="opt" data-ok="0">两个都不能用图的遍历算法解决,必须先学下一课的 Floyd/Dijkstra</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段"DFS 暴力求最短路径"的代码有一处遗漏,选出问题所在。</div>
+  <pre>void dfs(int cur, int dis)
+{
+    int j;
+    if (cur == n) {                 <span class="c">// 到达终点(第 n 号城市)</span>
+        if (dis < min) min = dis;   <span class="c">// 更新已知的最短路程</span>
+        return;
+    }
+    for (j = 1; j <= n; j++) {
+        if (e[cur][j] < INF && book[j] == 0) {
+            book[j] = 1;              <span class="c">// 标记已访问</span>
+            dfs(j, dis + e[cur][j]);  <span class="c">// 继续往下走</span>
+        }                              <span class="c">// ← 这里少了一行</span>
+    }
+}</pre>
+  <button class="opt" data-ok="0">book 数组不应该定义成全局变量,应该改成函数内的局部变量</button>
+  <button class="opt" data-ok="1">递归调用 <code>dfs(j, dis+e[cur][j])</code> 之后少了一行 <code>book[j] = 0;</code>,导致这个顶点在其他分支里被误判为"已经走过",漏掉本该存在的路径</button>
+  <button class="opt" data-ok="0"><code>for (j = 1; j <= n; j++)</code> 应该改成 <code>j < n</code></button>
+  <button class="opt" data-ok="0"><code>e[cur][j] < INF</code> 的判断应该改成 <code>e[cur][j] == 1</code></button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q3sol').classList.toggle('hidden')">▸ 看这个坑会怎么漏路径</span>
+  <div id="q3sol" class="hidden" style="margin-top:8px">
+    <p style="margin:4px 0">假设 1 号顶点同时能到 2 号和 3 号,2 号也能到 3 号。DFS 先走 <code>1→2</code>,标记 <code>book[2]=1</code>,
+    再走 <code>2→3</code>,标记 <code>book[3]=1</code>,一路走到终点后回溯。如果回溯时没有把 <code>book[3]</code>
+    和 <code>book[2]</code> 改回 0,那么当外层 for 循环继续尝试"从1号直接走 <code>1→3</code>"这条分支时,
+    会发现 <code>book[3]</code> 还是 1(误以为已经访问过),于是直接跳过——这条本该存在的路径 <code>1→3</code>
+    就这样被漏掉了,而程序不会报错,只是悄悄少枚举了一条路径,可能导致算出的"最短路径"不是真正的最短。</p>
+  </div>
+</div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"邻接矩阵怎么存一张图?对角线和不可达的位置该怎么处理?"<br>
+  ②"遇到‘最少经过几个中转点/城市’这类问题,为什么优先想到 BFS 而不是 DFS?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 16 课(最短路径三算法)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第16课):</b> 最短路径三算法(Floyd-Warshall / Bellman-Ford / SPFA)——
+  这节课的 DFS 暴力解法只是教学演示,下一课会讲真正高效的做法,还会和第7课学过的 Dijkstra
+  做一张完整对照表,把"该用哪种最短路径算法"这个决策彻底讲清楚。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/aha-algorithms/chapters/ch05-graph-traversal.md</code>
+  (《啊哈!算法》第5章"图的遍历")。本书第3章起原文为 OCR 重建整理,该知识库文件是在此基础上的结构化梳理,
+  内容准确性以书中原意为准。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!邻接矩阵只回答"i 和 j 之间有没有一条直接的边",2号和3号顶点之间没有列出的边,即使能通过1号或4号间接到达,e[2][3] 也必须记为无穷大——间接可达和直接相连是两回事。',
+      bad:'再想想:邻接矩阵 e[i][j] 记录的是"i 到 j 是否有直接的边",不是"i 能不能通过若干步到达 j"。题目给出的边只有 1-2、1-3、2-4、3-4,2和3之间没有直接给出的边,所以 e[2][3] 应该是无穷大(不可达),而不是0或1。'},
+  q2:{good:'对!边权相同、只关心"最少经过几个中转点/城市"时,BFS 逐层扩展、第一次到达即最优,不需要比较所有路径;而"求总路程最短的具体路线"需要枚举完整路径比较,图不大时可以接受 DFS 暴力枚举的指数级代价。',
+      bad:'再想想两者的本质区别:①问的是"最少经过几个"、边权全相同——这正是 BFS 最擅长的场景,一层层扩散,第一次摸到目标就是最优解;②问的是"具体哪条路线总路程最短"、边权不同——这需要枚举完整路径来比较大小,DFS 递归回溯天然适合做这件事,前提是图足够小能接受指数级代价。'},
+  q3:{good:'对!这是本章"常见陷阱"里明确点出的坑:DFS 回溯前忘记撤销标记。少了 book[j]=0,会让其他分支误以为这个顶点已经访问过,从而漏掉本该存在的路径。',
+      bad:'再看一遍:for 循环里每次递归 dfs(j, ...) 结束、continue 尝试下一个 j 之前,应该把刚才标记的 book[j] 重新置0(取消标记),否则外层循环换其他分支尝试到同一个顶点时,会因为 book[j] 还是1而误判"已经访问过",直接跳过这条本该存在的路径。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+{
+  "source_file": "/Users/bytedance/pass_exam/数据结构与算法/原始资料/算法图解 (（美）巴尔加瓦（Aditya Bharga_ (Z-Library).pdf",
+  "filename": "算法图解 (（美）巴尔加瓦（Aditya Bharga_ (Z-Library).pdf",
+  "format": "pdf",
+  "extraction_method": "pypdf",
+  "extraction_mode": "technical",
+  "file_size_mb": 17.09,
+  "pages": 197,
+  "chars": 97403,
+  "words": 8376,
+  "estimated_tokens": 11168,
+  "estimated_tokens_human": "~11K",
+  "output_text": "/private/tmp/claude-501/-Users-bytedance-pass-exam/7c5d0f91-3deb-41da-927e-ebb1133a8840/scratchpad/book_skill_work/full_text.txt",
+  "total_sources": 1,
+  "sources": [
+    {
+      "source_file": "/Users/bytedance/pass_exam/数据结构与算法/原始资料/算法图解 (（美）巴尔加瓦（Aditya Bharga_ (Z-Library).pdf",
+      "filename": "算法图解 (（美）巴尔加瓦（Aditya Bharga_ (Z-Library).pdf",
+      "format": "pdf",
+      "extraction_method": "pypdf",
+      "file_size_mb": 17.09,
+      "pages": 197,
+      "pages_label": "pages",
+      "chars": 97096,
+      "words": 8364,
+      "estimated_tokens": 11152,
+      "chapters_detected": 11,
+      "has_toc": false
+    }
+  ],
+  "chapters_detected": 11,
+  "chapter_headings_sample": [
+    "第 1章 算法简介  ............................................. 1",
+    "第 2章 选择排序  ............................................ 16",
+    "第 3章 递归  .................................................... 29",
+    "第 4章 快速排序  ............................................ 41",
+    "第 5章 散列表  ................................................ 58",
+    "第 6章 广度优先搜索  ................................... 76",
+    "第 7章 狄克斯特拉算法  ............................... 94",
+    "第 8章 贪婪算法  .......................................... 117",
+    "第 9章 动态规划  .......................................... 134",
+    "第 10章 K最近邻算法 ............................... 156"
+  ],
+  "has_toc": false
+}

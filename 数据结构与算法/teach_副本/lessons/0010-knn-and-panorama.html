@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 10 课 · KNN 与算法全景扫盲 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第一部分《算法图解》⑩ · 对应 ch10+ch11</div>
+  <h1>第 10 课:KNN 与算法全景扫盲 —— 《算法图解》收官课</h1>
+  <div class="sub">目标:讲透 K 最近邻算法(KNN)的分类/回归两种用法、距离度量的选择、K 值的坑——这是期末最可能考的"机器学习入门"算法;
+  后半段扫一眼全书收尾提到的十来个算法领域,只求"听说过、认得出",不深挖编码。约 25 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>先接上第9课:</b> 上一课学的动态规划,是用网格把"选或不选"的决策一步步展开,精确求出 0/1 背包问题的最优解——
+  本质是一种"确定性推导"的思路。<b>KNN 是完全不同的画风:</b> 它不建模、不推导,靠的是最朴素的直觉——
+  <b class="hl">"物以类聚":想判断一个新样本是什么类别,不用列公式,只看离它最近的 K 个已知样本里,大多数是什么类别</b>,
+  新样本就归为哪一类。这是《算法图解》从"经典算法"迈进"机器学习"的第一步,也是全书最后一个要精讲的算法。
+</div>
+
+<h2>一、KNN 是什么:一套动作,两种用法</h2>
+<p>KNN(K-Nearest Neighbors,K最近邻)只有三步:</p>
+<ol>
+  <li><b>特征抽取:</b> 把每个待比较的东西(水果、用户、图像……)翻译成一组可比较的数字,也就是坐标。
+    没有这一步,"计算相似度"根本无从谈起。</li>
+  <li><b>计算距离:</b> 用距离公式算出新样本和所有已知样本之间的"远近"。</li>
+  <li><b>挑出最近的 K 个邻居,给出结论:</b>
+    <ul>
+      <li><b>分类(classification):</b> 看这 K 个邻居里哪个类别票数最多,新样本就归为哪一类。
+        比如判断一个水果是橙子还是柚子,看离它最近的 3 个邻居(K=3)里橙子多还是柚子多。</li>
+      <li><b>回归(regression):</b> 把这 K 个邻居的数值取平均,作为预测结果。
+        比如预测某用户会给一部电影打几分,找出品味最接近的 5 个人(K=5),把他们的打分取平均。</li>
+    </ul>
+  </li>
+</ol>
+<p>两种用法<b>唯一的区别就在最后一步</b>:分类是"投票选多数",回归是"求平均"——前面特征抽取、算距离、选K个邻居的步骤完全一样。</p>
+
+<h2>二、距离怎么算:欧氏距离不是唯一选项</h2>
+<p>书里给出的默认距离公式是<b>欧几里得距离</b>(把毕达哥拉斯定理推广到多维):</p>
+<p style="text-align:center"><code>distance = sqrt((x1-y1)² + (x2-y2)² + ... + (xn-yn)²)</code></p>
+<p>这个公式即使特征维度从 2 个(水果的个头、颜色)涨到 5 个(用户对 5 类电影的喜好),依然直接适用,不用改公式。
+但它有一个隐藏假设:<b>比较的是两点之间的"绝对距离"</b>。</p>
+<p>如果场景是"评分尺度不一致"——比如 A 打分宽松、喜欢的都打 5 分,B 打分严格、只有真爱才打 5 分,两人品味实际很接近,
+但用欧氏距离算出来的"距离"会偏大,被误判为不相邻。这时该换成<b class="hl">余弦相似度</b>:它比较的不是两点距离,而是两个向量的<b>夹角</b>——
+只关心"喜好的方向是否一致",不在乎打分整体偏高还是偏低。</p>
+
+<div class="callout big">
+  <b>记忆锚点:</b> 欧氏距离问的是"你们站得有多远",余弦相似度问的是"你们朝向是不是同一个方向"。
+  题目一旦出现"评分习惯/打分尺度不同"的字眼,大概率是在提示你该用余弦相似度,而不是死套欧氏距离公式。
+</div>
+
+<h2>三、K 怎么选:太小太大都是坑</h2>
+<p>K 不是固定为 5,可以是 2、10,甚至更大——它是一个需要根据数据规模权衡的旋钮,没有统一公式。
+但两头都有明确的风险:</p>
+
+<table>
+  <tr><th>K 的取值</th><th>典型风险</th><th>直觉类比</th></tr>
+  <tr><td>太小(比如 K=1)</td><td>极易被个别噪声/异常邻居带偏,对局部波动过度敏感</td><td>只听一个邻居的意见,偏偏这个邻居是个怪人</td></tr>
+  <tr><td>太大(比如 K 接近样本总数)</td><td>把大量不相关、甚至不同类别的邻居也拉进来平均,类别边界被模糊/稀释</td><td>把全班同学的意见都算上,少数关键意见被多数无关意见淹没</td></tr>
+</table>
+
+<p>书中练习提到:用户量级从几十涨到几百万时,K=5 可能就显得太小了——数据规模变大,通常需要相应调大 K,反之亦然。</p>
+
+<div class="callout warn">
+  <b>常见陷阱(来自 ch10 反面案例):</b>
+  <ul>
+    <li><b>特征选择不当:</b> 挑来算距离的特征如果和目标不相关(用"是否喜欢猫图片"判断电影推荐)或过于片面
+      (只让用户给同一系列的三部电影打分,看不出真实的电影品味),距离算得再精确也没有意义。</li>
+    <li><b>忽视评分尺度差异:</b> 直接对不同打分习惯的人套用欧氏距离,可能把品味相同的两人判定为"不相邻"
+      ——解决方向是加权或改用余弦相似度(见第二节)。</li>
+    <li><b>迷信历史数据能预测一切:</b> 股票市场这类变量繁多、近乎随机的现象,就算精心挑选特征、套用 KNN,
+      也未必能得到可靠预测——机器学习不是万能药,选对应用场景和算法本身同样重要。</li>
+  </ul>
+</div>
+
+<h2>四、C 代码实现:简化版 KNN 分类</h2>
+<p>下面用"橙子(0)/柚子(1)"两类、"个头/颜色深浅"两个特征的简化场景,实现一次完整的 KNN 分类:</p>
+
+<pre>typedef struct {
+    double features[2];   <span class="c">// 简化:每个样本只用2个特征(个头、颜色深浅)</span>
+    int label;             <span class="c">// 0=橙子, 1=柚子</span>
+} Sample;
+
+double euclidean_distance(double *a, double *b, int dim) {
+    double sum = 0.0;
+    for (int i = 0; i < dim; i++) {
+        sum += (a[i] - b[i]) * (a[i] - b[i]);
+    }
+    return sqrt(sum);      <span class="c">// ① 默认用欧氏距离,不是余弦相似度</span>
+}
+
+<span class="c">// 返回值: 0=判定橙子, 1=判定柚子, -1=平票(需要额外规则)</span>
+int knn_classify(Sample *samples, int n, double *target, int dim, int k) {
+    if (k > n) k = n;          <span class="c">// ② K 不能超过已知样本总数</span>
+
+    double dist[64];
+    for (int i = 0; i < n; i++) {
+        dist[i] = euclidean_distance(samples[i].features, target, dim);
+    }
+
+    <span class="c">// 选出距离最小的k个:k轮"选择排序"式选最小值,交换到数组前面</span>
+    for (int i = 0; i < k; i++) {
+        int min_idx = i;
+        for (int j = i + 1; j < n; j++) {
+            if (dist[j] < dist[min_idx]) min_idx = j;
+        }
+        double td = dist[i]; dist[i] = dist[min_idx]; dist[min_idx] = td;
+        Sample ts = samples[i]; samples[i] = samples[min_idx]; samples[min_idx] = ts;
+    }
+
+    <span class="c">// 统计前k个邻居里,两类各拿到多少票</span>
+    int vote[2] = {0, 0};
+    for (int i = 0; i < k; i++) {
+        vote[samples[i].label]++;
+    }
+
+    if (vote[0] == vote[1]) {
+        return -1;             <span class="c">// ③ K为偶数时,两类票数可能相等——平票</span>
+    }
+    return vote[0] > vote[1] ? 0 : 1;
+}</pre>
+
+<p>三处最容易在考试里写错、混淆的地方:</p>
+<ol>
+  <li><b>① 距离公式默认用欧氏距离,但要看题目场景。</b>
+    如果题目提到"打分尺度/评分习惯不一致",就该换成余弦相似度——这是全书特意点出的对比,
+    考试里容易出"下面哪种情况该用余弦相似度而不是欧氏距离"的辨析题。</li>
+  <li><b>② <code>K &gt; n</code>(K 大于已知样本总数)必须做保护处理。</b>
+    如果不做 <code>if (k > n) k = n;</code> 这一步,要么后面选最近邻的循环访问越界内存,
+    要么"K个邻居"其实用光了全部样本,KNN 退化成"看全体样本的多数类",完全失去"看邻近"的意义。</li>
+  <li><b>③ K 为偶数时,最近的 K 个邻居可能出现两类票数相等(平票)。</b>
+    比如 K=4,2 票橙子、2 票柚子,单纯"多数表决"给不出结果。常见的 tie-break 规则是:
+    优先选奇数 K、按距离加权投票(离得越近权重越大)、或退回去看距离最近的单个样本。
+    这是选择题里最爱设的坑——"K=10 时下面哪种结果不可能出现"之类的题,本质就是在考这一点。</li>
+</ol>
+
+<h2>五、全景扫盲:《算法图解》收官清单(ch11)</h2>
+<p>全书最后一章不再展开细讲,只是"指个路"——列出了十来个真实世界的算法领域。
+<b>期末大概率不会深考这一节,了解"是什么、大致何时用"即可</b>,不需要会写代码:</p>
+
+<table>
+  <tr><th>概念</th><th>一句话说明</th></tr>
+  <tr><td>二叉查找树(BST)/ 红黑树 / B树 / 堆</td><td>把二分查找的思路搬到"能动态插入删除"的树结构上;红黑树自平衡防止退化,B树适配数据库,堆常用于优先级队列</td></tr>
+  <tr><td>反向索引(Inverted Index)</td><td>搜索引擎的核心结构:单词 → 包含它的网页集合的散列表,查询时不用扫全网</td></tr>
+  <tr><td>傅里叶变换</td><td>把一段信号(声音/图像/DNA)分解成不同频率成分,MP3压缩、JPG压缩、Shazam识曲背后都是它</td></tr>
+  <tr><td>并行算法 / MapReduce</td><td>把任务拆给多核/多机同时算;MapReduce = map(逐元素并行变换) + reduce(归并成一个值),Hadoop 是代表工具</td></tr>
+  <tr><td>布隆过滤器 / HyperLogLog</td><td>用"可控的不确定性"换省空间:前者判断"元素是否存在"(只会误报、绝不漏报),后者估算"有多少种不同元素"</td></tr>
+  <tr><td>SHA(单向散列)</td><td>能正向算出散列值,但无法从散列值反推原文,用于密码/文件校验(应优先选 SHA-2/SHA-3 或 bcrypt)</td></tr>
+  <tr><td>Simhash</td><td>与 SHA 反向而行:追求"相似输入 → 相似散列值",用于查重、反抄袭</td></tr>
+  <tr><td>Diffie-Hellman / RSA</td><td>公钥加密、私钥解密,解决了"如何在不安全信道上协商密钥"的老问题</td></tr>
+  <tr><td>线性规划</td><td>比图算法更宽泛的最优化框架,最短路、最大流这些图问题都只是它的特例</td></tr>
+  <tr><td>朴素贝叶斯分类器</td><td>与 KNN 应用场景相近(如垃圾邮件过滤),但原理是"算概率"而非"算距离"</td></tr>
+</table>
+
+<h2>六、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 某数据集里只有 5 个已知样本,有人想用 <code>K=10</code> 做 KNN 分类,会发生什么?</div>
+  <button class="opt" data-ok="0">程序会自动找 10 个"虚拟邻居"补足数量</button>
+  <button class="opt" data-ok="0">完全没问题,K 越大分类越准确</button>
+  <button class="opt" data-ok="1">应该把 K 限制到不超过样本总数(即 K≤5),否则要么越界要么退化成"看全体样本"</button>
+  <button class="opt" data-ok="0">程序会报错并停止运行,这是语言层面强制检查的</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. Priyanka 打分习惯是"喜欢的都打5分",Justin 打分习惯是"只有真爱才打5分",但两人对5类电影的喜好方向完全一致。直接用欧氏距离算相似度,最可能出现什么问题?该怎么解决?</div>
+  <button class="opt" data-ok="0">欧氏距离在这种情况下完全没问题,不需要调整</button>
+  <button class="opt" data-ok="1">因为打分尺度不同,欧氏距离可能算出较大的"距离",误判两人品味不相近;应改用比较打分方向的余弦相似度</button>
+  <button class="opt" data-ok="0">应该把 K 值调小来修正这个问题</button>
+  <button class="opt" data-ok="0">应该改用回归而不是分类来处理这个问题</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段 KNN 投票逻辑,在 K 为偶数时可能出什么问题?</div>
+  <pre>int vote[2] = {0, 0};
+for (int i = 0; i < k; i++) {
+    vote[samples[i].label]++;
+}
+return vote[0] > vote[1] ? 0 : 1;   <span class="c">// ← 这一行</span></pre>
+  <button class="opt" data-ok="0">数组 vote 越界了,应该开更大的数组</button>
+  <button class="opt" data-ok="1">没有处理 vote[0] == vote[1] 的平票情况,写成三元表达式会把平票错误地硬判给类别1</button>
+  <button class="opt" data-ok="0">循环条件 i < k 写错了,应该是 i <= k</button>
+  <button class="opt" data-ok="0">label 只能是 0 或 1,这段代码假设了三分类,逻辑不匹配</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq">Q4(全景扫盲辨识题). 下面哪个数据结构,是"二分查找"思想在"数据需要动态插入又要保持有序可查"场景下的延伸?</div>
+  <button class="opt" data-ok="0">布隆过滤器</button>
+  <button class="opt" data-ok="1">二叉查找树(BST)</button>
+  <button class="opt" data-ok="0">MapReduce</button>
+  <button class="opt" data-ok="0">SHA 散列</button>
+  <div class="fb"></div>
+</div>
+
+<h2>七、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句(聚焦 KNN,全景扫盲部分不需要复述):</b><br>
+  ①"KNN 做分类和做回归,唯一的区别在哪一步?"<br>
+  ②"K 值太小和太大,分别会带来什么风险?"<br>
+  说清楚这两点,《算法图解》十课就算真正学完了。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 11 课):</b> 我们要切换到第二本书《啊哈!算法》了——从排序基础重新回顾切入,
+  会拿这本书的排序讲法和第 2 课学过的选择排序做对照,看两本书的思路有什么不同。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/bhargava-algorithms/chapters/ch10-k-nearest-neighbors.md</code>(第10章,KNN)、
+  <code>skill/bhargava-algorithms/chapters/ch11-next-steps.md</code>(第11章,全书收尾扫盲)。原书 Python 代码已改写为 C。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+  <p>《算法图解》十课学完了——第一部分到此收尾,下一课换书继续。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!K 不能超过已知样本总数——超过就要么访问越界内存,要么"K个邻居"其实用光了全部样本,KNN 就退化成看全体样本的多数类,完全失去"看邻近"的意义,代码里必须写 if(k>n) k=n; 这类保护。',
+      bad:'再想想:K 表示"要看几个邻居",而已知样本只有5个。K=10 意味着邻居数量超过了样本总数,必须在代码里做保护(比如 if(k>n) k=n;),否则要么数组越界,要么等价于把全部样本都拉进来投票。'},
+  q2:{good:'对!这正是欧氏距离的局限——它比较的是绝对距离,打分尺度不同会让"方向一致但幅度不同"的两个人被判定为较远。余弦相似度只看夹角(方向),不受整体打分偏高偏低影响,更适合这种场景。',
+      bad:'再想想:欧氏距离算的是两点间的直线距离,如果一个人打分整体偏高、一个人整体偏低,即使两人喜好的"方向"完全一致,算出来的距离也会偏大。这时该换用只比较方向、不比较幅度的余弦相似度。'},
+  q3:{good:'对!这段代码完全没检查 vote[0]==vote[1] 的情况。三元表达式 vote[0]>vote[1]?0:1 在平票时会把结果错误地判给类别1(因为 > 不成立就走 else),这在 K 为偶数时是个经典陷阱,必须显式处理平票分支。',
+      bad:'再看一下 K 为偶数、两个类别票数正好相等时会发生什么:vote[0]>vote[1] 不成立,代码会直接走 :1 分支,把平票的结果强行判给类别1,而不是识别出"这是一次平票、需要 tie-break 规则"。'},
+  q4:{good:'对!二叉查找树(BST)正是把"每次和中间值比较、排除一半可能性"的二分查找思路,搬到了一种支持动态插入删除的树结构上——这也是本章明确点出的、与第1章二分查找的呼应关系。',
+      bad:'再想想:布隆过滤器是用来判断"元素是否存在"的概率型结构,MapReduce 是分布式批处理框架,SHA 是单向散列函数,三者都不是"二分查找"思路的直接延伸。真正的延伸是二叉查找树——每个节点左边全小、右边全大,查找时不断二分逼近目标。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

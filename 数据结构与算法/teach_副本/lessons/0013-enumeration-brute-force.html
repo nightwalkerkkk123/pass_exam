@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 13 课 · 枚举与暴力搜索 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第二部分《啊哈！算法》③ · 对应 ch03</div>
+  <h1>第 13 课:枚举与暴力搜索 —— "试遍所有可能"也是一种算法</h1>
+  <div class="sub">上一课(第12课)学了用栈/队列/链表建模"小猫钓鱼"类问题的抽象能力。这一课换个方向:
+  当你想不出巧妙解法时,枚举法教你如何"暴力但不蛮干"。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>直觉类比:枚举是"笨办法",但笨办法也是算法。</b> 想象你忘了保险箱密码,只记得是 3 位数字——
+  你会怎么办?从 000 试到 999,总有一次能试中。这就是<b class="hl">枚举(穷举)算法</b>的全部直觉:
+  <b>不知道怎么直接算出答案,就把所有可能的候选解一一列出,再逐个代入验证。</b>
+  它看起来"笨",但依然是算法——因为它有明确的步骤、能保证找到正确答案、而且时间复杂度是可以分析和预测的。
+  "暴力"不等于"偷懒":本章真正的技巧,是分析清楚"到底要试多少种可能"(候选范围的上界),
+  以及能不能利用变量之间的关系,少试几层——这才是枚举法从"能用"到"好用"的关键一步。
+</div>
+
+<h2>一、枚举的基本写法:多重循环穷举候选解</h2>
+<p>枚举算法又叫穷举算法:把每一个可能的取值都试一遍,用条件判断筛出满足要求的解。最简单的情形只需一层循环,
+比如"口×6528=口口×8256,两个方框填同一数字",<code>for(i=1;i<=9;i++)</code> 挨个试一遍即可。
+稍复杂一点,比如"口口口+口口口=口口口,1~9 各用一次拼成加法等式",朴素做法就要写九层嵌套循环枚举 9 个变量,
+再用一长串 <code>&&</code> 判断两两互不相等、外加等式是否成立——这类代码又长又难维护。</p>
+
+<h3>标记法(book 数组):用一个数组记录状态,别再堆 &&</h3>
+<p>改进做法是引入<b class="hl">标记数组</b>:用一维数组 <code>a[1..9]</code> 存放 9 个变量的值,
+再用 <code>book[1..9]</code> 标记 1~9 这九个数字分别有没有被用过。每轮枚举后统计 <code>book</code> 数组里
+"1" 的个数,若恰好是 9,就说明这九个数字互不相同——不必再写九个变量两两比较的判断式。这不是降低了理论复杂度,
+而是把"判断互不相同"这件事,从"堆叠一串 <code>&&</code>"变成"给取值范围建一个标记数组、数一数标记了几个",
+代码大幅简化、也更容易扩展到更大规模。</p>
+
+<h3>网格候选点枚举:炸弹人问题</h3>
+<p>给定一张由墙 <code>#</code>、空地 <code>.</code>、敌人 <code>G</code> 组成的地图,只有一枚超远程炸弹,
+求放在哪个空地能消灭最多敌人。做法是用二维字符数组存地图;<b class="hl">双重循环枚举每一个空地作为候选放置点</b>;
+对每个候选点分别向上、下、左、右四个方向扫描,直到碰到墙 <code>#</code> 为止,边扫描边对遇到的 <code>G</code> 计数;
+四个方向计数之和即该点可消灭的敌人数;全局维护最大值及对应坐标。这里书中坐标 <code>(x,y)</code> 指
+"第 x 行第 y 列",不是数学坐标系里的 x 轴、y 轴,容易搞混。</p>
+
+<div class="callout warn">
+  <b>炸弹人问题埋下的坑:枚举只看"能不能炸到",没看"能不能走到"。</b>
+  这个算法只按几何直线和墙壁判断"能否炸到",却没有检查小人能不能<b class="hl">走到</b>这个候选空地——
+  如果地图里某处墙改成空地,纯枚举算法可能选中一个小人根本走不到的位置。这是本章故意留下的伏笔,
+  指向下一课(DFS/BFS)要解决的"可达性"问题。
+</div>
+
+<h3>枚举范围的分析与降维:火柴棍等式</h3>
+<p>问题:用 m 根火柴棍拼出形如 A+B=C 的等式(0~9 每个数字的火柴棍拼法固定;加号、等号各占 2 根;
+A+B=C 与 B+A=C 视为不同解),一共有多少种拼法?</p>
+<p><b>关键第一步是分析枚举上界。</b>m 最多 24 根,减去加号等号占用的 4 根,剩余最多 20 根火柴棍;
+数字 1 只需 2 根火柴棍最省,20 根最多拼出 10 个 1,所以 A、B、C 中任何一个数都不会超过 11111。
+这给出了枚举的具体范围 0~11111,而不是漫无边际地枚举。</p>
+<p>朴素做法是三层循环分别枚举 A、B、C,判断三者火柴棍总数是否等于 <code>m-4</code>,
+时间复杂度约 <code>O(m³)</code>(m≈11112),实测要跑 1000 多秒,不可行。
+<b class="hl">降维优化:C 完全可以由 A+B 算出来,不需要单独枚举!</b>只枚举 A、B 两层循环,
+<code>C=A+B</code> 直接算出,判断三者火柴棍数之和是否等于 <code>m-4</code>。
+这一步把复杂度从 <code>O(m³)</code> 降到 <code>O(m²)</code>,运行时间从 1000 多秒降到约 1 秒——
+这是本章"暴力枚举也需要仔细分析问题"的核心示范。</p>
+
+<h3>全排列:嵌套循环枚举的极限</h3>
+<p>求 1~n 的全排列(n=3 时为 123 的全排列)。做法是 n 层嵌套 for 循环,每层枚举一位,
+配合一长串 <code>&&</code> 判断各层变量两两不相等,满足则输出一种排列。n=3、n=4 时代码尚可接受,
+但 n=9 时需要写九层嵌套循环加 36 个两两不等判断,明显不现实。这里留下一个"终极问题":
+输入任意 n,如何用同一份代码输出 1~n 的全排列?嵌套循环的层数无法随输入参数变化,
+这正是暴力枚举(本质是"层数固定的 DFS")的天花板,直接引出下一课"万能的搜索"
+(用递归/DFS 处理任意深度的枚举)。</p>
+
+<h2>二、枚举法什么时候能用、什么时候必须换算法</h2>
+<table>
+  <tr><th>嵌套层数 / 候选范围</th><th>典型例子</th><th>大致复杂度</th><th>期末怎么判断能不能接受</th></tr>
+  <tr><td>1 层循环,范围 ~10</td><td>口×6528=口口×8256 填数字</td><td><code>O(10)</code></td><td>接受,一眼可写</td></tr>
+  <tr><td>2 层循环,范围数千~万级</td><td>火柴棍等式(降维后 A、B 各枚举)</td><td><code>O(m²)</code>,m≈1万时约1亿次</td><td>接受(约1秒内跑完)</td></tr>
+  <tr><td>3 层循环,同等范围</td><td>火柴棍等式(未降维前,A/B/C 都枚举)</td><td><code>O(m³)</code>,约1000多秒</td><td>不可接受,必须找降维关系</td></tr>
+  <tr><td>固定 9 层循环</td><td>1~9 拼加法等式 / n=9 全排列</td><td>接近 <code>O(9!)</code> 级判重</td><td>代码勉强能写,但已经很丑,是信号而非终点</td></tr>
+  <tr><td>层数随输入 n 变化</td><td>任意 n 的全排列</td><td><code>O(n!)</code></td><td>嵌套循环写不出来,必须换递归/DFS(呼应第1课大O表示法:规模一旦不确定就不能硬写死层数)</td></tr>
+</table>
+<p class="big">一句话判断标准:<b class="hl">数据规模小、候选范围能事先分析出一个不太大的上界,枚举法可以接受</b>;
+<b class="bad">数据规模大、或者嵌套层数得跟着输入变化,枚举法就必须让位给更好的算法</b>
+——这正是第1课学的"大O衡量的是规模变大后还扛不扛得住",而不是"这次跑得快不快"。</p>
+
+<h2>三、C 代码:火柴棍等式(降维版)</h2>
+<p>下面是章节文件里给出的完整降维版实现——只枚举 A、B 两层循环,C 由 A+B 直接算出:</p>
+<pre>#include &lt;stdio.h&gt;
+
+<span class="c">/* 0~9 每个数字需要的火柴棍根数 */</span>
+int matchCost(int x) {
+    int cost[10] = {6, 2, 5, 5, 4, 5, 6, 3, 7, 6};
+    int num = 0;
+    while (x / 10 != 0) {          <span class="c">// ① 逐位取余、整除,直到只剩最高位</span>
+        num += cost[x % 10];
+        x /= 10;
+    }
+    num += cost[x];                <span class="c">// 补上最后剩下的最高位</span>
+    return num;
+}
+
+int main() {
+    int m, sum = 0;
+    scanf("%d", &amp;m);
+    for (int a = 0; a &lt;= 11111; a++) {      <span class="c">// ② 上界取 11111,不是拍脑袋定的</span>
+        for (int b = 0; b &lt;= 11111; b++) {
+            int c = a + b;          <span class="c">// ③ 用加法算出C,而不是再枚举一层C</span>
+            if (matchCost(a) + matchCost(b) + matchCost(c) == m - 4) {
+                printf("%d+%d=%d\n", a, b, c);
+                sum++;
+            }
+        }
+    }
+    printf("一共可以拼出%d个不同的等式\n", sum);
+    return 0;
+}</pre>
+
+<p>三处最容易在考试里写错、丢分或答错的地方:</p>
+<ol>
+  <li><b>① <code>matchCost</code> 里的循环边界:忘记 <code>x/10==0</code> 时还有最后一位没加。</b>
+    如果把最后 <code>num += cost[x]</code> 这一行漏掉,单个数字或者取余到只剩最高位的那一位会漏算火柴棍数,
+    导致整体判断条件永远算错——这类"循环体外还有一步收尾"的写法,是枚举题里最容易漏写的收尾逻辑。</li>
+  <li><b>② 枚举上界写成 <code>11111</code> 是分析出来的,不是随手抄题目里的"最多24根"。</b>
+    如果考试改了根数(比如把总根数从 24 变成别的值),上界也要跟着重新推导——直接照抄书上的
+    <code>11111</code> 而不理解"20 根火柴棍最多拼 10 个 1"这条推导逻辑,遇到改编题就会算错范围,
+    要么漏解(范围定小了)要么白跑很多轮(范围定大了没影响正确性但拖慢速度)。</li>
+  <li><b>③ 循环层数与判等条件容易混淆:忘记降维,或者降维后又把 C 也放进循环里重复枚举。</b>
+    这题的核心得分点就是"C 由 A+B 算出、不需要单独一层循环";如果照着朴素思路写成三层循环
+    (<code>for a</code>、<code>for b</code>、<code>for c</code> 都枚举,再判断 <code>a+b==c</code>),
+    虽然结果依然正确,但复杂度多了一个数量级,是这道题最容易被扣"优化思路"分的地方。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱:盲目枚举导致规模爆炸、直接超时。</b> 本章反复强调的教训是:枚举前不分析范围上界,
+  直接机械地按题目给出的最大可能值(比如"火柴棍最多24根")设一个过大的循环上限,会浪费大量无效枚举;
+  该降维时不降维(三个变量存在运算关系却仍然三层都枚举),实际运行时间可能相差上千倍
+  ——火柴棍例子里就是从 1000 多秒降到 1 秒的差距。此外,遇到"若干变量互不相同"这类判断,
+  堆一长串 <code>&&</code> 而不用标记数组,代码会随变量数增多而迅速失控;
+  在网格/路径类题目里只按几何或数值条件枚举候选位置、忽略"是否可达"的隐含约束
+  (炸弹人问题的经典反例),也是本章明确点出的坑。
+</div>
+
+<h2>四、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 手算枚举过程:用"坑爹的奥数"里的标记法思路——如果 <code>book[]</code> 数组长度为 9(下标 1~9),
+  某一轮枚举结束后统计 <code>book</code> 数组里值为 1 的元素个数是 8(不是 9),这说明什么?</div>
+  <button class="opt" data-ok="0">九个变量取值互不相同,这一轮是一个合法解</button>
+  <button class="opt" data-ok="1">至少有两个变量取了同一个数字,导致某个数字被标记了两次、另一个数字始终没被标记,这一轮不合法,应该跳过</button>
+  <button class="opt" data-ok="0">说明 book 数组越界了,程序会崩溃</button>
+  <button class="opt" data-ok="0">说明这一轮枚举缺了一个变量没有赋值</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 判断复杂度:如果火柴棍等式这道题不做"C=A+B"的降维优化,而是老老实实三层循环枚举 A、B、C
+  (范围都是 0~11111),这段代码的时间复杂度大致是什么级别?</div>
+  <button class="opt" data-ok="0"><code>O(m)</code>,和降维后一样快</button>
+  <button class="opt" data-ok="0"><code>O(m²)</code>,和降维后的版本没有区别</button>
+  <button class="opt" data-ok="1"><code>O(m³)</code>,比降维后的 <code>O(m²)</code> 多一个数量级,实测要跑1000多秒</button>
+  <button class="opt" data-ok="0"><code>O(m!)</code>,和全排列一个量级</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段改写过的 <code>matchCost</code> 函数,某处有 bug,选出问题所在。</div>
+  <p class="sub" style="margin-top:-4px">提示:用 <code>x=7</code>(个位数)手动模拟一遍循环执行了几次、有没有把 <code>cost[7]</code> 真正加进 <code>num</code>。</p>
+  <pre>int matchCost(int x) {
+    int cost[10] = {6, 2, 5, 5, 4, 5, 6, 3, 7, 6};
+    int num = 0;
+    while (x / 10 != 0) {
+        num += cost[x % 10];
+        x /= 10;
+    }
+    return num;   <span class="c">// ← 这一行</span>
+}</pre>
+  <button class="opt" data-ok="0"><code>cost</code> 数组的初始值写错了</button>
+  <button class="opt" data-ok="1">循环结束后忘记把最后剩下的最高位 <code>num += cost[x]</code> 加进去就直接 return 了,单位数或最高位的火柴棍数会漏算</button>
+  <button class="opt" data-ok="0">循环条件 <code>x/10 != 0</code> 写错了,应该是 <code>x != 0</code></button>
+  <button class="opt" data-ok="0">这段代码没有 bug,和原书写法完全等价</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q3sol').classList.toggle('hidden')">▸ 看模拟过程</span>
+  <div id="q3sol" class="hidden" style="margin-top:8px">
+    <table>
+      <tr><th>x</th><th>x/10!=0?</th><th>动作</th><th>num</th></tr>
+      <tr><td>7</td><td>否(7/10=0)</td><td>循环体一次都不执行,直接 return num</td><td>0(应为 cost[7]=3)</td></tr>
+    </table>
+    <p style="margin:4px 0">当 <code>x=7</code> 这种一位数时,<code>while</code> 循环条件从一开始就不满足,
+    循环体一次都不会执行——所有需要在循环体<b>之外</b>补的"最后一位"逻辑(原版里的 <code>num += cost[x]</code>)
+    如果被漏掉,单个数字的火柴棍数就永远算成 0。这是"循环体外还有一步收尾"这类代码最容易漏写的地方,
+    多位数(比如 x=23)也会漏掉最高位的那一位,只是不像单位数这么明显。</p>
+  </div>
+</div>
+
+<h2>五、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"枚举法的候选范围上界为什么要事先分析,而不是直接抄题目里的最大值?"<br>
+  ②"火柴棍等式里,为什么只枚举 A、B 两层就够了,C 不需要单独枚举?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 14 课(DFS 与 BFS 搜索)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 14 课):</b> DFS 与 BFS 搜索——会和第6课学过的 BFS 做对照,
+  解决这一课炸弹人问题里留下的"能不能走到"的可达性坑,也会解决全排列"层数无法参数化"的天花板问题。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/aha-algorithms/chapters/ch03-brute-force-enumeration.md</code>
+  (《啊哈！算法》第3章"枚举！很暴力")。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!book 数组的作用就是替代"堆一串 &&"来判断互不相同——理想情况下 9 个变量互不相同,book 里应该恰好有 9 个 1。只统计到 8 个,说明有重复取值,这一轮候选解不成立,应该跳过继续枚举下一组。',
+      bad:'再想想:book[1..9] 标记的是"1~9 这九个数字有没有被用过"。如果九个变量互不相同,每个数字恰好被标记一次,book 里应该有 9 个 1。只有 8 个,说明有数字被重复标记(某个变量和另一个变量取了同一个值),这一轮不合法。'},
+  q2:{good:'对!朴素三层循环是 O(m³)(m≈11112 时约1000多秒),而降维后用 C=A+B 直接算出,变成 O(m²)(约1秒)——章节文件里明确给出了这组对比数据,这正是"该降维时不降维,复杂度多一个数量级"的具体例子。',
+      bad:'再想想:朴素做法是 A、B、C 各一层循环,三层嵌套就是三个变量各自独立取值,时间复杂度是 O(m³)。降维优化(C=A+B 直接算出)才是 O(m²)。题目问的是"不做降维"的情况,所以应该选三次方级别。'},
+  q3:{good:'对!当 x 本身就是一位数(比如 x=7)时,while(x/10!=0) 从第一次判断就不成立,循环体完全不执行,原版里循环外那句 num += cost[x] 补的正是"最后剩下的最高位",删掉它会让单位数或多位数的最高位火柴棍数漏算成 0。',
+      bad:'手动模拟一下 x=7:7/10=0,所以 while 条件从一开始就是假,循环体一次都不执行。如果没有循环外的收尾语句把 cost[x] 加进去,这个函数对任何一位数都会返回 0,而不是真实的火柴棍数。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

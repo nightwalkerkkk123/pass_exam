@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 16 课 · 最短路径三算法(Floyd-Warshall / Bellman-Ford / SPFA) · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第二部分《啊哈!算法》⑥ · 对应 ch06</div>
+  <h1>第 16 课:最短路径三算法(Floyd-Warshall / Bellman-Ford / SPFA) —— 与 Dijkstra 的收尾对照</h1>
+  <div class="sub">目标:从"只求一个起点到所有点"的 Dijkstra(第7课)升级到"求所有点两两之间"的 Floyd-Warshall,
+  再学会用 Bellman-Ford / SPFA 应对负权边——这是全课程图论最短路径专题的收尾课,重点是把四种算法的
+  选择标准彻底理清。约 25 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>先接上第15课:</b> 第15课学了用邻接矩阵存图,以及直接用 DFS/BFS 求最短路径的局限——DFS/BFS 只在
+  "边数最少即最短"(所有边权重相同或压根没有权重)时才对,一旦边有不同的权重,就必须换专门的最短路径算法。
+  <b class="hl">第7课的 Dijkstra 已经解决了"只求一个起点到所有点"这个问题</b>,但它有两个从没被戳破的假设:
+  一是只关心<b>单个源点</b>,二是默认<b>所有边权都是正的</b>。这节课要同时升级这两个假设:
+  ①如果我要的是<b>所有点两两之间</b>的最短路径,不只是一个起点出发的呢?②如果图里<b class="hl">出现了负权边</b>
+  (比如"倒贴钱也要走"的边),Dijkstra 的贪心策略还成立吗?这两个"维度"分别对应 Floyd-Warshall 和
+  Bellman-Ford/SPFA。
+</div>
+
+<h2>一、核心思想:都是"松弛",只是顺序不同</h2>
+<p>这一章所有算法,本质上都在做同一件事——<b class="hl">松弛(relax)</b>:
+用一条新路径(经由某个中转点或中转边)去尝试更新"从 A 到 B 目前已知的最短路程",如果更短就替换。
+四个算法的区别只在于:<b>按什么顺序、对哪些点/边</b>做这件事。</p>
+
+<h3>1. Floyd-Warshall —— 枚举"中转点",求所有点对</h3>
+<p>用二维矩阵 <code>e[i][j]</code> 存图(<code>e[i][i]=0</code>,不可达设为极大值 <code>INF</code>)。
+核心思想是"<b>逐步允许经过更多的中转点</b>":第一轮只允许经过 1 号顶点中转,判断 <code>e[i][j]</code>
+是否比 <code>e[i][1]+e[1][j]</code> 大;第二轮允许经过 1、2 号顶点中转;依次类推,直到允许经过全部
+n 个顶点。这本质上是一种<b>动态规划</b>思想:"从 i 到 j 只经过前 k 号点的最短路程"。</p>
+
+<p>书里(ch06)给了一个具体的 4 城市例子,很好地展示了"每多放开一个中转点,路程可能进一步变短"这件事:</p>
+<table>
+  <tr><th>允许经过的中转点</th><th><code>e[4][3]</code>(4号到3号的路程)</th><th>为什么变化</th></tr>
+  <tr><td>无(只用直达公路)</td><td>12</td><td>4→3 直达公路长度是 12</td></tr>
+  <tr><td>允许经 1 号中转</td><td>11</td><td><code>e[4][1]+e[1][3]=5+6=11</code>,比12小,松弛成功</td></tr>
+  <tr><td>允许经 1、2 号中转</td><td>10</td><td><code>e[1][3]</code> 先被 2 号中转缩短为5(<code>e[1][2]+e[2][3]=2+3=5</code>),
+    于是 <code>e[4][1]+e[1][3]=5+5=10</code></td></tr>
+</table>
+
+<h3>2. Bellman-Ford —— 不贪心,对所有边暴力松弛</h3>
+<p>Dijkstra 的贪心"每轮选当前最小的点确定下来,不再回头"依赖一个前提:<b>没有负权边</b>。一旦某条边是
+负数,"已经确定的点"完全可能被后面一条经过负权边的路径反超,但 Dijkstra 不会回头检查。
+Bellman-Ford 索性放弃贪心,改成对<b>全部 m 条边</b>反复做松弛:外层循环 <code>n-1</code> 次,
+内层循环遍历全部边 <code>u[i]→v[i]</code>(权值 <code>w[i]</code>),判断 <code>dis[v[i]] > dis[u[i]]+w[i]</code>
+是否成立并松弛。之所以只需 <code>n-1</code> 轮,是因为最短路径必是不含回路的简单路径,最多包含
+<code>n-1</code> 条边;所以第 k 轮松弛后得到的是"最多经过 k 条边"的最短路径,<code>n-1</code> 轮后必然收敛。</p>
+
+<h3>3. SPFA —— Bellman-Ford 的队列优化</h3>
+<p>Bellman-Ford 每轮都要扫描全部边,太浪费——大部分点的估计值早就不再变化了。SPFA 用一个队列只维护
+"<b>估计值刚被更新过、需要重新去松弛别人</b>"的顶点:源点先入队;每次取出队首顶点,对它的所有出边尝试松弛,
+若某条边成功松弛且被更新的终点当前<b>不在队列中</b>,就把它入队(同一顶点不重复入队,用 <code>book</code>
+数组判重);处理完这个顶点的出边后把它出队;重复直到队列为空。它形式上很像 BFS,但 BFS 的点出队后不会
+再入队,SPFA 的点可能被反复刷新、反复入队。</p>
+
+<div class="callout big">
+  <b>判负权回路的两种手感:</b> Bellman-Ford 中,如果 <code>n-1</code> 轮跑完之后<b>还有边能继续松弛</b>,
+  说明图里存在负权回路(此时最短路径根本不存在,绕一圈就能无限变小,不能继续松弛下去当作答案)。
+  SPFA 中,如果<b>某个顶点入队次数超过 n 次</b>,同理说明存在负权回路。
+</div>
+
+<h2>二、四算法对照表(本课最重要的产出)</h2>
+<p>下面这张表把"能不能处理负权边"、"单源还是全源"、"时间复杂度"三个维度全部列出来。
+<b class="hl">Dijkstra 这一行的复杂度和限制条件与第7课(ch07-dijkstra.md)口径一致</b>:
+第7课里明确说"仅在所有边权重为正时才正确,一旦出现负权边必须改用贝尔曼-福特算法"——这里不重复推导,
+只做收尾对照。</p>
+
+<table>
+  <tr><th>算法</th><th>求解目标</th><th>能否处理负权边</th><th>能否处理负权回路</th><th>时间复杂度</th></tr>
+  <tr><td>Dijkstra<br><span class="sub">(第7课已学)</span></td><td>单源到全部点</td>
+    <td><b class="bad">不能</b></td><td>不能</td><td>O(N²);堆优化后 O((M+N)logN)</td></tr>
+  <tr><td>Floyd-Warshall</td><td><b class="hl">任意两点(全源)</b></td>
+    <td>能</td><td>不能(无解)</td><td>O(N³)</td></tr>
+  <tr><td>Bellman-Ford</td><td>单源到全部点</td>
+    <td>能</td><td>不能(可检测)</td><td>O(NM)</td></tr>
+  <tr><td>SPFA<br><span class="sub">(Bellman-Ford 队列优化)</span></td><td>单源到全部点</td>
+    <td>能</td><td>不能(可检测:某点入队超n次)</td><td>平均较快,最坏仍为 O(NM)</td></tr>
+</table>
+
+<div class="callout">
+  <b>小提示(诚实说明):</b> ch06 原书"第5节:最短路径算法对比分析"这一节因原文 OCR 质量不足、残缺较多,
+  只留下结论性文字。上面这张表和下面的"怎么选"结论,是在残存文字基础上整理出的忠实归纳,<b>不是逐字照抄课本</b>,
+  但结论本身(多源用Floyd、单源正权用Dijkstra、单源可能有负权用Bellman-Ford/SPFA)是可靠的。
+</div>
+
+<p>用一句话记住怎么选:<b>先问"要不要负权边",再问"是单源还是全源"。</b>
+不要负权边 + 单源 → Dijkstra;要负权边 + 单源 → Bellman-Ford / SPFA;要全源(不管有没有负权边)→ Floyd-Warshall。</p>
+
+<h2>三、C 代码实现 Floyd-Warshall(带边界条件详解)</h2>
+<p>先初始化矩阵,再跑三重循环:</p>
+
+<pre><span class="c">// 第一步:初始化——这一步的两个坑最容易在期末丢分</span>
+for (i = 1; i <= n; i++)
+    for (j = 1; j <= n; j++)
+        dist[i][j] = (i == j) ? 0 : INF;   <span class="c">// ① 自己到自己是0,不直接相连是"无穷大",不是0</span>
+
+for (t = 0; t < m; t++) {
+    scanf("%d %d %d", &u, &v, &w);
+    if (w < dist[u][v]) dist[u][v] = w;    <span class="c">// 读入已知边,重边取更小的一条覆盖上去</span>
+}
+
+<span class="c">// 第二步:三重循环核心——只有五行,但顺序不能错</span>
+for (k = 1; k <= n; k++) {                 <span class="c">// ② k(允许经过的中转点)必须是最外层</span>
+    for (i = 1; i <= n; i++) {
+        for (j = 1; j <= n; j++) {
+            if (dist[i][k] < INF && dist[k][j] < INF &&      <span class="c">// ③ 防止 INF+INF 溢出</span>
+                dist[i][j] > dist[i][k] + dist[k][j]) {
+                dist[i][j] = dist[i][k] + dist[k][j];
+            }
+        }
+    }
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 初始化时,自己到自己(<code>i==j</code>)是 0,不直接相连的两点是 <code>INF</code>,不能都写成 0。</b>
+    如果不直接相连的两点也被初始化成 0,Floyd 会误以为任意两个原本不通的点之间存在一条长度为 0 的
+    "免费"路径,后续所有松弛结果全部错误——这是最隐蔽的一类初始化 bug,因为代码能跑、不会崩溃,
+    只是答案全错。</li>
+  <li><b>② 三重循环里,<code>k</code> 必须是最外层,不能把 <code>i</code> 或 <code>j</code> 放在最外层。</b>
+    <code>k</code> 这层循环的意义是"逐步放开允许经过的中转点"——这是一个动态规划式的状态转移顺序:
+    只有当"允许经过前 <code>k-1</code> 个点做中转"的结果都已经算完整,才能正确判断"现在再多允许经过
+    第 <code>k</code> 个点,能不能把 <code>e[i][j]</code> 缩短"。如果 <code>k</code> 不在最外层,
+    <code>e[i][k]</code>、<code>e[k][j]</code> 用到的可能是还没被"放开"更新完的旧数据,
+    有些本该被多个中转点接力发现的更短路径就永远发现不了,得到偏大、错误的结果。</li>
+  <li><b>③ 判断 <code>dist[i][k]+dist[k][j]</code> 之前,要加上 <code>dist[i][k]&lt;INF && dist[k][j]&lt;INF</code>
+    的保护条件。</b> 如果 <code>i</code>、<code>k</code> 之间(或 <code>k</code>、<code>j</code> 之间)本来不通,
+    两个"无穷大"直接相加,在 <code>int</code> 范围内可能<b class="bad">整数溢出</b>,变成一个错误的、甚至是负数的
+    溢出值,反而被误判成"更短的路径",把整张 <code>dist</code> 表污染掉。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱:</b><br>
+  ① <b>对含负权边的图错误使用 Dijkstra。</b> Dijkstra 的贪心"选出当前最小、确定它不会再变短"这个判断,
+  完全依赖"不存在更短的路径经过尚未确定的点"这个前提——一旦某条边是负数,后面完全可能有一条经过负权边的
+  路径反超已经"确定"的点,但 Dijkstra 不会回头检查,直接给出错误答案而不报错。这和第7课"换黑胶唱片"
+  例子说的是同一件事。<br>
+  ② <b>Floyd-Warshall 三重循环顺序颠倒(<code>k</code> 没放最外层)。</b> 代码依然能跑、不会报错,
+  但破坏了"逐步放开中转点"的 DP 状态转移顺序,算出来的 <code>dist</code> 矩阵可能不是全局最短路径,
+  是这门课最容易被当作"改错题"考的一个点。
+</div>
+
+<h2>四、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 一张有5个顶点的图,边权中有负数,但已确认<b>没有负权回路</b>,现在只需要求
+  "1号顶点到其余4个顶点"的最短路径。应该选哪个算法?</div>
+  <button class="opt" data-ok="0">Dijkstra——反正只是单源,边权正负不影响</button>
+  <button class="opt" data-ok="0">Floyd-Warshall——它能处理负权边,直接用最保险</button>
+  <button class="opt" data-ok="1">Bellman-Ford 或它的队列优化版 SPFA</button>
+  <button class="opt" data-ok="0">这张图有负权边,任何算法都无法求出最短路径</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 如果把 Floyd-Warshall 的三重循环写成 <code>for(i) for(j) for(k)</code>
+  (即把 <code>k</code> 挪到最内层),会发生什么?</div>
+  <button class="opt" data-ok="0">结果不变,只是常数时间变慢一点</button>
+  <button class="opt" data-ok="1">结果可能出错——"逐步放开中转点"的 DP 顺序被打乱,部分更短路径永远发现不了</button>
+  <button class="opt" data-ok="0">编译会报错,循环嵌套顺序不能随便换</button>
+  <button class="opt" data-ok="0">只影响带负权边的图,正权图不受影响</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段 Floyd-Warshall 的初始化代码有 bug,选出问题所在。</div>
+  <pre>for (i = 1; i <= n; i++)
+    for (j = 1; j <= n; j++)
+        if (i == j) dist[i][j] = 0;
+        else dist[i][j] = 0;        <span class="c">// ← 这一行</span>
+<span class="c">// 之后再读入已知的边,把 dist[u][v] = w 覆盖进去</span></pre>
+  <button class="opt" data-ok="0">没问题,反正后面读入边的时候会覆盖上去</button>
+  <button class="opt" data-ok="1">不直接相连的两点也被设成了 0,Floyd 会误以为任意两点之间有一条长度为0的免费路径,后续松弛全部出错</button>
+  <button class="opt" data-ok="0"><code>if(i==j)</code> 这一行应该改成 <code>dist[i][j]=INF</code></button>
+  <button class="opt" data-ok="0">这样写会导致数组越界访问</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q3sol').classList.toggle('hidden')">▸ 看错在哪、怎么改</span>
+  <div id="q3sol" class="hidden" style="margin-top:8px">
+    <p style="margin:4px 0">正确写法应该是:</p>
+    <pre>for (i = 1; i <= n; i++)
+    for (j = 1; j <= n; j++)
+        dist[i][j] = (i == j) ? 0 : INF;   <span class="c">// 不直接相连是 INF,不是 0</span></pre>
+    <p style="margin:4px 0">举个具体的错误后果:假设 3 号和 5 号顶点原本毫无关系,错误代码里 <code>dist[3][5]=0</code>。
+    三重循环跑起来后,任何顶点 <code>i</code> 都会发现"经过 3 号再到 5 号"这条"路径"长度是
+    <code>dist[i][3]+0</code>,凭空比真实路程小很多,把整张矩阵污染成一堆偏小的错误值。</p>
+  </div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq">Q4. Floyd-Warshall 代码里,为什么要在比较 <code>dist[i][k]+dist[k][j]</code> 之前,
+  加上 <code>dist[i][k]&lt;INF && dist[k][j]&lt;INF</code> 这样的保护条件?</div>
+  <button class="opt" data-ok="0">纯粹是代码风格问题,没有实际影响,加不加都一样</button>
+  <button class="opt" data-ok="1">因为如果 i、k 之间或 k、j 之间本来不通(是"无穷大"),两个 INF 相加可能超过 int 范围,溢出成一个错误值,反而被误判成"更短路径"</button>
+  <button class="opt" data-ok="0">是为了让三重循环运行得更快</button>
+  <button class="opt" data-ok="0">C 语言语法要求两个 INF 相加前必须先判断范围</button>
+  <div class="fb"></div>
+</div>
+
+<h2>五、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"这四种最短路径算法(Dijkstra、Floyd-Warshall、Bellman-Ford、SPFA)遇到一道具体题目时,
+  该按什么顺序问自己两个问题来决定用哪个?"(提示:一个问题关于负权边,一个问题关于单源/全源)<br>
+  ②"Floyd-Warshall 三重循环里,为什么 <code>k</code> 必须是最外层?写错了会导致什么后果,而不是仅仅变慢?"<br>
+  说清楚这两点,图论最短路径这个专题才算真正收尾——然后我们进第 17 课(树、堆与并查集)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 17 课):</b> 树、堆与并查集——离开"图"这条线,转向另一类更常考的数据结构,
+  会用到这几节课反复出现的"贪心/逐步确定"思路。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/aha-algorithms/chapters/ch06-shortest-path.md</code>
+  (《啊哈!算法》第6章;该章第5节"最短路径算法对比分析"原文因 OCR 质量不足残缺较多,
+  本课对照表是在残存文字基础上的忠实整理,不是逐字复现)。
+  对照表中 Dijkstra 一行的限制条件与复杂度,已核对与第7课 <code>skill/bhargava-algorithms/chapters/ch07-dijkstra.md</code>
+  的口径一致,没有冲突。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!单源 + 可能有负权边(但没有负权环),正是 Bellman-Ford/SPFA 的适用场景。Dijkstra 的贪心假设一旦遇到负权边就失效;Floyd 虽然也能处理负权边,但它求的是"所有点对",在这里是杀鸡用牛刀,而且时间复杂度 O(N³) 反而更差。',
+      bad:'再想一遍两个判断维度:①这张图有负权边,Dijkstra 的贪心策略在负权边下会给出错误答案,排除。②题目只要"1号到其余4点",是单源问题,不需要求全部点对,所以不必上 O(N³) 的 Floyd。剩下的答案就是 Bellman-Ford 或它的队列优化版 SPFA。'},
+  q2:{good:'对!k 这层循环的意义是"逐步放开允许经过的中转点",这是一种动态规划式的状态转移顺序。如果 k 不在最外层,e[i][k]、e[k][j] 可能引用的是还没被"放开"更新完的旧数据,导致部分更短路径永远发现不了。',
+      bad:'再想想:k 循环代表"允许经过前 k 个点做中转"。这个"放开"必须一层一层来,如果 k 不是最外层,内层在还没有把"允许经过前 k-1 个点"的结果算完整的情况下,就去用可能还是旧值的 e[i][k]、e[k][j] 判断,顺序被打乱,不是单纯的变慢问题。'},
+  q3:{good:'对!这是最隐蔽的一类初始化 bug——不直接相连也被设成 0,相当于凭空造出一堆"免费"路径,后续所有松弛结果全部被污染,而且代码本身不会报错、不会崩溃,只是答案全错。',
+      bad:'再想想执行过程:如果 3 号和 5 号顶点本不相连,错误代码里 dist[3][5] 被设成了 0。三重循环跑起来后,任何路径只要"经过 3 再到 5",就会凭空多出一段长度为 0 的免费路径,这比该点本身的真实路程小得多,导致整张矩阵全被污染。'},
+  q4:{good:'对!两个 INF(比如各自约10亿)相加可能超过 int 的表示范围而溢出,溢出后的值甚至可能变成一个很小的数或负数,反而被误判成"更短的路径",把整张 dist 表算错。这是 ch06 明确提醒的一个易错点。',
+      bad:'再想想数值范围:INF 通常取一个"足够大"的数(比如约10亿),如果 i、k 之间或 k、j 之间本不连通,两个这样的大数相加会超过 int 能表示的范围,发生整数溢出——溢出后的结果可能反而比原来的 dist[i][j] 小,被误判成"松弛成功"。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>
