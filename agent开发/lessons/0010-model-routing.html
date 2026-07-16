@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0010 · 模型路由：主模型、fallback 兜底、廉价模型门控</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0010 课 · 预计 14 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>模型路由：主模型、fallback 兜底、廉价模型门控</h1>
+
+<p class="lede">你熟悉的 RPC 路由：按服务身份、负载、权重把请求分发到实例，路由表是静态配置，规则可穷举，失败时按注册的实例列表重试或熔断。模型路由长得很像——但它多出一维你的路由表里从来没有过的东西：<strong>任务难度判断</strong>。这一维不是查表能得到的确定答案，而是被 eval 和灰度实验反复校准的经验产物。这节课就沿着 <code>conductorservice</code> 里真实的三层路由，看这维"难度判断"如何把 RPC 类比一处处顶漏。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 480" role="img" aria-label="模型路由三层：主模型选型、便宜模型门控、运行期失败降级，最终汇入 llmService.NewLLMClient">
+  <!-- edges -->
+  <line class="dgm-edge" x1="360" y1="104" x2="360" y2="150" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line class="dgm-edge" x1="360" y1="224" x2="360" y2="270" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <line class="dgm-edge" x1="360" y1="344" x2="360" y2="392" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" class="dgm-accent"/>
+    </marker>
+  </defs>
+  <!-- layer 1 -->
+  <rect class="dgm-link-node" x="80" y="30" width="560" height="74" rx="10" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="60" font-size="15" font-weight="700" text-anchor="middle">① 主模型选型（进入 Conductor 时选一次）</text>
+  <text class="dgm-muted" x="360" y="84" font-size="11.5" text-anchor="middle">PickPrimaryModel · model_policy.go:23 · AB cohort &gt; GPT-5.5 &gt; GPT-5.4 &gt; 默认 GPT-5.2</text>
+  <!-- layer 2 -->
+  <rect class="dgm-good-node" x="80" y="150" width="560" height="74" rx="10" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="180" font-size="15" font-weight="700" text-anchor="middle">② 便宜模型门控（旁路小任务，主动降档省钱）</text>
+  <text class="dgm-muted" x="360" y="204" font-size="11.5" text-anchor="middle">trigger judge / slides thinking digest · 硬选 GPT-5.4-Nano</text>
+  <!-- layer 3 -->
+  <rect class="dgm-accent-node" x="80" y="270" width="560" height="74" rx="10" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="300" font-size="15" font-weight="700" text-anchor="middle">③ 运行期失败降级（主循环内，过载/失败才触发）</text>
+  <text class="dgm-muted" x="360" y="324" font-size="11.5" text-anchor="middle">registry FallbackModels 链 · tryModelFallback（slides 专用）</text>
+  <!-- terminal -->
+  <rect class="dgm-node" x="190" y="392" width="340" height="60" rx="10" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="360" y="418" font-size="14" font-weight="700" text-anchor="middle">llmService.NewLLMClient</text>
+  <text class="dgm-muted" x="360" y="438" font-size="11" text-anchor="middle">拿着最终 modelName 建客户端</text>
+</svg>
+</div>
+<figcaption>三层从"选谁"到"失败降级"，每层都可能改写 modelName，最终交给 <code>llmService.NewLLMClient</code>（<code>agent.go:1189</code>）。蓝=选型，绿=省钱降档，红=失败兜底。</figcaption>
+</figure>
+
+<h2>一、先承认类比对的部分</h2>
+
+<p>把模型当成一组可替换的后端实例，是完全正确的起点。请求要分发到某个后端（选哪个模型）；某个后端过载或挂了，要按预先注册的列表切到备用（fallback）；不同后端有不同成本，你想把便宜的请求路到便宜的后端。这三件事——选型、兜底、成本分层——在 RPC 世界里你天天做。</p>
+
+<p>代码结构也确实这么组织：路由决策收敛在 <code>utils/model_policy.go</code> 和 <code>llms/common/model.go</code> 两处，前者管"选谁"，后者是模型元数据的事实源。<code>model_policy.go:11</code> 的注释把这条纪律说得很直白：</p>
+
+<pre><code>// 业务调用点不应硬编码具体模型名。各档模型的选型 / 灰度 / 后续降级逻辑统一收敛到本文件。</code></pre>
+
+<p>这跟"不要在业务代码里写死下游 IP，走服务发现"是同一个工程直觉。方向没错。但接下来是四个 RPC 路由里<strong>不存在</strong>的现象。</p>
+
+<h2>二、第一层：主模型不是查表选出来的，是灰度实验选出来的</h2>
+
+<p><code>PickPrimaryModel</code>（<code>model_policy.go:23-62</code>）决定"这个用户这次用哪个主推理模型"。它的优先级链是：</p>
+
+<table>
+<tr><th>优先级</th><th>条件</th><th>选中的模型</th><th>代码位置</th></tr>
+<tr><td>1</td><td>命中 AB 实验 cohort，且返回的模型名合法</td><td>AB 决议的模型</td><td>L31-37</td></tr>
+<tr><td>2</td><td><code>IsEnableGPT55</code> FG 开</td><td>GPT-5.5</td><td>L40-42</td></tr>
+<tr><td>3</td><td>付费/免费桶命中 <code>IsEnableGPT54PTUPaid/Free</code> FG</td><td>GPT-5.4</td><td>L50-59</td></tr>
+<tr><td>4（默认）</td><td>以上都不命中，或依赖缺失（ctx/user/fgItems 为空）</td><td>GPT-5.2（fail-closed）</td><td>L24-26, L61</td></tr>
+</table>
+
+<p>注意这条链的形状：<strong>没有一条规则是"某类请求永远落到某个模型"这种静态映射</strong>。每一档都挂在一个 feature gate 或 AB 实验上。哪个用户用 GPT-5.5、哪个用 GPT-5.4、新用户和长期免费用户走什么，全部由灰度配置控制（L21 注释：新用户/长期免费的差异化"完全由 AB 实验控制…不在本函数里写硬规则"）。<code>PickPrimaryModel</code> 是一个把"运营/实验此刻的决议"翻译成模型名的函数，不是一张路由表。</p>
+
+<div class="leak">
+RPC 路由表是<strong>确定且可穷举</strong>的：给定服务名和参数，你能静态推出请求落到哪类后端。模型主档不是——"这个用户该用哪个模型"是一个正在被 AB 实验持续调整的<strong>经验问题</strong>，答案随灰度桶天天变。所以这里的"路由表"本质是 feature gate 的投影，而不是拓扑配置。这也是为什么代码要 fail-closed 回 GPT-5.2（L47、L61）：AB 抖动、运营 typo、依赖 RPC 失败都可能让"该选谁"变得不确定，此时宁可回到一个已知稳定的档，也不把奇怪字符串透传给 LLM 调用层（L18-19 注释）。
+</div>
+
+<h2>三、第二层：便宜模型门控——省钱的旁路，但便宜不是自动便宜</h2>
+
+<p>主推理循环之外有一大批小任务：判断一个事件"该不该触发 Agent"、把一段内部 thinking 改写成给用户看的进度文案、生成标题/摘要/用户画像。这些任务不值得动用贵的主模型，代码里直接硬选廉价档。先看价格为什么值得这么做——同样每 1M output token：</p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">GPT-5.5 (standard)</span><div class="track"><div class="val write" style="width:100%">$30 / 1M out</div></div></div>
+  <div class="row"><span class="lbl">GPT-5.4 (standard)</span><div class="track"><div class="val write" style="width:50%">$15</div></div></div>
+  <div class="row"><span class="lbl">GPT-5.4-Mini (lite)</span><div class="track"><div class="val read" style="width:15%">$4.5</div></div></div>
+  <div class="row"><span class="lbl">GPT-5-Mini (lite)</span><div class="track"><div class="val read" style="width:6.7%">$2</div></div></div>
+  <div class="row"><span class="lbl">GPT-5.4-Nano (lite)</span><div class="track"><div class="val read" style="width:4.2%">$1.25</div></div></div>
+</div>
+<figcaption>output 价格阶梯（<code>model.go</code>：GPT-5.5 <code>L175-176</code>、GPT-5.4 <code>L162-163</code>、GPT-5.4-Mini <code>L189-190</code>、GPT-5-Mini <code>L213-214</code>、GPT-5.4-Nano <code>L201-202</code>）。红=standard 档，绿=lite 档。Nano 的 output 价约为 GPT-5.5 的 1/24。<code>CostTier</code> 只有 standard/lite 两档，供限流用。</figcaption>
+</figure>
+
+<p><strong>实例 1 · trigger 语义过滤</strong>。判断"该不该触发 Agent"是个二分类，用最便宜的 Nano。但代码里最锋利的一行是它<em>关掉了推理</em>（<code>trigger_judge.go:19-21</code>）：</p>
+
+<pre><code>// triggerJudgeModel 触发器语义过滤统一模型。nano 是推理模型，judge 为二分类任务，
+// 必须显式关闭推理（reasoning effort none），否则延迟与输出 token 抵消价格优势。
+var triggerJudgeModel = llmcommon.ModelNameGPT54Nano</code></pre>
+
+<p>对应的调用处显式把 reasoning 关成 <code>none</code>（<code>trigger_judge.go:84</code>）：</p>
+
+<pre><code>Reasoning: &amp;shared.ReasoningParam{Effort: shared.ReasoningEffort("none")},</code></pre>
+
+<p>而且任何失败都返回 <code>(false, "")</code>——"宁可漏过，不为错误事件跑完整 Agent"（<code>trigger_judge.go:33</code> 注释）。这是 fail-open：门控出错时选择放过，而不是误触发烧掉一整个 Agent 回合。</p>
+
+<p><strong>实例 2 · slides thinking 脱敏改写</strong>。slides 模式下 Conductor 的 thinking 会直接讨论幻灯片底层协议（SVG 命名空间、私有属性），不能原样透给用户。方案是用 Nano 把整段 thinking 改写成一句安全的进度文案，<code>MaxTokens</code> 只给 256（<code>slides_thinking.go:64-95</code>）。设计注释（<code>slides_thinking.go:14-17</code>）：</p>
+
+<pre><code>// slides 模式下，conductor 的 thinking 会直接讨论幻灯片底层实现协议（SVG slide:* 命名空间...
+// 原始 thinking 推给前端，而是把整段 thinking 用便宜模型改写成一句「在做什么」的进度文案，
+// 并对协议关键词做兜底过滤——即使小模型改写不彻底，也不会把协议泄漏出去。</code></pre>
+
+<p>关键在最后半句：改写完还不算完，还要用一张关键词黑名单（<code>slidesProtocolMarkers</code>，<code>slides_thinking.go:28-33</code>：<code>slide:</code>、<code>&lt;svg</code>、<code>xmlns</code>、<code>viewbox</code>…）做确定性过滤，命中任一就丢弃改写结果、退回通用文案（<code>slides_thinking.go:91</code>）。</p>
+
+<div class="leak">
+RPC 里把请求路到便宜后端，便宜就是便宜——单价降了，账单就降了，行为不变。模型不是：<br>
+（1）<strong>便宜模型不是自动便宜</strong>。Nano 是 reasoning model，不显式关掉推理，它默认会做推理，额外的延迟和 reasoning output token 会把每-token 的价格优势吃回去（<code>trigger_judge.go:20</code>）。"路由到便宜档"只是第一步，还得按任务形态把模型<em>配置</em>对。<br>
+（2）<strong>你不敢完全信小模型的输出</strong>。所以 slides 改写后面还焊了一层确定性关键词过滤兜底——贵模型和便宜模型的能力是非线性的，省下的钱要用一张安全网来对冲质量风险。RPC 后端不会给你"这个实例返回的数据可能不够可信，请再加一层校验"这种问题。
+</div>
+
+<h2>四、第三层：失败降级——两套并存的机制，两种粒度</h2>
+
+<p>请求真发出去、provider 过载或失败时，才轮到降级。这套系统里<strong>降级不止一处、不止一种粒度</strong>，有两套并存的机制，很容易只看到一套。</p>
+
+<h3>机制 A · registry 级 FallbackModels 链（通用、LLM 客户端内部）</h3>
+
+<p>每个模型在 registry 里可以登记一条静态兜底链。例如 GPT-5.5（<code>model.go:171-184</code>）：</p>
+
+<pre><code>ModelNameGPT55: {
+    ...
+    CostTier:       ModelCostTierStandard,
+    ...
+    FallbackModels: []ModelName{ModelNameGPT54, ModelNameGPT52},
+},</code></pre>
+
+<p>这条链的唯一消费点在 <code>openainext/client.go</code> 的 <code>Stream</code>（<code>L186-194</code>）：把主模型和它的 fallbacks 拼成一个列表，然后 <code>for</code> 逐个 model 尝试。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">primaryModel</span><span class="n-sub">GPT-5.5</span></div>
+  <span class="arrow">失败→</span>
+  <div class="node"><span class="n-title">fallback[0]</span><span class="n-sub">GPT-5.4</span></div>
+  <span class="arrow">失败→</span>
+  <div class="node"><span class="n-title">fallback[1]</span><span class="n-sub">GPT-5.2</span></div>
+</div>
+<figcaption><code>openainext/client.go:191</code> <code>GetFallbackModels(primaryModel)</code> 拼出 <code>models</code>，<code>L200</code> <code>for mi, model := range models</code> 逐个试。这层在 LLM 客户端内部就地换 model，<strong>Conductor 层根本不感知</strong>。</figcaption>
+</figure>
+
+<h3>机制 B · Conductor 级 tryModelFallback（专用、硬编码一对）</h3>
+
+<p>主循环 <code>determineNextStep</code>（<code>agent.go:1018-1079</code>）用 <code>retry.Do</code> 包住每次 LLM 调用。<code>retry.RetryIf</code>（<code>agent.go:1036-1061</code>）里，命中限流或过载错误时调 <code>tryModelFallback</code>（<code>agent.go:1048-1052</code>）：</p>
+
+<pre><code>if errcode.IsErrLLMTooManyRequests(err) || errcode.IsErrLLMOverloaded(err) {
+    if agent.tryModelFallback(ctx) {
+        return true   // 换成功 → 触发重试
+    }
+}</code></pre>
+
+<p>而 <code>tryModelFallback</code>（<code>agent.go:1200-1222</code>）被死死圈住——两道 guard 之后只做一件事：</p>
+
+<pre><code>if agent.currentModelName != common.ModelNameGemini31ProPreview {
+    return false
+}
+fallbackModel := common.ModelNameGemini3Flash
+ctx.Log().Warnf("[Conductor] Model %s rate limited, falling back to %s", agent.currentModelName, fallbackModel)
+
+if err := agent.switchModel(ctx, &amp;agenttypes.ModeModelConfig{
+    ModelName: string(fallbackModel),</code></pre>
+
+<p>它只在 <strong>slides 模式</strong>（<code>agent.go:1202</code> 的 <code>if !agent.activeModes[...Slides] { return false }</code>）、且当前模型正是 <strong>Gemini 3.1 Pro Preview</strong> 时，把模型换成 <strong>Gemini 3 Flash</strong>。换成功后还 <code>SetSlidesEditFallback</code> 落 Redis（<code>agent.go:1218</code>），让整个 slides-edit 会话都留在降级档，避免反复撞限流。</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">requestAgentMessage 抛错 → retry.RetryIf 判定（agent.go:1036）</div>
+  <div class="down">│</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">TooManyRequests / Overloaded (L1048)</div>
+      <div class="step action">tryModelFallback：仅 slides 模式 &amp; 当前 = Gemini 3.1 Pro → 换 Gemini 3 Flash + 落 Redis → 重试；否则 return false</div>
+    </div>
+    <div class="branch">
+      <div class="label">LLMCall / Connection (L1057)</div>
+      <div class="step action">直接重试：客户端已试过全部 provider，再给 provider 池一次机会</div>
+    </div>
+  </div>
+</div>
+<figcaption>注意：机制 B 只处理"过载/限流时换一对特定模型"，通用的多模型兜底是机制 A 在客户端内部悄悄做的。<code>PromptTooLong</code> 则不重试（<code>L1038-1042</code>），交给主循环去压缩。</figcaption>
+</figure>
+
+<div class="leak">
+RPC 熔断/兜底是<strong>确定的实例拓扑决策</strong>：注册的备用实例列表在那儿，切过去就是切过去，语义不变。模型兜底要先回答一个非确定的问题：<strong>降级会不会掉质量？</strong>正因为答案不确定，<code>tryModelFallback</code> 才被硬编码成"只对 Gemini 3.1 Pro → Gemini 3 Flash 这一对、只在 slides 场景"——团队只 eval 验证过<em>这一对模型在这一个任务上</em>降级后质量可接受，不敢做成"过载就降到便宜档"的通用规则。这就是类比最深的漏水点：RPC 的兜底是拓扑，模型的兜底是被 eval 圈养的经验判断。
+</div>
+
+<h2>五、旁路：loadshedding 是限流，不是切模型</h2>
+
+<p>还有一条容易被误认成"降级"的路径。每次 LLM 调用后，<code>llms/stats.go</code> 会把 overload 错误计入一个滑动窗口（<code>loadshedding.RecordModelError</code>）。处理新消息前调 <code>DecideForMessage</code>（<code>policy.go:190-221</code>）：按累积错误数走一条 sigmoid 曲线算出 throttle 百分比（<code>ThrottlePercent</code>，<code>policy.go:151-169</code>），命中就返回一句 busy 文案。</p>
+
+<figure class="diagram">
+<div class="axis">
+  <span class="mark" style="left:22%">midpoint = 22 次错误（归一化后 ≈46%）</span>
+  <span class="fill-label" style="left:2%">0 次 overload</span>
+  <span class="fill-label" style="right:2%">窗口内累积错误数 ↑</span>
+</div>
+<figcaption><code>policy.go</code>：<code>defaultSlope=0.11</code>（<code>L21</code>）、<code>defaultMidpoint=22.0</code>（<code>L22</code>）；throttle% = round(归一化 sigmoid ×100)——先减 base 再归一（<code>L159-168</code>），故 midpoint 处实际 ≈46% 而非 50%。关键：<code>L211</code> 只对 <code>SubscriptionTypeFree</code> 用户生效，付费用户直接放行；默认 busy 文案是 "High traffic right now. Upgrade for priority speed."（<code>L20</code>）。</figcaption>
+</figure>
+
+<p>看清楚这里降级的是什么：<strong>请求准入</strong>，不是模型。它不换任何模型，只是在系统过载时，按 messageID 哈希分桶（<code>ShouldThrottleByMessageID</code>，<code>policy.go:171-179</code>）概率性拒绝一部分免费用户的请求，返回文案并引导升级。真正的"过载时换模型"是上一节的机制 A/B。把这条路径当成模型降级，是读这块代码时最常见的误解。</p>
+
+<h2>六、关键定义</h2>
+
+<dl class="keydef">
+<dt>模型路由（model routing）</dt>
+<dd>按任务/mode 选择不同模型（贵主模型 vs 廉价辅助模型），并在失败时降级兜底。载体：<code>model_policy.go:PickPrimaryModel</code>（选型）、<code>agent.go:tryModelFallback</code> 与 registry <code>FallbackModels</code> 链（兜底）；事实源 <code>llms/common/model.go</code>。</dd>
+<dt>廉价模型门控（cheap-model gating）</dt>
+<dd>主动把某类小任务硬路由到便宜小模型以省钱，且常配合确定性兜底（关 reasoning、关键词过滤、fail-open）来对冲小模型的质量与延迟风险。载体：<code>trigger_judge.go</code>（Nano + reasoning none）、<code>slides_thinking.go</code>（Nano + MaxTokens 256 + 关键词过滤）。</dd>
+<dt>registry 级 FallbackModels 链</dt>
+<dd>在 <code>model.go</code> 里给每个模型静态登记的降级序列（如 GPT-5.5→GPT-5.4→GPT-5.2），由 <code>openainext/client.go</code> 的 <code>Stream</code> 逐个 model 尝试；粒度在 LLM 客户端内部，Conductor 不感知。</dd>
+<dt>tryModelFallback</dt>
+<dd>Conductor 级的过载降级，被硬编码限定为"仅 slides 模式、仅 Gemini 3.1 Pro → Gemini 3 Flash"，成功后落 Redis 使整个 slides-edit 会话保持降级档。与 registry 链是两套并存机制。</dd>
+<dt>loadshedding（smart load shedding）</dt>
+<dd>过载时按 sigmoid 曲线对<strong>免费用户</strong>请求做概率性 throttle 的准入控制，返回 busy 文案。降级的是请求准入，不是模型。</dd>
+</dl>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：<code>tryModelFallback</code>（<code>agent.go:1200</code>）为什么被硬编码成"只在 slides 模式、只把 Gemini 3.1 Pro 降到 Gemini 3 Flash"，而不是做成对所有模型通用的"过载就降到便宜档"？</summary>
+<div class="answer">
+<p>因为"哪个任务降到哪个小模型不掉质量"是需要 eval 支撑的<strong>经验判断</strong>，不是通用规则。团队只验证过 slides 编辑这个具体任务上 Gemini 3 Flash 的质量可接受，所以把降级严格圈在这一对模型 + 这一个场景（<code>agent.go:1202</code> 的 slides guard、<code>L1205</code> 的 <code>currentModelName != Gemini31ProPreview</code> 直接 return false）。</p>
+<p>这正是类比漏水点：RPC 兜底是确定的实例拓扑，切过去语义不变；模型兜底要先回答"降级会不会掉质量"这个非确定问题，所以只能对 eval 验证过的组合放行。另外它成功后 <code>SetSlidesEditFallback</code> 落 Redis（<code>agent.go:1218</code>），让整个 slides-edit 会话都留在降级档，避免反复撞限流。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：trigger judge 已经选了最便宜的 GPT-5.4-Nano，为什么代码还要显式把 <code>Reasoning.Effort</code> 设成 <code>"none"</code>（<code>trigger_judge.go:84</code>）？不设会怎样？</summary>
+<div class="answer">
+<p>Nano 是 reasoning model，默认会做推理。对"该不该触发"这种二分类任务，推理带来的额外延迟和 reasoning output token 会把 Nano 每-token 便宜的价格优势<strong>抵消掉</strong>（<code>trigger_judge.go:20</code> 注释原话："否则延迟与输出 token 抵消价格优势"）。</p>
+<p>所以"路由到便宜模型"只是第一步，还要按任务形态把模型配置对——<strong>便宜模型不是自动便宜</strong>。这是类比漏水的另一面：贵/便宜模型能力非线性，用错配置照样烧钱或变慢，而 RPC 里把请求路到便宜后端，便宜就是便宜。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（判断题）：某工程师说"我们有 loadshedding，所以系统过载时会自动降级到便宜模型扛住流量"。对吗？</summary>
+<div class="answer">
+<p>不对。loadshedding（<code>policy.go</code>）<strong>不换任何模型</strong>。它按累积 overload 错误数走 sigmoid（<code>ThrottlePercent</code>，<code>L151-169</code>），只对<em>免费用户</em>（<code>L211</code> 显式跳过付费用户）按 messageID 哈希概率性<strong>拒绝请求</strong>并返回 busy 文案。降级的是请求准入，不是模型。</p>
+<p>过载时真正的模型降级在另外两处：Conductor 级的 <code>tryModelFallback</code>（slides 专用一对）和 registry 级的 <code>FallbackModels</code> 链（<code>openainext/client.go</code> Stream 逐个试）。把这三条路径混为一谈，是读这块代码最常见的错误。</p>
+</div>
+</details>
+</div>
+
+<h2>八、主推资源</h2>
+
+<p>本课的一手来源，值得完整读一遍：<a href="https://www.anthropic.com/engineering/building-effective-agents">Building Effective AI Agents — Anthropic Engineering</a>。读的时候带着本课的问题：文中反复强调"用最简单能解决问题的方案，不要为了用而用复杂模式"——把这条原则套到模型路由上，你会发现 <code>tryModelFallback</code> 的硬编码、trigger judge 的 fail-open、slides 改写的关键词兜底，全都是同一种克制：<strong>只在被验证过的窄场景里引入复杂度</strong>，其余一律回退到已知稳定的档。这正是 Agent 工程与 RPC 工程气质上的分野。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让老师带你直接读 <code>model_policy.go</code> / <code>agent.go:1200</code> 的真实代码。上一课：<em>0008 · scorer 与 judge 可信度</em>；下一课：<em>0011 · 延迟工程</em>。</p>
+</footer>
+</main>
+</body>
+</html>

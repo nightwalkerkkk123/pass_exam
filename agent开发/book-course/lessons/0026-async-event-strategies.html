@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0026 · 训练要同步，部署要异步：异步 Agent 的根本矛盾与三种事件处理策略</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0026 课 · 支柱二(工具) · 工具设计 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>训练要同步，部署要异步：异步 Agent 的根本矛盾与三种事件处理策略</h1>
+
+<p class="lede">本课只拿下一件事：<strong>“训练同步 / 部署异步”这个矛盾到底是什么，以及取消式、队列式、并行式三种策略如何分别对付不同紧急度的事件。</strong>它出现在第 4 章“事件驱动的异步 Agent”一节——前面讲的感知、执行、协作工具都由 Agent 主动调用，而这里要处理的是<strong>世界随时反过来打断 Agent</strong>的场景。理解这一节，你才真正懂事件触发工具和用户沟通工具为什么必须依托异步架构。</p>
+
+<h2>一、是什么：一个训练时被假设、部署时被打破的规矩</h2>
+
+<p>先看那句贯穿全节的原话。作者把矛盾定义得非常精确——它不是“要不要用多线程”，而是模型训练与真实部署之间的一条裂缝：</p>
+
+<div class="bookquote">
+LLM 的训练范式假设同步——发出工具调用后，下一条消息必须是工具结果；而真实部署却要求异步——用户随时可能打断，多个任务可能并发推进，外部事件可能在工具尚未返回时就抵达。
+<span class="src">——《深入理解 AI Agent》第 4 章 · 事件驱动的异步 Agent</span>
+</div>
+
+<p>换句话说：模型在训练时见到的绝大多数轨迹，都是“<strong>assistant 发起工具调用 → 紧接着一条真实的 tool result</strong>”这种严丝合缝的配对。它从来没学过“工具还没返回，用户就插话了”该怎么办。而真实的助理场景里，这恰恰是常态。作者用一个比喻点破：同步 Agent 像<strong>一个只会排队叫号的柜台</strong>——处理完一个才叫下一个；而真正智能的助手像<strong>一个灵活的秘书</strong>——桌上摆着邮件、电话、来访者，按紧急程度决定先处理哪个，做到一半有更急的事还能暂停切换。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 210" role="img" aria-label="训练轨迹是工具调用紧跟工具结果的严格配对，而部署现实中用户打断会插在工具结果之前，打破这一配对">
+  <text class="dgm-muted" x="20" y="26" font-size="12" font-weight="700">训练时看到的轨迹（同步·配对完好）</text>
+  <rect class="dgm-node" x="20" y="38" width="150" height="34" rx="6"/>
+  <text class="dgm-text" x="95" y="59" font-size="12" text-anchor="middle">assistant: 调用工具</text>
+  <line class="dgm-edge" x1="170" y1="55" x2="206" y2="55" stroke-width="1.5" marker-end="url(#ar26)"/>
+  <rect class="dgm-good-node" x="208" y="38" width="150" height="34" rx="6"/>
+  <text class="dgm-text" x="283" y="59" font-size="12" text-anchor="middle">tool result（真实）</text>
+  <text class="dgm-muted" x="378" y="59" font-size="11">✓ 紧紧相邻，模型很熟</text>
+
+  <text class="dgm-muted" x="20" y="118" font-size="12" font-weight="700">部署时的现实（异步·配对被打断）</text>
+  <rect class="dgm-node" x="20" y="130" width="150" height="34" rx="6"/>
+  <text class="dgm-text" x="95" y="151" font-size="12" text-anchor="middle">assistant: 调用工具</text>
+  <line class="dgm-edge" x1="170" y1="147" x2="206" y2="147" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar26)"/>
+  <rect class="dgm-accent-node" x="208" y="130" width="180" height="34" rx="6"/>
+  <text class="dgm-accent-text" x="298" y="151" font-size="12" text-anchor="middle">用户打断：“停！我说错了”</text>
+  <text class="dgm-muted" x="398" y="145" font-size="11">工具还没返回，</text>
+  <text class="dgm-muted" x="398" y="160" font-size="11">配对被撕开 → 模型没见过</text>
+  <defs>
+    <marker id="ar26" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>矛盾的根源（对应图4-6 同步训练范式与异步部署现实）：上排是模型训练时熟悉的“调用紧跟结果”，下排是部署时被用户打断撕开的配对。占位符、状态栏标记这些手段，都是在给下排“打补丁”。</figcaption>
+</figure>
+
+<h2>二、为什么要分三种策略：事件不是一个模样</h2>
+
+<p>作者的核心洞察是：<strong>事件的语义决定了处理方式</strong>。人处理多任务时天然会分级——突发紧急就立刻停手，常规待办就记进清单稍后办。Agent 也该有这种智能性。于是原文给出三种处理策略（对应图4-4 异步事件处理的三种策略），一一对应不同的紧急度：</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">取消式 · 紧急</div><div class="head">🛑 截断主线</div><div class="sub">停当前操作 → 清空队列 → 事件追加轨迹末尾 → 立即重调 LLM</div></div>
+  <div class="cell"><div class="role">队列式 · 常规</div><div class="head">📥 挂到末尾</div><div class="sub">不打断，放入队列 → 等当前操作完成 → 批量一次性追加</div></div>
+  <div class="cell"><div class="role">并行式 · 独立轻量</div><div class="head">🔀 旁开支线</div><div class="sub">在并行推理会话里独立执行 → 结果标记“与主任务并行”再汇回</div></div>
+</div>
+<figcaption>三种策略各自对应一类事件。判据不是渠道，而是紧急度与独立性：“马上停下来”用取消式、“报告要用中文发”用队列式、“今天天气怎么样”用并行式。</figcaption>
+</figure>
+
+<p>把它们放到同一条主任务时间线上看，区别一目了然——同一个“外部事件从上方插进来”，三种策略让它落在完全不同的位置：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 300" role="img" aria-label="一条主任务时间线，三个事件从上方插入：取消式截断主线并重启，队列式挂到主线末尾批量处理，并行式旁开一条支线执行后再汇回主线">
+  <!-- main timeline -->
+  <line class="dgm-edge" x1="40" y1="150" x2="660" y2="150" stroke-width="2" marker-end="url(#ar26b)"/>
+  <text class="dgm-muted" x="40" y="172" font-size="11">主任务时间线（长搜索 / 数据分析进行中）</text>
+
+  <!-- cancellation -->
+  <rect class="dgm-accent-node" x="120" y="30" width="140" height="30" rx="6"/>
+  <text class="dgm-accent-text" x="190" y="50" font-size="11.5" text-anchor="middle">🛑 “停！我说错了”</text>
+  <line class="dgm-edge" x1="190" y1="60" x2="190" y2="144" stroke-width="1.5" marker-end="url(#ar26b)"/>
+  <line class="dgm-edge" x1="190" y1="150" x2="190" y2="150" stroke-width="6"/>
+  <path class="dgm-edge" d="M190 150 L205 138 M190 150 L205 162" stroke-width="2" fill="none"/>
+  <text class="dgm-accent-text" x="196" y="205" font-size="11" >截断，主线在此停</text>
+  <text class="dgm-muted" x="196" y="220" font-size="10.5">清空队列→重调 LLM</text>
+
+  <!-- parallel -->
+  <rect class="dgm-good-node" x="330" y="30" width="150" height="30" rx="6"/>
+  <text class="dgm-text" x="405" y="50" font-size="11.5" text-anchor="middle">🔀 “今天天气如何？”</text>
+  <path class="dgm-edge" d="M405 60 C405 90, 405 90, 405 100" stroke-width="1.5" fill="none"/>
+  <path class="dgm-good-node" d="" />
+  <path class="dgm-edge" d="M405 100 C480 110, 480 130, 405 150" stroke-width="1.5" fill="none" stroke-dasharray="5 4" marker-end="url(#ar26b)"/>
+  <text class="dgm-muted" x="470" y="112" font-size="10.5">旁开支线</text>
+  <text class="dgm-muted" x="470" y="126" font-size="10.5">执行后汇回</text>
+
+  <!-- queued -->
+  <rect class="dgm-link-node" x="510" y="30" width="150" height="30" rx="6"/>
+  <text class="dgm-text" x="585" y="50" font-size="11" text-anchor="middle">📥 “只看近一个月”</text>
+  <line class="dgm-edge" x1="585" y1="60" x2="620" y2="144" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar26b)"/>
+  <text class="dgm-muted" x="500" y="205" font-size="10.5">挂到队列末尾</text>
+  <text class="dgm-muted" x="500" y="220" font-size="10.5">等当前操作完再批量追加</text>
+
+  <defs>
+    <marker id="ar26b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>同一条主线，三个事件三种落点：取消式把主线就地截断并重启；并行式旁开一条支线跑完再汇回主线，主任务不停；队列式挂到末尾，等当前操作完成再和其他事件一起批量处理。</figcaption>
+</figure>
+
+<p>为什么非要这么分？因为每种策略都在<strong>用某个代价换某个好处</strong>：取消式用“丢弃当前进度”换“立刻纠错”；队列式用“稍后再处理”换“批量效率、不打断”；并行式用“旁开一路算力”换“既不打断主任务、又不让用户干等”。作者明确指出并行式适用的查询有三个特征——<strong>与主任务无关、需要快速响应、执行成本低</strong>，三者缺一，就不该走并行。</p>
+
+<h2>三、边界与易错：异步不等于多线程，占位符仍会“编”结果</h2>
+
+<div class="pitfall">
+<p><strong>误区一：把“异步”理解成“多线程并发”。</strong> 初学者一看“异步”就想到 async/await、线程池，以为难点在并发编程。<strong>错。</strong> 原文的核心矛盾不在并发，而在“LLM 训练时假设‘工具调用后必须紧跟工具结果’，这个假设与真实世界的随时打断相冲突”。这是<strong>模型认知层面</strong>的问题，不是调度层面的问题——所以再强的并发框架也解不掉它。</p>
+<p><strong>误区二：以为占位符能彻底解决打断。</strong> 工程解法是“常态下让 LLM 看到标准同步轨迹，只在打断时插占位符修复格式”——为未完成的工具生成一条占位符 tool result（如“工具正在后台执行，请优先处理新事件”，规则 3），让 assistant message 仍有配对的 tool result。但作者紧接着警告：<strong>这仍会加剧幻觉。</strong> 尽管占位符明说工具“尚未完成”，模型仍可能在后续思考中<strong>“编造”一个工具结果</strong>，误以为数据已返回。根源还是那句话——它训练时几乎没见过“结果还没回来”的轨迹。所以占位符、状态栏标记都只是<strong>过渡期的提示工程补丁</strong>，不是根治。</p>
+<p><strong>误区三：拿队列式去处理“停！”。</strong> 见自测题——紧急中断若走队列式，会让错误操作先执行完才被处理，代价太大。</p>
+</div>
+
+<p>正因为占位符有编造风险，作者给出实践原则：<strong>只在真正紧急时（用户明确请求停止）才打断，非紧急事件一律放入队列批量处理。</strong>而根本解法不在提示工程，而在训练层面的范式转变——用异步环境模拟器和异步能力的专项奖励，让模型在训练时就学会理解延迟、乱序、打断与并发。一句话概括作者的判断：<strong>编排让行为成为可能，训练让行为变好。</strong></p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：异步 Agent 的难点不是并发编程，而是“训练同步 / 部署异步”这条认知裂缝。面对涌入的事件，先按语义分级——紧急用取消式（截断重启）、独立轻量用并行式（旁开支线）、常规用队列式（批量挂尾）；占位符和状态栏只是给裂缝打的补丁，真正的解药是异步训练。
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>事件驱动的异步 Agent 架构（Event-driven async agent）</dt>
+<dd>将所有输入（用户消息、工具返回、外部回调、定时触发）统一建模为结构化事件流，用事件队列与事件循环驱动 Agent 思考，而非轮询检查新消息。<em>避免</em>与“多线程”或“并发编程”混为一谈——核心是事件建模与“训练同步 / 部署异步”矛盾。</dd>
+<dt>取消式处理（Cancellation-Based）</dt>
+<dd>用于紧急事件：停止当前操作（取消 LLM 流式响应或向同步工具发取消信号）→ 清空待处理队列 → 将队列事件与紧急事件一起追加到轨迹末尾 → 立即重新调用 LLM 评估局势。典型触发：用户“停止！我说错了”。</dd>
+<dt>队列式处理（Queued）</dt>
+<dd>用于常规事件：放入队列末尾且不打断当前操作 → 等当前操作完成、工具返回 <code>tool.result</code> → 队列非空则一次性把所有事件追加到轨迹 → LLM 综合处理。好处是批量、减少往返。</dd>
+<dt>并行处理（Parallel）</dt>
+<dd>用于“与主任务无关、需快速响应、成本低”的独立轻量查询：在一个并行推理会话中独立执行并立即返回，查询与响应追加回主任务轨迹并明确标记“与主任务并行执行”以避免 LLM 混淆。既不打断主任务，也不让用户干等。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：Agent 正跑一个长搜索，此时用户发来“停！我说错了”和“顺便今天天气如何？”两种消息，分别该用哪种处理策略？对“停”为什么不能用队列式？</summary>
+<div class="answer">
+<p>“停！我说错了”是<strong>紧急中断</strong>，用<strong>取消式</strong>：立即停当前操作、清空队列、把事件追加轨迹末尾并重调 LLM——若用队列式，会让当前那个可能错误的操作先执行完才处理，代价太大。“今天天气如何”是<strong>独立轻量查询</strong>，用<strong>并行式</strong>：在并行推理会话中执行并标记“与主任务并行”，既不打断主任务也不让用户干等。至于常规补充信息（如“只看近一个月”）才用<strong>队列式</strong>批处理。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：工程上用占位符“修复”被打断的轨迹格式后，为什么作者仍说它会加剧幻觉？这说明占位符是什么性质的解法？</summary>
+<div class="answer">
+<p>因为模型在训练时见到的绝大多数轨迹中，工具调用之后紧接着就是真实结果，它<strong>从未学会处理“结果还没回来”</strong>的情况。于是即便占位符明说工具“尚未完成”，模型仍可能在后续思考中“编造”一个工具结果，误以为数据已返回、并据此做出不恰当决策。这说明占位符（连同异步工具接口、状态栏标记）只是<strong>用提示工程弥补模型训练不足的过渡期权宜之计</strong>，根本解法要靠异步环境下的强化学习在训练层面固化。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套实验就是把这三种策略跑起来：事件驱动的邮件处理 Agent（实验 4-4）与异步 Agent 的打断与恢复（实验 4-5，对应图4-7），代码在 <code>chapter4/agent-with-event-trigger/</code>——基于 FastAPI 原生 async，自动加载 3 个 MCP 服务器共 42 个工具，响应 web 消息/邮件/GitHub/定时器等事件。实验 4-5 的验证场景很直观：Agent 执行一个长终端命令，期间用户问“现在几点了？”，Agent 立即回应，等分析结果返回后再呈现——正是“并行式”的实测。完整仓库见 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课一手来源是第 4 章“事件驱动的异步 Agent”一节。想深挖“训练层面如何根治异步矛盾”，作者在脚注 ch4-async-1 引用了自己的论文：<strong>Li, Bojie and Noah Shi. <em>Never Stop Thinking: Continuous-Time Language Agents.</em> 2026（待发表）</strong>——论证约两百行编排即可把现成思考模型变成持续思考 Agent，且训练信号决定持续思考是否有用（用“LLM 当裁判”式奖励会让模型学着藏思考、指标反降，只有可验证、保信息覆盖度的目标才带来真实收益）。该论文暂无公开 URL。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师用一条具体的事件流带你走一遍取消式、队列式、并行式各自的四步动作。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0025-proposer-reviewer-sidecar.html"><span class="dir">← 上一课</span>两种第二视角：提议者-审核者 与 Sidecar</a>
+  <a class="next" href="0027-seven-core-tools-of-coding-agent.html"><span class="dir">下一课 →</span>Coding Agent 的七个核心工具</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

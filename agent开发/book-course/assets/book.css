@@ -1,0 +1,114 @@
+/* 《深入理解 AI Agent》精读课 · 专属组件（在 ../../assets/style.css + diagram.css 之后 link）
+   只新增 class，不覆盖既有选择器；全部复用 style.css 的 CSS 变量，深浅色自动适配。
+   这门课以「书」为真实源，不共用四支柱课的 mino_server 类比装置。 */
+
+/* ── 核心公式高亮框：Agent = LLM + 上下文 + 工具 这类贯穿全书的等式 ── */
+.formula {
+  border: 1.5px solid var(--link);
+  background: var(--code-bg);
+  border-radius: 10px;
+  padding: 1em 1.2em;
+  margin: 1.4rem 0;
+  text-align: center;
+  font-family: "PingFang SC", sans-serif;
+}
+.formula .eq { font-size: 1.15rem; font-weight: 700; line-height: 1.6; }
+.formula .eq .op { color: var(--muted); margin: 0 .35em; font-weight: 400; }
+.formula .eq b { color: var(--link); }
+.formula .gloss { font-size: .82rem; color: var(--muted); margin-top: .4em; }
+
+/* ── 常见误区框：书里 hard_or_error_prone 的沉淀，本课核心纠错装置 ── */
+.pitfall {
+  border-left: 4px solid var(--accent);
+  background: var(--accent-soft);
+  padding: .8em 1em;
+  margin: 1.2rem 0;
+  border-radius: 0 6px 6px 0;
+}
+.pitfall::before {
+  content: "⚠ 常见误区";
+  display: block;
+  font-family: "PingFang SC", sans-serif;
+  font-weight: 600;
+  font-size: .85em;
+  color: var(--accent);
+  margin-bottom: .3em;
+}
+.pitfall p:first-of-type { margin-top: 0; }
+.pitfall p:last-child { margin-bottom: 0; }
+
+/* ── 配套实验框：指向 book 里的「实验 X-Y」与开源仓库 chapterN/ 项目 ── */
+.experiment {
+  border: 1px dashed var(--link);
+  background: transparent;
+  padding: .8em 1em;
+  margin: 1.2rem 0;
+  border-radius: 8px;
+  font-size: .95em;
+}
+.experiment::before {
+  content: "🧪 动手跑一跑";
+  display: block;
+  font-family: "PingFang SC", sans-serif;
+  font-weight: 600;
+  font-size: .85em;
+  color: var(--link);
+  margin-bottom: .35em;
+}
+.experiment code { font-size: .9em; }
+.experiment p:first-of-type { margin-top: 0; }
+.experiment p:last-child { margin-bottom: 0; }
+
+/* ── 原文引述框：直接引书里的一句判断，与讲解区分开 ── */
+.bookquote {
+  border-left: 3px solid var(--muted);
+  padding: .3em 0 .3em 1em;
+  margin: 1.2rem 0;
+  color: var(--ink);
+  font-style: italic;
+}
+.bookquote .src { display: block; font-style: normal; font-size: .78rem; color: var(--muted); margin-top: .4em; font-family: "PingFang SC", sans-serif; }
+
+/* ── 三栏概念网格：讲「同一对象的三种表达」这类映射（实现/直觉/学术） ── */
+.trio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: .8rem;
+  margin: 1.5rem 0;
+  font-family: "PingFang SC", sans-serif;
+}
+.trio .cell {
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: .8em .7em;
+  background: var(--code-bg);
+  text-align: center;
+}
+.trio .cell .role { font-size: .78rem; color: var(--muted); }
+.trio .cell .head { font-weight: 700; font-size: 1.05rem; margin: .2em 0; }
+.trio .cell .sub { font-size: .82rem; color: var(--link); }
+@media (max-width: 34rem) { .trio { grid-template-columns: 1fr; } }
+
+/* ── 上一课 / 下一课 导航 ── */
+.lesson-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.4rem;
+  font-family: "PingFang SC", sans-serif;
+  font-size: .85rem;
+}
+.lesson-nav a {
+  flex: 1 1 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: .6em .9em;
+  text-decoration: none;
+  color: var(--link);
+}
+.lesson-nav a.next { text-align: right; }
+.lesson-nav .dir { display: block; font-size: .72rem; color: var(--muted); margin-bottom: .15em; }
+.lesson-nav .none { flex: 1 1 0; }
+
+/* ── 星级难度标记（书里的 ★/★★/★★★ 实验难度） ── */
+.stars { color: var(--accent); font-size: .85em; letter-spacing: .1em; }

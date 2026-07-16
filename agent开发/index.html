@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 开发 · 四支柱工程课（基于 mino_server 真实代码）</title>
+<link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/diagram.css">
+<style>
+  .course-grid { display: grid; gap: 1.2rem; margin: 1.5rem 0; }
+  .pillar { border: 1px solid var(--border); border-radius: 10px; padding: 1.1em 1.3em; }
+  .pillar h3 { margin-top: 0; display: flex; align-items: baseline; gap: .6rem; }
+  .pillar h3 .tag { font-size: .68em; font-weight: 600; padding: .15em .6em; border-radius: 20px; background: var(--accent-soft); color: var(--accent); font-family: "PingFang SC", sans-serif; }
+  .pillar.spine { border-color: var(--accent); border-width: 1.5px; }
+  ul.lessons { list-style: none; padding: 0; margin: .5rem 0 0; }
+  ul.lessons li { padding: .45em 0; border-bottom: 1px dashed var(--border); display: flex; gap: .7rem; align-items: baseline; }
+  ul.lessons li:last-child { border-bottom: none; }
+  ul.lessons .num { font-family: "SF Mono", monospace; font-size: .82em; color: var(--muted); flex: 0 0 2.6rem; }
+  ul.lessons a { text-decoration: none; font-weight: 600; }
+  ul.lessons .desc { color: var(--muted); font-size: .85em; }
+  .toplinks { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.2rem 0; font-family: "PingFang SC", sans-serif; font-size: .9rem; }
+  .toplinks a { padding: .4em .9em; border: 1px solid var(--border); border-radius: 6px; text-decoration: none; }
+  .track-banner { border: 1px solid var(--link); background: var(--code-bg); border-radius: 8px; padding: .7em 1em; margin: 1.4rem 0; font-family: "PingFang SC", sans-serif; font-size: .9rem; }
+  .track-banner a { font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发教学工作区 · 基于生产项目 <code>mino_server</code> 真实代码与架构</p>
+
+<h1>Agent 开发 · 四支柱工程课</h1>
+
+<p class="lede">写给正在从服务端转向 AI 工程的工程师。全部课程落在一个真实的生产 Agent 服务（MinoServer，Go + Kitex，Conductor 主 Agent + 40+ 工具 + memory 子系统）的代码上——不是玩具示例，是已经在线上跑、带着 FIXME 和缓存教训的真代码。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 210" role="img" aria-label="四支柱以 context 组织为中心">
+  <line class="dgm-edge" x1="360" y1="105" x2="140" y2="55" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="105" x2="580" y2="55" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="105" x2="140" y2="160" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="105" x2="580" y2="160" stroke-width="1.5"/>
+  <ellipse class="dgm-hub" cx="360" cy="105" rx="86" ry="40" stroke-width="2"/>
+  <text class="dgm-accent-text" x="360" y="102" font-size="16" font-weight="700" text-anchor="middle">context 管理</text>
+  <text class="dgm-muted" x="360" y="122" font-size="11" text-anchor="middle">主轴</text>
+  <rect class="dgm-node" x="55" y="30" width="170" height="50" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="140" y="60" font-size="14" font-weight="700" text-anchor="middle">评估</text>
+  <rect class="dgm-node" x="495" y="30" width="170" height="50" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="580" y="60" font-size="14" font-weight="700" text-anchor="middle">工具调用</text>
+  <rect class="dgm-node" x="55" y="135" width="170" height="50" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="140" y="165" font-size="14" font-weight="700" text-anchor="middle">成本与延迟</text>
+  <rect class="dgm-node" x="495" y="135" width="170" height="50" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="580" y="165" font-size="14" font-weight="700" text-anchor="middle">质量</text>
+</svg>
+</div>
+<figcaption>四支柱，一个中心。每节课都用"⚠ 类比在这里漏水"戳破一个服务端心智模型。</figcaption>
+</figure>
+
+<div class="track-banner">
+🧭 这是<strong>进阶课（解剖学：成熟系统按关注点解剖）</strong>，默认你已知道 agent 是什么。零基础请先走 <a href="from-zero/index.html">《从零看 mino_server 如何长出一个 Agent》入门课（发育学：从大模型一步步装成 agent）</a>，再回这里。
+</div>
+
+<div class="toplinks">
+  <a href="MISSION.md">🎯 Mission</a>
+  <a href="GLOSSARY.md">📖 术语表</a>
+  <a href="RESOURCES.md">🔗 资源</a>
+  <a href="reference/cheatsheet.html">🗂 速查表（可打印）</a>
+</div>
+
+<div class="course-grid">
+
+  <div class="pillar spine">
+    <h3>总纲 <span class="tag">起点</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0001</span><a href="lessons/0001-context-is-the-spine.html">context 是主轴</a><span class="desc">四支柱耦合 + 缓存类比的三个漏水点</span></li>
+    </ul>
+  </div>
+
+  <div class="pillar spine">
+    <h3>支柱一 · context 管理 <span class="tag">主轴</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0002</span><a href="lessons/0002-context-assembly-pipeline.html">context 组装管线</a><span class="desc">分层、顺序与位置 · buildConductorMessages</span></li>
+      <li><span class="num">0003</span><a href="lessons/0003-prefix-cache-stability-contract.html">prefix cache 稳定性契约</a><span class="desc">&lt;current_plan&gt; 为什么是个雷</span></li>
+      <li><span class="num">0004</span><a href="lessons/0004-compaction-strategies.html">压缩三策略</a><span class="desc">触发线、Nano 门控、flush 落盘 · summary.go</span></li>
+    </ul>
+  </div>
+
+  <div class="pillar">
+    <h3>支柱二 · 工具调用 <span class="tag">RPC 边界</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0005</span><a href="lessons/0005-tools-as-model-facing-api.html">工具即面向模型的 API</a><span class="desc">描述、namespacing、返回有意义的上下文</span></li>
+      <li><span class="num">0006</span><a href="lessons/0006-unreliable-caller-tool-design.html">不可靠调用方假设</a><span class="desc">分层超时、JSON 修复回注、并发 FIXME</span></li>
+    </ul>
+  </div>
+
+  <div class="pillar">
+    <h3>支柱三 · 评估 <span class="tag">新的 CI</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0007</span><a href="lessons/0007-eval-is-the-new-ci.html">eval 是新的 CI</a><span class="desc">统计性 ≠ 确定性 · memory_eval</span></li>
+      <li><span class="num">0008</span><a href="lessons/0008-scorers-and-judge-trust.html">三维判分与裁判可信度</a><span class="desc">为什么 judge 跨厂商选 Gemini</span></li>
+    </ul>
+  </div>
+
+  <div class="pillar">
+    <h3>支柱三⁺ · 评测体系深化 <span class="tag">方法论 × mino 映射</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0013</span><a href="lessons/0013-from-cases-to-eval-system.html">从"跑几条 case"到评测体系</a><span class="desc">三门槛 · 假阳性 · Turn/Session/Trace/Outcome 四层评判</span></li>
+      <li><span class="num">0014</span><a href="lessons/0014-metrics-and-statistical-gating.html">指标体系与统计门禁</a><span class="desc">P0/P1/P2 · 至少一次 vs 连续成功率 · 显著性检验</span></li>
+      <li><span class="num">0015</span><a href="lessons/0015-eval-set-as-quality-asset.html">评测集是设计出来的质量资产</a><span class="desc">Golden Set · 幸存者偏差 · 四类来源</span></li>
+      <li><span class="num">0016</span><a href="lessons/0016-scoring-tiers-and-human-routing.html">评分的分层与人工路由</a><span class="desc">粗筛/精判/人工 · Judge 校准集 · 假阳性检查</span></li>
+      <li><span class="num">0017</span><a href="lessons/0017-badcase-root-cause.html">Badcase 根因定位</a><span class="desc">现象×模块映射 · 分模块诊断 · 责任判定</span></li>
+      <li><span class="num">0018</span><a href="lessons/0018-actions-and-closed-loop.html">从根因到行动项与全链路闭环</a><span class="desc">结构化行动项 · 灰度三信号 · 质量资产库</span></li>
+    </ul>
+  </div>
+
+  <div class="pillar">
+    <h3>支柱四 · 成本与延迟 <span class="tag">计费单位</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0009</span><a href="lessons/0009-token-economics-prompt-cache.html">token 经济学</a><span class="desc">输入/输出/缓存读写的非对称计价</span></li>
+      <li><span class="num">0010</span><a href="lessons/0010-model-routing.html">模型路由</a><span class="desc">主模型、fallback、廉价模型门控</span></li>
+      <li><span class="num">0011</span><a href="lessons/0011-latency-engineering.html">延迟工程</a><span class="desc">流式、分层超时、PTU 配额准入</span></li>
+    </ul>
+  </div>
+
+  <div class="pillar spine">
+    <h3>收口 <span class="tag">全景</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0012</span><a href="lessons/0012-four-pillars-coupling-review.html">四支柱耦合总复盘</a><span class="desc">全景图 + 基于真实 FIXME 的项目改进清单</span></li>
+    </ul>
+  </div>
+
+</div>
+
+<footer class="lesson-footer">
+<p>教学法：每节课一个窄主题、图文并茂、句句落到 <code>mino_server</code> 真实符号（文件名 + 行号）。有任何不清楚的，回到会话里问你的 AI 老师。</p>
+</footer>
+</main>
+</body>
+</html>

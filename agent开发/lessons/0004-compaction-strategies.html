@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0004 · 压缩三策略：触发线、Nano 门控、flush 落盘</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0004 课 · 预计 14 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>压缩三策略：触发线、Nano 门控、flush 落盘</h1>
+
+<p class="lede">你已经知道 context 会 rot，也知道逼近窗口上限就得回收 token。那就把它当缓存淘汰来做——容量到了，删最冷的 entry。这节课要戳破的正是这个类比：在 <code>conductorservice</code> 里，回收 context 的动作不是删除，是<strong>有损总结</strong>；没有后端源库可回源。整套代码的复杂度，几乎全在为"删了就没了"这件事兜底。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 390" role="img" aria-label="streamChat 主循环与三条压缩策略的调用时机">
+  <!-- 策略一：循环前 -->
+  <rect class="dgm-accent-node" x="40" y="24" width="270" height="62" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="175" y="50" font-size="14" font-weight="700" text-anchor="middle">① preCompactSummarize</text>
+  <text class="dgm-muted" x="175" y="70" font-size="11" text-anchor="middle">循环前 · agent.go:906 · 需 preCompact 开关</text>
+  <!-- 箭头下行进入循环 -->
+  <line class="dgm-edge" x1="175" y1="86" x2="175" y2="120" stroke-width="1.5"/>
+  <polygon class="dgm-accent" points="175,128 170,118 180,118"/>
+
+  <!-- 循环框 -->
+  <rect x="40" y="128" width="640" height="238" rx="10" fill="none" stroke="var(--link)" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text class="dgm-muted" x="56" y="148" font-size="12" font-weight="700">for runStepCount &lt; maxStepCount  ·  agent.go:916</text>
+
+  <!-- 策略二：每步开头 -->
+  <rect class="dgm-node" x="70" y="166" width="250" height="60" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="195" y="192" font-size="14" font-weight="700" text-anchor="middle">② summarize</text>
+  <text class="dgm-muted" x="195" y="211" font-size="11" text-anchor="middle">每步开头 · agent.go:925</text>
+  <!-- 箭头右行 -->
+  <line class="dgm-edge" x1="320" y1="196" x2="378" y2="196" stroke-width="1.5"/>
+  <polygon class="dgm-accent" points="386,196 376,191 376,201"/>
+
+  <!-- runConductorStep -->
+  <rect class="dgm-node" x="388" y="166" width="262" height="60" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="519" y="192" font-size="14" font-weight="700" text-anchor="middle">runConductorStep</text>
+  <text class="dgm-muted" x="519" y="211" font-size="11" text-anchor="middle">调主模型 · agent.go:929</text>
+
+  <!-- 出错下行 -->
+  <line class="dgm-edge" x1="519" y1="226" x2="519" y2="278" stroke-width="1.5"/>
+  <polygon class="dgm-accent" points="519,286 514,276 524,276"/>
+  <text class="dgm-muted" x="529" y="256" font-size="11">err = PromptTooLong</text>
+
+  <!-- 策略三 -->
+  <rect class="dgm-accent-node" x="388" y="286" width="262" height="62" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="519" y="312" font-size="14" font-weight="700" text-anchor="middle">③ applySummaryImmediately</text>
+  <text class="dgm-muted" x="519" y="332" font-size="11" text-anchor="middle">紧急兜底 · agent.go:948 → continue</text>
+
+  <!-- continue 回环：从 ③ 左侧折回 ② 顶部 -->
+  <line class="dgm-edge" x1="388" y1="317" x2="70" y2="317" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="70" y1="317" x2="70" y2="196" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="70" y1="196" x2="68" y2="196" stroke-width="1.5"/>
+  <polygon class="dgm-accent" points="78,196 68,191 68,201"/>
+  <text class="dgm-muted" x="120" y="310" font-size="11">continue 重试</text>
+</svg>
+</div>
+<figcaption>三条压缩路径守着同一个 <code>streamChat</code>：① 循环<em>前</em>（<code>agent.go:906</code>），② 每步<em>开头</em>（<code>agent.go:925</code>），③ 出错时的<em>紧急</em>兜底（<code>agent.go:948</code>）。红框两条是"要不要压/立即压"的特殊路径，蓝框是常态。</figcaption>
+</figure>
+
+<h2>一、先承认类比对的部分</h2>
+
+<p>把 context 逼近上限时的回收，类比成<strong>缓存淘汰</strong>，起点是对的。容量有限、成本随占用上升、需要一条触发线——这些都成立。你甚至能想到"用一个便宜模型先判断要不要回收"，这就是 cheap-model gating，和"先查布隆过滤器再回源"是同一个直觉。</p>
+
+<p>方向没错。但 LRU 有一个你从不言说的前提：<strong>删除是免费的</strong>。entry 淘汰了，数据还在后端 DB，要用再按 key 回源。淘汰只是省内存的纯性能操作，不丢信息。接下来的一整节，都在说这个前提在 Agent 世界里塌了。</p>
+
+<h2>二、类比在哪里漏水</h2>
+
+<div class="leak">
+context 压缩<strong>不是删除，是有损总结</strong>。一旦 <code>summarize</code>，几十轮工具调用的细节被 Gemini 3 Flash 压成一段 <code>{analysis, summary}</code>，原始 token 就<strong>永久没了</strong>——没有"后端源库"可回源。LRU evict 之后你还能 <code>GET key</code>，compaction 之后那些 token 不存在于任何地方。
+</div>
+
+<figure class="diagram">
+<div class="cacheline">
+  <div class="seg hit">LRU evict<br>→ 回源 DB（无损、无前置）</div>
+  <div class="seg diverge">语义<br>断层</div>
+  <div class="seg recompute">Compaction summarize<br>→ 原 token 永久丢失（有损）<br>→ 必须前置 flush + 归档</div>
+</div>
+<figcaption>两种"回收"语义完全不同。左边删了能回来，右边删了回不来——所以右边多出一整套前置动作。</figcaption>
+</figure>
+
+<p>正因为有损，代码在每次压缩<em>前</em>都做了两件 LRU 永远不需要的事：</p>
+
+<p><strong>其一，先把持久记忆抽出来落盘（memory flush）。</strong>压缩前调 <code>memoryFlushBeforeCompression</code>，用 LLM 把对话里值得跨会话记住的东西抽成 markdown，append 到 <code>memory/YYYY-MM-DD.md</code>，再索引进向量库。flush 的提示词开头一句话就把理由讲透了：</p>
+
+<pre><code>// memory_flush.go:319
+systemPrompt := `Pre-compaction memory flush. The session is near auto-compaction;
+capture durable memories to disk before context is truncated.</code></pre>
+
+<p>"在 context 被截断前，把持久记忆落盘"——这是压缩有损性的自证。如果压缩无损，何须抢救？</p>
+
+<p><strong>其二，把原始 context 归档成文件。</strong><code>saveContextToFile</code> 把这次要被压掉的原始消息存成 <code>context_*.json</code>（弱依赖，失败不阻断压缩）。这是给人看的黑匣子，不是给模型回源用的——模型继续跑的是那段有损 summary。</p>
+
+<div class="leak">
+第二处漏水：<strong>触发线设在 80% 而不是等填满</strong>。LRU 可以撑到 100% 容量才淘汰，因为读取质量和占用率无关。context 不行——远在填满前，读取质量就随占用连续退化。触发线本体：
+</div>
+
+<pre><code>// summary.go:86-92
+// 取上下文窗口 80% 和上限的较小值，避免超大上下文窗口的模型使用了太大的上下文窗口导致降智
+// IM 品类上限 100K，其他品类上限 200K
+summaryContextCap := 200_000
+if subType == enums.SubType_AXON_IM {
+    summaryContextCap = 100_000
+}
+summaryContextLine := min(int(float64(agent.llmClient.GetModelContextWindow())*0.8), summaryContextCap)</code></pre>
+
+<p>注意注释里那个词——"导致<strong>降智</strong>"。这就是 <em>context rot</em> 的中文口径：质量在窗口填满<em>之前</em>就已退化，所以不能等满。80% 不是随手取的裕度，它背后压着两个理由：</p>
+
+<ol>
+<li><strong>context rot</strong>：注意力预算被 token 数摊薄，"用了太大的上下文窗口"本身就降智。</li>
+<li><strong>压缩自己要吃余量</strong>：压缩是一次要把<em>整段对话</em>当输入的 LLM 调用，产出的 summary 还要塞回窗口继续跑。等到 99% 才压，压缩这一步自己就 PromptTooLong 了。</li>
+</ol>
+
+<p>还有那个 <code>cap</code>：它是变量，不是写死的字面量。默认 200K、AXON_IM 品类 100K。为什么封顶？因为有些模型窗口特别大，<code>0.8×window</code> 能撑到几十万 token——那正是注释担心的"太大的上下文窗口导致降智"。<code>min</code> 取两者较小值，等于给"别喂太满"再加一道保险。</p>
+
+<figure class="diagram">
+<div class="axis">
+  <span class="mark" style="left:80%">触发线 = min(0.8×window, cap)</span>
+  <span class="mark" style="left:99%">满窗 → PromptTooLong</span>
+  <span class="fill-label" style="left:1%">0</span>
+  <span class="fill-label" style="left:40%">绿区：正常</span>
+  <span class="fill-label" style="right:1%">满窗口</span>
+</div>
+<figcaption><code>summary.go:92</code>：<code>TotalTokens ≥ 触发线</code> 就压（策略②），不等填满。真撑到满触发的 <code>PromptTooLong</code> 是异常路径（策略③），不是常态。cap 默认 200K，AXON_IM 为 100K。</figcaption>
+</figure>
+
+<h2>三、三条策略：同一个目标，三种时机</h2>
+
+<p>三条路径都在守 context 上限，区别只在<strong>什么时候触发、由谁决定要不要压</strong>。</p>
+
+<h3>策略①：Nano 门控预压缩（<code>preCompactSummarize</code>）</h3>
+
+<p>这是三条里<strong>唯一带"要不要压"语义门</strong>的一条，跑在循环<em>之前</em>（<code>agent.go:906-911</code>），且只在 <code>agent.preCompact</code> 开关打开时执行。开关由上游 <code>shouldPreCompact</code> 在 channel/IM 路径设置——条件是缓存里的 <code>TotalTokens ≥ 50_000</code>（<code>preCompactTokenThreshold</code>）<em>且</em>距上次用户消息 <code>> 12h</code>（<code>preCompactIdleThreshold</code>，<code>channel_app_service.go:5455-5484</code>）。注意 token 数取自缓存 <code>cache.GetConductorTotalTokens</code>，不是实时算的——这是给"长时间不活跃的 IM 对话"准备的省钱路径。</p>
+
+<p>进了 <code>preCompactSummarize</code> 也不一定真压。它先用 GPT-5.4-Nano 判断新消息是否延续旧话题：</p>
+
+<pre><code>// summary.go:270-277
+// 话题相关性判断：新消息和历史上下文是否在同一话题，相关则跳过压缩
+related, err := agent.checkTopicRelevance(ctx)
+if err != nil {
+    ctx.Log().Warnf("[Conductor] preCompactSummarize: topic relevance check failed, proceeding with compact: %+v", err)
+} else if related {
+    ctx.Log().Infof("[Conductor] preCompactSummarize: new message is related to previous topic, skipping compact")
+    return nil
+}</code></pre>
+
+<p>逻辑很干净：用户离开很久回来发了条新消息——如果和之前是同一件事（<code>related=true</code>），历史还有用，<code>return nil</code> 不压；如果是全新话题，历史就是包袱，压掉换 token。注意判定<strong>出错时是 fail-open</strong>——"proceeding with compact"，宁可多压一次，也不因为一个便宜判断卡住主流程。</p>
+
+<p><code>checkTopicRelevance</code>（<code>summary.go:236</code>）把历史 user 消息按轮包成 <code>&lt;message round="N"&gt;</code>，连同新消息喂给 <code>ModelNameGPT54Nano</code>（<code>gpt-5.4-nano-2026-03-17</code>），<code>MaxTokens: 50</code>，JSON schema 只要一个 <code>{related: bool}</code>。50 个 token 的判断，省下的是一次几十万 token 的主模型调用——这就是 cheap-model gating 的经济学。判定要压时，用 <code>newPreCompactClient</code>（同样是 Nano，<code>MaxTokens: 2000</code>）把 <code>originalMessages</code> 总结成一条 summary 替换掉，<code>latestUserMessage</code> 留给正常处理。</p>
+
+<h3>策略②：触发线压缩（<code>summarize</code>）</h3>
+
+<p>常态路径。主循环<em>每步开头</em>调 <code>summarize → summarizeWithOptions(force=false)</code>（<code>agent.go:925</code>）。它只对 filesystem subtype 生效（<code>summary.go:75</code>），要过三道闸才真压：</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">lastAgentMessage 为空？<span class="dgm-muted"> summary.go:81</span></div>
+  <div class="down">│ 否</div>
+  <div class="step decision">距上次总结 ≤ summaryReuseStepThreshold(=2) 步？<span class="dgm-muted"> summary.go:99</span></div>
+  <div class="down">│ 否</div>
+  <div class="step decision">TotalTokens &lt; 触发线？<span class="dgm-muted"> summary.go:105</span></div>
+  <div class="down">│ 否（即 ≥ 触发线）</div>
+  <div class="step action">memoryFlushBeforeCompression → Gemini 3 Flash 流式总结 {analysis, summary} → saveContextToFile 归档</div>
+  <div class="down">│</div>
+  <div class="step terminal">记录 lastSummary / lastSummaryStepCount 供重用</div>
+</div>
+<figcaption>三道闸任一命中就 <code>return nil</code> 跳过。第二道 <code>summaryReuseStepThreshold=2</code>（<code>agent.go:55</code>，注释"Summary 重用步骤阈值"）专门防短期重复总结——刚压过又压，纯浪费。</figcaption>
+</figure>
+
+<p>常态压缩用的是 <strong>Gemini 3 Flash</strong>（<code>gemini-3-flash-preview</code>，<code>newSummaryClient</code> at <code>summary.go:35</code>，<code>MaxTokens: 10000</code>，结构化输出 <code>{analysis, summary}</code>）——<em>不是</em> Nano。这点要记牢：Nano 只用在策略①的话题门控和预压缩总结上；触发线压缩和 memory flush 用的都是 Gemini 3 Flash。别被"三策略"混成"主压缩用 Nano"。</p>
+
+<h3>策略③：紧急压缩（<code>applySummaryImmediately</code>）</h3>
+
+<p>兜底路径，异常触发。<code>runConductorStep</code> 报 <code>PromptTooLong</code> 时（<code>agent.go:937-949</code>）：若还没有 <code>lastSummary</code>，就 <code>summarizeForce</code>（<code>force=true</code>，<strong>跳过策略②的全部三道闸</strong>——都撑爆了还检查什么）；随后 <code>applySummaryImmediately</code> 就地重排消息缓冲（<code>summary.go:406</code>）：<code>originalMessages</code> 清空、<code>latestUserMessage</code> 换成 summary、<code>newMessages</code> 从最近 <code>stepsSinceLastSummary</code> 个 Assistant 轮切开保留，然后 <code>continue</code> 重试这一步。</p>
+
+<h2>四、flush 落盘链路：压缩前的抢救如何不阻塞主流程</h2>
+
+<p>策略①②在真正压缩前都先调 <code>memoryFlushBeforeCompression</code>；策略③只有在没有可复用的 <code>lastSummary</code>、需要强制新总结时才会走到这一步（复用旧 summary 时它早已 flush 过，不再重复）。这条 flush 链路有两个值得资深工程师停下来看的设计决策。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">memoryFlushBeforeCompression</span><span class="n-sub">压缩前置</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">shouldFlushMemory</span><span class="n-sub">三重去重</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">SafeGo</span><span class="n-sub">WithoutCancel 异步</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">Gemini 3 Flash</span><span class="n-sub">抽持久记忆</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">memory/YYYY-MM-DD.md</span><span class="n-sub">append · weaklock</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">session.jsonl 打标</span><span class="n-sub">跨请求去重</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">IndexMemoryFileToVector</span><span class="n-sub">向量索引</span></div>
+</div>
+<figcaption>红=脱离请求生命周期的异步段，绿=append-only 落盘。链路见 <code>memory_flush.go:78 → 47 → 124 → 199 → 273 → 134 → 284</code>。</figcaption>
+</figure>
+
+<h3>决策一：用 <code>context.WithoutCancel</code> 派生独立 ctx 异步跑</h3>
+
+<p>flush 要调 LLM、要写文件、要建索引，都不快。但它是压缩的<em>前置</em>，如果同步跑，主压缩流程就被它拖住了。更麻烦的是：请求随时可能结束，一旦请求 ctx 被 cancel，正在飞的 LLM 调用会直接失败。代码的解法（<code>memory_flush.go:118-124</code>）是用 <code>context.WithoutCancel(ctx)</code> 派生一个<strong>脱离请求生命周期</strong>的 <code>detachedCtx</code>，丢进 <code>concurrency.SafeGo</code> 异步跑。请求可以先返回，flush 在后台自己跑完。</p>
+
+<div class="leak">
+这是服务端"请求-响应生命周期"直觉的漏水点：在 Web 服务里，请求结束 = ctx cancel = 所有派生工作停止，天经地义。但抢救记忆这件事<strong>不能随请求死</strong>——它的价值恰恰在请求之后的下一次会话。所以这里要主动<em>切断</em> cancel 传播。<code>WithoutCancel</code> 保留 ctx 上的 value（trace、用户信息），只砍掉 cancel 信号。
+</div>
+
+<h3>决策二：三重去重，防止同一记忆被反复落盘</h3>
+
+<p>三条压缩策略都会触发 flush，一个 session 里可能压很多次；一次请求里也可能走到多条路径。如果每次都 flush，同样的记忆会被抽出来 append 很多遍。<code>shouldFlushMemory</code>（<code>memory_flush.go:47-75</code>）设了三层闸：</p>
+
+<table>
+<tr><th>层</th><th>判据</th><th>挡什么</th><th>位置</th></tr>
+<tr><td>1</td><td><code>hooks == nil</code> 或 sandboxToken 为空</td><td>不支持 flush 的 subtype</td><td>memory_flush.go:50-56</td></tr>
+<tr><td>2</td><td>请求内 <code>agent.memoryFlushed</code> 标志</td><td>同一请求重复 flush（快速路径，不读文件）</td><td>memory_flush.go:59-61</td></tr>
+<tr><td>3</td><td>session.jsonl 里已有 <code>memory_flush</code> 标记</td><td>跨请求重复 flush</td><td>memory_flush.go:63-72</td></tr>
+</table>
+
+<p>第 3 层是关键，它把去重状态<strong>持久化到了 session 文件</strong>。flush 成功后往 <code>yyyy-MM-dd-{pageID}.jsonl</code> 追加一行标记：</p>
+
+<pre><code>// memory_flush.go:131-135
+if runMemoryFlush(agentCtx, llmService, vfsService, sandboxToken, agentID, messages, timezone, "compression") {
+    // flush 成功后写入标记，防止同一 session 后续请求重复 flush
+    if sessionPath != "" {
+        appendSessionFlushMarker(detachedCtx, vfsService, sandboxToken, sessionPath)
+    }</code></pre>
+
+<p>标记内容是 <code>{"type":"memory_flush","timestamp":...}</code>（<code>memory_flush.go:454-463</code>，常量 <code>sessionFlushMarkerType="memory_flush"</code> at <code>:39</code>）。下次请求进来，第 3 层 <code>hasSessionFlushMarker</code> 读这个文件发现标记就直接跳过。落盘本身走 <code>weaklock</code>（<code>memory_flush.go:370</code>，锁超时 10s、重试 3 次）防并发覆写，append-only 到 <code>/home/user/workspace/{agentID}/memory/YYYY-MM-DD.md</code>。成功后再 <code>SafeGo</code> 一次 <code>IndexMemoryFileToVector</code>（<code>:284-288</code>）把记忆索引进向量库，供后续检索。</p>
+
+<p>一个收尾细节：策略①和策略③结束时都会把 <code>agent.memoryFlushed</code> 重置为 <code>false</code>（<code>summary.go:355</code> 和 <code>summary.go:434</code>），允许下一次压缩再 flush 一次——因为压缩之后又积累了新对话，新一轮的记忆值得再抢救。</p>
+
+<div class="good">
+<strong>本课要带走的判断</strong>：当"回收"的对象是<em>有损且不可回源</em>的，回收动作的复杂度不在回收本身，而在它的<strong>前置抢救</strong>和<strong>触发时机</strong>。LRU 的代码只有淘汰逻辑；compaction 的代码里，淘汰只是中间一步，两头包着 flush 落盘、context 归档、80% 提前触发、cheap-model 门控、三重去重、异步不阻塞——每一样都是在补"删了就没了"这个漏洞。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>compaction / 压缩（summarize）</dt>
+<dd>历史逼近上下文窗口时，用模型把旧历史总结成摘要以回收 token 的策略。有损、不可回源。载体 <code>summary.go</code>，触发线 <code>min(0.8×window, cap)</code>，cap 默认 200K、AXON_IM 100K。</dd>
+<dt>触发线（summaryContextLine）</dt>
+<dd><code>min(int(float64(GetModelContextWindow())*0.8), summaryContextCap)</code>。设在 80% 而非满窗，因为 context rot（提前降智）+ 压缩自身要吃输入/输出余量。</dd>
+<dt>廉价模型门控（cheap-model gating）</dt>
+<dd>用便宜小模型先做判断，再决定要不要动用贵主模型。载体 <code>preCompactSummarize</code> 用 GPT-5.4-Nano（<code>MaxTokens: 50</code>）判话题相关性，<code>related=true</code> 就跳过压缩。</dd>
+<dt>memory flush</dt>
+<dd>压缩<em>前</em>把对话中的持久记忆异步落盘到 <code>memory/YYYY-MM-DD.md</code>（append-only + weaklock），并在 session.jsonl 打去重标记，避免有损压缩丢掉该记住的信息。载体 <code>memory_flush.go</code>。</dd>
+<dt>context.WithoutCancel 派生</dt>
+<dd>从请求 ctx 派生一个只砍 cancel 信号、保留 value 的独立 ctx，让异步落盘不随请求结束被 cancel。载体 <code>memory_flush.go:123</code>。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：服务端直觉说"从缓存里淘汰一条 entry 是免费的——数据还在 DB，要用再回源"。为什么 context 压缩在这套代码里不是免费的？代码用哪两个前置动作弥补？</summary>
+<div class="answer">
+<p>因为压缩是<strong>有损总结不是删除</strong>：<code>summarize</code> 把几十轮细节用 Gemini 3 Flash 压成一段 <code>{analysis, summary}</code>，原始 token 永久丢失，没有"后端源库"可回源。代码用两个前置动作兜底：</p>
+<p>(1) <strong>memoryFlushBeforeCompression</strong>——压缩前异步（<code>SafeGo</code> + <code>context.WithoutCancel</code>）用 LLM 把持久记忆抽出来 append 到 <code>memory/YYYY-MM-DD.md</code>，再索引进向量库；提示词原话 "capture durable memories to disk before context is truncated"（<code>memory_flush.go:319</code>）。</p>
+<p>(2) <strong>saveContextToFile</strong>——把原始 context 归档成 <code>context_*.json</code>（弱依赖，失败不阻断压缩）。这两步 LRU 淘汰都不需要。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：触发线为什么设在 <code>min(0.8×GetModelContextWindow(), 200_000)</code>（IM 为 100_000）而不是等窗口填满才压？给出代码里能佐证的两个理由。</summary>
+<div class="answer">
+<p><strong>理由一（context rot）</strong>：<code>summary.go:86</code> 注释直说"避免超大上下文窗口的模型使用了太大的上下文窗口导致降智"——模型质量在窗口填满前就随占用连续退化，所以不能等满。</p>
+<p><strong>理由二（压缩自身要余量）</strong>：压缩是一次要把整段对话当输入的 LLM 调用，产出的 summary 还要塞回窗口继续跑，必须留头寸；等到 99% 才压，压缩这一步自己就 PromptTooLong 了。</p>
+<p>补充：<code>cap</code>（200K / IM 100K）额外封顶，防止窗口特别大的模型把 <code>0.8×window</code> 撑到几十万 token 反而降智；<code>cap</code> 是变量不是写死的字面量。真正撑满触发的是 <code>PromptTooLong → applySummaryImmediately</code> 的紧急兜底（策略③），那是异常路径不是常态。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3：为什么 memory flush 要用 <code>context.WithoutCancel</code> 派生独立 ctx，而不是直接复用请求 ctx？这戳破了哪个服务端直觉？</summary>
+<div class="answer">
+<p>因为 flush 要调 LLM + 写文件 + 建索引，都不快，且它是压缩的<em>前置</em>。若同步跑会拖住主压缩；若复用请求 ctx 异步跑，一旦请求结束、ctx 被 cancel，正在飞的 LLM 调用会失败（<code>memory_flush.go:122</code> 注释"避免请求结束后 context canceled 导致 LLM 调用失败"）。</p>
+<p>它戳破的是"请求-响应生命周期"直觉：Web 服务里请求结束就该停掉所有派生工作，天经地义。但抢救记忆的价值恰恰在请求<em>之后</em>的下一次会话，所以要主动切断 cancel 传播——<code>WithoutCancel</code> 保留 value（trace/用户信息），只砍 cancel 信号，丢进 <code>concurrency.SafeGo</code> 后台跑完。</p>
+</div>
+</details>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源：<a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Effective context engineering for AI agents — Anthropic Engineering</a>。读的时候带着这节课的三策略对照它讲的长任务策略：文中 compaction 一节说的"总结历史、保留高信号"，就是这里的策略②；文中"结构化笔记"对应的正是这里 flush 落盘到 <code>memory/*.md</code> 的思路——把该记的东西写到 context 之外的持久介质，压缩才敢有损。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14 或看真实代码。下一课：<em>context 归档与重用——lastSummary 的重排逻辑</em>。</p>
+</footer>
+</main>
+</body>
+</html>

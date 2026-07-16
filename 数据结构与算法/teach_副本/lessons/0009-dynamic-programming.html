@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 9 课 · 动态规划 DP · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第一部分《算法图解》⑨ · 对应 ch09</div>
+  <h1>第 9 课:动态规划 DP —— 网格建模与两个易混点</h1>
+  <div class="sub">目标:先分清动态规划和贪婪算法的分工边界,再把主要精力放在 0/1 背包二维数组填表的边界条件上。约 25 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>为什么这节课紧接第8课?</b> 上一课学的贪婪算法,面对"商品可以分割"的背包问题(比如粮食、扁豆)能给出局部最优的近似解;
+  但换成"商品不可分割"的背包问题——每件东西只能整拿或不拿——贪婪算法就只能给近似解,这时候才需要本课的
+  <b class="hl">动态规划(Dynamic Programming, DP)</b> 去求精确的最优值。
+  DP 能用的前提只有两条,<b class="hl">缺一不可</b>:①问题是在约束条件下求某个指标的最优值(比如容量4磅时能装下的最大价值);
+  ②问题能拆解成一系列<b class="hl">彼此独立、离散</b>的子问题——某个子问题的答案不会因为你先做了另一个子问题而改变。
+  第②条最容易被忽略:一旦子问题相互依赖,动态规划照样会跑出一个答案,却是<b class="bad">错的</b>,而且不会报错提示你。
+</div>
+
+<h2>一、网格建模思路 —— 行是可选对象,列是约束的离散取值</h2>
+<p>动态规划的第一步永远是<b>画一张网格</b>:想清楚"每个单元格代表哪个子问题",坐标轴自然就浮现出来了——
+通常一维是<b class="hl">可选对象</b>(商品、字符),另一维是<b class="hl">约束的离散取值</b>(容量、另一个字符串的前缀)。
+单元格里存的值,通常就是你要优化的那个指标本身(比如"最大价值")。</p>
+<p>网格画好之后,逐行(或逐列,两者本质等价)去填,每个单元格的值由前面已经算出的相邻单元格,
+通过一个<b>问题专属</b>的递推公式推出——书里自嘲这是"费曼算法(Feynman algorithm)":写下问题、好好思考、写下答案。
+没有一个通用公式能套用到所有 DP 问题上,这是刚开始学 DP 时最容易产生的误解。</p>
+
+<h3>讲解示例:容量 4 磅的背包</h3>
+<p>可偷的商品:吉他(1磅,1500美元)、音响(4磅,3000美元)、笔记本电脑(3磅,2000美元)。逐行填表:</p>
+<table>
+  <tr><th>商品(重量,价值)\ 容量</th><th>1磅</th><th>2磅</th><th>3磅</th><th>4磅</th></tr>
+  <tr><td>吉他(1磅,1500美元)</td><td>1500</td><td>1500</td><td>1500</td><td>1500</td></tr>
+  <tr><td>音响(4磅,3000美元)</td><td>1500</td><td>1500</td><td>1500</td><td><b class="hl">3000</b></td></tr>
+  <tr><td>笔记本电脑(3磅,2000美元)</td><td>1500</td><td>1500</td><td>2000</td><td><b class="hl">3500</b></td></tr>
+</table>
+<p>容量4磅这一格是关键:"不拿笔记本电脑"沿用上一行的 3000;"拿笔记本电脑"要占 3 磅、剩 1 磅,
+1 磅容量下之前算出的最大价值是 1500(吉他),2000+1500=3500&gt;3000,于是更新为 <b class="hl">3500</b>(吉他+笔记本电脑)。
+如果再加入 iPhone(1磅,2000美元)重新填一行,容量4磅时"不拿 iPhone"沿用 3500,"拿 iPhone"占 1 磅、剩 3 磅
+(笔记本电脑那一行算出的最大价值是2000),2000+2000=<b class="hl">4000</b>&gt;3500,答案更新为 4000(iPhone+笔记本电脑)。</p>
+
+<div class="callout big">
+  <b>一个容易被忽略的细节:</b> 行/列的填充顺序,对背包问题和最长公共子串问题的最终结果都没有影响——
+  但换一个新问题时未必如此,不能想当然地认为"顺序永远无所谓",需要针对具体问题重新分析。
+</div>
+
+<h2>二、0/1 背包问题 —— 答案在"网格最后一格"</h2>
+<p>0/1 背包问题:在背包容量约束下,从一组<b class="hl">不可分割</b>的商品中选出使总价值最大的子集,
+是动态规划最经典的入门场景。网格坐标轴是<b>商品(行)× 容量(列)</b>,状态转移方程是:</p>
+<div class="callout">
+  <code>dp[i][c] = max( 不拿本行商品的价值, 拿本行商品的价值 + 剩余容量下前几行的最大价值 )</code>
+</div>
+<p>暴力枚举法作为对照:n 件商品要试遍所有组合,一共 2ⁿ 种,时间复杂度 O(2ⁿ),商品一多就完全不可行——
+这正是引出动态规划的原因。</p>
+
+<h2>三、最长公共子串 —— 答案是"网格中的最大值"</h2>
+<p><b class="hl">最长公共子串(Longest Common Substring)</b>:两个字符串中都存在的、要求<b>连续</b>排列的字符序列的最大长度,
+可以用来估计拼写相似度。网格坐标轴是<b>单词A字符(行)× 单词B字符(列)</b>,递推规则是:</p>
+<ul>
+  <li>匹配(<code>word_a[i] == word_b[j]</code>):<code>cell[i][j] = cell[i-1][j-1] + 1</code>(在左上角对角线格子基础上加一)</li>
+  <li>不匹配:<code>cell[i][j] = 0</code>(直接<b class="hl">清零</b>,不是取某个较大值!)</li>
+</ul>
+<p>因为不匹配就清零,最长的那段连续匹配可能出现在网格中间任意位置,所以<b class="bad">答案要在整张网格里找最大值</b>,
+不能想当然地只看最后一格。举例:Alex 把 fish 误输成 hish,hish 与 fish 的最长公共子串是 "ish"(长度3),
+hish 与 vista 的最长公共子串只有 "is"(长度2)——所以更可能是 fish。</p>
+<p class="sub" style="margin-top:-4px">拓展(了解即可,不是本课重点):如果字符不要求连续排列,就是<b>最长公共子序列(LCS)</b>,
+它的"不匹配"规则不是清零,而是取 <code>max(cell[i-1][j], cell[i][j-1])</code>,能更真实地反映相似度——
+两者递推规则的差异,正是最容易在考试里被搞混的地方。</p>
+
+<h2>四、期末最容易记混的一张表</h2>
+<table>
+  <tr><th>维度</th><th>0/1 背包问题</th><th>最长公共子串问题</th></tr>
+  <tr><td>网格坐标轴</td><td>商品(行)× 容量(列)</td><td>单词A字符(行)× 单词B字符(列)</td></tr>
+  <tr><td>递推公式(命中/不命中)</td>
+      <td>max(不拿, 拿 + 剩余容量下前几行最大价值)</td>
+      <td>匹配:cell[i-1][j-1]+1;不匹配:<b class="hl">清零</b></td></tr>
+  <tr><td>答案读取位置</td>
+      <td>网格<b class="hl">最后一个</b>单元格</td>
+      <td>网格中的<b class="hl">最大值</b>(未必在最后一格)</td></tr>
+</table>
+
+<h2>五、C 代码:0/1 背包二维数组填表(附三处踩坑点)</h2>
+<pre>#define N_ITEMS  3     <span class="c">// 商品数量</span>
+#define CAPACITY 4     <span class="c">// 背包容量,单位:磅</span>
+
+<span class="c">/* dp[i][c] 表示"只从前 i 件商品中选、背包容量为 c"时能装下的最大价值 */</span>
+int dp[N_ITEMS + 1][CAPACITY + 1];    <span class="c">// ① 行、列都要开 (N+1)、(CAP+1)</span>
+
+int knapsack(int weight[], int value[], int n, int capacity) {
+    <span class="c">// ② 边界初始化:没有商品 或 容量为0时,最大价值恒为0</span>
+    for (int c = 0; c <= capacity; c++) dp[0][c] = 0;
+    for (int i = 0; i <= n; i++)        dp[i][0] = 0;
+
+    for (int i = 1; i <= n; i++) {                 <span class="c">// 行:第 i 件商品 → weight[i-1], value[i-1]</span>
+        for (int c = 1; c <= capacity; c++) {      <span class="c">// 列:容量 c</span>
+            if (weight[i - 1] > c) {
+                dp[i][c] = dp[i - 1][c];            <span class="c">// 装不下,沿用上一行同容量的解</span>
+            } else {
+                int not_take = dp[i - 1][c];                                <span class="c">// 不拿这件商品</span>
+                int take     = value[i - 1] + dp[i - 1][c - weight[i - 1]]; <span class="c">// ③ 拿这件商品,必须引用"上一行"</span>
+                dp[i][c] = (take > not_take) ? take : not_take;             <span class="c">// 比较顺序不能写反</span>
+            }
+        }
+    }
+    return dp[n][capacity];   <span class="c">// 答案在网格"最后一格"</span>
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 二维数组要开 <code>(N_ITEMS+1) × (CAPACITY+1)</code>,不是 <code>N_ITEMS × CAPACITY</code>。</b>
+    第 0 行代表"还没考虑任何商品"、第 0 列代表"容量为0",这两行/列是后面递推的起点;
+    数组开小了会导致下标越界,商品下标又要用 <code>weight[i-1]</code>、<code>value[i-1]</code>(从0开始),
+    <code>i</code> 和 <code>i-1</code> 混着用是最容易漏算或越界的地方。</li>
+  <li><b>② <code>dp[0][c]=0</code> 和 <code>dp[i][0]=0</code> 必须显式初始化。</b>
+    这对应"没有商品"或"背包容量为0"这两种边界情况,最大价值理应恒为0——如果用局部数组忘了初始化,
+    数组里是垃圾值,后面所有递推结果都会被污染,却不一定报错,很难排查。</li>
+  <li><b>③ "拿这件商品"必须引用<b class="bad">上一行</b> <code>dp[i-1][c-weight[i-1]]</code>,不能写成 <code>dp[i][c-weight[i-1]]</code>(当前行)。</b>
+    0/1 背包里每件商品只能选一次,"拿了这件商品之后剩余容量下的最大价值"必须来自"还没考虑当前商品"的上一行;
+    如果引用当前行,就等于允许同一件商品被反复装入背包,变成了完全背包问题,和 0/1 背包的语义完全不同。
+    同时 <code>take</code> 和 <code>not_take</code> 的比较顺序也不能写反,否则会在明明有更优解时错误地保留较小值。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱:</b>
+  <ul style="margin:6px 0 0">
+    <li>对存在相互依赖的子问题硬套动态规划——比如"伦敦+巴黎"多站旅行行程:去了埃菲尔铁塔后,联合套票让卢浮宫门票变便宜,
+    "去卢浮宫的花费"因此依赖"是否先去过埃菲尔铁塔"。这类子问题不满足独立性前提,动态规划会得到<b class="bad">错误答案而不自知</b>。</li>
+    <li>误以为动态规划能处理"拿走商品的一部分"——动态规划只做<b>二元决策</b>(整取/不取);
+    商品可以被分割(比如粮食、扁豆)时,应该改用第8课的<b>贪婪算法</b>,DP 回答不了"拿多少",只能回答"拿还是不拿"。</li>
+    <li>误以为答案必然出现在网格最后一个单元格——这对 0/1 背包问题成立,但对最长公共子串问题,
+    答案是网格中的<b>最大值</b>,可能出现在任意一格,考试最容易把这两条记反。</li>
+  </ul>
+</div>
+
+<h2>六、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 容量4磅的背包,吉他(1磅,1500美元)、音响(4磅,3000美元)、笔记本电脑(3磅,2000美元)三件商品填表后,容量4磅这一格的最大价值是 3500(吉他+笔记本电脑)。现在加入 iPhone(1磅,2000美元)重新填一行,容量4磅这一格的新答案是多少?</div>
+  <button class="opt" data-ok="0">3500,不变,因为 iPhone 不值得拿</button>
+  <button class="opt" data-ok="1">4000,iPhone + 笔记本电脑</button>
+  <button class="opt" data-ok="0">4500,iPhone + 吉他 + 笔记本电脑三件全部装下</button>
+  <button class="opt" data-ok="0">5500,四件商品价值直接相加</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 多站旅行行程规划:先去埃菲尔铁塔,联合套票让卢浮宫门票变得更便宜(费用因此下降),目标是在预算约束下让游览的地点数最多。这个问题能不能直接套用动态规划的网格填表法求解?</div>
+  <button class="opt" data-ok="0">能,只要预算是离散数值,列坐标就能设出来</button>
+  <button class="opt" data-ok="1">不能,因为"去卢浮宫的花费"依赖"是否先去过埃菲尔铁塔",子问题彼此不独立,不满足 DP 前提</button>
+  <button class="opt" data-ok="0">能,只要把所有可能的行程都试一遍填进网格里就行</button>
+  <button class="opt" data-ok="0">不能,因为这个问题根本不是在求最优值,只是排列组合</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段 0/1 背包的状态转移代码,某一行有 bug,选出问题所在。</div>
+  <p class="sub" style="margin-top:-4px">提示:先想清楚"拿这件商品"应该引用的是哪一行的历史结果。</p>
+  <pre>if (weight[i - 1] > c) {
+    dp[i][c] = dp[i - 1][c];
+} else {
+    int not_take = dp[i - 1][c];
+    int take     = value[i - 1] + dp[i][c - weight[i - 1]];   <span class="c">// ← 这一行</span>
+    dp[i][c] = (take > not_take) ? take : not_take;
+}</pre>
+  <button class="opt" data-ok="0">not_take 应该在 if 分支外面定义,否则作用域会出错</button>
+  <button class="opt" data-ok="1">take 这一行应该引用 <code>dp[i-1][c-weight[i-1]]</code>(上一行),写成 <code>dp[i][...]</code>(当前行)会让同一件商品被反复计入,变成完全背包</button>
+  <button class="opt" data-ok="0"><code>weight[i-1] > c</code> 的比较符号应该改成 <code>&gt;=</code></button>
+  <button class="opt" data-ok="0">这段代码完全正确,没有 bug</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q3sol').classList.toggle('hidden')">▸ 看修正后的写法</span>
+  <div id="q3sol" class="hidden" style="margin-top:8px">
+    <pre>int take = value[i - 1] + dp[i - 1][c - weight[i - 1]];   <span class="c">// 改成 i-1</span></pre>
+    <p style="margin:4px 0">0/1 背包问题里"0/1"两个字的含义就是"每件商品只能选0次或1次"——一旦"拿了这件商品之后"的剩余容量查的是当前行
+    (也就是已经把这件商品的选择结果算进去的那一行),这件商品就有可能被反复叠加进同一个解里,答案会比正确的0/1背包结果更大,这是判分时最典型的隐蔽 bug。</p>
+  </div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq">Q4. 关于 0/1 背包问题和最长公共子串问题的"答案读取位置",下面哪个说法正确?</div>
+  <button class="opt" data-ok="0">两个问题的答案都在网格的最后一个单元格</button>
+  <button class="opt" data-ok="1">0/1 背包问题的答案在网格最后一个单元格;最长公共子串问题的答案是网格中的最大值,可能不在最后一格</button>
+  <button class="opt" data-ok="0">两个问题的答案都是网格中的最大值</button>
+  <button class="opt" data-ok="0">0/1 背包问题的答案是网格中的最大值,最长公共子串问题的答案在最后一格</button>
+  <div class="fb"></div>
+</div>
+
+<h2>七、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两点:</b><br>
+  ①"动态规划能用的两个前提是什么?为什么'子问题相互依赖'会让 DP 直接失效——举一个会失效的例子。"<br>
+  ②"0/1 背包问题和最长公共子串问题,答案分别在网格的哪个位置?为什么这两个位置不一样(和'不匹配时清零'有什么关系)?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 10 课(KNN 与算法全景扫盲,《算法图解》收官课)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 10 课):</b> KNN 与算法全景扫盲——《算法图解》的收官课,把前 9 课的算法串成一张地图。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/bhargava-algorithms/chapters/ch09-dynamic-programming.md</code>
+  (《算法图解》第9章,原书 Python 代码已改写为 C)。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!"不拿iPhone"沿用上一行(容量4磅)的3500;"拿iPhone"占1磅、剩3磅,3磅容量下(笔记本电脑那一行)之前算出的最大价值是2000,2000+2000=4000>3500,所以更新为4000(iPhone+笔记本电脑)。',
+      bad:'关键在于状态转移方程要比较两种情况:"不拿iPhone"直接沿用上一行同容量(4磅)的值3500;"拿iPhone"要占用1磅,剩下3磅容量下(前面几行已经算出)的最大价值是2000,所以是2000+2000=4000。4000>3500,答案更新为4000,不能凭直觉说不变,也不能超过背包总容量硬把好几件商品都装进去。'},
+  q2:{good:'对!DP能正确工作的前提之一是子问题彼此独立——一个子问题的答案不会因为你先做了另一个子问题而改变。这里"去卢浮宫的花费"依赖"是否已经去过埃菲尔铁塔",典型的相互依赖,动态规划在这种场景下会给出错误答案而自己不知道。',
+      bad:'再想想动态规划成立的第②个前提:子问题必须彼此独立、离散。这道题里"去卢浮宫的花费"会因为"提前去过埃菲尔铁塔"而变化,这就是相互依赖,不满足独立性前提,所以动态规划在这里会失效——这和"能不能设坐标轴"或"是不是在求最优值"是两回事,这道题本身就是在求"最多能玩几个地点"这个最优值。'},
+  q3:{good:'对!这里的陷阱是"用了当前行还是上一行"——0/1背包问题里每件商品只能选一次,状态转移方程里"拿这件商品"的分支必须引用上一行(dp[i-1][...]),表示"这件商品之前没考虑过、现在决定拿"。如果写成dp[i][...](当前行),相当于允许同一件商品被无限次装入背包,变成了完全背包问题,和0/1背包的语义完全不同。',
+      bad:'再检查一下"拿这件商品"那一行引用的是dp[i-1][...]还是dp[i][...]。0/1背包问题里每件商品只能选一次,所以"拿了这件商品之后剩余容量下能拿到的最大价值",必须来自上一行(还没考虑当前商品时算出的结果)dp[i-1][c-weight[i-1]];如果写成dp[i][c-weight[i-1]](当前行),就等于允许这件商品被重复选取,这就变成了完全背包,不再是0/1背包。'},
+  q4:{good:'对!这是期末最容易记混的一点:0/1背包问题逐行累积到"考虑完所有商品、用满全部容量"为止,答案自然在网格最后一格;但最长公共子串问题不匹配时会清零,最长的那段连续匹配可能出现在网格中间任意位置,所以要扫描整个网格找最大值,不能想当然地只看最后一格。',
+      bad:'再对照总结表格:0/1背包问题的递推是逐行累积到"考虑完所有商品、用满全部容量"为止,所以答案在网格最后一格;而最长公共子串问题一旦不匹配就清零,最长的连续匹配段可能出现在网格中间,所以要在整张网格里找最大值,这两者的读取方式是不一样的,考试最容易把这两条记反。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0031 · 提议者-审核者机制：让 Agent 看见自己生成的效果</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0031 课 · 支柱二(工具) · Coding Agent · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>提议者-审核者机制：让 Agent 看见自己生成的效果</h1>
+
+<p class="lede">这节课只押一件事：<strong>Agent 写完 Slidev 代码，其实并不知道它渲染出来长什么样</strong>——内容挤不挤、文字溢不溢、图片尺寸对不对，只有真正渲染出来才看得见。第 5 章“代码驱动的多媒体生成”一节给出的解法，是把“写”和“看”拆成两个 Agent：Proposer 生成代码，Reviewer 渲染成图、用 Vision LLM 出结构化反馈，一轮轮迭代（对应<strong>图5-5</strong>）。而这套双 Agent 设计真正的甜头，不在“分工”本身，而在<strong>上下文管理</strong>。</p>
+
+<h2>一、问题：代码写完了，效果却是个盲区</h2>
+
+<p>先看这节课嵌在书里的位置。第 5 章后半部分讲“代码是通用 Agent 的<strong>元能力</strong>”——代码能当场造出新工具、新约束、新表达形式。多媒体生成是这个元能力的第三个发挥方向：<strong>内容呈现</strong>。作者的洞察是，PPT、报告、界面这些复杂文档，本质都是结构化数据的组织与呈现，底层都由代码定义（HTML 描结构、CSS 控样式、JS 做交互）。让 Agent 用代码生成它们，就<strong>绕开了 GUI 所见即所得编辑里最难的视觉定位与坐标点击</strong>。</p>
+
+<p>以 PPT 为例。一份学术报告 PPT 动辄数十页，逐页都要设计布局、提炼要点、选配图表。现代框架如 Slidev 用 Markdown + HTML 定义演示内容，对会写代码的 Agent 极其友好——写一页幻灯片只需写一小段标记，框架自动处理渲染、布局、动画。</p>
+
+<p>但作者随即点出一句要命的话：</p>
+
+<div class="bookquote">
+仅能生成代码还不够。Agent 编写完代码后并不知道实际渲染效果：内容是否太挤、文字是否溢出、图片尺寸是否合适，这些只有真正渲染出来才能发现。
+<span class="src">——《深入理解 AI Agent》第 5 章</span>
+</div>
+
+<p>这就是缺口所在——代码是<strong>符号</strong>，效果是<strong>像素</strong>。Agent 手里只有符号，它对最终呈现出来的像素是<strong>盲</strong>的。要补上这只“眼睛”，就得让某个环节真正把代码跑出来、看一眼、再把看到的东西喂回去。</p>
+
+<h2>二、解法：Proposer 写，Reviewer 看</h2>
+
+<p>作者的做法是把“代码编写”和“质量评审”解耦成两个独立 Agent（如图5-5）：</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node volatile"><span class="n-title">Proposer</span><span class="n-sub">写 Slidev 代码<br>拆解页面结构</span></div>
+  <div class="arrow">→</div>
+  <div class="node"><span class="n-title">渲染</span><span class="n-sub">每页跑成图片</span></div>
+  <div class="arrow">→</div>
+  <div class="node stable"><span class="n-title">Reviewer</span><span class="n-sub">Vision LLM 看图<br>出结构化反馈</span></div>
+  <div class="arrow">↩</div>
+</div>
+<figcaption>图5-5 · 提议者-审核者机制：Proposer 生成代码 → 渲染成图片 → Reviewer 用 Vision LLM 分析 → 结构化反馈回喂 Proposer，迭代到达标或触顶。</figcaption>
+</figure>
+
+<ul>
+<li><strong>Proposer Agent</strong>：负责生成 Slidev 代码，理解内容的逻辑结构，把它分解为合理的页面。</li>
+<li><strong>Reviewer Agent</strong>：运行代码，把<strong>每一页渲染为图片</strong>，用 <strong>Vision LLM</strong>（能“看”懂图片的多模态大模型）从内容密度、可读性、布局合理性、视觉美感等维度分析渲染结果，产出<strong>结构化的改进建议</strong>。</li>
+</ul>
+
+<p>关键在“结构化”三个字。Reviewer 给的不是模糊的“不好看”，而是<strong>具体可执行</strong>的指导——书里的原话举例是“第 3 页：内容过多，建议拆分”“第 7 页：代码块字体过小，建议增大到 14pt”，每条都带<strong>页码、问题类型、严重程度</strong>等字段。</p>
+
+<p>然后就是循环：Proposer 接收反馈、理解意图、修改代码，新版本再次交给 Reviewer 审查，<strong>迭代直到质量达标，或达到最大次数（如 5 轮）</strong>。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 240" role="img" aria-label="提议者-审核者迭代循环：Proposer 写代码,渲染成图片,Reviewer 用Vision LLM出带页码问题类型严重度的结构化反馈,反馈回喂Proposer,迭代不超过5轮直到达标">
+  <rect class="dgm-accent-node" x="30" y="90" width="150" height="60" rx="10"/>
+  <text class="dgm-accent-text" x="105" y="115" font-size="14" font-weight="700" text-anchor="middle">Proposer</text>
+  <text class="dgm-muted" x="105" y="134" font-size="11" text-anchor="middle">生成/修改 Slidev 代码</text>
+
+  <rect class="dgm-node" x="275" y="90" width="150" height="60" rx="10"/>
+  <text class="dgm-text" x="350" y="115" font-size="14" font-weight="700" text-anchor="middle">渲染每页</text>
+  <text class="dgm-muted" x="350" y="134" font-size="11" text-anchor="middle">代码 → 图片</text>
+
+  <rect class="dgm-good-node" x="520" y="90" width="150" height="60" rx="10"/>
+  <text class="dgm-text" x="595" y="112" font-size="14" font-weight="700" text-anchor="middle">Reviewer</text>
+  <text class="dgm-muted" x="595" y="130" font-size="11" text-anchor="middle">Vision LLM 看图</text>
+  <text class="dgm-muted" x="595" y="145" font-size="11" text-anchor="middle">出结构化反馈</text>
+
+  <line class="dgm-edge" x1="180" y1="120" x2="271" y2="120" stroke-width="1.5" marker-end="url(#ar31)"/>
+  <line class="dgm-edge" x1="425" y1="120" x2="516" y2="120" stroke-width="1.5" marker-end="url(#ar31)"/>
+  <path class="dgm-edge" d="M595 150 C595 205, 105 205, 105 152" fill="none" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar31)"/>
+  <text class="dgm-muted" x="350" y="198" font-size="11.5" text-anchor="middle">结构化反馈:{页码, 问题类型, 严重度} · 迭代 ≤ 5 轮</text>
+  <text class="dgm-muted" x="350" y="55" font-size="11.5" text-anchor="middle">Proposer 只累积轻量文本反馈 · Reviewer 只看最新一版渲染图</text>
+  <defs>
+    <marker id="ar31" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>循环往复：写 → 渲染 → 看 → 反馈 → 再写。Reviewer 拿到的是 Proposer 看不到的新信息——渲染结果本身。</figcaption>
+</figure>
+
+<h2>三、为什么是“两个 Agent”，而不是一个 Agent 自己写自己看？</h2>
+
+<p>这是本课最该深挖的“为什么”。一个 Agent 既写代码又看渲染图、自己迭代，听上去更简单，为什么书里坚持要拆成两个？作者给的答案很硬：<strong>核心优势在于上下文管理</strong>。</p>
+
+<p>把两条路径摆在一起对比就清楚了：</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="branches">
+    <div class="branch">
+      <div class="label">单 Agent 方案</div>
+      <div class="step">同一个上下文里，要累积<strong>数十页渲染图片</strong>的<strong>多轮迭代</strong></div>
+      <div class="down">↓</div>
+      <div class="step decision">上下文迅速<strong>超限</strong></div>
+    </div>
+    <div class="branch">
+      <div class="label">双 Agent 方案</div>
+      <div class="step">Reviewer 每次<strong>只处理最新版本</strong>的渲染图片，不受历史版本干扰</div>
+      <div class="down">↓</div>
+      <div class="step terminal">Proposer 仅累积<strong>结构化文本反馈</strong>，token 少、更易推理</div>
+    </div>
+  </div>
+</div>
+<figcaption>分工的本质是切割上下文：图片这种昂贵的信息留在 Reviewer 一侧且用完即弃，Proposer 一侧只留轻量的文本反馈。</figcaption>
+</figure>
+
+<p>拆开看两个好处：</p>
+<ul>
+<li><strong>Reviewer 侧</strong>：每次只处理<strong>最新一版</strong>的渲染图片，不被历史版本的旧图干扰——它不需要记得三轮前那版长什么样。</li>
+<li><strong>Proposer 侧</strong>：只累积<strong>结构化文本反馈</strong>（几行带页码的建议），token 消耗少，而且纯文本比图片<strong>更易于推理</strong>。</li>
+</ul>
+
+<p>反过来，单 Agent 若想自审自改，就得把每一轮、每一页的渲染图都堆在同一个上下文里。图片是 token 大户，数十页乘上多轮迭代，上下文<strong>迅速超限</strong>。所以这里的“双 Agent”不是为了组织上的分工好看，而是一个被上下文预算逼出来的<strong>工程决策</strong>。</p>
+
+<p>还要看清它的“血统”。作者特意点明：本章的提议者-审核者迭代循环，和第四章的<strong>事前审批</strong>是<strong>同源</strong>的——都是提议者-审核者范式的实例，共享同一批设计原则：<strong>共享目标约束、使用不同模型家族以降低同类错误概率、把反馈作为特殊事件加入 Proposer 轨迹</strong>。差异只在目标与形态：第四章用它做不可逆操作的安全审查（审核者对单次操作给批准/否决）；本章用它做内容质量的迭代改进（多轮循环，且审核者能接触到提议者<strong>看不到的新信息</strong>——渲染结果）。</p>
+
+<h2>四、边界与易错</h2>
+
+<div class="pitfall">
+<p><strong>最常见的想当然：“不就是让 Agent 检查一下自己写的代码嘛。”</strong> 错在两处。其一，Reviewer 检查的<strong>不是代码</strong>，而是代码<strong>渲染出来的图片</strong>——它靠 Vision LLM“看”像素，专门抓那些从代码里看不出来的问题：文字溢出、内容拥挤、图片尺寸不当。检查代码本身根本发现不了“这一页挤不挤”。</p>
+<p>其二，也是更深的一点：拆成两个 Agent 的动机<strong>不是</strong>“两个脑子比一个准”，而是<strong>上下文管理</strong>。如果你以为单 Agent 只是“效果差一点”，就会漏掉真正的失败模式——单 Agent 会因为把数十页图片乘以多轮迭代全塞进一个上下文而<strong>直接超限、根本跑不下去</strong>。省 token、可持续迭代，才是这套机制的立身之本。</p>
+</div>
+
+<p>这套机制也不是 PPT 专用。作者明确说它会在后续<strong>视频编辑</strong>（Proposer 生成 Blender 脚本，Reviewer 渲染关键帧再用 Vision LLM 检查）和<strong>日志可视化</strong>实验中重复使用；第十章还会进一步探讨提议者-审核者之外的其他多 Agent 协作模式。记住这条循环，后面几节能少走弯路。</p>
+
+<div class="experiment">
+<p>配套实验：<strong>实验 5-4 ★★ 基于论文的 PPT 自动生成</strong>（参考实现见开源仓库 <code>chapter5/coding-agent/</code>）。Proposer 阅读论文 PDF、规划结构、逐页生成 Slidev 代码；Reviewer 渲染每页截图、用 Vision LLM 查文字溢出/内容拥挤/图片尺寸问题、出结构化建议，迭代到达标。验收标准里专门要求你<strong>对比“单 Agent 自我审查”与“提议者-审核者分工”在上下文消耗和生成质量上的差异</strong>——这正是本课第三节结论的动手验证。相邻的实验 5-5（论文讲解视频）、实验 5-6（Blender 视频剪辑）会把同一机制迁移到视频。</p>
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>提议者-审核者机制（Proposer-Reviewer）</dt>
+<dd>把“生成”与“审查”解耦为两个独立 Agent 的范式：Proposer 生成产物（如 Slidev 代码），Reviewer 用独立视角评估并给出反馈，多轮迭代至达标或触顶。与第四章事前审批同源，共享“不同模型家族、反馈作为特殊事件入轨迹”等原则。<em>避免</em>把它理解成“Agent 检查自己写的代码”——审查的是渲染出的效果，且分工动机是上下文管理。</dd>
+<dt>元能力（meta-capability）</dt>
+<dd>一种“能创造其他能力”的能力：Agent 用它当场写出新工具、新约束、新表达形式来完成任务，而不必事先把所有能力都预制好。代码生成正是这样的元能力；多媒体生成是其“内容呈现”方向的发挥。<em>避免</em>等同于“一个很强的能力”或“万能工具”——关键在“创造能力的能力”，而非能力本身强弱。</dd>
+<dt>结构化反馈</dt>
+<dd>Reviewer 产出的可执行改进建议，带页码、问题类型、严重程度等字段（如“第 3 页：内容过多，建议拆分”），而非模糊的“不好看”。它是纯文本、轻量、易推理，因此可以低成本地累积进 Proposer 的轨迹。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：为什么用两个 Agent 分工，而不是让一个 Agent 自己写代码又自己看渲染图迭代？</summary>
+<div class="answer">
+<p>核心是<strong>上下文管理</strong>。单 Agent 要在同一上下文里累积数十页、多轮的渲染图片，上下文迅速超限；双 Agent 下 Reviewer 每次只看最新版渲染图、不受历史干扰，Proposer 只累积轻量的结构化文本反馈，token 少且更易推理。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：Reviewer 靠什么“看见”问题？它能接触到而 Proposer 接触不到的关键信息是什么？</summary>
+<div class="answer">
+<p>Reviewer 先运行代码把每页<strong>渲染为图片</strong>，再用 <strong>Vision LLM</strong> 从内容密度、可读性、布局合理性、视觉美感等维度分析。它能接触到、而 Proposer 接触不到的关键信息，正是<strong>渲染结果（图片）本身</strong>——这也是本章提议者-审核者相较第四章事前审批的独特之处：审核者拿到了提议者看不到的新信息，据此产出带页码/问题类型/严重度的结构化建议。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：Agent 写完代码看不见效果，所以要引入提议者-审核者——Proposer 写、Reviewer 渲染成图用 Vision LLM 看、结构化反馈回喂迭代。而拆成两个 Agent 的真正理由不是“两个更准”，而是<strong>上下文管理</strong>：图片留在 Reviewer 且用完即弃，Proposer 只背轻量文本反馈，才让多轮迭代不至于撑爆上下文。
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是《深入理解 AI Agent》第 5 章“代码驱动的多媒体生成”一节及<strong>图5-5</strong>（提议者-审核者机制），配合<strong>实验 5-4</strong>（基于论文的 PPT 自动生成）阅读效果最好。全书配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>，PPT 生成所依托的 Coding Agent 参考实现见其中的 <code>chapter5/coding-agent/</code>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“为什么必须拆成两个 Agent”从上下文预算的角度再推一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0030-why-coding-agent-fits-harness.html"><span class="dir">← 上一课</span>任务四象限：为什么 Coding Agent 是最成熟的 Agent 类型</a>
+  <a class="next" href="0032-model-plus-harness-swap-vs-ablation.html"><span class="dir">下一课 →</span>评估到底在评什么：模型替换实验 vs 消融实验</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

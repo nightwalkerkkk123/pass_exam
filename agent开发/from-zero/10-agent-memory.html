@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>10 · Agent 的记忆：短期 Context 与长期 Memory</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 长出一个 Agent · 第 10 课 · 预计 9 分钟 · 上一课：<a href="09-context-overflow-compaction.html">09 Context 会爆炸</a> · 下一课：<a href="11-eval-basics.html">11 评估入门</a></p>
+
+<h1>Agent 的记忆：短期 Context 与长期 Memory</h1>
+
+<p class="lede">上一课我们让 agent 学会了"聊得太久就自己压缩"。但压缩是<strong>有损</strong>的——它会把旧对话糊成一段摘要。这一课解决一个更根本的问题：有些东西不能糊、不能忘。我们给 agent 装上第二种记忆：会落到硬盘、日后还能捞回来的<strong>长期记忆</strong>。</p>
+
+<div class="chain in">
+<p>上一课 <code>summarize</code> 让 context 不再撑爆，代价是<strong>有损遗忘</strong>：旧对话被压成一段摘要，细节抹掉了。可"用户叫什么、他长期的偏好、上次我们一起定下的结论"这类事，一旦忘了下次就得重问一遍，体验直接崩。</p>
+<p>问题于是很尖锐：压缩注定会忘，那怎么让 agent <strong>跨会话</strong>记住真正重要的东西？</p>
+</div>
+
+<h2>一、先分清两种记忆（白板 vs 日记本）</h2>
+
+<p>先用生活化的方式想（ELI5）：你今天开会，脑子里"正在想的那些话"是<strong>工作记忆</strong>——会议一散、注意力一转，大半就模糊了。但你会把关键结论写进笔记本，那是<strong>长期记忆</strong>——哪怕一年后翻开，字还在。</p>
+
+<p>Agent 一模一样，只是名字换成术语。第一次出现，先解释清楚：</p>
+
+<ul>
+<li><strong>短期记忆</strong>＝当前这次请求发给大模型的那一整包消息（我们前几课一直在拼的 <code>messages</code> 数组，即"当前 context 窗口"）。它<strong>会被上一课的 <code>summarize</code> 压缩</strong>，是块随时会被擦的白板。</li>
+<li><strong>长期记忆</strong>＝被单独抽出来、<strong>写到沙盒硬盘上的一个 markdown 文件</strong>，还会进"向量库"（一个能按意思、而不只是按关键词去搜的数据库）。它是那本擦不掉的日记本。</li>
+</ul>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 380" role="img" aria-label="短期 context 与长期 memory 双层，flush 向下落盘、回注向上带回">
+  <!-- top layer: short-term context -->
+  <rect class="dgm-accent-node" x="130" y="34" width="460" height="96" rx="10" stroke-width="1.8"/>
+  <text class="dgm-accent-text" x="360" y="66" font-size="16" font-weight="700" text-anchor="middle">短期记忆 · 当前 Context 窗口</text>
+  <text class="dgm-muted" x="360" y="90" font-size="12" text-anchor="middle">这次请求发给模型的 messages 数组（白板）</text>
+  <text class="dgm-muted" x="360" y="110" font-size="11" text-anchor="middle">会被上一课 summarize 压缩 → 旧对话有损遗忘</text>
+
+  <!-- bottom layer: long-term memory -->
+  <rect class="dgm-good-node" x="130" y="250" width="460" height="96" rx="10" stroke-width="1.8"/>
+  <text class="dgm-text" x="360" y="282" font-size="16" font-weight="700" text-anchor="middle">长期记忆 · 落盘 + 向量库</text>
+  <text class="dgm-muted" x="360" y="306" font-size="12" text-anchor="middle">memory/YYYY-MM-DD.md（按天追加的日记本）</text>
+  <text class="dgm-muted" x="360" y="326" font-size="11" text-anchor="middle">写完再进向量库，日后能按意思检索</text>
+
+  <!-- down arrow: flush -->
+  <line x1="270" y1="130" x2="270" y2="248" class="dgm-edge" stroke-width="2"/>
+  <path d="M270 250 l-7 -12 l14 0 z" class="dgm-accent"/>
+  <text class="dgm-accent-text" x="252" y="196" font-size="12" font-weight="700" text-anchor="end">flush</text>
+  <text class="dgm-muted" x="252" y="212" font-size="10.5" text-anchor="end">走之前先抄进日记</text>
+
+  <!-- up arrow: 回注 -->
+  <line x1="450" y1="248" x2="450" y2="132" class="dgm-edge" stroke-width="2" style="stroke:var(--good)"/>
+  <path d="M450 130 l-7 12 l14 0 z" style="fill:var(--good)"/>
+  <text x="468" y="192" font-size="12" font-weight="700" text-anchor="start" style="fill:var(--good)">回注</text>
+  <text class="dgm-muted" x="468" y="208" font-size="10.5" text-anchor="start">下次会话再捞回来</text>
+</svg>
+</div>
+<figcaption>两层记忆与它们之间的两条路：向下的 <code>flush</code> 把易忘的对话抄进 <code>memory/YYYY-MM-DD.md</code>；向上的"回注"日后经 <code>context_info</code> 的 <code>&lt;user_memory&gt;</code> 块把记忆重新带回短期 context。压缩只发生在上层，所以落盘必须赶在压缩<strong>之前</strong>。</figcaption>
+</figure>
+
+<div class="good">
+<strong>一句话抓住区别</strong>：短期记忆<em>会被压缩</em>、装在每轮请求里、越攒越贵；长期记忆<em>不会被压缩</em>、静静躺在硬盘上、只在需要时才被捞回来。所以真正重要的事，不能只留在短期——要在它被压缩糊掉之前，先"抄"一份到长期。这个"抄下来"的动作，就是这节课的主角。</div>
+
+<h2>二、把记忆写下来：flush 这个动作</h2>
+
+<p>mino_server 里"抄进日记本"这件事叫 <strong>flush（冲刷、落盘）</strong>。触发点很讲究——就在<strong>压缩发生之前</strong>调一次（函数名直接就叫 <code>memoryFlushBeforeCompression</code>）。逻辑上顺理成章：既然压缩会糊掉细节，那就赶在糊之前先抢救一份出来。</p>
+
+<p>flush 做三件事，都在 <code>memory_flush.go</code> 里：</p>
+
+<ol>
+<li><strong>抽取</strong>：把整段对话（历史 <code>originalMessages</code> + 当前轮 <code>newMessages</code>）丢给一个<em>便宜的小模型</em>（<code>Gemini3Flash</code>，模型简称；真实符号 <code>common.ModelNameGemini3Flash</code>，值 <code>"gemini-3-flash-preview"</code>），让它只挑出"值得跨会话记住"的东西——用户偏好、拍板的决定、项目事实、未完成的任务、人名关系。产出是一小段 JSON：<code>{"memories": "..."}</code>。配置是低温度、<strong>关掉思考</strong>（<code>Temperature 0.2</code>、<code>ThinkingBudget 0</code>、<code>MaxTokens 4096</code>）——因为这是"摘录"而不是"创作"，不需要它发挥。</li>
+<li><strong>落盘</strong>：把抽出来的记忆<strong>追加</strong>写进当天的文件 <code>memory/YYYY-MM-DD.md</code>（<code>resolveMemoryFlushPath</code>）。注意是 append-only（只往后加，不覆盖），像日记一天一页。为防两个请求同时写坏文件，用了一把"弱锁"（<code>weaklock</code>：锁的 TTL / 被保护的写操作最长跑 10s（<code>LockTimeout=10s</code>）；拿不到锁时最多重试 3 次、每次隔 200ms（<code>RetryCount=3</code>、<code>RetryDelay=200ms</code>））。</li>
+<li><strong>入库</strong>：文件写完，再把这段记忆异步塞进向量库（<code>IndexMemoryFileToVector</code>），这样日后能"按意思"搜到它，而不是靠精确关键词。</li>
+</ol>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">对话进行中</span><span class="n-sub">originalMessages + newMessages</span></div>
+  <div class="arrow">▶</div>
+  <div class="node volatile"><span class="n-title">抽取记忆</span><span class="n-sub">flushConversation · Gemini3Flash</span></div>
+  <div class="arrow">▶</div>
+  <div class="node stable"><span class="n-title">落盘 md</span><span class="n-sub">memory/YYYY-MM-DD.md</span></div>
+  <div class="arrow">▶</div>
+  <div class="node stable"><span class="n-title">入向量库</span><span class="n-sub">IndexMemoryFileToVector</span></div>
+  <div class="arrow">▶</div>
+  <div class="node"><span class="n-title">回注 context</span><span class="n-sub">&lt;user_memory&gt; 块</span></div>
+</div>
+<figcaption>长期记忆的一条完整流水线：<code>flushConversation</code> 抽取 → <code>appendMemoryContent</code> 追加进 <code>memory/YYYY-MM-DD.md</code> → <code>IndexMemoryFileToVector</code> 入库 → 下次会话经 <code>context_info</code> 的 <code>&lt;user_memory&gt;</code> 回到短期 context。这条链把"会忘的对话"变成"捞得回的知识"。</figcaption>
+</figure>
+
+<p>还有一条"更慢的整理"链路顺带一提：每满 <code>15</code> 轮用户对话（<code>memoryMDUpdateRoundInterval = 15</code>），系统会再用 <code>Gemini3Flash</code> 把零散的日记增量重写进一份总的 <code>MEMORY.md</code>——相当于每隔一阵把散记整理成"目录"。本课先聚焦按天 flush 这条主线，知道有这么条整理链路即可。</p>
+
+<h2>三、最关键的设计决策：为什么是 SafeGo + WithoutCancel</h2>
+
+<p>这一节是本课的"为什么"最深的地方，慢慢来。落盘要调小模型抽取，是有耗时的。如果<strong>让用户干等着落盘完成才看到回复</strong>，体验就毁了。所以第一个决定很自然：<strong>异步</strong>——开一个后台协程（Go 里叫 goroutine）去写，主流程立刻返回。mino_server 用的是团队封装的安全启协程工具 <code>concurrency.SafeGo</code>（比裸 <code>go func()</code> 多了 panic 兜底）。</p>
+
+<p>但异步会踩一个所有新手都会踩的坑。用 ELI14 讲：</p>
+
+<div class="leak">
+在服务端，每个请求都拴着一根"引线"叫 <strong>context（ctx）</strong>——请求一结束，系统就<strong>拉断这根引线</strong>（cancel），拴在上面的一切正在进行的活儿都会被喊停。这本是好事：用户关掉页面，就别再白白烧算力了。可我们的落盘协程<strong>也拴在这根引线上</strong>——用户一看到回复、请求一收尾，引线被拉断，落盘里那个抽取记忆的 LLM 调用就被<strong>中途掐死</strong>，记忆没写成，agent 又"失忆"了。
+</div>
+
+<p>解药只有一句代码，但它是这节课最值得记住的一行——用 <code>context.WithoutCancel</code> 从原 ctx <strong>派生出一根"剪断了取消信号、但保留其它信息的新引线"</strong>，让落盘协程拴在新引线上：</p>
+
+<pre><code>// 使用 WithoutCancel 创建独立 context，避免请求结束后
+// context canceled 导致 LLM 调用失败
+detachedCtx := ctx.CopyFromCtx(context.WithoutCancel(ctx))
+concurrency.SafeGo(detachedCtx, func() {
+    // ... runMemoryFlush 在这里安心跑完抽取 + 落盘 ...
+})</code></pre>
+
+<p>类比就一句话：<strong>你下班走了（请求结束），但托付实习生留下来把今天的日记写完（脱钩的 detachedCtx），他不会因为你走了就停笔。</strong> 注意 <code>WithoutCancel</code> 只剪掉"取消信号"，用户身份、追踪信息这些还照常带着——所以落盘协程仍知道"这是谁的记忆、该写到哪"。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="主请求 ctx 在请求结束时被 cancel，脱钩的 detachedCtx 继续把 flush 跑完">
+  <!-- divider: request end -->
+  <line x1="470" y1="30" x2="470" y2="270" class="dgm-edge" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text class="dgm-muted" x="470" y="24" font-size="12" text-anchor="middle">← 请求结束（ctx 被 cancel）</text>
+
+  <!-- track A: main request ctx -->
+  <text class="dgm-text" x="40" y="86" font-size="13" font-weight="700">主请求 ctx</text>
+  <rect class="dgm-node" x="140" y="66" width="300" height="34" rx="6" stroke-width="1.5"/>
+  <text class="dgm-text" x="290" y="88" font-size="12" text-anchor="middle">用户请求 → 生成回复 → 返回</text>
+  <line x1="440" y1="83" x2="466" y2="83" class="dgm-edge" stroke-width="2"/>
+  <text class="dgm-accent-text" x="500" y="88" font-size="18" font-weight="700">✗ 到此被掐断</text>
+
+  <!-- track B: detached ctx -->
+  <text class="dgm-text" x="40" y="200" font-size="13" font-weight="700">detachedCtx</text>
+  <text class="dgm-muted" x="40" y="216" font-size="10.5">WithoutCancel</text>
+  <!-- fork from track A down to B -->
+  <line x1="300" y1="100" x2="300" y2="180" class="dgm-edge" stroke-width="1.5" style="stroke:var(--good)"/>
+  <path d="M300 182 l-6 -11 l12 0 z" style="fill:var(--good)"/>
+  <text class="dgm-muted" x="308" y="150" font-size="10.5" text-anchor="start">SafeGo 派生</text>
+  <rect class="dgm-good-node" x="140" y="182" width="470" height="34" rx="6" stroke-width="1.5"/>
+  <text class="dgm-text" x="375" y="204" font-size="12" text-anchor="middle">抽取记忆 → 写 memory/YYYY-MM-DD.md → 入向量库</text>
+  <text x="632" y="204" font-size="16" font-weight="700" style="fill:var(--good)">✓</text>
+</svg>
+</div>
+<figcaption>同一根引线的两种命运：主请求 ctx 在请求结束时被 <code>cancel</code>（上轨断在虚线处）；而 <code>context.WithoutCancel</code> 派生的 <code>detachedCtx</code> 剪掉了取消信号，落盘协程越过虚线把 <code>executeMemoryFlush</code> 安心跑完。这就是"人走了，日记照写完"。</figcaption>
+</figure>
+
+<h2>四、写下来，还要找得回来（闭环）</h2>
+
+<p>光写进硬盘还不算"有记忆"——得能在<strong>下次</strong>用上。这就是为什么落盘后还要 <code>IndexMemoryFileToVector</code>：把记忆送进向量库，日后可以"按意思"检索（比如用户问"我上次说想用什么数据库"，即使措辞完全不同也能捞到那条记录）。</p>
+
+<p>捞回来之后走哪条路回到对话？还记得第 04 课讲的 <code>context_info</code> 吗——那条 developer 消息里有一个专门的 <code>&lt;user_memory&gt;</code> 块。相关记忆就是从这里重新<strong>回注</strong>进短期 context 的。于是闭环合上了：</p>
+
+<div class="pipeline">
+  <div class="node volatile"><span class="n-title">这次对话</span><span class="n-sub">会被压缩遗忘</span></div>
+  <div class="arrow">▶</div>
+  <div class="node stable"><span class="n-title">flush 落盘</span><span class="n-sub">存进日记本</span></div>
+  <div class="arrow">▶</div>
+  <div class="node"><span class="n-title">下次会话</span><span class="n-sub">&lt;user_memory&gt; 回注</span></div>
+  <div class="arrow">↻</div>
+</div>
+
+<p>这里藏着一个精妙的成本设计：记忆<strong>不是</strong>每轮都全量塞回 context（那会白白烧 token，还触发上一课的压缩）。它平时躺在硬盘和向量库里<strong>不占预算</strong>，只在需要时把<em>相关的一小段</em>经 <code>&lt;user_memory&gt;</code> 带回来。省钱和"记得住"这两件看似矛盾的事，就是靠"短期 / 长期分离"同时拿到的。</p>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>短期记忆（short-term context）</dt>
+<dd>本次请求发给模型的 <code>messages</code> 数组，即当前 context 窗口。会被上一课的 <code>summarize</code> 有损压缩，越攒越贵。一块随时被擦的白板。</dd>
+<dt>长期记忆（long-term memory）</dt>
+<dd>被单独抽取、落到沙盒硬盘的 markdown 文件 <code>memory/YYYY-MM-DD.md</code>，并索引进向量库。不会被压缩，只在需要时按语义检索回注。一本擦不掉的日记本。</dd>
+<dt>flush（记忆落盘）</dt>
+<dd>在压缩<strong>之前</strong>触发（<code>memoryFlushBeforeCompression</code>）：用 <code>Gemini3Flash</code> 从对话里抽出值得长期保存的信息，追加写入当天 md 文件并入向量库。核心函数 <code>executeMemoryFlush</code> / <code>flushConversation</code>。</dd>
+<dt>context.WithoutCancel</dt>
+<dd>从一个 ctx 派生出"剪掉取消信号、但保留其余信息"的新 ctx。用它让异步落盘协程不因请求结束被 cancel 而中途失败。配合 <code>concurrency.SafeGo</code> 使用。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：落盘明明用 <code>SafeGo</code> 开了后台协程异步跑了，为什么还非得套一层 <code>context.WithoutCancel</code>？直接把请求的 <code>ctx</code> 传进协程不行吗？</summary>
+<div class="answer">
+<p><strong>不行，会失忆。</strong> 关键在于 ctx 会传播"取消信号"：用户一看到回复、请求一收尾，这根 ctx 就被 cancel。异步协程虽然还活着，但它手里拿的如果是<em>原 ctx</em>，那么它正在做的抽取记忆的 LLM 调用会因为 ctx 被取消而立刻失败——记忆没写成。</p>
+<p><code>context.WithoutCancel</code> 派生的新 ctx <strong>剪断了取消信号</strong>（但保留用户身份、trace 等信息），落盘协程拴在它上面就能越过"请求结束"这条线把活儿干完。一句话：<em>SafeGo 解决"不阻塞用户"，WithoutCancel 解决"别被请求结束连累"，两个坑要分别堵。</em></p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：既然记忆都抽出来了，为什么不干脆每轮请求都把整份 <code>MEMORY.md</code> 塞回 context 里，省得还要向量库检索这么麻烦？</summary>
+<div class="answer">
+<p>因为那会同时踩中前几课的两个坑。第一，<strong>烧钱</strong>：记忆是长期累积的，全量塞回意味着每一轮都为一大堆"这次用不上"的旧记忆付 token 费。第二，<strong>反而更容易被压缩</strong>：记忆越堆越多，短期 context 越快撑到上一课的压缩红线，结果又被有损压缩糊掉——绕了一圈回到原点。</p>
+<p>所以正确做法是"分层 + 按需检索"：长期记忆平时躺在硬盘/向量库<strong>不占预算</strong>，只在与当前问题相关时，把<em>那一小段</em>经 <code>&lt;user_memory&gt;</code> 回注。这才是"既记得住又负担得起"。</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>好了，到这一课为止，你亲手装的这台 agent 已经<strong>会说</strong>（messages）、<strong>会做</strong>（工具）、<strong>不失控</strong>（编排与可靠性）、还<strong>记得住</strong>（压缩 + 长期记忆）。它看起来相当完整了。</p>
+<p>可是——你今天往 prompt 里改了一句话、给记忆抽取换了个更小的模型，<strong>你怎么知道它没因此变笨？</strong> 服务端代码有 CI 帮你把关每次改动，那 agent 这种"输出天生带随机性"的东西，它的"CI"又长什么样？下一课就来装最后两个零件里的第一个：评估。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>本课收束：记忆不是一个大盒子，而是"会忘的短期"和"记得住的长期"两层，靠 <code>flush</code> 在压缩前抢救、靠 <code>WithoutCancel</code> 保证抢救不被请求结束打断、靠向量库和 <code>&lt;user_memory&gt;</code> 日后捞回。下一课：<a href="11-eval-basics.html">11 怎么知道 Agent 没变笨：评估入门</a>。返回 <a href="index.html">课程门户</a>。</p>
+</footer>
+</main>
+</body>
+</html>

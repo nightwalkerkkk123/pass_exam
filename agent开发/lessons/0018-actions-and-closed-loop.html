@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0018 · 从根因到行动项与全链路闭环</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0018 课 · 预计 15 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>从根因到行动项与全链路闭环</h1>
+
+<p class="lede">你在 <a href="0017-badcase-root-cause.html">0017（根因定位）</a>学过怎么把一条 badcase 稳定追到责任模块——但追到责任模块只是把手指点在了伤口上。这节课往下走一步，也是本系列的最后一步：把"原因"翻译成能被系统消费的<strong>行动项</strong>，再把行动项接进一条<strong>从线上 Bug 到生产反馈、再回流成研发资产</strong>的全链路闭环。做完这一步，前面十一节讲的一切才真正开始复利。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">离线评测出分</span><span class="n-sub">用例→Scorer→报告</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">根因定位</span><span class="n-sub">0017 责任模块</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">行动项</span><span class="n-sub">§08 结构化任务</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">反馈生产</span><span class="n-sub">§09 变研发资产</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">回归入库</span><span class="n-sub">下一版跑它</span></div>
+  <span class="arrow">↺</span>
+  <div class="node stable"><span class="n-title">再次评测</span><span class="n-sub">闭环回到起点</span></div>
+</div>
+<figcaption>这条链末尾那个 <span aria-hidden="true">↺</span> 是全课的题眼：绿色两格（离线出分 / 再次评测）是 <code>memory_eval</code> 已经能做的，红色三格（行动项 / 反馈生产 / 回归入库）是把评测从"出分工具"变成"评测<strong>体系</strong>"必须长出的东西。<a href="0013-from-cases-to-eval-system.html">0013</a> 给评测体系下的定义就是这条闭环，本课把它补全。</figcaption>
+</figure>
+
+<h2>一、先承认服务端直觉对的部分——然后看它在哪漏水</h2>
+
+<p>在服务端世界，一次质量活动的收尾动作非常干脆：跑完测试、出一份报告（覆盖率、失败清单、性能数字），把报告发到群里或贴到 PR 上，这件事就算<strong>交付</strong>了。报告是终点，因为下游都是确定性的——失败的断言指向确定的代码行，谁修、怎么修几乎不需要额外翻译。</p>
+
+<p>这个"报告即交付"的直觉，正是 0007「eval ≈ CI」那副地图最后一处、也是最隐蔽的一处漏水。</p>
+
+<div class="leak">
+服务端里"报告发出去就算交付"——因为报告里的每条失败都自带确定的修复入口。Agent 评测里这句话直接失效：一份写着"<code>rejection</code> 类通过率从 82% 掉到 71%"的报告，<strong>没有告诉任何人该改哪个 Prompt、加哪条规则、谁来改、改完怎么验</strong>。评测的真正交付物<strong>不是报告，是回流进研发流程的资产</strong>——行动项、回归用例、根因标签、Judge 校准样本。停在报告上的评测，只是给团队增加了一份没人消费的 KPI 报表。这也是 <a href="0008-scorers-and-judge-trust.html">0008</a> 结尾埋的那句"这套 eval 下一步该长出的东西"的答案：下一步长出的，就是这条闭环。
+</div>
+
+<h2>二、把"原因"翻译成"动作"：结构化行动项（§08）</h2>
+
+<p>根因定位（0017）给出的是一句判断，比如"责任模块 = 退款 Skill，问题枚举 = 关键工具未调用"。但如果优化建议只写到"优化 Prompt""加强训练""提升准确率"这种<strong>泛化表述</strong>，它就无法被任何人、任何系统消费——没人知道范围多大、证据在哪、具体动作是什么、归谁、怎么算修好了。</p>
+
+<p>正确做法是把建议产出成<strong>结构化行动项</strong>：一个能被工单系统、看板、配置平台、研发流水线直接读取的标准任务对象。它至少要钉死六个字段：</p>
+
+<table>
+<thead><tr><th>字段</th><th>回答的问题</th><th>反例（泛化表述）</th><th>正例（结构化）</th></tr></thead>
+<tbody>
+<tr><td><strong>失败范围</strong></td><td>影响哪一类场景、多少样本？</td><td>"退款有问题"</td><td>"已发货退款场景，v1.8 Prompt 下 23 例跳过订单状态校验"</td></tr>
+<tr><td><strong>证据</strong></td><td>凭什么这么判？</td><td>"感觉不太对"</td><td>Trace 显示未调订单查询工具，直接承诺退款</td></tr>
+<tr><td><strong>具体动作</strong></td><td>到底改什么？</td><td>"优化 Prompt"</td><td>在退款 Skill 加"先查订单状态"硬前置 + 未调用则拦截</td></tr>
+<tr><td><strong>owner</strong></td><td>谁来改？</td><td>（空）</td><td>算法 / 工程 / 运营 / 业务，按根因绑定角色</td></tr>
+<tr><td><strong>验收方式</strong></td><td>怎么算修好？</td><td>"再看看"</td><td>该场景连续成功率 ≥ 阈值，且入回归集不再复现</td></tr>
+<tr><td><strong>优先级</strong></td><td>多急？</td><td>"尽快"</td><td>P0（资损风险）→ 阻塞发布</td></tr>
+</tbody>
+</table>
+
+<p>记住这句定性：<strong>建议是质量工程里的标准任务对象</strong>，不是报告里的一段自然语言总结。它和你熟悉的 bug 单、需求卡是同一类东西——可分派、可追踪、可关闭。</p>
+
+<p>而且不同根因对应的优化手段本就不同，甚至可以分成四个等级，用不同的成本和响应速度处理：</p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">配置/规则可调</span><div class="track"><div class="val read" style="width:25%">最轻</div></div></div>
+  <div class="row"><span class="lbl">Prompt/知识库修订</span><div class="track"><div class="val out" style="width:50%">较轻</div></div></div>
+  <div class="row"><span class="lbl">工具/流程工程改造</span><div class="track"><div class="val base" style="width:75%">较重</div></div></div>
+  <div class="row"><span class="lbl">模型/训练数据迭代</span><div class="track"><div class="val write" style="width:100%">最重</div></div></div>
+</div>
+<figcaption>不同根因对应不同"手段等级"（原文示例，仅供参考）：运营可配置的问题不该拖到"加强训练"，需要训练迭代的问题也别指望改句 Prompt 蒙混。把行动项按等级分派，是让闭环<strong>高效</strong>而非仅仅"转起来"的关键。等级顺序越靠下，修复成本与周期越高。</figcaption>
+</figure>
+
+<h2>三、全链路闭环：终点不是报告，是持续运转（§09）</h2>
+
+<p>0017 解决"为什么错"，§08 解决"怎么修"，§09 要解决的是第三个、也最容易被跳过的问题——<strong>如何持续运转</strong>。一套完整评测系统不能停在报告和建议上，而要把每一条 badcase 变成下面这一串东西，并在<strong>每个版本周期</strong>里持续跑：</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node volatile"><span class="n-title">badcase</span><span class="n-sub">线上/离线</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">bug / 工单</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">配置变更</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">知识库修订</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">训练数据</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">回归用例</span><span class="n-sub">下一版必跑</span></div>
+</div>
+<figcaption>一条 badcase 至少可以生产多类反馈（原文举出 bug/工单、配置变更、知识库修订、训练数据、回归用例等）。一个完整的 Agent 评测平台通常包含约<strong>九个能力模块</strong>（用例/数据集、执行、Trace 采集、评分、根因、行动项、反馈生产、资产库、发布联动）；本课聚焦其中把评测"接回研发"的后半段。</figcaption>
+</figure>
+
+<p>为了让反馈可持续生产，平台可以把它组织成<strong>三条生产线</strong>（原文），大致对应"快修类 / 知识与规则类 / 模型与数据类"三种反馈的不同处理节奏——轻的当天配置上线，重的进训练周期。三条线共享同一个 badcase 任务表与同一套根因 Pipeline，避免线上长尾和研发主动排查各搞一套。</p>
+
+<h2>四、发布门禁 × 线上灰度：至少三类信号联动</h2>
+
+<p>闭环里有一个必须联动、不能各看各的关键接缝：<strong>离线门禁</strong>和<strong>线上灰度</strong>。离线评测通过，绝不等于线上一定变好。发布阶段至少要同时跟踪三类信号：</p>
+
+<table>
+<thead><tr><th>信号类别</th><th>看什么</th><th>典型指标</th></tr></thead>
+<tbody>
+<tr><td><strong>离线质量信号</strong></td><td>发布前的门禁</td><td>核心场景通过率、P0 风险数、关键工具参数正确率</td></tr>
+<tr><td><strong>线上体验信号</strong></td><td>用户在真实流量里的感受</td><td>转人工率、重复追问率、投诉率、满意度变化</td></tr>
+<tr><td><strong>业务结果信号</strong></td><td>钱和事有没有办成</td><td>任务完成率、工单闭环率、退款/赔付成功率</td></tr>
+</tbody>
+</table>
+
+<div class="leak">
+服务端的发布判据是单向的：CI 绿 → 部署 → 完事，绿灯之后没有回头路要监控。Agent 的发布判据必须<strong>双向对账</strong>：<strong>如果离线质量提升、但线上关键信号反而恶化，应当触发回滚或降级</strong>。"离线分涨了就发、发完不管"这个 CI 式直觉在这里会害你——离线集永远只是真实分布的一个切片，模型可能恰好过拟合了你的 golden set 而在长尾上退步。门禁和灰度必须联动成一个闭合回路，而不是两个各自为政的关卡。
+</div>
+
+<p>要让这套联动可信，还有一条工程前提：<strong>Trace 必须当作被测 Agent 的标准能力</strong>，而不是出事后临时补的日志。Trace 至少要稳定记录工具名、入参、返回值、时间戳、耗时和错误；复杂 Agent 还应记录计划、检索、Guardrail。同时<strong>执行环境要隔离</strong>——多个用例共享状态会导致分数不可复现，那样整条闭环采集到的都是脏数据。</p>
+
+<h2>五、反馈生产：闭环里最容易被低估的一环（§09）</h2>
+
+<p>原文把话说得很重：反馈生产是评测闭环里<strong>最容易被低估</strong>的一环。发现问题本身不会自动带来收益——只有把线上失败沉淀成可复用资产，下一轮迭代成本才会下降。而"无差别地把所有失败塞进回归集"是另一个极端：回归集会无限膨胀、跑批越来越慢、信噪比越来越低。</p>
+
+<p>所以反馈生产要有<strong>入库标准</strong>，满足条件才入库：</p>
+
+<table>
+<thead><tr><th>入库门槛</th><th>为什么</th></tr></thead>
+<tbody>
+<tr><td>失败可复现，或至少有稳定 Trace + 人工确认</td><td>一次性环境抖动不该污染回归集</td></tr>
+<tr><td>期望行为明确，能写成规则 / Judge 标准 / 人工验收标准</td><td>写不出判据的样本没法自动回归</td></tr>
+<tr><td>根因标签清楚，能归到具体能力域或业务流程</td><td>无标签样本无法统计、无法分派</td></tr>
+<tr><td>样本有代表性，能覆盖一类问题</td><td>覆盖"一类"而非"一条"，才有回归价值</td></tr>
+<tr><td>已脱敏，符合隐私与数据合规</td><td>线上样本入库的合规底线</td></tr>
+</tbody>
+</table>
+
+<p>入库之后还要持续做<strong>样本治理</strong>，控制回归集规模与新鲜度：</p>
+
+<ul>
+<li>同一问题簇只保留<strong>代表例</strong>，避免同类样本堆积；</li>
+<li>关键 <strong>P0 / P1</strong> 风险样本<strong>长期保留</strong>，不因通过就下线；</li>
+<li>已<strong>稳定多版本通过且风险低</strong>的样本，降级为抽样集，不必每次全量跑；</li>
+<li>线上出现<strong>新分布</strong>时，用主动学习优先抽取<strong>低置信、高影响、新意图、新工具、新知识点</strong>的样本进入人工确认。</li>
+</ul>
+
+<h2>六、终点站：可复用的质量资产库</h2>
+
+<p>闭环转够多圈，最终会沉淀出一套<strong>可复用的质量资产库</strong>——这才是评测平台真正要产出的东西：</p>
+
+<table>
+<thead><tr><th>资产</th><th>是什么</th><th>本系列哪一节在造它</th></tr></thead>
+<tbody>
+<tr><td>用例库</td><td>覆盖核心路径与高风险边界的样本</td><td><a href="0015-eval-set-as-quality-asset.html">0015</a> 数据集建设</td></tr>
+<tr><td>Trace 库</td><td>可复现的执行轨迹记录</td><td>本课 §四（Trace 作标准能力）</td></tr>
+<tr><td>根因标签库</td><td>稳定、可统计、能指向 owner 的标签体系</td><td><a href="0017-badcase-root-cause.html">0017</a> 根因定位</td></tr>
+<tr><td>修复建议库</td><td>结构化行动项的沉淀</td><td>本课 §二</td></tr>
+<tr><td>Judge 校准集</td><td>用人工标注反向校准裁判的金标样本（Kappa）</td><td><a href="0008-scorers-and-judge-trust.html">0008</a> / <a href="0016-scoring-tiers-and-human-routing.html">0016</a></td></tr>
+<tr><td>回归集</td><td>下一版必跑、防止旧病复发的样本</td><td>本课 §五</td></tr>
+</tbody>
+</table>
+
+<p>一句话点透价值：<strong>质量资产越厚，Agent 迭代越不靠个人经验和临时救火。</strong>没有资产库，每次出问题都是从零开始查、从零开始救；有了它，团队的排查能力、判据、标准全部被固化下来、可被新人和自动化直接复用。</p>
+
+<h2>七、难点与解法（§10）：闭环的成败判据</h2>
+
+<p>原文用整整一节，把评测体系的成败收敛成一句极其克制的话：</p>
+
+<div class="keydef">
+<dl>
+<dt>评测体系的成败判据</dt>
+<dd>取决于它能否在<strong>跨团队协作</strong>中<strong>长期、稳定</strong>地产出<strong>可执行行动项</strong>。必须把低分稳定转成行动项，否则再精细的分数也只是报表。</dd>
+</dl>
+</div>
+
+<p>拆开看，这句话有三个负重的词。<strong>跨团队</strong>：行动项要分派给算法、工程、运营、业务四类不同 owner，标签和字段必须是他们都认的口径。<strong>长期稳定</strong>：不是发布前突击一次，而是每个版本周期持续运转、资产持续累积。<strong>可执行行动项</strong>：回到 §二那六个字段——范围、证据、动作、owner、验收、优先级，缺一格就退化成"报表"。这三个词，恰好也是本课前六节的浓缩。</p>
+
+<h2>八、落到你的项目：mino 处在闭环的哪一格</h2>
+
+<div class="good">
+<strong>诚实映射（严格区分"mino 真有"与"方法论层、mino 未实现"）：</strong>
+<p><strong>方法论层、mino 未实现（整节几乎都在这一层，明写，不虚构任何闭环符号）：</strong>mino <strong>没有</strong>闭环运营子系统——没有离线门禁 × 线上灰度联动，没有把 badcase 翻译成结构化行动项的产出、没有反馈生产线、没有入库标准、没有样本治理、也没有质量资产库（用例库 / Trace 库 / 根因标签库 / 修复建议库 / Judge 校准集 / 回归集）。本课 §二~§七讲的整条链，在 mino 代码里都不存在，别去代码里找它们。</p>
+<p><strong>mino 真有的，只有闭环里"离线出分"这一格，外加一个 Trace 雏形：</strong>
+<ul>
+<li><strong>离线出分（真有）</strong>：<code>cmd/memory_eval</code> 有那条"执行用例 → 采集回复 → 评分 → 聚合"的骨架——<code>runner.go</code> 的 <code>runAll/runCase</code>、<code>sendAndCollect</code> 取回复、<code>scorer.go</code> 的 <code>score</code> 算三维明细、<code>report.go</code> 的 <code>AvgScore/PassRate</code> 聚合。这一格结结实实存在，0007/0008 已逐符号核实。</li>
+<li><strong>Trace 雏形（部分符合本课方向）</strong>：<code>memory_eval</code> 已把 <code>ToolCalls</code> 记录采下来，并落盘每条完整 JSON（含 <code>Response</code>、<code>ToolCalls</code>、<code>JudgeReasoning</code>），还有 <code>results/index.html</code> 供人工翻看。这符合本节"把 Trace 当标准能力、留下可复现证据"的方向——但它<strong>没有</strong>接进任何线上信号联动，也没有回流进回归入库流程。</li>
+</ul></p>
+<p><strong>诚实结论：</strong>mino 只点亮了闭环里"离线评测出分"这一格，后面"根因 → 行动项 → 反馈生产 → 回归入库"整条链<strong>尚未长出</strong>。这不是缺陷指控，而是一个可核实的坐标：它是一个能出分的评测程序，还不是一套能持续运转的评测体系——而本系列从 0013 到 0018，讲的正是从前者长成后者缺的每一块。</p>
+</div>
+
+<h2>九、关键定义</h2>
+
+<dl class="keydef">
+<dt>结构化行动项（structured action item）</dt>
+<dd>把根因翻译成的、能被工单/看板/配置平台/研发流水线直接消费的标准任务对象，至少含失败范围、证据、具体动作、owner、验收方式、优先级六个字段。是质量工程里的标准任务对象，不是报告里的自然语言总结。</dd>
+<dt>全链路闭环（closed loop）</dt>
+<dd>把 badcase 持续转化为 bug/工单/配置变更/知识库修订/训练数据/回归用例，并在每个版本周期持续运行的流程。评测平台的终点不是报告，而是这条闭环产出的可复用研发资产。</dd>
+<dt>门禁 × 灰度联动</dt>
+<dd>发布阶段把离线门禁与线上灰度绑成一个回路，至少跟踪离线质量 / 线上体验 / 业务结果三类信号；离线提升但线上关键信号恶化时触发回滚或降级。</dd>
+<dt>入库标准 / 样本治理</dt>
+<dd>反馈进回归集的准入条件（可复现、期望明确、根因清楚、有代表性、已脱敏）与规模控制策略（同簇留代表例、P0/P1 长期保留、稳定低风险降抽样、新分布主动学习优先）。</dd>
+<dt>质量资产库</dt>
+<dd>闭环最终沉淀的可复用资产：用例库、Trace 库、根因标签库、修复建议库、Judge 校准集、回归集。资产越厚，迭代越不靠个人经验和临时救火。</dd>
+</dl>
+
+<h2>十、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：根因定位得出结论"责任模块 = 退款 Skill，问题枚举 = 关键工具未调用"，工程师照着写了一条建议："优化退款 Skill 的 Prompt。"按本课标准，这条建议为什么<strong>还不能算行动项</strong>？把它补成合格的结构化行动项，至少要补哪几格？</summary>
+<div class="answer">
+<p><strong>因为它停在了"泛化表述"，无法被任何系统或人消费。</strong>"优化 Prompt"没说清失败范围多大、证据是什么、具体改什么、归谁、怎么算修好、多急——工单系统读不了，owner 也认领不了。它是报告里的一句话，不是"质量工程里的标准任务对象"。</p>
+<p>补成结构化行动项至少要钉死六格：<strong>失败范围</strong>（如"已发货退款场景、v1.8 Prompt 下 23 例"）、<strong>证据</strong>（Trace 显示未调订单查询工具就承诺退款）、<strong>具体动作</strong>（在退款 Skill 加"先查订单状态"硬前置 + 未调用则拦截）、<strong>owner</strong>（算法或工程）、<strong>验收方式</strong>（该场景连续成功率达标且入回归集不再复现）、<strong>优先级</strong>（涉资损 → P0，阻塞发布）。补齐这六格，它才能被工单/看板/流水线直接消费。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：一次发布，离线评测核心场景通过率从 88% 涨到 93%，团队据此判定"质量提升，可以全量发布"。灰度期间却发现转人工率和投诉率同时上升。按本课的"门禁 × 灰度联动"，正确处置是什么？这暴露了哪个服务端直觉的失效？</summary>
+<div class="answer">
+<p><strong>正确处置：触发回滚或降级，而不是全量发布。</strong>本课的判据是三类信号必须联动对账——离线质量信号涨了，但线上体验信号（转人工率、投诉率）恶化，说明"离线提升但线上关键信号恶化"，这正是原文明确规定要回滚/降级的情形。</p>
+<p>失效的服务端直觉是"<strong>CI 绿了就发、发完不用管</strong>"。服务端发布是单向的，绿灯之后没有回头路要监控；但离线集永远只是真实分布的一个切片，模型可能过拟合了 golden set 而在长尾退步。所以 Agent 的发布必须双向：门禁看离线，灰度看线上，两者绑成闭合回路。只看离线分做发布判断，等于用一个切片替真实流量下结论。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（延伸）：有人说"我们每次评测都产出一份很详细的报告发到群里，还配了根因分析，这已经是完整的评测体系了。"用本课 §一的漏水点和 §十的成败判据反驳他。</summary>
+<div class="answer">
+<p>他混淆了"报告"和"资产"。§一的漏水点说得很直白：<strong>评测的交付物不是报告，是回流进研发的资产</strong>。一份再详细、再带根因的报告，如果没有被翻译成带 owner 和验收方式的结构化行动项、没有沉淀成回归用例和根因标签库，那它就只是一份"没人消费的 KPI 报表"——下一个版本出同样的问题，还得从零再查一遍，成本一分没降。</p>
+<p>§十的成败判据把这一点钉死：评测体系的成败取决于能否在<strong>跨团队协作中长期、稳定地产出可执行行动项</strong>。"发报告 + 附根因"顶多完成了"出分"和"定位"两格，缺了"行动项 → 反馈生产 → 回归入库"这条让改进复利、让能力沉淀成资产的闭环。所以它是一个能出分、能定位的评测<strong>程序</strong>，还不是一套能持续运转、跨团队产出行动项的评测<strong>体系</strong>——这也正是 mino 现在所处的坐标。</p>
+</div>
+</details>
+</div>
+
+<h2>十一、系列收束</h2>
+
+<p>到这里，评测这条支线走完了。回看这一路：0007 把 eval 摆成新的 CI，0008 学会不轻信那把叫 <code>llmJudge</code> 的尺子，0013 把"跑几条 case"抬升成分层、多层评判的体系雏形，0014 补上统计门禁，0015 把评测集当质量资产来建，0016 给评分分层并路由到人工，0017 把 badcase 追到责任模块，0018 把责任翻译成行动项、再接进全链路闭环。<a href="0013-from-cases-to-eval-system.html">0013</a> 给评测体系下的定义——"把不稳定行为持续收敛成可发布质量的闭环"——到这节才算被填满。</p>
+
+<p>但评测从来不是孤岛。它是 Agent 四支柱里的一根，和上下文工程、工具与 Skill、记忆系统紧紧咬合：你评的是它们的产物，你的行动项又反过来改造它们。所以本系列的最后一步，是把这根"评测支柱"接回四支柱的全景里去看。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让我带你把 mino 的 <code>cmd/memory_eval</code> 摊开，对照这节的六格闭环，逐格确认它点亮了哪一格、还差哪几格。<strong>下一课（本系列收束回看）：<em><a href="0012-four-pillars-coupling-review.html">0012 四支柱耦合复盘</a>——把评测这根支柱接回上下文、工具/Skill、记忆的全景，看四者如何互相咬合。</em></strong></p>
+</footer>
+</main>
+</body>
+</html>

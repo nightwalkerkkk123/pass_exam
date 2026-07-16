@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>08 · 可靠性：超时、报错、坏 JSON，Agent 怎么自愈</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 如何长出一个 Agent · 第 08 课 · 预计 10 分钟 · 上一课 <a href="07-orchestration-loop-control.html">07 编排</a> · 下一课 <a href="09-context-overflow-compaction.html">09 Context 会爆炸</a> · <a href="index.html">返回门户</a></p>
+
+<h1>可靠性：超时、报错、坏 JSON，Agent 怎么自愈</h1>
+
+<p class="lede">上一课我们让循环"听话"了——知道什么时候再走一步、什么时候停。可现实世界会捣乱：工具会卡住不动、大模型会累到罢工、它偶尔还会吐出你根本看不懂的乱码参数。这一课只讲一件事：一个生产级 agent 怎么<strong>不被这些意外打死，反而能自己爬起来</strong>。</p>
+
+<div class="chain in">
+<p>上一课我们把循环控制住了：能多步、能并行、也知道何时停。但那套逻辑有个隐含前提——<strong>每一步都顺利跑完</strong>。真实生产里这个前提天天被打破：工具会卡在半路、大模型会过载返回 429、模型给工具填的参数 JSON 是坏的。循环控制得再漂亮，只要一步崩了没人接住，整个任务就断在那里。</p>
+</div>
+
+<h2>一、先认清：会出岔子的一共就三类</h2>
+
+<p>先讲个生活里的画面。你开了一家小小的<strong>调度中心</strong>，接到客人的活儿之后，派"跑腿小哥"（工具）出门去办。办事的路上，会出三种岔子：</p>
+
+<ul>
+<li>🐢 <strong>小哥卡住了</strong>——出门后半天没回音，你不知道他是在路上还是出事了。（工具超时）</li>
+<li>🥵 <strong>你自己的大脑累瘫了</strong>——派活儿要先动脑子想"下一步派谁"，可这个"大脑"（大模型）此刻过载，直接跟你说"忙，等会儿再来"。（模型 429 / 过载）</li>
+<li>✍️ <strong>派工单写成了鬼画符</strong>——大脑给小哥写的任务单是一堆乱码，小哥根本看不懂该干嘛。（坏 JSON 参数）</li>
+</ul>
+
+<p>一个业余的调度中心，遇到任何一种岔子都会当场瘫痪。一个靠谱的，会为每一种岔子准备一套"接住 + 补救"的动作。mino_server 的 agent 正是这么干的。我们先看它把工具结果送回大模型之前，是怎么<strong>逐个分诊</strong>的——这张图是这一课的地图。</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">模型这一轮吐出的每个工具调用，先过一道"分诊台" <code>categorizeToolCalls</code></div>
+  <div class="down">▼</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">✅ 参数是合法 JSON · 工具名有效</div>
+      <div class="step action">照常执行 <code>executeToolCallGroups</code></div>
+      <div class="down">▼</div>
+      <div class="step terminal">结果经 <code>AddToolResult</code> 塞回消息 → 下一轮模型看得见</div>
+    </div>
+    <div class="branch">
+      <div class="label">✍️ 坏 JSON 参数 / 坏工具名</div>
+      <div class="step action"><code>jsonrepair</code> 尝试修，但仍标 <code>IsInvalid</code>、<strong>不执行</strong></div>
+      <div class="down">▼</div>
+      <div class="step terminal">把"修复提示"当工具结果回注 → 模型自己改对重发</div>
+    </div>
+    <div class="branch">
+      <div class="label">🐢 工具卡住：太久没吐进度</div>
+      <div class="step action">心跳超时 <code>forwardToolEvents</code> → <code>ErrToolCallEventIntervalTimeout</code></div>
+      <div class="down">▼</div>
+      <div class="step terminal">超时不上抛：就地吞成一条失败工具结果，经 <code>AddToolResult</code> 回注 → 模型下一轮据此重试</div>
+    </div>
+    <div class="branch">
+      <div class="label">📦 上下文太长</div>
+      <div class="step action">工具执行里<strong>唯一</strong>会向上抛的错</div>
+      <div class="down">▼</div>
+      <div class="step">抛 <code>ErrLLMPromptTooLong</code> → 交主循环压缩（→ 第 09 课）</div>
+    </div>
+  </div>
+</div>
+<figcaption>四种结局，两种性格：绿色是"自愈闭环"（把结果或修复提示塞回给模型继续），灰色是"往上抛给上层处理"。分诊在 <code>categorizeToolCalls</code>，执行在 <code>executeToolCallGroups</code>，塞回结果靠 <code>AddToolResult</code>（均在 <code>toolcall.go</code> / <code>message.go</code>）。</figcaption>
+</figure>
+
+<p>下面三节，我们一种岔子一种岔子地拆。</p>
+
+<h2>二、超时：不是"跑太久"，而是"太久没动静"</h2>
+
+<p>先纠正一个几乎所有人的第一直觉。你以为"超时"是这样：<em>"这个工具跑超过 5 分钟，就掐掉。"</em> 错。mino_server 用的是另一种，更聪明。</p>
+
+<p>ELI5：你点了外卖，平台不会说"下单超过 40 分钟自动取消"——万一这单本来就远呢？它盯的是<strong>骑手还动不动</strong>：只要地图上小蓝点在挪、状态在更新，就一直等；要是小蓝点<strong>卡在原地好几分钟一点动静都没有</strong>，才判断"出事了"。</p>
+
+<p>工具也一样。工具在干活时会不停往外吐"进度事件"（心跳）。系统盯的不是"总共跑了多久"，而是<strong>"距离上一个事件过了多久"</strong>。只要还在吐事件，就说明它活着，继续等。这叫<strong>事件间隔超时</strong>。真实实现是：转发工具事件的那段代码 <code>forwardToolEvents</code>，每次去等下一个事件时，都给它套一个带超时的 context；一旦在超时窗口内没等到任何事件，就抛出 <code>ErrToolCallEventIntervalTimeout</code>。</p>
+
+<div class="keydef">
+<dl>
+<dt>事件间隔超时（心跳超时）</dt>
+<dd>不看工具的总耗时，只看"两次进度事件之间的静默时长"。只要工具还在吐事件就一直等；静默超过阈值才判超时。生产 agent 用它，是因为工具的正常耗时天差地别，用固定总时长很容易冤枉长任务。</dd>
+</dl>
+</div>
+
+<h3>分层：不同任务，给不同的耐心</h3>
+
+<p>既然是"多久没动静才算死"，那对"本来就长、中途长时间静默很正常"的任务，就得给更长的耐心。mino_server 按任务类型分了好几档超时值——普通工具最短，重活儿最长：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="分层超时：普通工具 5.5 分钟，slides 10 分钟，子代理/ACP/文件传输各 30 分钟">
+  <!-- 参考线：默认 5.5min，x = 190 + 5.5*16 = 278 -->
+  <line class="dgm-edge" x1="278" y1="30" x2="278" y2="258" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text class="dgm-accent-text" x="278" y="22" font-size="11" text-anchor="middle">默认 5.5 min（心跳基线）</text>
+
+  <!-- 行 1：普通工具 5.5min -> 88px -->
+  <text class="dgm-text" x="10" y="64" font-size="13" font-weight="700">普通工具</text>
+  <rect class="dgm-node" x="190" y="47" width="88" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="286" y="64" font-size="12">5.5 min</text>
+
+  <!-- 行 2：slides 10min -> 160px -->
+  <text class="dgm-text" x="10" y="109" font-size="13" font-weight="700">slides 生成/编辑</text>
+  <rect class="dgm-accent-node" x="190" y="92" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="358" y="109" font-size="12">10 min</text>
+
+  <!-- 行 3：子代理 30min -> 480px -->
+  <text class="dgm-text" x="10" y="154" font-size="13" font-weight="700">子代理 (sub agent)</text>
+  <rect class="dgm-accent-node" x="190" y="137" width="480" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="424" y="154" font-size="12">30 min</text>
+
+  <!-- 行 4：ACP 30min -->
+  <text class="dgm-text" x="10" y="199" font-size="13" font-weight="700">ACP 执行</text>
+  <rect class="dgm-accent-node" x="190" y="182" width="480" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="424" y="199" font-size="12">30 min</text>
+
+  <!-- 行 5：文件传输 30min -->
+  <text class="dgm-text" x="10" y="244" font-size="13" font-weight="700">桌面文件传输</text>
+  <rect class="dgm-accent-node" x="190" y="227" width="480" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="424" y="244" font-size="12">30 min</text>
+
+  <!-- x 轴刻度 -->
+  <line class="dgm-edge" x1="190" y1="266" x2="670" y2="266" stroke-width="1"/>
+  <text class="dgm-muted" x="190" y="282" font-size="10" text-anchor="middle">0</text>
+  <text class="dgm-muted" x="350" y="282" font-size="10" text-anchor="middle">10</text>
+  <text class="dgm-muted" x="510" y="282" font-size="10" text-anchor="middle">20</text>
+  <text class="dgm-muted" x="670" y="282" font-size="10" text-anchor="middle">30 min</text>
+</svg>
+</div>
+<figcaption>五档"事件间隔超时"，都在 <code>toolcall.go</code>：<code>defaultToolCallTimeout</code>=5.5min、<code>slidesGenerateToolCallTimeout</code>=10min、<code>subAgentToolCallTimeout</code>=30min、<code>acpExecToolCallTimeout</code>=30min、<code>fileTransferToolCallTimeout</code>=30min。<code>forwardToolEvents</code> 按 <code>types.TaskType(工具名)</code> 选出对应那一档喂进去。</figcaption>
+</figure>
+
+<p>注意这条隐藏原则：<strong>耐心只放大，不缩小</strong>。为什么？看最典型的桌面文件传输——它是"一次性长等待"：传输那几分钟里<strong>整条链路阻塞、根本不发心跳</strong>。如果还用 5.5 分钟的普通超时，会被误判成"卡死"而掐掉一个其实正在正常传输的任务。所以它必须把超时独立设到 30 分钟——让<strong>服务端的事件间隔超时与客户端的总传输超时对齐（均 30 min）</strong>，两侧任一调整都要同步对方，宁可多等，不可错杀。</p>
+
+<h2>三、大模型过载：够条件就第一时间换模型，否则不原地重试</h2>
+
+<p>第二类岔子最反直觉：出问题的不是工具，是<strong>你的"大脑"自己</strong>。派活儿之前得先问大模型"下一步干嘛"，可大模型是共享的、有并发上限的资源。高峰期它会直接返回 <strong>429（请求太多）</strong>或 <strong>overloaded（过载）</strong>——相当于客服热线占线。</p>
+
+<p>ELI5：电话占线时有一条"VIP 专线"约定——只有那位特定的 VIP（slides 编辑 + 当前用 Gemini3.1Pro-Preview）占线，总机才会<strong>第一时间</strong>把他转到备用坐席（换成更轻的 Gemini3Flash）并用新线重打；不是这位 VIP 的话，占线就是占线，这一次<strong>直接失败、不原地重拨</strong>。真正"挂了再拨几次"的重拨，留给<strong>线路本身抖了一下</strong>（连接类错误）那种情况。mino_server 就是这个顺序：先看能不能换模型，不能换也就不重试。</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">大模型返回 429 / overloaded —— <code>determineNextStep</code> 的重试分诊 <code>RetryIf</code></div>
+  <div class="down">▼</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">是 slides 编辑 <strong>且</strong> 当前是 Gemini3.1Pro-Preview</div>
+      <div class="step action"><code>tryModelFallback</code>：换成 Gemini3Flash，并写进 Redis 记住</div>
+      <div class="down">▼</div>
+      <div class="step terminal">用新模型重试</div>
+    </div>
+    <div class="branch">
+      <div class="label">其它对话（非 slides 场景）的 429 / overloaded</div>
+      <div class="step"><code>RetryIf</code> 返回 false，<strong>不重试</strong>，第一次失败即抛 <code>ErrAgentMaxConsecutiveExceptionsReached</code></div>
+    </div>
+    <div class="branch">
+      <div class="label">连接类抖动 <code>IsErrLLMCall</code>/<code>IsErrLLMConnection</code></div>
+      <div class="step">重试，给下游 provider 池再来一次的机会</div>
+    </div>
+    <div class="branch">
+      <div class="label">上下文过长 <code>PromptTooLong</code></div>
+      <div class="step">不重试，直接交主循环去压缩</div>
+    </div>
+  </div>
+  <div class="down">▼</div>
+  <div class="step">试满上限（普通 <strong>3</strong> 次 / slides <strong>5</strong> 次 + 100ms 间隔）仍失败 → 抛 <code>ErrAgentMaxConsecutiveExceptionsReached</code></div>
+</div>
+<figcaption>过载处理的分诊，全在 <code>agent.go</code> 的 <code>determineNextStep</code> 里用 <code>retry.Do</code> 包住 <code>requestAgentMessage</code>。次数常量 <code>maxConsecutiveExceptions</code>=3；slides 模式提到 5 次。换模型逻辑在 <code>tryModelFallback</code>。</figcaption>
+</figure>
+
+<p>这里最值得学的，是 <code>tryModelFallback</code> 的<strong>克制</strong>。你可能以为"过载就自动换个模型顶上"是通用策略，但代码里它有两道硬门槛：<strong>必须是 slides 编辑模式，且当前模型恰好是 Gemini3.1Pro-Preview</strong>，两条都满足才降级到更轻的 Gemini3Flash。为什么这么保守？因为换模型会悄悄改变输出质量和风格，不是能随便做的事——只有在"这个特定重活儿已知会顶不住、而轻模型够用"的场景里才开这个口子。换过之后还会把选择写进 Redis，避免同一次任务里反复横跳。这就是工程和"想当然"的区别：<em>自愈动作本身也有代价，得挑场景。</em></p>
+
+<p>还有个细节值得记：<code>PromptTooLong</code>（上下文太长）在这里被特意<strong>排除在重试之外</strong>——重试同样长的上下文只会同样失败，纯属浪费。它被直接交给主循环去做压缩。这正好接上第四类岔子和下一课。</p>
+
+<h2>四、坏 JSON：不硬着头皮执行，而是"退回让它自己改"</h2>
+
+<p>第三类岔子最微妙。大模型给工具填参数，是靠"生成一段 JSON"完成的。可它偶尔会生成<strong>坏掉的 JSON</strong>——常见原因是这轮输出被 <code>max output tokens</code> 截断了，JSON 写到一半就断了。</p>
+
+<p>ELI5：学生交上来的作业，格式全乱、有一半没写完。一个坏老师会硬按乱七八糟的内容去批改，结果错上加错；一个<strong>好老师</strong>会把作业退回去，附一张纸条写清"你这里格式错了、可能是写超了被截断，请改对再交一次"。mino_server 选的是好老师这条路。</p>
+
+<p>具体机制分两步，都在 <code>categorizeToolCalls</code> 里：</p>
+
+<ol>
+<li><strong>先试着修</strong>：参数为空就补成 <code>{}</code>；否则用 <code>jsonrepair.RepairJSON</code> 尝试把坏 JSON 补全。</li>
+<li><strong>修好了也不执行</strong>：对非流式工具，即便修复成功，也把这次调用标成 <code>IsInvalid</code>，<strong>拒绝执行</strong>，并附上一段很长的理由。</li>
+</ol>
+
+<p>关键在第二步的"拒绝执行"。为什么修好了还不跑？因为自动修复是<strong>启发式的猜测</strong>——它能补全括号，但猜不准你到底想传什么值。拿一份"猜出来的参数"去执行真实工具（可能是删文件、发消息），比不执行危险得多。而且坏 JSON 往往是"输出被截断"的信号，盲目执行等于拿半截指令干活。</p>
+
+<p>那不执行怎么往下走？靠<strong>回注</strong>。系统把那段理由包成一条 <code>Role=Tool</code> 的工具结果（<code>InvalidToolTaskData</code>，错误码 <code>ErrAgentInvalidToolCall</code>），通过 <code>AddToolResult</code> 塞进消息列表。下一轮，模型就能<strong>读到自己上次错在哪</strong>，据此改对、重发。整段理由大意是：</p>
+
+<blockquote style="border-left:4px solid var(--muted);background:var(--code-bg);padding:.7em 1em;margin:1.2rem 0;border-radius:0 6px 6px 0;font-size:.92em;">
+"工具参数 JSON 格式有误（可能是上一次调用触发了 max output tokens 截断）。系统已成功修复 JSON，但为避免执行错误的调用，<strong>并未执行</strong>。请检查并改正原始参数后重试——可以减少输出、拆成多次工具调用，或用别的方式修好参数 JSON。"
+</blockquote>
+
+<div class="keydef">
+<dl>
+<dt>自愈回注（error re-injection）</dt>
+<dd>出错时不直接终止任务，而是把"错在哪、怎么改"写成一条工具结果，回灌给模型当下一轮的输入，让模型自己纠正后重来。坏 JSON、坏工具名、被锁工具走的都是这条路——它们统一被标 <code>IsInvalid</code>、串行处理、<code>IsFinish=false</code>（不结束对话）。</dd>
+<dt>可增不可减（超时）</dt>
+<dd>分层超时的调整方向只能变长、不能变短：因为把长任务的超时调短会误杀正在正常运行的任务（尤其是传输期不发心跳的一次性长等待）。</dd>
+</dl>
+</div>
+
+<p>坏工具名、以及"已经执行过又被重复调用的 doc agent"，走的是同一条回注路——理由分别是 <code>"invalid tool name, please check the tool name"</code> 和"别再重复调 doc agent"。规律很清楚：<strong>凡是模型自己能改对的错，都退回去让它改，而不是让整个任务崩掉。</strong></p>
+
+<h2>五、还剩一个错，它谁也接不住</h2>
+
+<p>你可能注意到：工具执行时冒出的错，绝大多数都被<strong>就地吞掉</strong>了（记个日志、变成一条失败结果回注给模型），<strong>唯独一个</strong>会一路向上抛——就是 <code>ErrLLMPromptTooLong</code>（错误码 <code>100007009</code>，定义在 <code>biz/pkg/errcode/const.go</code>）。</p>
+
+<p>为什么它特殊？因为它不是"某个工具的锅"，而是"整段对话已经太长，塞不进模型的上下文窗口了"。这不是重试或改参数能救的——上下文长度是整场对话攒出来的账。所以它冒泡到 <code>runConductorStep</code>，记一句日志 <code>"context too long, will compress via summary"</code>，然后交给主循环去做<strong>压缩</strong>。前面重试那节我们也见过它：<code>PromptTooLong</code> 被特意排除在重试之外，正是同一个原因。</p>
+
+<h2>六、自测</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：模型吐了个坏 JSON，系统已经用 <code>jsonrepair</code> 修好了。既然修好了，为什么还坚持"不执行"，而是回注让模型自己改？</summary>
+<div class="answer">
+<p><strong>因为"修好格式"不等于"猜对意图"。</strong> <code>jsonrepair</code> 能补全括号、闭合字符串，让 JSON 在<em>语法上</em>合法，但它无法知道模型原本想传什么<em>值</em>——被截断丢掉的那部分内容，修复器只能瞎猜。</p>
+<p>拿一份"语法对但内容是猜的"参数去执行真实工具（可能是删文件、发消息、花钱调下游），后果比"不执行"严重得多。更重要的是：坏 JSON 常常是 <code>max output tokens</code> 截断的<strong>信号</strong>，盲目执行等于拿半截指令干活。所以正确动作是标 <code>IsInvalid</code> 不执行，把理由回注，让真正知道意图的模型（可能拆成多次调用、减少输出）自己改对重发。这就是"自愈回注"胜过"硬着头皮跑"的地方。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：桌面文件传输为什么要单独给 30 分钟超时，还要求这个值不能往小调？普通工具 5.5 分钟不行吗？</summary>
+<div class="answer">
+<p>不行。关键在于 mino_server 的超时是<strong>"事件间隔超时"</strong>——盯的是"多久没吐进度事件"，不是"总共跑了多久"。而文件传输是一次性长等待：传输那几分钟里<strong>整条链路阻塞、根本不发心跳</strong>。</p>
+<p>如果沿用 5.5 分钟的普通阈值，系统会因为"5.5 分钟没收到任何事件"而误判它卡死，掐掉一个其实<em>正在正常传输</em>的任务。所以它必须独立设成 30 分钟：让<strong>服务端事件间隔超时与客户端总传输超时对齐（均 30 min）</strong>，两侧任一调整都要同步对方，宁可多等，不可错杀。这就是"耐心可增不可减"原则——把长任务的超时调短，只会制造冤案。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3：一个普通（非 slides）对话，请求大模型时连续撞上 429 过载。系统会自动换一个模型来救场吗？最终会怎样？</summary>
+<div class="answer">
+<p><strong>不会换模型。</strong> <code>tryModelFallback</code> 有两道硬门槛：必须是 <em>slides 编辑模式</em>、且当前模型恰好是 <em>Gemini3.1Pro-Preview</em>。普通对话两条都不满足，函数直接返回 false，不做任何模型降级。</p>
+<p>它<strong>也不会原地重试</strong>。<code>RetryIf</code> 遇到 429/overloaded 会先调 <code>tryModelFallback</code>，非 slides 返回 false；而 429/overloaded 又不属于 <code>IsErrLLMCall</code>/<code>IsErrLLMConnection</code> 那类连接错误，于是 <code>RetryIf</code> 返回 false——<strong>第一次失败就停，只尝试 1 次</strong>，随即被包成 <code>ErrAgentMaxConsecutiveExceptionsReached</code>，这一步失败。所谓"重试 3 次（<code>maxConsecutiveExceptions</code>=3）/ slides 5 次 + 100ms 间隔"只在 <code>RetryIf</code> 返回 true 时才生效，即连接类抖动（<code>IsErrLLMCall</code>/<code>IsErrLLMConnection</code>），或 slides 编辑 + Gemini3.1Pro-Preview 触发换模型成功的情况。</p>
+<p>这道题想让你记住的，是自愈动作的<strong>克制</strong>：换模型会改变输出质量，不是免费的，所以只在极窄的已知场景里才开。别把"过载就换模型"当成通用银弹。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>这一课的一句话</strong>：可靠性不是"永不出错"，而是<strong>为每一类错都准备一个接得住、还能爬起来的动作</strong>——工具卡住用分层的心跳超时兜、模型过载按场景处理（够条件就第一时间克制地换模型、不够条件就不重试，真正的原地重试留给连接类抖动）、坏参数退回让模型自愈。绝大多数错都被就地消化成"下一轮的输入"，唯独上下文太长这一个，得靠压缩。
+</div>
+
+<div class="chain out">
+<p>有了这三套自愈机制，agent 的<strong>单轮</strong>终于稳了：一步崩了有人接、能重来。可你注意到那个甩不掉的例外了吗——<code>ErrLLMPromptTooLong</code>。每接住一次错、每回注一段修复提示、每塞回一次工具结果，消息数组就<strong>又长一截</strong>。对话越拉越长，这个数组只增不减，迟早撑爆模型的上下文窗口。到那时，光靠"接住错误"已经不够了，得动手把历史<strong>压缩</strong>掉。这就是下一课要解决的痛。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>收束：可靠 = 给每类失败配一个自愈动作，把错误变成下一轮的输入，而不是任务的终点。下一课 <a href="09-context-overflow-compaction.html">09 · Context 会爆炸：聊着聊着为什么就崩了</a>——我们直面那个只增不减的消息数组。读到卡壳，回会话里问你的 AI 老师，可要求 ELI5 或看真实代码。 · <a href="index.html">返回门户</a></p>
+</footer>
+</main>
+</body>
+</html>

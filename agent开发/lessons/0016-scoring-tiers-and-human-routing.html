@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0016 · 评分的分层与人工路由</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0016 课 · 预计 14 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>评分的分层与人工路由</h1>
+
+<p class="lede">你在 <a href="0015-eval-set-as-quality-asset.html">0015</a> 学过：评测集是要长期养护的质量资产，用例不是写一次就完事。这节课往下走一步——用例进来之后，<strong>谁来打分</strong>？<a href="0008-scorers-and-judge-trust.html">0008</a> 已经把"一把叫 <code>llmJudge</code> 的尺子会犯错、要跨厂商、失灵回退 0.5"讲透了。但 0008 只解决了"这一把尺子可不可信"。真正的评分系统面对的是更大的问题：<strong>什么时候该用规则、什么时候该请裁判、什么时候必须叫人来</strong>。这节课只讲这件事——把评分从"一把尺子"升级成"一套分层 + 路由 + 校准的判分体系"。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">规则 Scorer</span><span class="n-sub">硬条件·确定性·优先级最高</span></div>
+  <span class="arrow">→ 判不了 →</span>
+  <div class="node volatile"><span class="n-title">LLM-as-Judge</span><span class="n-sub">语义/策略·可漂·要校准</span></div>
+  <span class="arrow">→ 仍不确定 →</span>
+  <div class="node"><span class="n-title">Human Scorer</span><span class="n-sub">定标准·校准·争议·高风险终判</span></div>
+</div>
+<figcaption>三类评分器<strong>优先级从高到低</strong>：能写成代码判的硬条件（工具/状态/字段/禁用动作）由规则主判；判不了的语义与策略才请 LLM-as-Judge；两者都搞不定的，才路由给人。越往右越贵、越慢、越不可复现——所以设计目标是<strong>让尽量多的用例在左边就分流掉</strong>。</figcaption>
+</figure>
+
+<h2>一、先承认服务端直觉对的部分</h2>
+
+<p>做过服务端质量的人对"分层拦截"并不陌生：一个请求进来，先过廉价的参数校验，再过中等成本的业务规则，最后才进昂贵的下游依赖。<strong>把便宜且确定的检查放前面，把贵且模糊的检查放后面</strong>——这个成本梯度的直觉，在评分系统里完全成立。规则 Scorer 就是那层参数校验，LLM-as-Judge 是业务规则，人工是那个你不想每次都惊动的下游专家。</p>
+
+<p>0008 里的 <code>memory_eval</code> 已经天然带着这个梯度：<code>containsScore</code>（子串匹配）、<code>toolCallScore</code>（是否调写文件工具）是确定性规则，<code>llmJudge</code>（跨厂商 gemini）是模型裁判。<strong>规则在前、裁判在后、裁判失灵退 0.5</strong>——这已经是两层评分的雏形。这一节要做的，是把这个梯度补成完整的三层，并回答一个 0008 没碰的问题：那第三层"人"，到底在什么时刻、按什么信号被叫进来？</p>
+
+<div class="leak">
+服务端的"分层拦截"有一个免费假设：<strong>每一层的判定本身都是可信的</strong>——参数校验不会看走眼，业务规则不会犯困，下游返回的就是真值。所以分层只是<strong>省成本</strong>，不改变"判得对不对"。评分系统里这个假设塌了：中间那层（LLM-as-Judge）<strong>判据本身会错、会漂、会偏袒自己</strong>（0008 已证）。于是评分的分层不只是省成本，它还多背了一个服务端从不需要的任务——<strong>给不可信的中间层配一个"什么时候不信它、改叫人"的路由</strong>。分层 + 人工路由，是一体两面。
+</div>
+
+<h2>二、三类评分器：优先级与分工</h2>
+
+<p>原则一句话：<strong>规则看"硬条件是否满足"，Judge 看"语义/策略是否合理"，能写成代码的项由规则主判。</strong>三者的边界不是模糊的品味问题，而是可以逐项划清的：</p>
+
+<table>
+<thead><tr><th>评分器</th><th>判什么</th><th>典型判据</th><th>成本 / 可复现</th><th>什么时候用</th></tr></thead>
+<tbody>
+<tr><td><strong>规则 Scorer</strong><br>（优先级最高）</td><td>硬条件是否满足</td><td>工具调没调、状态对不对、字段结构、有没有触碰禁用动作</td><td>低 / 完全可复现</td><td>凡能写成代码的，一律规则主判</td></tr>
+<tr><td><strong>LLM-as-Judge</strong></td><td>语义 / 策略是否合理</td><td>解释质量、策略妥当性、是否礼貌、是否答非所问</td><td>中 / 会漂</td><td>规则判不了的语义维度；高风险、抽检、低置信、变更观察期追加</td></tr>
+<tr><td><strong>Human Scorer</strong><br>（优先级最低、最贵）</td><td>业务口径 / 终判</td><td>依赖内部政策、实时活动规则、需要人定口径的争议</td><td>高 / 不可复现但权威</td><td>不承担日常全量；只在四类环节出场（见第四节）</td></tr>
+</tbody>
+</table>
+
+<p>注意这里的用词是"<strong>主判</strong>"和"<strong>追加</strong>"：规则不是唯一评分器，而是<strong>能判的部分它先判死</strong>；Judge 不是无条件全量上，而是在规则覆盖不到、且样本值得花这个成本时才追加。能由规则和 Judge 稳定判断的，就<strong>不长期依赖人工</strong>——人是最后一道，不是第一道。</p>
+
+<h2>三、好的 LLM-as-Judge 不是"请从 1 到 5 打分"</h2>
+
+<p>0008 教了怎么<em>不信任</em>裁判（跨厂商、约束输出、失灵回退）。但那都是"裁判已经写好了，如何防它出错"。这一节补上更前置的一问：<strong>一个值得被信任的裁判，本身该怎么建？</strong>只写一句"请从 1 到 5 给这个回复打分"是最糟的裁判——标准全在模型脑子里，你既不知道它凭什么打这个分，也没法复现和校准。好的 LLM-as-Judge <strong>至少</strong>要具备五件东西：</p>
+
+<table>
+<thead><tr><th>要素</th><th>为什么必须有</th></tr></thead>
+<tbody>
+<tr><td><strong>明确评分标准</strong>（每档可执行）</td><td>"4 分和 3 分差在哪"必须写成可判的条款，否则分数是玄学，无法复现也无法对齐</td></tr>
+<tr><td><strong>输出 reason</strong></td><td>不只给分，还要给判定理由——用于事后定位，以及第 07 章按现象把 badcase 聚类</td></tr>
+<tr><td><strong>few-shot 示例</strong></td><td>尤其要放<strong>边界样本</strong>和判定的 COT 逻辑，让裁判在"擦边球"上向人的口径收敛</td></tr>
+<tr><td><strong>周期性校准</strong></td><td>Judge 与人工复核一致率达到约 <strong>85%（参考值）</strong>后，才让它进入日常自动化</td></tr>
+<tr><td><strong>偏差治理</strong></td><td>同模型/同系列会偏爱自己风格的回答；引入<strong>多个不同 LLM 做对抗打分</strong>来稀释这种偏袒</td></tr>
+</tbody>
+</table>
+
+<div class="leak">
+服务端的断言写完就永久生效——你从不会"每季度校准一次 <code>assertEqual</code>"。LLM-as-Judge 不行：模型会升级、Prompt 会改、线上分布会漂，<strong>今天一致率 85% 的裁判，三个月后可能已经和人对不齐了</strong>。所以裁判不是一次性资产，而是要像监控一样<strong>周期性重新校准</strong>的活物。0008 的"跨厂商 + 回退 0.5"只防住了裁判<em>失灵</em>，防不住裁判<em>慢慢跑偏</em>——跑偏要靠这一节的金标校准集(见第六节)来抓。
+</div>
+
+<h2>四、人工不是全量兜底，是四个精确落点</h2>
+
+<p>新手最容易犯的错，是把人工评分当成"自动分不确定时随便叫人看看"。人贵、慢、不可复现，<strong>不适合承担日常全量打分</strong>。它只在四类<strong>高杠杆</strong>环节出场：</p>
+
+<ol>
+<li><strong>建集定标准</strong>：新建评测集时，由业务先定"期望行为"和打分口径。例如"订单已发货、用户拒收、商家参与运费险且商品属特殊类目"时，Agent 该解释退款路径、建议拒收、转人工，还是先发售后单——这种口径机器定不了，必须人先拍板。</li>
+<li><strong>校准 Judge</strong>：抽一批样本人工先判，反过来对齐裁判。Judge 能判"回复礼不礼貌、解释清不清楚"，但判不了"叠加优惠后的差价该不该补偿"这类依赖内部政策和实时活动规则的问题。</li>
+<li><strong>处理争议样本</strong>：规则和 Judge 结论打架、或多个 Judge 分歧明显的，由人做终判。</li>
+<li><strong>抽查高风险场景</strong>：赔付、隐私、合规、投诉升级——<strong>即使自动评分通过，也要定期人工复核</strong>。这类场景错一次的代价，远高于人工抽查的成本。</li>
+</ol>
+
+<h3>人工评分路由：不由单一 Judge 阈值决定</h3>
+
+<p>关键设计决策在这里：<strong>是否叫人，不应该只看 LLM-Judge 的分数阈值</strong>。"分数低于 0.6 就叫人"是错的路由——它既会放过那些分数不低但风险极高的样本，又会为大量分数偏低但其实明确失败的样本白白惊动人工。正确做法是一套<strong>多信号的"人工评分路由"</strong>：</p>
+
+<table>
+<thead><tr><th>触发条件</th><th>为什么要人</th></tr></thead>
+<tbody>
+<tr><td><strong>自动评分不确定</strong>：分数落在通过/不通过边界附近、置信度低、reason 含糊、多个 Judge 分歧明显</td><td>机器自己都拿不准，硬判就是赌博</td></tr>
+<tr><td><strong>变更观察期</strong>：新模型 / 新 Prompt / 新工具 Schema / 新业务活动上线</td><td>抽样进人工，用来发现自动评分的盲区并顺手校准 Judge</td></tr>
+<tr><td><strong>规则与 Judge 冲突</strong>：确定性规则和裁判给出相反结论</td><td>由人做终判，并把口径"回收"沉淀成新规则或 few-shot</td></tr>
+</tbody>
+</table>
+
+<p>看清楚：这三条里只有第一条和分数沾边，而且是"落在边界"而非"低于阈值"。变更观察期是按<strong>事件</strong>触发的，规则冲突是按<strong>一致性</strong>触发的——都和"分数高低"无关。这就是"路由 ≠ 阈值"的全部含义。</p>
+
+<h2>五、分层筛查：把 badcase 层层滤出来</h2>
+
+<p>把上面三类评分器串成一条<strong>流水作业线</strong>，就是评分执行阶段的"分层筛查"。目的有两个：一是<strong>省</strong>——先用低成本、确定性强的能力快速分流，别让每条样本都去挨一次昂贵的完整判定；二是<strong>控质量</strong>——控制进入第 07 章 RCA（根因定位）的样本纯度，别把一堆明显通过/明显失败的噪声也塞进去浪费人力。</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">一批评测样本进来</div>
+  <div class="down">↓</div>
+  <div class="step action"><strong>粗筛层</strong>：规则 Scorer（必要时配轻量 Judge）→ 快速分成 明显通过 / 明显失败 / 存疑</div>
+  <div class="down">↓ 只有"存疑"往下走</div>
+  <div class="step action"><strong>精判层</strong>：完整规则 + 完整 Judge，加载完整评分标准 → 确认是否 badcase，产出【问题分类 / 现象 / 置信度 / 判定依据】</div>
+  <div class="down">↓ 高风险 / 低置信 / 规则与 Judge 冲突 / 口径未固化</div>
+  <div class="step terminal"><strong>人工复核层</strong>：Human Scorer 终判，口径回收</div>
+</div>
+<figcaption>三层筛查：粗筛用最便宜的确定性能力把"明显通过/明显失败"一刀切走，只把存疑样本喂给精判层；精判层产出结构化诊断；只有真正难的样本才到人。<strong>越往下样本越少、单条越贵</strong>——成本花在刀刃上。</figcaption>
+</figure>
+
+<p>把这张图和第一节那条"规则→Judge→人工"的横向管线对照：<strong>它俩是同一件事的两个视角</strong>。横向管线讲"一条样本该由谁判"，分层筛查讲"一批样本如何被逐层过滤"。三层的评分器，就是三层筛查的执行体。</p>
+
+<h2>六、Judge 金标校准集：让"可信"变成可测量的数字</h2>
+
+<p>"周期性校准"不能靠感觉。要维护一套 <strong>Judge 金标校准集</strong>（一批有人工标准答案的样本），并在<strong>每次 Judge Prompt / 模型版本升级</strong>时，固定产出三类统计指标——这是判断"新裁判能不能上线"的门禁：</p>
+
+<table>
+<thead><tr><th>指标</th><th>测的是什么</th><th>不达标意味着</th></tr></thead>
+<tbody>
+<tr><td><strong>与人工一致性</strong>（Kappa 系数）</td><td>Judge 判定和人工标注的吻合程度（也可是多个大模型对抗打分的一致性）</td><td>裁判和人的口径分家了，日常自动化的结论不可信</td></tr>
+<tr><td><strong>高风险样本漏判率</strong></td><td>合规、资损、隐私场景里"该拦没拦"的比例</td><td>最危险的场景正在被放过——这类漏判的代价远超普通误判</td></tr>
+<tr><td><strong>边界样本稳定性</strong></td><td>同批样本重复评测时的分数波动幅度</td><td>裁判在擦边球上"抛硬币"，同一样本今天过明天挂</td></tr>
+</tbody>
+</table>
+
+<div class="leak">
+服务端的回归测试，"稳定性"是免费的——同一断言重复跑一万次结果一致，你根本不会去测"断言的重复波动"。LLM-as-Judge 把这个也掀翻了：<strong>同一个裁判对同一个边界样本重复打分，分数会抖</strong>。于是评分系统要专门测一个服务端闻所未闻的指标——<em>裁判自己的重复稳定性</em>。这就是为什么用 Kappa 这种"扣除随机一致后的吻合度"来衡量，而不是简单看"对了几条"：随机也能蒙对一部分，Kappa 把那部分扣掉，才看得清裁判是真的和人对齐，还是碰运气。
+</div>
+
+<h2>七、评分输出：不是 pass/fail，是结构化诊断</h2>
+
+<p>最后一个升级，改的是评分的<strong>输出形态</strong>。0008 的评分终点是一个浮点分过 0.6 阈值得到 pass/fail——这对"能不能上线"够用，但对"上线后怎么修"完全不够。一个 FAIL 只告诉你"这条错了"，不告诉你"错在哪类现象"。所以评分结果应该输出四样东西：</p>
+
+<dl class="keydef">
+<dt>问题分类（现象层）</dt>
+<dd>如"事实性错误 / 答非所问 / 过度承诺"。<strong>注意：这是现象，不是根因，也不等于责任模块</strong>——它由产品、业务、研发提前协商定义，是给第 07 章根因定位当"现象入口"用的。</dd>
+<dt>问题现象</dt>
+<dd>具体表现的描述，帮人和后续 Agent 快速看懂这条错成什么样。</dd>
+<dt>置信度</dt>
+<dd>自动评分自己有多确信——这正是"人工路由"里判断该不该叫人的关键信号。</dd>
+<dt>判定依据</dt>
+<dd>规则命中了哪条、Judge 的 reason 是什么——让每个结论可追溯、可复核。</dd>
+</dl>
+
+<p>为什么值得多输出这三样？因为第 07 章做根因定位时，能<strong>基于"现象入口"收敛候选模块</strong>，而不是对所有模块无差别排查。"答非所问"和"过度承诺"指向的可疑模块根本不同——现象分类就是那张把排查范围先缩小的地图。<strong>0016 的结构化输出，是 0017 根因定位的入场券。</strong></p>
+
+<h3>假阳性要追加过程型 + 风险型检查</h3>
+
+<p>还记得 <a href="0013-from-cases-to-eval-system.html">0013</a> 讲的<strong>假阳性</strong>吗——最终回复看起来正确，但执行路径偏离或带风险。只看输出的评分器抓不到它。对这类 case，评分要专门<strong>追加两类检查</strong>：<strong>过程型检查</strong>（该调的工具调没调、SOP 顺序对不对，即评 Trace）和<strong>风险型检查</strong>（有没有碰合规/资损/隐私的红线）。这就是为什么"结果对"不能直接判 PASS——过程和风险这两关不过，照样是 badcase。</p>
+
+<h2>八、落到 mino：它走到了哪一层</h2>
+
+<div class="good">
+<strong>诚实映射（严格区分"mino 真有"与"方法论层、mino 未实现"）：</strong>
+<p><strong>mino 真有的（承接 0008，只用已核实符号）：</strong></p>
+<ul>
+<li><strong>规则 + 单一跨厂商 Judge 的两层评分</strong>已经存在：<code>containsScore</code>（<code>scorer.go:45-88</code> 子串匹配）、<code>toolCallScore</code>（<code>scorer.go:90-125</code> 是否调写文件工具）是确定性规则层；<code>llmJudge</code>（<code>scorer.go:192-237</code>）是模型裁判层。这正是本节"规则 Scorer 在前、LLM-as-Judge 在后"的雏形。</li>
+<li><strong>已用跨厂商规避自评偏差</strong>：被测 <code>model=claude-sonnet-4-5</code>（<code>config.go:41</code>），裁判 <code>judge=google/gemini-2.5-flash</code> 走 OpenRouter（<code>config.go:42</code>、<code>config.go:50</code>）。</li>
+<li><strong>已有失灵回退中性分 0.5</strong>：无 key（<code>scorer.go:196-198</code>）、调用出错（<code>scorer.go:208-210</code>）、解析失败（<code>scorer.go:225-227</code>）。</li>
+<li><strong>已把能规则化的对抗类交给机械判据</strong>：Python 侧 <code>memory_eval_suite/</code> 对 <code>category==5</code> 用"无高分即通过"（<code>scorer.py:86-92</code>，<code>adversarial_threshold=0.5</code> 见 <code>config.py:20</code>），基于 LoCoMo。这是"能规则化就别请裁判"的活例。</li>
+<li>落盘每条完整 JSON（含 Response / ToolCalls / JudgeReasoning）+ <code>results/index.html</code> 人工翻看界面——这给"人工复核"提供了原始素材，但界面本身只是翻看，不是路由。</li>
+</ul>
+<p><strong>mino 还没有的（方法论层，未实现，绝不虚构）：</strong></p>
+<ul>
+<li><strong>人工评分路由</strong>：mino 靠 <code>runner.go:92</code> 一句 <code>if Score&lt;0.6</code> 直接判 FAIL，没有"边界/低置信/冲突→叫人"的路由；results 界面能给人看，但不会主动把样本<em>路由</em>给人。</li>
+<li><strong>Judge 金标校准集</strong>（Kappa / 一致率 85% / 漏判率 / 边界稳定性）：没有任何"用人工标注反过来度量裁判"的机制。</li>
+<li><strong>多 Judge 对抗打分</strong>：只有单一 gemini 裁判，没有多模型对抗稀释偏差。</li>
+<li><strong>结构化问题分类输出</strong>：评分结果是分数 + JudgeReasoning，没有"现象分类 / 置信度 / 判定依据"的结构化字段。</li>
+<li><strong>假阳性的过程型 / 风险型专项检查</strong>：<code>toolCallScore</code> 只判"有没有调写文件工具"，不是完整的 SOP 顺序与风险红线检查。</li>
+</ul>
+<p><strong>诚实结论：</strong>mino 有"规则 + 单一跨厂商 Judge"的两层评分（0008 已逐符号核实），还<strong>没有</strong>"三层筛查 + 人工路由 + 可校准 Judge + 结构化诊断输出"的完整评分体系。这节课讲的，正是从"两层评分"长成"评分体系"缺的那几块。</p>
+</div>
+
+<h2>九、关键定义</h2>
+
+<dl class="keydef">
+<dt>三类评分器（rule / LLM-as-Judge / human）</dt>
+<dd>优先级从高到低：规则判硬条件（工具/状态/字段/禁用动作，确定性），Judge 判语义与策略（会漂、要校准），人工只在建集、校准、争议、高风险四类环节出场。能写成代码的由规则主判。</dd>
+<dt>人工评分路由（human routing）</dt>
+<dd>决定"何时叫人"的多信号策略，<strong>不由单一 Judge 分数阈值决定</strong>：自动评分不确定（边界/低置信/reason 含糊/多 Judge 分歧）、变更观察期（新模型/Prompt/Schema/活动）、规则与 Judge 冲突。</dd>
+<dt>分层筛查（tiered screening）</dt>
+<dd>粗筛层（规则 + 轻量 Judge，切走明显通过/失败）→ 精判层（完整规则 + Judge，产出结构化诊断）→ 人工复核层（高风险/低置信/冲突/口径未固化）。既省成本，又控制进入 RCA 的样本纯度。</dd>
+<dt>Judge 金标校准集（golden calibration set）</dt>
+<dd>一批带人工标准答案的样本，每次 Judge Prompt/模型升级时固定产出三指标：与人工一致性（Kappa）、高风险样本漏判率、边界样本稳定性（重复评测波动）。是裁判能否进日常自动化的门禁。</dd>
+<dt>结构化评分输出</dt>
+<dd>不止 pass/fail，还输出问题分类（现象层，≠根因）、问题现象、置信度、判定依据——为第 07 章按"现象入口"收敛候选模块铺路。</dd>
+</dl>
+
+<h2>十、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：一条客服用例，回复文本读起来完全正确、礼貌，Judge 给了 0.85 稳稳通过。但它<strong>根本没调订单查询工具</strong>就直接承诺了退款。按这节课，评分系统该怎么处理这条？光靠"规则→Judge"的两层够吗？</summary>
+<div class="answer">
+<p><strong>不够，这是典型假阳性，必须追加过程型 + 风险型检查。</strong></p>
+<p>Judge 看的是语义（回复对不对、得不得体），它对"回复文本"打 0.85 没错——错的是<strong>执行路径</strong>：跳过了"先查订单状态"这个必需步骤。只看输出的评分抓不到它，因为文本本身没毛病。</p>
+<p>处理方式：(1) <strong>过程型检查</strong>——用规则评 Trace，检查该调的订单查询工具调没调、SOP 顺序对不对；这是硬条件，能写成代码，属规则 Scorer 主判。(2) <strong>风险型检查</strong>——退款涉及资损，属高风险场景，即使自动分通过也应进人工抽查路由。所以正确结论是把这条判为 badcase 并输出"过度承诺"的现象分类，而不是凭 0.85 放行。（这条会在 0017 根因定位里被现象入口接住。）</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：有人提议"把人工路由简化成一条规则——<code>Score &lt; 0.6</code> 就叫人复核，&gt;= 0.6 就自动通过，省事又清晰"。用这节课的逻辑指出它错在哪，正确的路由该看哪些信号？</summary>
+<div class="answer">
+<p><strong>错在把"人工路由"退化成了"单一分数阈值"——这正是本节明确反对的。</strong></p>
+<p>它会同时犯两个方向的错：</p>
+<ul>
+<li><strong>漏叫人</strong>：一条赔付/隐私样本 Judge 给了 0.7，按这规则自动通过——但高风险场景即使自动分通过也该定期人工复核；一条规则判 FAIL、Judge 判 PASS 的<em>冲突</em>样本，若综合分恰好 &gt;=0.6 也被放过，而冲突恰恰是最该叫人终判的。</li>
+<li><strong>滥叫人</strong>：大量分数偏低但<em>明显失败</em>的样本（粗筛层就能一刀切走的）也被塞给人工，白白消耗最贵的资源。</li>
+</ul>
+<p>正确路由是<strong>多信号</strong>的：① 自动评分不确定（分数落在<em>边界</em>而非单纯低、置信度低、reason 含糊、多 Judge 分歧）；② 变更观察期（新模型/Prompt/工具 Schema/业务活动上线，按<em>事件</em>抽样）；③ 规则与 Judge <em>冲突</em>（按<em>一致性</em>触发）。三条里只有第一条和分数沾边，且看的是"边界"不是"低于阈值"。这就是"路由 ≠ 阈值"。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（延伸）：mino 的裁判已经跨厂商用 gemini 评 claude 了（0008 讲过），为什么这节课还说它"没有可校准的 Judge"？跨厂商不就够可信了吗？</summary>
+<div class="answer">
+<p>跨厂商解决的是<strong>自评偏差</strong>（不让模型给自己打分偏袒），它防的是"裁判系统性偏心"。但它<strong>不回答两个不同的问题</strong>：</p>
+<ul>
+<li><strong>裁判和人对齐了吗？</strong>gemini 判得"公正"不等于判得"对"——它可能公正地、稳定地和业务口径差着 20%。要知道这一点，必须有 <strong>Judge 金标校准集</strong>去测 Kappa/一致率，看它和人工标注吻合到什么程度（参考值约 85% 才进日常自动化）。mino 没有这套。</li>
+<li><strong>裁判跑偏了吗？</strong>模型会升级、Prompt 会改、线上分布会漂。跨厂商是静态配置，防不住裁判随时间慢慢和人对不齐。金标校准集要在<em>每次 Judge 升级</em>时重测三指标（一致性/漏判率/边界稳定性）——这是周期性动作，mino 也没有。</li>
+</ul>
+<p>所以跨厂商是"防偏袒"，校准集是"证对齐 + 防漂移"，两者不能互相替代。mino 做到了前者，还没长出后者——这就是"有跨厂商 Judge，但还没有<em>可校准</em>的 Judge"的准确含义。</p>
+</div>
+</details>
+</div>
+
+<h2>十一、承上启下</h2>
+
+<p>这节课把评分从 0008 的"一把会犯错的尺子"升级成一套体系：<strong>三类评分器分层</strong>（规则&gt;Judge&gt;人工，能规则化的绝不请裁判，能自动的绝不叫人）、<strong>人工路由</strong>（按边界/事件/冲突叫人，不按单一阈值）、<strong>金标校准</strong>（用 Kappa 等三指标证明裁判和人对齐、没漂移）、<strong>结构化输出</strong>（问题分类/现象/置信度/判定依据）。最后这一样不是终点——它是钥匙：评分吐出的"现象分类"，正是下一课把 badcase 收敛到"可疑模块"的入口。评出来一条"过度承诺"的 badcase，接下来怎么顺着现象反查到底是哪个模块、哪一步的锅？——那就是根因定位。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让我带你把 mino 的 <code>cmd/memory_eval/eval/scorer.go</code> 摊开，对照这节的"三层评分器"看它到底做到了哪两层、缺了哪几块。下一课：<em><a href="0017-badcase-root-cause.html">0017 Badcase 根因定位——从"现象入口"顺藤摸瓜到责任模块</a></em>。</p>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>09 · Context 会爆炸：聊着聊着为什么就崩了</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零 · Agent 发育课 · 第 09 课 · 预计 10 分钟 · ← 上一课 <a href="08-reliability-timeout-retry.html">08 可靠性：超时、报错、坏 JSON</a> · 下一课 → <a href="10-agent-memory.html">10 Agent 的记忆</a> · <a href="index.html">🏛 返回门户</a></p>
+
+<h1>Context 会爆炸：聊着聊着为什么就崩了</h1>
+
+<p class="lede">一个能连续干活的 agent，聊得越久越危险。这节课只讲一个零件：当对话长到装不下时，agent 怎么<strong>主动把旧对话读一遍、缩成一小段摘要</strong>，好腾出地方继续聊——而不是傻等它撑爆。</p>
+
+<div class="chain in">
+<p>上一课我们让 agent 学会了自愈：超时会重试、报错会回退、坏 JSON 会被修好再回注。但有一个更慢、更隐蔽的问题一直没解决——</p>
+<p>因为大脑（大模型）是<strong>无状态</strong>的，每走一步，agent 都得把"从开头到现在的完整对话"重新打包发过去（还记得 <code>buildConductorMessages</code> 吗）。对话越长，这个包越大。早晚会超过模型一次能读进去的上限；而且<strong>远没到上限，模型就开始读得不认真、变笨了</strong>。这一课就来拆掉这个雷。</p>
+</div>
+
+<h2>一、先打个比方：白板会写满</h2>
+
+<p>想象你和一个<strong>记性为零的助理</strong>合作（ELI5：他每次开口前，脑子都会被清空一次）。为了让他知道来龙去脉，你把整段对话抄在一块白板上，每次都让他从头读一遍白板，再回答。</p>
+
+<p>问题来了：白板就这么大。你们聊得越久，白板上的字越多。<strong>token</strong>（可以粗略理解成"字/词的计费与计量单位"）一轮一轮往上堆——终有一刻，白板写满了，新的话再也挤不进去。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">第 1 步</span><span class="n-sub">≈ 3k token</span></div>
+  <div class="arrow">→</div>
+  <div class="node stable"><span class="n-title">第 2 步</span><span class="n-sub">≈ 9k token</span></div>
+  <div class="arrow">→</div>
+  <div class="node"><span class="n-title">第 5 步</span><span class="n-sub">≈ 40k token</span></div>
+  <div class="arrow">→</div>
+  <div class="node volatile"><span class="n-title">第 N 步</span><span class="n-sub">白板快满了 ⚠</span></div>
+</div>
+<figcaption>每一步都靠 <code>buildConductorMessages</code> 把<strong>完整历史</strong>重新打包重发，所以 token 只增不减。心跳循环 <code>streamChat</code> 里，读回的 <code>ResponseMeta.Usage.TotalTokens()</code> 就是"白板现在写了多满"。（数字为示意量级）</figcaption>
+</figure>
+
+<p>关键认知：<strong>上下文窗口</strong>（模型一次能读进去的 token 总量上限）是一种<em>有限资源</em>，像白板的面积、像书包的容量。它不会自己变大。所以只要 agent 想活得久，就必须有人来擦白板——问题只是"什么时候擦、怎么擦"。</p>
+
+<h2>二、别等撑爆：为什么要主动画一条红线</h2>
+
+<p>新手的直觉是："等白板真写满了、报错了，再处理不就行？" 这恰恰是错的。有两个原因让 agent 必须<strong>提前</strong>动手。</p>
+
+<p><strong>原因一（硬的）：真撑爆会直接报错。</strong>包太大发过去，模型会甩回一个 <code>ErrLLMPromptTooLong</code>——这一步直接失败。你不想让用户的任务卡死在这里。</p>
+
+<div class="leak">
+<strong>原因二（软的，更阴险）：远没写满，字就开始看不清了。</strong>白板这个比方有个漏水点：真白板写到 99% 才装不下，前 98% 的字一样清楚。可模型不是——token 越多，它分给每个字的"注意力预算"越薄，<strong>越靠后、越拥挤的信息越容易被读漏</strong>。这个现象叫 <strong>context rot</strong>（上下文腐烂）：还没报错，答案质量就先偷偷滑坡了。
+</div>
+
+<p>两个原因合起来，结论只有一个：<strong>不要等满，要在还清醒的时候就压。</strong>所以 mino_server 画了一条红线——不是画在 100%，而是画在窗口的 <strong>80%</strong>。</p>
+
+<figure class="diagram">
+<div class="axis">
+  <span class="mark" style="left:80%;">压缩触发线 · 窗口的 80%</span>
+  <span class="mark" style="left:97%;">硬上限 → 报错</span>
+  <span class="fill-label" style="left:1%;">安全区：token 还够、模型清醒</span>
+  <span class="fill-label" style="left:70%;">危险区：context rot</span>
+</div>
+<figcaption>红线的真实公式在 <code>summarizeWithOptions</code>：<code>summaryContextLine = min(0.8 × GetModelContextWindow(), 上限)</code>。上限默认 <code>200_000</code>，聊天品类 <code>SubType_AXON_IM</code> 收紧到 <code>100_000</code>——窗口再大也不硬塞满，免得降智。只有 <code>TotalTokens() ≥ 这条线</code> 才触发压缩。</figcaption>
+</figure>
+
+<p>为什么取"80% 和一个上限里更小的那个"？因为有些模型窗口特别大（比如上百万 token）。就算它<em>装得下</em>，塞到几十万 token 时 context rot 早就发作了。所以用一个绝对上限（20 万 / 聊天 10 万）兜底：<strong>装得下 ≠ 用得好</strong>。</p>
+
+<p>这条线也不是唯一防线。万一某一步一次性灌进来太多东西、直接越过红线撑爆了，主循环还有个<strong>兜底急救</strong>：请求真的抛出 <code>ErrLLMPromptTooLong</code> 时，恢复路径<strong>不读取任何 token 阈值</strong>——只要还没有现成摘要，就 <code>summarizeForce</code>（force=true，跳过 80%、绝对上限、防抖等一切检查）强制压一遍，再 <code>applySummaryImmediately</code> 立刻把摘要换上、<code>continue</code> 重试，全程<strong>无条件</strong>（这正是上一课"自愈"的一个分支）。红线是主动预防，兜底是无条件的被动急救，两者都在。</p>
+
+<p>那 <code>thresholdToken = 120_000</code> 又是干嘛的？它跟错误恢复<strong>没关系</strong>，是每一步的<strong>内容级</strong>机制：某步读回的 <code>TotalTokens()</code> 超过 12 万时，就把这条消息标成"大上下文"（<code>IsBigContext</code>），从而<strong>提高该消息的文本截断等级</strong>、把里面的长文本压得更狠。别把这条"大上下文判定线"和上面的错误急救混为一谈。</p>
+
+<h2>三、压缩到底怎么压：读一遍，写成一页</h2>
+
+<p>很多人以为"压缩"就是"删掉前面几条旧消息"。<strong>不是。</strong>删除是无脑丢弃，会把重要的前因一起丢掉。真正的做法更聪明，也更像人：</p>
+
+<p>ELI14：期末复习时，你不会把一学期的笔记原样背下来（装不下），也不会随手撕掉几页（会漏考点）。你会<strong>把厚厚一摞笔记通读一遍，浓缩成一页纲要</strong>，然后靠这页纲要复习。压缩就是让一个小模型替 agent 做这件事。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 250" role="img" aria-label="压缩：把长历史读一遍，浓缩成一小段摘要，有损">
+  <!-- 左：旧对话大块 -->
+  <rect class="dgm-node" x="30" y="30" width="180" height="190" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="120" y="70" font-size="14" font-weight="700" text-anchor="middle">旧对话历史</text>
+  <text class="dgm-muted" x="120" y="94" font-size="11" text-anchor="middle">20+ 条消息</text>
+  <text class="dgm-muted" x="120" y="112" font-size="11" text-anchor="middle">≈ 80k token</text>
+  <line class="dgm-edge" x1="50" y1="135" x2="190" y2="135" stroke-width="1"/>
+  <line class="dgm-edge" x1="50" y1="155" x2="190" y2="155" stroke-width="1"/>
+  <line class="dgm-edge" x1="50" y1="175" x2="190" y2="175" stroke-width="1"/>
+  <line class="dgm-edge" x1="50" y1="195" x2="190" y2="195" stroke-width="1"/>
+  <!-- 中：小模型读一遍 -->
+  <line class="dgm-edge" x1="215" y1="125" x2="325" y2="125" stroke-width="2"/>
+  <polygon class="dgm-accent" points="325,119 340,125 325,131"/>
+  <text class="dgm-accent-text" x="278" y="108" font-size="12" font-weight="700" text-anchor="middle">Gemini-3-Flash</text>
+  <text class="dgm-muted" x="278" y="146" font-size="11" text-anchor="middle">读一遍、浓缩</text>
+  <!-- 右上：摘要 -->
+  <rect class="dgm-good-node" x="360" y="30" width="200" height="80" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="460" y="60" font-size="13" font-weight="700" text-anchor="middle">一段结构化摘要</text>
+  <text class="dgm-muted" x="460" y="82" font-size="11" text-anchor="middle">analysis + summary</text>
+  <text class="dgm-muted" x="460" y="99" font-size="11" text-anchor="middle">≈ 一小段 token</text>
+  <!-- 右下：最近几条原样保留 -->
+  <rect class="dgm-node" x="360" y="130" width="200" height="60" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="460" y="156" font-size="12" font-weight="700" text-anchor="middle">最近几条原样保留</text>
+  <text class="dgm-muted" x="460" y="176" font-size="11" text-anchor="middle">保证"刚才在干嘛"不丢</text>
+  <!-- 有损提示 -->
+  <text class="dgm-accent" x="600" y="60" font-size="13" text-anchor="start">✗ 细节</text>
+  <text class="dgm-accent" x="600" y="82" font-size="13" text-anchor="start">被揉掉</text>
+  <text class="dgm-muted" x="600" y="104" font-size="11" text-anchor="start">（有损）</text>
+</svg>
+</div>
+<figcaption><code>summarizeWithOptions</code> 把全部历史交给便宜的小模型 <code>Gemini-3-Flash</code>（<code>ModelNameGemini3Flash</code>），产出 <code>analysis</code> + <code>summary</code> 两段结构化 JSON（最多 <code>10000</code> token），用它替换掉原始旧对话。压缩前还会把原文序列化存进沙盒 <code>context_&lt;unix&gt;.json</code>（<code>saveContextToFile</code>，弱依赖，存失败也不影响压缩）。</figcaption>
+</figure>
+
+<p>两个设计细节值得记住：</p>
+
+<ul>
+<li><strong>压缩是有损的。</strong>摘要必然丢掉细节——这是"腾地方"的代价，也是它和"记忆"的根本区别（下一课的伏笔）。所以压缩前先把原文归档存盘，万一以后要翻账还找得回。</li>
+<li><strong>刚压过就别反复压。</strong>压缩本身要多花一次模型调用，很浪费。所以有个防抖：距上次总结 ≤2 步（<code>summaryReuseStepThreshold = 2</code>，含正好 2 步）就跳过本轮再总结、复用上次的摘要。别一激动把白板擦个不停。</li>
+</ul>
+
+<h2>四、更省的小算盘：先问一句"还是同一个话题吗"</h2>
+
+<p>上面讲的是<strong>对话进行中</strong>的压缩。还有一种场景：聊天品类（IM）里，用户可能<strong>晾了你一整天</strong>才回来说句话。这时如果他开的是全新话题，那把一大堆老上下文原样带上去纯属浪费钱。</p>
+
+<p>mino_server 在这里加了一道"冷启动前预压缩"，而且动手前先花<strong>一分钱问一句</strong>：这条新消息，到底是接着老话题，还是开了新话题？</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">缓存里累计 token ≥ <code>50_000</code> <strong>且</strong> 用户已静默 &gt; <code>12h</code>？<br><span style="font-size:.85em;color:var(--muted)">shouldPreCompact</span></div>
+  <div class="down">↓</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">否（还热乎 / 没多少 token）</div>
+      <div class="step terminal">照常开跑，不预压缩</div>
+    </div>
+    <div class="branch">
+      <div class="label">是（又长又凉）</div>
+      <div class="step decision">问一句最便宜的模型：<br>新消息还是同一个话题吗？<br><span style="font-size:.85em;color:var(--muted)">checkTopicRelevance · GPT-5.4-nano · {related: bool}</span></div>
+      <div class="down">↓</div>
+      <div class="branches">
+        <div class="branch">
+          <div class="label">related = true（接着聊）</div>
+          <div class="step terminal">跳过压缩，省钱</div>
+        </div>
+        <div class="branch">
+          <div class="label">related = false（新话题）</div>
+          <div class="step action">用 GPT-5.4-nano 把老上下文压成一小段纯文本摘要（≤ <code>2000</code> token）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<figcaption>预压缩链路：<code>shouldPreCompact</code> 的双闸门（<code>preCompactTokenThreshold = 50_000</code>、<code>preCompactIdleThreshold = 12h</code>）→ <code>checkTopicRelevance</code> 话题门控 → <code>newPreCompactClient</code>（<code>GPT-5.4-nano</code>）真压。注意这里用的是比 Gemini-3-Flash 更小更便宜的模型，只出纯文本 summary。</figcaption>
+</figure>
+
+<p>这里藏着一条贯穿全课的成本哲学：<strong>按任务难度选模型</strong>。判断"是不是同一个话题"是个极简任务，用最便宜的 nano 模型、只让它吐 <code>50</code> 个 token 就够；真正的对话才配得上贵的大模型。省下的每一分，都是从"不必要的 token"里抠出来的。</p>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>上下文窗口（context window）</dt>
+<dd>模型一次能读进去的 token 总量上限。有限、不会自增——像白板的面积。<code>GetModelContextWindow()</code> 返回当前模型的这个值。</dd>
+<dt>context rot（上下文腐烂）</dt>
+<dd>token 越多，模型分给每段信息的注意力越薄，读漏、读错的概率上升。所以"还没撑爆"不等于"还好用"——这是提前压缩的根本理由。</dd>
+<dt>上下文压缩 / compaction</dt>
+<dd>把一长段旧对话交给一个小模型读一遍，浓缩成一段摘要（<code>analysis</code> + <code>summary</code>），用它替换原始旧对话来腾出 token。<strong>有损</strong>，且不是简单删除。</dd>
+<dt>压缩触发线（summaryContextLine）</dt>
+<dd><code>min(0.8 × 窗口, 上限)</code>，上限默认 20 万 / 聊天品类 10 万。累计 token 到这条线才压，兼顾"别撑爆"和"别降智"。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：既然模型窗口能装下，为什么触发线要卡在 80%，还要再压一个绝对上限（20 万 / 10 万），而不是等接近 100% 再压？</summary>
+<div class="answer">
+<p>两层原因，都指向"装得下 ≠ 用得好"：</p>
+<p><strong>① 软退化（context rot）</strong>：远没到 100%，模型的注意力就已经被稀释，越靠后的信息越容易被读漏，答案质量先偷偷滑坡。等到 100% 时它早就变笨了。所以要在它<em>还清醒</em>时就压——这是卡 80% 的理由。</p>
+<p><strong>② 大窗口模型更需要绝对上限</strong>：有的模型窗口上百万 token，80% 也是几十万，context rot 在那之前就重度发作。所以再叠一个绝对红线（<code>min</code> 取更小者）兜底，聊天品类甚至收到 10 万，宁可早压也不硬塞。</p>
+<p>顺带：真被一步撑爆时还有一层兜底急救——它<strong>不依赖任何 token 阈值</strong>，只要没有现成摘要就无条件强制压一遍再重试；这是"救火"，不该常态依赖。（<code>thresholdToken = 120_000</code> 是另一回事，只是"大上下文"判定线，与这里的错误急救无关。）</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：压缩用的是便宜的 Gemini-3-Flash / GPT-5.4-nano，而主对话用的是贵的大模型。让小模型去总结、可能丢细节，这样安排合理吗？为什么？</summary>
+<div class="answer">
+<p>合理，而且是刻意的成本设计。</p>
+<p><strong>任务难度不匹配就是浪费。</strong>"把一段对话读懂、浓缩成纲要"是相对简单、结构化的活儿，不需要顶级推理能力；用小模型足够，还快、还便宜。而"话题相关性判断"更简单，就用最小的 nano、只吐几十个 token。反过来，如果拿贵的大模型去做每一次压缩，压缩本身的开销会高到抵消掉它省下的钱——本末倒置。</p>
+<p>至于"可能丢细节"：这是压缩<em>作为有损操作</em>的固有代价，不是选错模型的锅。真要防丢，靠的是压缩前把原文归档（<code>saveContextToFile</code>）和保留最近几条原文，而不是把总结任务升级成大模型。</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>压缩的本质是"把旧对话忘掉，换成一段摘要"。对"刚才在干嘛"这够用了——但它是<strong>有损</strong>的。</p>
+<p>可有些事根本不该忘：用户是谁、他长期的口味和偏好、上个项目定下的规矩。这些一旦被摘要模型判成"不重要"揉掉，甚至等这次会话一结束、白板一擦，就<strong>彻底没了</strong>。agent 需要的不只是"记得住这次对话"的短期 context，还得有一种能跨会话捞回来的<strong>长期 memory</strong>。它存在哪、什么时候写、又怎么在下次读回来？下一课就装这个零件。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>这一课你装上了 agent 的"擦白板"能力：把有限的上下文窗口当资源来经营，在还清醒时主动把旧对话压成有损摘要，并用最便宜的模型精打细算。下一课 → <a href="10-agent-memory.html">10 Agent 的记忆：短期 Context 与长期 Memory</a>，我们让它记住那些不该被压掉的东西。读到卡壳，回会话里问你的 AI 老师，可要求 ELI5 / 看真实代码。 · <a href="index.html">🏛 返回门户</a></p>
+</footer>
+</main>
+</body>
+</html>

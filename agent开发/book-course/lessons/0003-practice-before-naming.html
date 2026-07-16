@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0003 · 实践在前，命名在后：名词是实践的影子</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0003 课 · 引言 · 公式与全局 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>实践在前，命名在后：别等名词流行才动手</h1>
+
+<p class="lede">这节课只押一件事：<strong>Skill、harness、loop engineering 这些名词，不是先被发明、再被采用的；而是大量 Agent 早就在这么做，头部公司事后才把它们提炼、命名成架构原则。</strong>这就是作者在引言里下的判断——“实践在前，命名在后”。搞清这个<strong>顺序</strong>，你才能听懂它对企业级开发那句很实际的告诫：等名词流行了再动手，你已经慢了一步。</p>
+
+<h2>一、顺序被搞反了：名词是实践的影子</h2>
+
+<p>作者在引言里回头审视一年前总结的那些 Agent 架构原则，有个发现让他“既欣慰又惊讶”：这些原则不但没过时，反而越来越经典。可业界后来陆续冒出了 Skill、harness、loop engineering 等新名词——很容易让人以为是这些概念先被造出来，Agent 才跟着用。</p>
+
+<p>作者把真实的因果顺序讲得很直白：<strong>“真实的顺序恰恰是反的。”</strong> 不是 Anthropic 这些公司先发明了概念、众多 Agent 才跟着用；相反，是大量 Agent 早就在这么做了，Anthropic 才把它们提炼、总结成了架构设计原则。一句话——<strong>实践在前，命名在后</strong>。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 280" role="img" aria-label="真实业务需求倒逼出架构原则；名词流行是事后对这些原则的提炼命名，在时间上滞后">
+  <!-- left: real business -->
+  <rect class="dgm-hub" x="24" y="96" width="176" height="76" rx="10"/>
+  <text class="dgm-accent-text" x="112" y="126" font-size="14" font-weight="700" text-anchor="middle">真实业务需求</text>
+  <text class="dgm-muted" x="112" y="146" font-size="11" text-anchor="middle">Pine：涉金钱</text>
+  <text class="dgm-muted" x="112" y="162" font-size="11" text-anchor="middle">长程 · 高风险任务</text>
+
+  <!-- arrow 倒逼 -->
+  <line class="dgm-edge" x1="200" y1="134" x2="356" y2="134" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="278" y="124" font-size="12" text-anchor="middle">倒逼</text>
+
+  <!-- right: architecture principles -->
+  <rect class="dgm-node" x="360" y="70" width="336" height="128" rx="10"/>
+  <text class="dgm-text" x="528" y="96" font-size="13" font-weight="700" text-anchor="middle">先被做出来的架构原则（实践在前）</text>
+  <text class="dgm-muted" x="380" y="122" font-size="11.5">· 动态加载提示词 → 治提示词膨胀</text>
+  <text class="dgm-muted" x="380" y="144" font-size="11.5">· 命令行执行工具 → 治工具列表膨胀</text>
+  <text class="dgm-muted" x="380" y="166" font-size="11.5">· 类 Claude Code 的方法 → 稳住工具调用</text>
+  <text class="dgm-muted" x="380" y="188" font-size="11.5">· 提议者-审核者 → 治过早收工</text>
+
+  <!-- lagging arrow down to naming -->
+  <path class="dgm-edge" d="M528 198 L528 236" fill="none" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="642" y="222" font-size="11" text-anchor="middle">事后提炼（滞后）</text>
+
+  <rect class="dgm-node" x="360" y="238" width="336" height="34" rx="8"/>
+  <text class="dgm-text" x="528" y="260" font-size="12" font-weight="700" text-anchor="middle">名词流行：Skill · harness · loop engineering</text>
+
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>真实业务把架构原则一条条倒逼出来（实践在前）；“名词流行”只是事后对这些既有做法的命名，在时间轴上永远滞后。名词是实践投下的影子，不是实践的源头。</figcaption>
+</figure>
+
+<h2>二、三条“早于名词”的实证：Pine 的做法</h2>
+
+<p>这个判断不是空谈——作者用 Pine（他所在团队打造的、能自主与真人交互、可靠处理涉及金钱的长程任务的通用 Agent）给了三条“早于名词就已经在做”的实证：</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">早于 Skill</div><div class="head">动态加载提示词</div><div class="sub">解决提示词无限膨胀；配套用命令行执行工具解决工具列表膨胀、用系统状态栏解决 Agent 不感知环境与用户状态</div></div>
+  <div class="cell"><div class="role">早于 harness</div><div class="head">类 Claude Code 方法</div><div class="sub">解决工具调用不稳定、幻觉、危险操作、越权操作、指令不遵循</div></div>
+  <div class="cell"><div class="role">早于 loop engineering</div><div class="head">提议者-审核者</div><div class="sub">解决模型过早认为任务完成——让 Agent 审阅自己的交付件(artifact)并迭代改进</div></div>
+</div>
+<figcaption>三条做法都在对应名词流行之前就已落地。作者补了一句：这并非独家发明，据他所知大多数头部模型与 Agent 公司都自己摸索出了类似方法——这恰恰说明它们是被真实需求逼出来的共性，而非某个名词的产物。</figcaption>
+</figure>
+
+<h2>三、为什么这个顺序对企业开发是致命的</h2>
+
+<p>作者点破了“实践在前，命名在后”对企业级 Agent 开发的实际含义：<strong>如果你每次都要等到业界开始流行某个 Agent 名词才去实践，就已经慢了一步。</strong>因为名词流行的时候，头部公司往往早已把对应的问题趟过一遍了。</p>
+
+<p>那么，怎样才能赶在名词流行之前就知道该怎么做？作者认为最关键的<strong>有两点</strong>——这也是本课要你记死的核心：</p>
+
+<div class="formula">
+<div class="eq"><b>抢在名词前</b> <span class="op">=</span> 极高要求的真实业务（持续反馈） <span class="op">+</span> 评估机制</div>
+<div class="gloss">缺一不可：没有真实业务，你没有动力打磨；没有评估，你分不清是真进步还是运气</div>
+</div>
+
+<p><strong>第一，拥有一个对 Agent 能力上限有极高要求的真实业务，并能持续获得真实的业务反馈。</strong>以 Pine 为例：处理一件事往往耗时数小时甚至数周，其间要打好几个小时电话、在电脑上填好几页复杂表单、来回发数封邮件，全程既不能在任何数字上出错，又要谨慎维护用户利益。只有置身这样足够复杂的场景，实践才会自然地把你倒逼着去构建 harness、去解决那些模型当下做不到、业务上却必须完成的事。反过来，业务对能力上限要求不高、模型稍一升级就够用，你就没有动力去打磨这些架构原则。</p>
+
+<p><strong>第二，必须建立评估（Evaluation）机制。</strong>作者反复强调：<strong>没有评估，就没有进步。</strong>评估让你能分辨一次改动究竟是真的变好了，还是只是运气，从而让迭代方向不再依赖直觉——这是“用科学方法论做工程”的地基。（这套方法第六章会专门展开。）</p>
+
+<h2>四、这个顺序，凭什么“穿越模型周期”</h2>
+
+<p>为什么值得为“顺序”单开一课？因为它支撑着全书的底层信念：<strong>好的设计原则本就应该穿越模型的迭代周期。</strong>作者的理由很硬——这些原则描述的不是某个模型的用法，而是<strong>智能系统与世界交互的基本模式</strong>。GPT、Claude 半年一迭代，产品形态不断翻新，但几乎所有成功的 Agent 系统都遵循相同的架构模式，这不是巧合。</p>
+
+<p>作者还借强化学习之父 Richard Sutton 把这件事抬到宇宙尺度：宇宙演化经历尘埃→恒星→生命→智能体四个阶段。生物进化是盲目的（随机变异、自然选择，多数生物并不理解自己怎么运作）；而 Agent 是全新的存在——它能通过<strong>生成代码实现自举（bootstrap）</strong>与自我进化，“就像一个程序员编写了另一个程序员，新程序员又能继续编写下一个”。既然 Agent 能理解并改进自身，那么<strong>掌握“为什么这样设计”的原则</strong>，就比追逐任何一个热名词都更持久。</p>
+
+<div class="pitfall">
+<p>最容易搞反的，就是<strong>因果顺序</strong>：以为“Anthropic 先发明了 Skill / harness / loop engineering，Agent 圈才跟着用”。按这个错误图景，你会本能地<strong>等名词流行、等最佳实践成文</strong>再动手——而作者恰恰说这已经慢了一步。真实顺序是反的：<strong>大量 Agent 早就在做，名词是事后的提炼。</strong>名词是果，不是因；把它当成起跑信号，你永远在追影子。</p>
+<p>另一处顺带的坑：本书对“<strong>思考（reasoning）</strong>”与“<strong>推理（inference）</strong>”做了刻意区分——reasoning 指模型“想”的中间推导过程（思维链、思考模型、思考 token），inference 指模型的前向计算与部署运行（推理时、推理成本、推理栈）。别按日常习惯把两者都读成“推理”而错失作者的区分；仅“逻辑推理、多跳推理、空间推理、时序推理”等固化词例外保留“推理”二字。</p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：名词流行是实践的<strong>影子</strong>而非源头——实践在前，命名在后。所以别等名词火了再动手；抢在前面的唯一办法，是握住一个对能力上限有极高要求的真实业务，并为它建立评估机制。真实业务给你压力，评估给你方向，二者缺一不可。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>提议者-审核者（proposer-reviewer）</dt>
+<dd>让 Agent 审阅自己输出的交付件（artifact）并迭代改进的方法，用于解决模型过早认为任务完成的问题。<em>避免</em>把它等同于泛泛的“自我反思”。</dd>
+<dt>思考（reasoning）</dt>
+<dd>本书统一译法，指模型展开中间推导、“想”的过程，包括思维链（Chain-of-Thought）、思考模型、思考 token、思考过程。<em>避免</em>译作“推理”。</dd>
+<dt>推理（inference）</dt>
+<dd>本书统一译法，指模型的前向计算与部署运行，如推理时、推理成本、推理栈、推理时扩展。<em>避免</em>与 reasoning“思考”混用。</dd>
+<dt>自举（bootstrap）</dt>
+<dd>Agent 通过生成代码实现自我进化，就像一个程序员编写了另一个程序员，新程序员又能继续编写下一个。<em>避免</em>与编译器 bootstrap 的狭义含义混淆。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：作者说要赶在名词流行前就知道怎么做，关键的两点是什么？</summary>
+<div class="answer">
+<p>第一，拥有一个对 Agent 能力上限有极高要求的真实业务，并持续获得真实业务反馈（如 Pine 处理涉及金钱的长程任务，逼你去构建 harness）；第二，必须建立评估（Evaluation）机制——没有评估就没有进步，它让你分辨一次改动是真变好还是只是运气。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：“实践在前，命名在后”对企业级 Agent 开发的实际含义是什么？为什么等名词流行才动手就已经慢了？</summary>
+<div class="answer">
+<p>含义是：如果你每次都要等到业界流行某个 Agent 名词才去实践，就已经慢了一步。因为真实顺序是——大量 Agent 早就在这么做，头部公司事后才把它提炼成概念、命名。所以名词流行的时候，头部公司往往早已把对应问题趟过一遍了；你若把名词当起跑信号，等于在追已经跑完的人的影子。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本课属引言，尚无独立配套代码；但作者强烈建议边读边跑书中实验（“很多设计上的直觉需要在动手调试的过程中才能真正建立起来”）。全部实验组织在配套开源仓库，项目名与书中“实验 X-Y”一一对应：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。这正是“实践在前”的读法——先动手，名词自然长在你手上。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是书的<strong>引言</strong>本身，值得完整读一遍——尤其“实践在前，命名在后”与“全书结构”两节。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。引言还引用了强化学习之父 Richard Sutton 关于宇宙演化四阶段（尘埃→恒星→生命→智能体）的观点；若想补大模型底层基础，作者推荐《图解大模型》（图灵出版）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“为什么名词总是滞后于实践”再往深里追一层。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0002-three-layer-rl-mapping.html"><span class="dir">← 上一课</span>从直觉到学术：Agent 三层映射</a>
+  <a class="next" href="0004-pine-reverse-engineered-principles.html"><span class="dir">下一课 →</span>Pine 倒逼出的三条早期实践</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

@@ -11,6 +11,8 @@ reference/egos-2000/
 # 大体积辅助技能（默认不进 public 仓库）
 skills/ExamPass-Assistant/
 skills/book-to-skill/
+# 仓库根目录下的 book-to-skill/ 工具本体（第三方开源工具，自带独立 .git，与 skills/book-to-skill/ 是不同路径）
+/book-to-skill/
 
 # 浏览器工具产物 / 临时截图
 .playwright-mcp/

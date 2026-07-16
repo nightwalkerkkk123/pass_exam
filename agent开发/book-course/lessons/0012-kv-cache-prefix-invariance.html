@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0012 · 改一个空格，账单翻倍：KV Cache 为何只认稳定前缀</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0012 课 · 支柱一(上下文) · 上下文工程 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>改一个空格，账单翻倍：KV Cache 为何只认稳定前缀</h1>
+
+<p class="lede">这一课只押一件事：<strong>前缀里改一个字节，后面的缓存就全废。</strong>书里第 2 章「KV Cache 友好的上下文设计」一节，用一个真实的生产事故把这条铁律钉死——某客服 Agent 只是在系统提示词开头加了一行时间戳，首 token 延迟从 0.5 秒涨到 3-5 秒，月度推理账单几乎翻倍。读完这一课，你要能亲口把这个故事讲清楚，记住三条实践铁律，并且分得清 <strong>KV Cache</strong> 和 <strong>Prompt Cache</strong> 是两个层级的东西。</p>
+
+<h2>一、故事：一行时间戳，为什么能让账单翻倍？</h2>
+
+<p>书里的场景是这样的：某团队的客服 Agent 每天处理 10 万次对话，原本一切正常。某天工程师为了让 Agent「知道」当前时间，在系统提示词里加了一行 <code>Current time: {{now}}</code>，把时间戳实时注入进去。第二天监控告警：<strong>所有对话的首 token 延迟（TTFT）从 0.5 秒涨到 3-5 秒，月度账单几乎翻了一倍</strong>。代码看起来完全没问题，模型也没换——问题出在哪里？</p>
+
+<p>先把 KV Cache 的直觉建立起来。模型每生成一个 token，都要回头看一遍前文<strong>所有</strong> token 的中间计算结果（注意力机制里的键 Key、值 Value）。如果每轮都从头算一次，开销会随上下文长度爆炸式增长。KV Cache 的做法是：把前文的中间计算结果缓存下来，下一轮只算新增 token 的部分。<strong>前提是前缀完全不变</strong>——只要前缀里有一个字符被改写，缓存就全部作废，模型不得不从头重算。</p>
+
+<p>那行时间戳，恰恰改的就是<strong>前缀的最前面</strong>。系统提示词每次都不同，模型每次请求都要从头重新计算前缀对应的所有键值对——这就是那笔多出来的延迟和账单。作者把这类成本叫作 Agent 系统里的「无形成本」：一行看似无害的代码，能让整条推理链路慢一个量级。</p>
+
+<figure class="diagram">
+<div class="cacheline">
+  <div class="seg diverge">① 开头时间戳变了</div>
+  <div class="seg recompute">② 后面所有 token 的 KV 全部作废 → 从头重算（慢、贵）</div>
+</div>
+<div class="cacheline">
+  <div class="seg hit">静态前缀（system + 工具定义）命中</div>
+  <div class="seg hit">历史对话命中</div>
+  <div class="seg diverge">▎新消息追加</div>
+</div>
+<figcaption>上：把动态信息塞进<strong>前缀开头</strong>，改动点（红）之后的一切缓存全废。下：把动态信息<strong>追加到末尾</strong>，前面全部命中（绿），只需计算末尾新增的几个 token。同样是「加时间」，位置不同，代价差一个量级。</figcaption>
+</figure>
+
+<h2>二、为什么改一个 token 会让「所有层」的缓存都失效？</h2>
+
+<p>这是本课最需要深挖的「为什么」。答案藏在 Transformer 的结构里：<strong>大语言模型由多层 Transformer 串联堆叠而成</strong>（现代大模型通常有数十到上百层），每一层都独立生成自己的 K、V 缓存，而这些层是像流水线一样一环扣一环的。</p>
+
+<p>关键在于两点叠加：</p>
+<ul>
+<li><strong>层内是「看全前文」的</strong>：第 1 层在处理每个词时，会综合考虑<strong>该词及其前面所有词</strong>的信息，然后输出一个中间结果。</li>
+<li><strong>层间是「串联」的</strong>：第 1 层的输出喂给第 2 层作为输入，第 2 层的输出再喂给第 3 层，层层向下传递。</li>
+</ul>
+
+<p>于是，如果你改了第 1 个 token（比如系统提示词开头改了一个字），第 1 层处理它得到的输出就变了 → 第 2 层的输入随之改变 → 逐层向下传导 → <strong>所有层的缓存都必须重算</strong>。这就是为什么书里反复强调「系统提示词一旦定下来就不要改」。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 680 250" role="img" aria-label="分层传导示意：改第一个 token 后，第 1 层输出改变，逐层向上传导，所有层的所有位置的 KV 缓存全部作废">
+  <!-- layer bands, bottom L1 to top L3 -->
+  <text class="dgm-muted" x="20" y="200" font-size="11">输入</text>
+  <text class="dgm-muted" x="20" y="152" font-size="11">第1层</text>
+  <text class="dgm-muted" x="20" y="104" font-size="11">第2层</text>
+  <text class="dgm-muted" x="20" y="56" font-size="11">第3层</text>
+
+  <!-- columns: 5 token positions; first column is the changed one -->
+  <!-- row y centers: input 190, L1 142, L2 94, L3 46 ; cell h=34 -->
+  <!-- token1 (changed) column x=60 -->
+  <rect class="dgm-hub" x="60" y="176" width="96" height="30" rx="5"/>
+  <text class="dgm-accent-text" x="108" y="195" font-size="10.5" text-anchor="middle" font-weight="700">t1 改动</text>
+  <rect class="dgm-hub" x="60" y="128" width="96" height="30" rx="5"/>
+  <rect class="dgm-hub" x="60" y="80" width="96" height="30" rx="5"/>
+  <rect class="dgm-hub" x="60" y="32" width="96" height="30" rx="5"/>
+
+  <!-- downstream columns t2..t5 : forced recompute (accent-soft) -->
+  <g>
+    <rect class="dgm-accent-node" x="176" y="176" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="176" y="128" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="176" y="80" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="176" y="32" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="292" y="176" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="292" y="128" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="292" y="80" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="292" y="32" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="408" y="176" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="408" y="128" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="408" y="80" width="96" height="30" rx="5"/>
+    <rect class="dgm-accent-node" x="408" y="32" width="96" height="30" rx="5"/>
+  </g>
+  <text class="dgm-muted" x="224" y="195" font-size="10.5" text-anchor="middle">t2</text>
+  <text class="dgm-muted" x="340" y="195" font-size="10.5" text-anchor="middle">t3</text>
+  <text class="dgm-muted" x="456" y="195" font-size="10.5" text-anchor="middle">t4 …</text>
+
+  <!-- upward propagation arrows on t1 column -->
+  <line class="dgm-edge" x1="108" y1="176" x2="108" y2="160" stroke-width="1.6" marker-end="url(#up)"/>
+  <line class="dgm-edge" x1="108" y1="128" x2="108" y2="112" stroke-width="1.6" marker-end="url(#up)"/>
+  <line class="dgm-edge" x1="108" y1="80" x2="108" y2="64" stroke-width="1.6" marker-end="url(#up)"/>
+
+  <!-- rightward propagation (attention: later positions see t1) -->
+  <path class="dgm-edge" d="M156 47 L404 47" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#up)"/>
+  <text class="dgm-muted" x="300" y="20" font-size="10.5" text-anchor="middle">后续每个位置都「看」得到 t1 → 一并作废</text>
+
+  <defs>
+    <marker id="up" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>红=你直接改的那一个 token；浅红=被迫跟着重算的部分。改动沿着「层与层串联」向上、沿着「注意力看全前文」向右传导，整张 KV 表全部作废。这正是<strong>图2-10「KV Cache 前缀复用机制」</strong>反过来的样子：前缀不变才能复用，一变就崩。</figcaption>
+</figure>
+
+<p>反过来看无缓存的代价就懂了：无缓存时 prefill 阶段（正式生成回复前一次性处理全部输入 token 的阶段）的注意力计算量随上下文长度<strong>平方级（O(N²)）</strong>增长；有了 KV Cache，历史 token 不必重算，每步解码的增量只随长度<strong>线性（O(N)）</strong>增长。对一个动辄几十轮工具调用的 Agent 来说，前者根本不可接受——所以缓存不是锦上添花，是刚需。</p>
+
+<h2>三、三条铁律：不懂原理也能照做</h2>
+
+<p>书里明确说：这一节是全书技术密度最高的部分之一，如果你不熟悉底层机制，<strong>可以跳过原理，只记住三条核心结论</strong>。</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">铁律一</div><div class="head">前缀不改</div><div class="sub">system + 工具定义定下就别动</div></div>
+  <div class="cell"><div class="role">铁律二</div><div class="head">动态信息追加末尾</div><div class="sub">时间、状态作为新消息追加</div></div>
+  <div class="cell"><div class="role">铁律三</div><div class="head">用标准 API 格式</div><div class="sub">别自己拼字符串消息</div></div>
+</div>
+<figcaption>三条铁律，本质都在守护「静态前缀字节级稳定」。做菜的类比：前几步（食材、刀工）完全一样，就能从上次切好的地方接着切；只要前面任何一步变了，后面全得重来。</figcaption>
+</figure>
+
+<p>逐条说清楚「为什么」：</p>
+<ul>
+<li><strong>前缀不改</strong>：任何改动，哪怕多一个空格，都会让缓存全部失效，延迟成倍增加、成本上升。</li>
+<li><strong>动态信息追加末尾</strong>：想让 Agent 知道当前时间、用户余额这类会变的东西，把它作为<strong>新消息追加到对话末尾</strong>，而不是去修改已有的系统提示词——这正是本课第一张图下半部分画的做法。</li>
+<li><strong>用标准 API 格式</strong>：结构化的 role-content 消息会被 <strong>Chat Template</strong> 翻译成模型训练时见过的固定 token 序列。这里要格外小心一个误解：自己拼 <code>"USER: … ASSISTANT: …"</code> 字符串，<strong>根本问题不在缓存</strong>（缓存只认 token 字节序列，只要拼出的前缀字节级稳定照样命中），而在于偏离了训练格式、会削弱模型的多步思考能力。</li>
+</ul>
+
+<div class="pitfall">
+<p>初学者最直觉的想法是：「在系统提示词里加动态信息（时间戳、用户余额、按使用频率给工具排序）多方便啊。」——这恰恰是全章反复警告的隐形陷阱。这些信息都在前缀里，每次一变就让整段缓存作废。书里的 <span class="stars">★★</span> 实验 2-3 里，「工具定义动态排序」就是典型：工具定义常占上下文很大一块，重排一次整段缓存就废，而实验表明<strong>固定顺序对模型选工具的能力几乎没影响</strong>——白白付出代价却换不来收益。</p>
+<p>另一个更隐蔽的错，是把 <strong>KV Cache</strong> 和 <strong>Prompt Cache</strong> 当成一回事。它们利用的都是「前缀不变」，但层级不同：KV Cache 是<strong>推理引擎内、单次请求内</strong>的优化；Prompt Cache 是<strong>API 服务层、跨请求</strong>的缓存，而且不会自动命中——比如 Anthropic 要显式设 <code>cache_control</code> 断点、有约 1.25 倍的写入加价、有最小可缓存长度（如 1024 token）和默认约 5 分钟的 TTL；OpenAI 则是自动前缀缓存。混为一谈，就会在计费和启用方式上踩坑。</p>
+</div>
+
+<h2>四、宏观背景：为什么这条铁律值得单开一课</h2>
+
+<p>因为它是整个上下文工程的<strong>物理约束</strong>。第 2 章把 Agent 每次调用的上下文拆成「静态前缀 + 轨迹」两段（对应<strong>图2-4</strong>）：系统提示词和工具定义构成不变的前缀，用户消息、模型回复、工具结果构成不断增长的轨迹。理解了 KV Cache，你就理解了那句贯穿全章的话——<strong>「前面不能动、后面可以压缩」</strong>。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">静态前缀</span><span class="n-sub">system + 工具定义<br>→ 缓存命中</span></div>
+  <div class="arrow">+</div>
+  <div class="node volatile"><span class="n-title">轨迹</span><span class="n-sub">对话历史 / 工具结果<br>→ 末尾增长</span></div>
+</div>
+<figcaption>图2-4 的结构：绿色前缀保持不动才能吃到缓存红利，动态内容只往红色的轨迹末尾追加。后面几课讲的压缩、状态栏，全都建立在「不动前缀」这条地基上（<strong>图2-13</strong> 进一步画了 KV Cache 随轨迹增长的演化）。</figcaption>
+</figure>
+
+<p>更深一层：在生产级系统里，缓存已经不只是性能优化，而是<strong>架构约束</strong>。书里举 Claude Code 的例子——系统提示词被一个缓存边界一分为二，所有动态元素（操作系统类型、当前模式、语言偏好）都被严格归到边界之后，因为放到边界之前每多一个二值条件就会让缓存键的变体数量翻倍（N 个条件产生 2ᴺ 种组合）；子 Agent 的前缀甚至要和父 Agent <strong>逐字节对齐</strong>才能命中 Prompt Cache。缓存经济性不是事后优化，而是前置约束——越早纳入架构，后续工程代价越小。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：静态前缀（system + 工具定义）一旦定下就<strong>一个字节都别动</strong>；所有会变的东西一律<strong>追加到上下文末尾</strong>。做到这一点，KV Cache / Prompt Cache 才能持续命中——否则延迟成倍、账单翻番，而你的代码「看起来完全没问题」。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>KV Cache</dt>
+<dd>模型内部优化：缓存前文 token 在注意力机制中已算出的键值对（Key-Value pairs），下一轮只算新增 token，<strong>前提是前缀完全不变</strong>；加速单次请求内的 token 生成。<em>避免</em>与 Prompt Cache 混为一谈——它在推理引擎内、单次请求内。</dd>
+<dt>Prompt Cache</dt>
+<dd>构建在 KV Cache 之上的 <strong>API 服务层跨请求</strong>缓存：服务商对请求前缀匹配，前缀相同则复用已算好的 KV，缓存读取成本约为首次计算的 1/10 到 1/2。<em>避免</em>以为它自动命中——Anthropic 需显式设 <code>cache_control</code> 断点、有写入加价与 TTL。</dd>
+<dt>Chat Template</dt>
+<dd>把结构化 role-content 消息转换为模型训练时见过的线性 token 流的模板（用 <code>&lt;|im_start|&gt;</code>、<code>&lt;|im_end|&gt;</code> 等特殊标记划分角色与边界），由 API 服务端自动完成。<em>避免</em>理解为开发者需手写的东西，也不要与 system prompt 混淆。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：开发者想让 Agent 知道「当前时间」，把 <code>Current time: {{now}}</code> 写进系统提示词开头。为什么这会让整段 KV Cache 每次都失效？正确做法是什么？</summary>
+<div class="answer">
+<p>因为 Transformer 层层串联，第 1 层处理每个词都综合了它和前面所有词的信息；系统提示词开头的时间戳每次都不同，第 1 个 token 一变，第 1 层输出就变、逐层向下传导，所有层缓存全部作废、必须从头重算。正确做法是把时间信息作为消息<strong>追加到对话末尾</strong>（动态信息追加末尾），或只在真正需要时通过工具调用获取——保持静态前缀<strong>字节级稳定</strong>。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：KV Cache 和 Prompt Cache 都靠「前缀不变」，它们到底差在哪一层？</summary>
+<div class="answer">
+<p>层级不同。<strong>KV Cache</strong> 是模型内部、推理引擎里的优化，作用在<strong>单次请求内</strong>，加速 token 生成。<strong>Prompt Cache</strong> 构建在它之上，是 <strong>API 服务层跨请求</strong>的缓存：不同请求前缀相同就复用之前算好的 KV，读取成本远低于首次计算（约 1/10 到 1/2）。两者都要求前缀稳定，但 Prompt Cache 的经济影响更大（直接影响 API 计费），且不一定自动命中——如 Anthropic 需显式设 <code>cache_control</code>。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p><span class="stars">★★</span> 实验 2-3「常见的错误上下文管理模式」（仓库目录 <code>chapter2/kv-cache/</code>）：用 Kimi K2 ReAct Agent 系统性对比六种实现模式（一种正确 + 五种错误：动态系统提示词、动态用户配置、工具动态排序、滑动窗口、文本格式化），实测 TTFT、缓存命中率与 token 用量，让你亲眼看到「细微改动如何摧毁缓存与 Agent 能力」。想先建立 TTFT 直觉，可配合 <span class="stars">★</span> 实验 2-1（<code>chapter2/local_llm_serving/</code>）：保持系统提示词不变连发两次、再改开头几个字符发一次，对比首 token 延迟。开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源是书的第 2 章「KV Cache 友好的上下文设计」一节——尤其「三条核心结论」和「KV Cache 与 Prompt Cache：两个层级的缓存」两小段，值得逐字读。想进一步了解「缓存未必一次性作废、可编辑可组合」的研究前沿，可读作者本人的延伸研究：Li, Bojie and Noah Shi, <em>"Distill, Don't Retrieve: Inference-Time Context Distillation for LLM Agent Reasoning"</em>（2026），<a href="https://01.me/research/context-distillation">01.me/research/context-distillation</a>；以及本章脚注引用的 <em>"Models Take Notes at Prefill"</em>（arXiv:2606.17107, 2026）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「层层串联为什么导致全部作废」这一步用一个小例子从头推一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0011-agent-loop-and-message-roles.html"><span class="dir">← 上一课</span>一个 while 循环看懂 Agent：四种消息角色与无状态调用</a>
+  <a class="next" href="0013-prompt-as-new-employee-handbook.html"><span class="dir">下一课 →</span>把系统提示词当新员工手册：流程驱动而非规则堆砌</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

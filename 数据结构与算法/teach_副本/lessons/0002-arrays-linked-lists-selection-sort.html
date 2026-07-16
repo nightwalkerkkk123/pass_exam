@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 2 课 · 数组、链表与选择排序 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第一部分《算法图解》② · 对应 ch02</div>
+  <h1>第 2 课:数组、链表与选择排序 —— 复习 + 找出选择排序代码里最容易漏的三行</h1>
+  <div class="sub">目标:用"电影院座位"和"寻宝游戏"两个类比迅速激活数组、链表的旧记忆,把主要时间花在选择排序 C 代码里最容易翻车的三处边界条件上。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>上一课回顾:</b> 第1课学了大O表示法的五档复杂度(<code>O(1)</code> ~ <code>O(n!)</code>)和二分查找的三处边界条件(循环条件、mid计算、收缩边界)。这节课继续用同一套大O语言,来回答一个更基础的问题:<b class="hl">数组和链表,为什么"读"和"改"的代价天生不对称?</b>
+</div>
+
+<h2>一、直觉类比:座位 vs 寻宝游戏</h2>
+<p>数组像电影院里连续的一排座位:知道第一个座位在哪、每个座位间距多少,想找第 37 号座位,直接心算一下地址就能走过去坐下——这就是<b class="hl">O(1) 随机访问</b>。但如果临时要在第 5 个座位后面加一个人,要么后面的人全体往后挪一位腾位置,要么干脆搬去更大的一排——这就是数组插入代价高的原因。</p>
+<p>链表像一场寻宝游戏:每一张纸条上只写着"下一处宝藏在哪",你必须先摸到第一张纸条,才知道第二张在哪,一路摸到第 10 张——这是 <b class="hl">O(n) 顺序访问</b>,没有"公式"可以直接跳过去。但插入或删除,只需要改一张纸条上写的地址(把原本指向 B 的纸条 A,改成指向新纸条 C,再让 C 指向 B),其他纸条一张都不用动——这就是插入删除是 O(1) 的原因,前提是你已经拿到了需要修改的那张纸条。</p>
+
+<div class="callout big">
+  <b>一句话记住两者的对称性:</b> 数组"读"快"改"慢(算地址不用找,但改动要挪位置);链表"读"慢"改"快(要顺着走不能跳,但改动只动一个指针)。两者互为镜像,不存在"全能选手"。
+</div>
+
+<h2>二、数组 vs 链表:核心概念</h2>
+<p><b>数组(Array)</b>:元素在内存里首尾相连地存放。知道起始地址和下标(下标从 <b class="hl">0</b> 开始计数,不是从 1 开始)后,用一次简单的加法+乘法就能算出任意元素的地址——数组读取是 O(1),因为它不需要"找",只需要"算"。</p>
+<p><b>链表(Linked List)</b>:元素可以散落在内存任意角落,每个节点额外存一个"下一个节点地址"的指针,靠指针一个个串起来。想读第 k 个元素,只能从头节点开始顺着指针走 k 步,没有公式可以直接算出地址——所以是 O(n)。</p>
+<p><b>插入和删除正好反过来。</b>数组插入一个元素,后面的元素必须集体往后挪一位腾出空位——如果预留的空间已经用满,还得申请一块更大的内存、把所有元素整体搬过去,这是 O(n)。链表插入只需要改一个指针,其他节点一动不动,是 O(1);删除同理。</p>
+
+<table>
+  <tr><th>操作</th><th>数组(Array)</th><th>链表(Linked List)</th></tr>
+  <tr><td>读取(随机访问)</td><td>O(1)</td><td>O(n)(只能顺序访问)</td></tr>
+  <tr><td>插入</td><td>O(n)(后面元素需整体后移,空间不足时还要整体搬迁)</td><td>O(1)(仅需修改前一个节点的指针)</td></tr>
+  <tr><td>删除</td><td>O(n)(后面元素需整体前移)</td><td>O(1)(前提是已知待删除节点的位置)</td></tr>
+</table>
+
+<h2>三、选择排序:每轮从"剩下的"里挑一个最小的</h2>
+<p>选择排序(Selection Sort)的思路很朴素,重复"从未排序部分挑一个最小的,放到已排序部分末尾",直到挑完为止:</p>
+<ol>
+  <li>遍历当前<b>未排序部分</b>的所有元素,找出其中最小的一个;</li>
+  <li>把这个最小元素放到已排序部分的末尾(相当于"取出"再"接上");</li>
+  <li>重复第 1~2 步,直到没有未排序元素为止。</li>
+</ol>
+<p>用书中同款数组 <code>[5, 3, 6, 2, 10]</code> 走一遍:第一轮要扫描全部 5 个元素才能找到最小值 2,第二轮只需扫描剩下的 4 个找到 3,以此类推。</p>
+
+<table>
+  <tr><th>轮次</th><th>本轮未排序部分</th><th>找到的最小值</th></tr>
+  <tr><td>1</td><td>[5, 3, 6, 2, 10]</td><td>2</td></tr>
+  <tr><td>2</td><td>[5, 3, 6, 10]</td><td>3</td></tr>
+  <tr><td>3</td><td>[5, 6, 10]</td><td>5</td></tr>
+  <tr><td>4</td><td>[6, 10]</td><td>6</td></tr>
+  <tr><td>5</td><td>[10]</td><td>10</td></tr>
+</table>
+
+<p>每轮扫描次数依次是 5、4、3、2、1,加总 <code>5+4+3+2+1=15≈n²/2</code>——大O表示法只保留增长阶、丢掉常数系数,所以记作 <code>O(n²)</code> 而不是 <code>O(n²/2)</code>。</p>
+
+<div class="callout big">
+  <b>翻译成 C 之前的一点说明:</b> 原书 Python 版本每轮把找到的最小值"取出"放进一个新数组,这样处理简单但要占额外内存;如果真用数组去做"取出",挪位置本身还要花 O(n),会让代码更啰嗦。C 语言更常见、也更省内存的等价写法是:<b>不新建数组,直接在原数组内部,把找到的最小值和当前未排序区间的第一个位置交换</b>——效果上仍然是"最小值归位、已排序区间逐步扩大",复杂度不变,还是 O(n²)。下面的代码就是这个等价版本。
+</div>
+
+<h2>四、C 代码与三处期末最容易翻车的边界</h2>
+<pre>int find_smallest_index(int arr[], int start, int n) {
+    int smallest_index = start;
+    for (int j = start + 1<span class="c">/*②*/</span>; j < n; j++) {
+        if (arr[j] < arr[smallest_index]) {
+            smallest_index = j;              <span class="c">// ③ 只记下标,先不交换</span>
+        }
+    }
+    return smallest_index;
+}
+
+void selection_sort(int arr[], int n) {
+    for (int i = 0; i < n - 1<span class="c">/*①*/</span>; i++) {
+        int min_index = find_smallest_index(arr, i, n);
+        int temp = arr[i];                   <span class="c">// 三步交换,借助 temp</span>
+        arr[i] = arr[min_index];
+        arr[min_index] = temp;
+    }
+}</pre>
+
+<p>三处最容易在考试里写错、或者被"找茬题"盯上的地方:</p>
+<ol>
+  <li><b>① 外层循环边界是 <code>i &lt; n - 1</code>,而不是 <code>i &lt; n</code>。</b>
+    但这里和二分查找的边界<b>不一样</b>——写成 <code>i &lt; n</code> 并不会出错。原因是最后一轮 <code>i=n-1</code> 时,内层循环的 <code>j</code> 从 <code>n</code> 开始,条件 <code>j &lt; n</code> 直接不成立,<code>min_index</code> 还是 <code>i</code> 自己,交换等于"自己和自己换"——不会越界也不会死循环,只是白跑一轮。真正的考点是:能不能判断出<b>这次它是"多余但无害"</b>,而不是想当然地认定所有循环边界写错都会导致 bug。</li>
+  <li><b>② 内层循环起始位置必须是 <code>j = start + 1</code>(也就是 <code>i + 1</code>),不能写成 <code>j = 0</code> 或 <code>j = i</code>。</b>
+    选择排序的核心前提是"只在未排序部分里找最小值"。如果内层循环从 <code>0</code> 开始,会把已经归位、排好序的前面部分也扫一遍——那部分永远包含当前的全局最小值,<code>min_index</code> 会被反复拉回到很早的位置,<b class="bad">排序结果直接错掉,而且不会报错、不会崩溃</b>,是最隐蔽的一类 bug。</li>
+  <li><b>③ 内层循环里只更新下标 <code>smallest_index</code>,不要提前交换值。</b>
+    常见错误写法是一边扫描一边"发现更小就立刻交换",这会打乱"当前 <code>i</code> 位置的原始值"和"正在扫描的 <code>j</code>"之间的比较基准。正确做法是:内层循环<b>只负责找到最小值的下标</b>,等整个内层循环结束、确定了最终的 <code>smallest_index</code>,再在外层统一做<b>一次</b>交换。这一点在有重复元素时格外重要——如果记的是"最小值本身"而不是"下标",遇到多个相同的最小值,交换时可能换错具体位置。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱(对应章节"常见陷阱"):</b>
+  <ul>
+    <li><b>以为"预留空位"能一劳永逸解决数组插入慢的问题。</b>这只是权宜之计:预留的位置可能根本用不上(浪费内存,还挤占了别人可能需要的空间);一旦实际元素数超过预留额度,依然要重新申请一整块更大的内存、把所有元素搬过去。</li>
+    <li><b>以为链表删除和数组插入一样"可能失败"。</b>数组插入确实可能因为内存里找不到足够连续的空间而失败;但删除操作在任何情况下都能成功——无非是把后面元素往前挪(数组)或改一个指针(链表)。</li>
+    <li><b>以为链表删除"永远"是 O(1)。</b>只有当你已经拿到待删除节点本身(比如链表的第一个或最后一个节点)时,删除才是 O(1);如果还需要从头顺序查找这个节点,那查找本身就是 O(n),整体开销并不是 O(1)。</li>
+  </ul>
+</div>
+
+<h2>五、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 找茬题:下面这段选择排序的内层循环被改了一行,选出问题所在。</div>
+  <p class="sub" style="margin-top:-4px">先自己模拟一遍 <code>arr=[5,3,6,2,10]</code>,看外层循环第 2 轮(<code>i=1</code>)会发生什么,再选。</p>
+  <pre>for (int i = 0; i < n - 1; i++) {
+    int min_index = i;
+    for (int j = 0; j < n; j++) {   <span class="c">// ← 这一行</span>
+        if (arr[j] < arr[min_index]) min_index = j;
+    }
+    int temp = arr[i]; arr[i] = arr[min_index]; arr[min_index] = temp;
+}</pre>
+  <button class="opt" data-ok="0">循环变量 j 应该改名,不能和外层的 i 同时出现</button>
+  <button class="opt" data-ok="0">这样会导致数组越界访问</button>
+  <button class="opt" data-ok="1"><code>j</code> 应该从 <code>i + 1</code> 开始,否则每一轮都会把已排序部分重新扫一遍,排序结果会出错</button>
+  <button class="opt" data-ok="0">min_index 的初始值应该是 0,不是 i</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q1sol').classList.toggle('hidden')">▸ 看第2轮模拟过程</span>
+  <div id="q1sol" class="hidden" style="margin-top:8px">
+    <p style="margin:4px 0">第 1 轮(<code>i=0</code>)结束后,数组已经变成 <code>[2,3,6,5,10]</code>(最小值 2 归位)。第 2 轮 <code>i=1</code> 时,如果 <code>j</code> 从 0 开始:</p>
+    <table>
+      <tr><th>j</th><th>arr[j]</th><th>min_index 变化</th></tr>
+      <tr><td>0</td><td>2</td><td>2 &lt; arr[1]=3,min_index 变成 0</td></tr>
+      <tr><td>1</td><td>3</td><td>不变,仍是 0</td></tr>
+      <tr><td>2~4</td><td>6,5,10</td><td>都比 arr[0]=2 大,不变</td></tr>
+    </table>
+    <p style="margin:4px 0">结果 <code>min_index=0</code>,于是 <code>arr[1]</code> 和 <code>arr[0]</code> 交换——把刚刚归位的最小值 2 又换回下标 1,下标 0 变成 3。后面几轮同理,已排序部分被反复破坏,最终排序结果是错的。</p>
+  </div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 如果把外层循环条件从 <code>i &lt; n - 1</code> 改成 <code>i &lt; n</code>,会发生什么?</div>
+  <button class="opt" data-ok="1">排序结果不受影响,只是多跑一轮"自己和自己交换"的无意义操作</button>
+  <button class="opt" data-ok="0">会导致数组越界访问 arr[n]</button>
+  <button class="opt" data-ok="0">会导致死循环</button>
+  <button class="opt" data-ok="0">最后一个元素会被漏掉,排序不完整</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 如果输入数组本来就已经有序,比如 <code>[1,2,3,4,5]</code>,选择排序的时间复杂度是?</div>
+  <button class="opt" data-ok="0">O(n),因为已经有序,内层循环可以提前退出</button>
+  <button class="opt" data-ok="1">仍然是 O(n²),因为选择排序的内层循环不管数组是否有序,都会老老实实扫描一遍剩余元素,没有提前退出的判断</button>
+  <button class="opt" data-ok="0">O(log n)</button>
+  <button class="opt" data-ok="0">最好情况 O(n),最坏情况 O(n²),取决于输入</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq">Q4. 关于链表的删除操作,下面哪个说法是对的?</div>
+  <button class="opt" data-ok="0">链表删除永远是 O(1),这是链表相对数组最大的优势</button>
+  <button class="opt" data-ok="0">链表删除一定比数组删除慢,因为要修改指针</button>
+  <button class="opt" data-ok="0">数组删除可能因为找不到连续空间而失败,链表删除同样可能失败</button>
+  <button class="opt" data-ok="1">只有当已经拿到待删除节点本身时,删除才是 O(1);如果还要从头顺序查找这个节点,整体开销仍是 O(n)</button>
+  <div class="fb"></div>
+</div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"数组和链表在'读'和'插入删除'上,为什么代价刚好相反?"<br>
+  ②"选择排序的内层循环为什么必须从 <code>i+1</code> 开始?为什么只记下标、不能一边扫描一边直接交换值?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 3 课(递归)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 3 课):</b> 递归——基线条件(base case)与递归条件(recursive case)分别是什么、少写一个会怎样,以及用调用栈(call stack)可视化递归的执行过程。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/bhargava-algorithms/chapters/ch02-selection-sort.md</code>(《算法图解》第 2 章,原书 Python 代码已改写为等价的 C 代码)。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!内层循环必须从 i+1 开始,只扫描"未排序部分"。从 0 开始会把已经归位的元素也拉进比较,导致排序被反复破坏。',
+      bad:'再看看模拟表:第2轮如果 j 从 0 开始,会把已经归位的最小值(下标0)也纳入比较,min_index 最终又变回 0,导致刚排好的元素被换乱。内层循环必须从 i+1 开始,只在"未排序部分"里找最小值。'},
+  q2:{good:'对!i=n-1 时内层循环 j 从 n 开始直接不满足 j<n,min_index 还是 i 自己,交换等于自己换自己——无害,只是多一轮空跑。',
+      bad:'代入 i=n-1 验证一下:内层循环写的是 for(j=i+1;j<n;j++),此时 j 从 n 开始,条件 j<n 不成立,循环体一次都不执行,min_index 保持等于 i。最后 arr[i] 和 arr[min_index] 是同一个位置,交换没有任何效果——不会越界也不会死循环,只是白跑一轮。'},
+  q3:{good:'对!选择排序不管输入是否已经有序,内层循环都要把剩余部分老老实实扫一遍才能确定"当前最小值"——它没有提前 break 的逻辑,所以没有更好的最好情况,恒为 O(n²)。',
+      bad:'回想内层循环的写法:for(j=i+1;j<n;j++),里面只有一个 if 判断,没有任何"提前退出"的逻辑。不管数组多有序,这个 for 循环都会完整跑完,所以选择排序没有更好的最好情况,不管输入如何都是 O(n²)。'},
+  q4:{good:'对!链表删除"O(1)"这个结论是有前提的——前提是你已经手握待删除节点(比如链表头/尾)。如果还要先顺序查找它在哪,查找本身就是 O(n),这部分开销跑不掉。',
+      bad:'链表删除并非"永远"O(1)。真正的规则是:已知节点位置时改一个指针确实是 O(1);但如果不知道位置、需要从头遍历查找,查找过程本身是 O(n),整体开销不能只算最后那一步。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

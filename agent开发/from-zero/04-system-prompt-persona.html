@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>04 · System Prompt：给 Agent 一个人格与规矩</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 如何长出一个 Agent · 第 04 课 · 预计 9 分钟 · <a href="03-from-chat-to-messages.html">← 上一课：从聊天到 messages</a> · <a href="05-tool-calling-basics.html">下一课：Tool Calling →</a></p>
+
+<h1>System Prompt：给 Agent 一个人格与规矩</h1>
+
+<p class="lede">上一课你知道了：喂给大脑的是一个 <code>messages</code> 数组，而数组的<strong>第一条</strong>总是 role 为 <code>system</code> 的消息。这一课只讲清一件事——这第一条消息到底写了什么，凭它就能把同一个模型捏成完全不同的"人"。</p>
+
+<div class="chain in">
+<p>上一课收尾时我们留了个钩子：<strong>消息最前面永远是 system。它凭什么能让同一个模型时而是严谨助手、时而是段子手？</strong>模型的参数一个字节都没变，换的只是这段开头的文字。它到底有什么魔力？这一课我们把它拆开看。</p>
+</div>
+
+<h2>一、先打个比方：system prompt 是演员的"剧本 + 岗前培训手册"</h2>
+
+<p>想象一个很厉害的话剧演员（这就是大模型）。他演技一流，但<strong>本身没有角色</strong>——你给他一份《哈姆雷特》剧本，他就是忧郁王子；给他一份脱口秀稿子，他就是段子手。演员没换人，换的是他开场前读的那份东西。</p>
+
+<p>system prompt 就是这份"开场前必读"。它不参与对话，用户通常也看不见它，但它在每一句回答之前都先被模型读一遍。更贴切一点，它其实是一份<strong>岗前培训手册</strong>，把四件事一次性交代清楚：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="system prompt 交代的四件事：身份、能力边界、行为规则、输出格式">
+  <!-- title box -->
+  <rect class="dgm-hub" x="250" y="18" width="220" height="46" rx="8" stroke-width="2"/>
+  <text class="dgm-accent-text" x="360" y="40" font-size="15" font-weight="700" text-anchor="middle">system prompt</text>
+  <text class="dgm-muted" x="360" y="57" font-size="11" text-anchor="middle">开场前必读的一段文字</text>
+  <!-- four downward edges -->
+  <line class="dgm-edge" x1="360" y1="64" x2="120" y2="118" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="64" x2="280" y2="118" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="64" x2="440" y2="118" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="64" x2="600" y2="118" stroke-width="1.5"/>
+  <!-- four cards -->
+  <g>
+    <rect class="dgm-node" x="30" y="120" width="180" height="150" rx="8" stroke-width="1.5"/>
+    <text class="dgm-accent-text" x="120" y="148" font-size="14" font-weight="700" text-anchor="middle">① 身份</text>
+    <text class="dgm-muted" x="120" y="172" font-size="11" text-anchor="middle">你是谁</text>
+    <text class="dgm-muted" x="120" y="192" font-size="11" text-anchor="middle">"你是 AnyGen，</text>
+    <text class="dgm-muted" x="120" y="208" font-size="11" text-anchor="middle">一个 AI agent"</text>
+    <text class="dgm-muted" x="120" y="240" font-size="10" text-anchor="middle">决定语气</text>
+    <text class="dgm-muted" x="120" y="255" font-size="10" text-anchor="middle">与自我认知</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="220" y="120" width="180" height="150" rx="8" stroke-width="1.5"/>
+    <text class="dgm-accent-text" x="310" y="148" font-size="14" font-weight="700" text-anchor="middle">② 能力边界</text>
+    <text class="dgm-muted" x="310" y="172" font-size="11" text-anchor="middle">你能做/不能做</text>
+    <text class="dgm-muted" x="310" y="192" font-size="11" text-anchor="middle">运行在什么沙箱</text>
+    <text class="dgm-muted" x="310" y="212" font-size="11" text-anchor="middle">有哪些技能库</text>
+    <text class="dgm-muted" x="310" y="244" font-size="10" text-anchor="middle">防止它乱承诺</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="410" y="120" width="180" height="150" rx="8" stroke-width="1.5"/>
+    <text class="dgm-accent-text" x="500" y="148" font-size="14" font-weight="700" text-anchor="middle">③ 行为规则</text>
+    <text class="dgm-muted" x="500" y="172" font-size="11" text-anchor="middle">怎么用工具</text>
+    <text class="dgm-muted" x="500" y="192" font-size="11" text-anchor="middle">先做计划再动手</text>
+    <text class="dgm-muted" x="500" y="212" font-size="11" text-anchor="middle">出错怎么办、</text>
+    <text class="dgm-muted" x="500" y="228" font-size="11" text-anchor="middle">安全红线</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="600" y="120" width="90" height="150" rx="8" stroke-width="1.5"/>
+    <text class="dgm-accent-text" x="645" y="148" font-size="13" font-weight="700" text-anchor="middle">④ 输出</text>
+    <text class="dgm-accent-text" x="645" y="164" font-size="13" font-weight="700" text-anchor="middle">格式</text>
+    <text class="dgm-muted" x="645" y="188" font-size="10" text-anchor="middle">用什么语言</text>
+    <text class="dgm-muted" x="645" y="206" font-size="10" text-anchor="middle">回复长啥样</text>
+    <text class="dgm-muted" x="645" y="224" font-size="10" text-anchor="middle">交付标准</text>
+  </g>
+</svg>
+</div>
+<figcaption>一份完整的 system prompt 交代的四件事。在 mino_server 里它们分别落成模板里的 XML 段：身份是开头一句 <code>You are AnyGen…</code>，能力边界在 <code>&lt;core_settings&gt;</code>，行为规则在 <code>&lt;agent_principles&gt;</code>/<code>&lt;execution_rules&gt;</code>，输出格式在 <code>&lt;deliverable_standards&gt;</code>。见 <code>prompts/system_super_agent.go.tmpl</code>。</figcaption>
+</figure>
+
+<p>所以"时而严谨助手、时而段子手"根本不是玄学。模型是同一个，<strong>换的只是它开场前读的那份手册</strong>。把手册第一句从"你是一位一丝不苟的法律顾问"换成"你是一个爱抖包袱的段子手"，同一个模型的输出风格立刻两样。</p>
+
+<h2>二、真实代码里，这份手册长什么样</h2>
+
+<p>在 mino_server 里，这份"手册"不是硬编码在某个字符串里，而是一批<strong>模板文件</strong>。它们放在 <code>biz/domain/dmservice/agents/conductorservice/prompts/</code> 目录下，文件名以 <code>.go.tmpl</code> 结尾，程序启动时用 Go 的 <code>go:embed</code> 把它们打包进二进制。<strong>不同的模式用不同的模板</strong>——这就是"多副人格"的来源：</p>
+
+<div class="keydef">
+<dl>
+<dt><code>go:embed</code> 模板（多副人格）</dt>
+<dd>同一个 Conductor Agent 备了 8 套以上人设模板，按当前 <code>SubType</code>/模式挑一套渲染：<code>system_super_agent</code>（通用超级助手）、<code>system_designer</code>（设计）、<code>system_developer</code>（写代码）、<code>system_html_slides</code>（做幻灯片）、<code>system_code_interpreter</code>、<code>system_anyclaw</code>/<code>_wiki</code>、<code>system_testing</code> ……换模式就是换人格。<code>prompts.go</code> 顶部有一排逐文件的 <code>//go:embed</code> 指令——<code>system_super_agent</code> / <code>system_developer</code> / <code>system_designer</code> … 各占一行，每条 embed 一个 <code>.go.tmpl</code>（真实例子：<code>//go:embed prompts/system_super_agent.go.tmpl</code>），共 8 个 <code>system_*.go.tmpl</code> 模板。</dd>
+</dl>
+</div>
+
+<p>以最常用的 <code>system_super_agent.go.tmpl</code> 为例，它开头第一句就是身份声明（真实原文）：</p>
+
+<pre><code>You are AnyGen, an AI agent created by the AnyGen team.
+
+&lt;core_settings&gt;      &lt;!-- 能力清单、工作语言、Ubuntu 沙箱环境说明 --&gt;
+&lt;mcp_integration&gt;    &lt;!-- 外部工具接入规则 --&gt;
+&lt;agent_principles&gt;   &lt;!-- 工具使用规则 + 先计划再动手 + 出错怎么办 --&gt;
+&lt;user_interaction&gt;   &lt;!-- 怎么回复用户、什么时候找人确认(HITL) --&gt;
+&lt;execution_rules&gt;    &lt;!-- 技能库、搜索/浏览器/shell/文件的具体规矩 --&gt;
+&lt;deliverable_standards&gt; &lt;!-- 交付物长啥样 --&gt;</code></pre>
+
+<p>注意一个反直觉的点：<strong>模板里写的是工具的"使用规矩"（文字描述），而不是工具的技术说明书（参数 schema）</strong>。真正告诉模型"这个工具接收哪些字段"的东西是<em>带外</em>传的（下一课细讲）。这里只讲"你应该怎么用它们、什么时候用"。</p>
+
+<p>模板里那些 <code>&lt;agent_principles&gt;</code> 之类的段落，也不是一整块写死的。渲染之前，代码先分别生成一堆<strong>子段落</strong>——计划规则、回复规则、找人确认(HITL)规则、搜索规则、记忆规则、安全规则等等——再连同一大堆"功能开关"塞进一个 <code>SystemPromptData</code> 结构，最后用模板拼成完整的一段。哪些段落出现、哪些不出现，由功能开关决定。这段拼装逻辑在 <code>prompts.go</code> 的 <code>populateSystemPrompt</code> 里。</p>
+
+<div class="good">
+<strong>关键判断（本课的第一根钉子）</strong>：人设不是"随手写的一句咒语"，而是一份<strong>可版本化的工程资产</strong>——它是磁盘上的模板文件、有目录结构、按模式分文件、能进 git、能 code review、能针对性改某一段。想改 agent 的行为，你改的是这份文件，而不是去动模型。</p>
+</div>
+
+<h2>三、静态人设 + 动态 context：两股水汇进同一条河</h2>
+
+<p>但只有一份固定的模板还不够。模板是"死"的——它不知道<strong>现在几点、跟它说话的是谁、这个用户之前告诉过它什么</strong>。这些是每次请求都在变的信息。于是系统在运行时另外拼一段<strong>动态 context</strong>，注入进消息数组。</p>
+
+<p>用招待所打个比方：模板是墙上那张永远不变的《住客须知》（静态人设）；而前台每天早上更新的那块小黑板——"今天是 X 月 X 日，接待的客人是老王，他不吃辣"——就是动态 context。两者你都要读，但一个几年不动，一个天天换。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 400" role="img" aria-label="静态人设模板与动态 context 两条流水线汇合成发给模型的消息数组">
+  <!-- LEFT track: static persona -->
+  <text class="dgm-accent-text" x="170" y="28" font-size="13" font-weight="700" text-anchor="middle">静态人设（几乎不变）</text>
+  <rect class="dgm-node" x="40" y="42" width="260" height="46" rx="7" stroke-width="1.5"/>
+  <text class="dgm-text" x="170" y="62" font-size="12" font-weight="700" text-anchor="middle">磁盘上的模板文件</text>
+  <text class="dgm-muted" x="170" y="79" font-size="10.5" text-anchor="middle">prompts/system_*.go.tmpl</text>
+  <text class="dgm-muted" x="170" y="104" font-size="16" text-anchor="middle">↓ go:embed + 渲染</text>
+  <rect class="dgm-node" x="40" y="114" width="260" height="46" rx="7" stroke-width="1.5"/>
+  <text class="dgm-text" x="170" y="134" font-size="12" font-weight="700" text-anchor="middle">GetSystemPrompt(按模式选模板)</text>
+  <text class="dgm-muted" x="170" y="151" font-size="10.5" text-anchor="middle">用户可整段覆盖 GetSystemPromptByAgent</text>
+  <text class="dgm-muted" x="170" y="176" font-size="16" text-anchor="middle">↓</text>
+  <rect class="dgm-good-node" x="40" y="186" width="260" height="50" rx="7" stroke-width="2"/>
+  <text class="dgm-text" x="170" y="207" font-size="12" font-weight="700" text-anchor="middle">第 1 条：Role = system</text>
+  <text class="dgm-muted" x="170" y="224" font-size="10.5" text-anchor="middle">NewLLMMessageWithCache1Hour(挂1h缓存)</text>
+
+  <!-- RIGHT track: dynamic context -->
+  <text class="dgm-accent-text" x="545" y="28" font-size="13" font-weight="700" text-anchor="middle">动态 context（每次都可能变）</text>
+  <rect class="dgm-node" x="415" y="42" width="260" height="46" rx="7" stroke-width="1.5"/>
+  <text class="dgm-text" x="545" y="62" font-size="12" font-weight="700" text-anchor="middle">运行时采集：时间/用户/计划/记忆</text>
+  <text class="dgm-muted" x="545" y="79" font-size="10.5" text-anchor="middle">buildContextPayload</text>
+  <text class="dgm-muted" x="545" y="104" font-size="16" text-anchor="middle">↓ 拼成 &lt;context_info&gt;</text>
+  <rect class="dgm-node" x="415" y="114" width="260" height="46" rx="7" stroke-width="1.5"/>
+  <text class="dgm-text" x="545" y="134" font-size="12" font-weight="700" text-anchor="middle">buildDeveloperContextMessage</text>
+  <text class="dgm-muted" x="545" y="151" font-size="10.5" text-anchor="middle">为空则返回 nil，不注入</text>
+  <text class="dgm-muted" x="545" y="176" font-size="16" text-anchor="middle">↓</text>
+  <rect class="dgm-node" x="415" y="186" width="260" height="50" rx="7" stroke-width="1.5"/>
+  <text class="dgm-text" x="545" y="207" font-size="12" font-weight="700" text-anchor="middle">chatMessages 里第 1 条：Role = developer</text>
+  <text class="dgm-muted" x="545" y="224" font-size="10.5" text-anchor="middle">跟在 system / 模式段之后</text>
+
+  <!-- merge arrows -->
+  <line class="dgm-edge" x1="170" y1="236" x2="330" y2="300" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="545" y1="236" x2="390" y2="300" stroke-width="1.5"/>
+  <!-- final messages array -->
+  <rect class="dgm-hub" x="150" y="300" width="420" height="80" rx="9" stroke-width="2"/>
+  <text class="dgm-accent-text" x="360" y="324" font-size="13" font-weight="700" text-anchor="middle">发给模型的 messages 数组（顺序写死）</text>
+  <text class="dgm-text" x="360" y="346" font-size="11.5" text-anchor="middle">system → 模式developer → hook developer → context_info …</text>
+  <text class="dgm-muted" x="360" y="366" font-size="10.5" text-anchor="middle">稳定的放前面，易变的放后面 —— 为了命中 prompt cache</text>
+</svg>
+</div>
+<figcaption>两条流水线汇合：左边静态人设 → 一条 <code>Role=system</code> 消息（<code>NewLLMMessageWithCache1Hour</code>）；右边动态 context → 一条 <code>Role=developer</code> 消息（<code>buildDeveloperContextMessage</code>）。汇合与排序在 <code>agent.go</code> 的 <code>buildConductorMessages</code>。</figcaption>
+</figure>
+
+<p>这里冒出一个新角色 <code>developer</code>。上一课我们只见过 <code>system</code>/<code>user</code>/<code>assistant</code>/<code>tool</code> 四种 role——但 mino_server 其实用了<strong>五种</strong>：</p>
+
+<div class="keydef">
+<dl>
+<dt><code>developer</code> 角色</dt>
+<dd>第五种 role（<code>common.go</code> 里的 <code>RoleType</code> 常量共 5 个：<code>assistant/user/system/tool/developer</code>）。它专门承载"开发者在运行时注入"的内容：结构化上下文块、模式约束、步数提醒等。可以理解成：<code>system</code> 是不变的人格，<code>developer</code> 是同样由系统方（而非用户）塞进去、但每次可以不一样的补充说明。</dd>
+</dl>
+</div>
+
+<p>那块动态 context，最终长成一条 <code>developer</code> 消息，外层用 <code>&lt;context_info&gt;</code> 包住，里面按<strong>固定顺序</strong>写入若干小块。顺序是写死的（这样才能被 prompt cache 稳定命中）：</p>
+
+<div class="pipeline">
+  <div class="node"><span class="n-title">space_info</span><span class="n-sub">项目/技能</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">user_identity</span><span class="n-sub">用户是谁</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">current_time</span><span class="n-sub">只到日期+时区</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">main_language</span><span class="n-sub">主语言</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">current_plan</span><span class="n-sub">当前计划</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">user_personalization</span><span class="n-sub">昵称/职业</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">user_memory</span><span class="n-sub">长期记忆</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">mobile_app</span><span class="n-sub">端信息</span></div>
+</div>
+<figure class="diagram"><figcaption><code>&lt;context_info&gt;</code> 内部块的真实注入顺序，逐块 <code>WriteString</code> 在 <code>context.go</code> 的 <code>buildDeveloperContextMessage</code>。<code>current_time</code> 标黄是因为它是易变项——代码<strong>故意只保留到"日期 + 时区"粒度</strong>（不带时分秒），注释原话是"避免秒级精度导致跨 session prompt cache miss"。这就是上一课/进阶课反复强调的"易变内容要么后置、要么降精度"原则的一个活标本。</figcaption></figure>
+
+<p>这些块的数据从哪来？在 <code>agent.go</code> 的 <code>buildContextPayload</code> 里一项项采集：时间取 <code>agent.startTime</code>、主语言取 <code>agentFeatures.MainLanguage</code>、用户指令取 <code>agentFeatures.ConductorInstruction</code>、记忆和个性化各有对应的 <code>populate*</code> 函数……采集完交给 <code>buildDeveloperContextMessage</code> 拼字符串。<strong>如果一样数据都没有（整个 context_info 是空标签），这条消息直接返回 <code>nil</code>，压根不注入</strong>——不浪费一个 token。</p>
+
+<p>另外，<code>&lt;/context_info&gt;</code> 闭合之后，同一条 developer 消息里还会追加用户自定义指令区（<code>&lt;user_instruction&gt;</code> 和 <code>&lt;anygen_md&gt;</code>，注明这些来自 AnyGen 控制台）以及子代理场景的 <code>&lt;subagent_mode&gt;</code>。也就是说：<strong>官方人设在 system 消息里，用户/管理员的定制在 developer 消息里</strong>——两层分开，互不污染。
+
+<h2>四、为什么这件事重要</h2>
+
+<p>把上面三段串起来，你会发现人设这件事被 mino_server 拆成了三层，一层比一层稳定：</p>
+
+<table>
+<tr><th>层</th><th>是什么</th><th>变化频率</th><th>落在哪</th></tr>
+<tr><td><strong>静态人格</strong></td><td>身份/能力/规则/格式，按模式选模板</td><td>几乎不变（改代码才变）</td><td><code>system</code> 消息 · <code>prompts/*.go.tmpl</code></td></tr>
+<tr><td><strong>用户覆盖</strong></td><td>用户在控制台自定义的整段 system prompt</td><td>按用户设置</td><td><code>GetSystemPromptByAgent</code> 整段替换</td></tr>
+<tr><td><strong>动态 context</strong></td><td>时间/用户/计划/记忆等运行时事实</td><td>每次请求都可能变</td><td><code>developer</code> 消息 · <code>&lt;context_info&gt;</code></td></tr>
+</table>
+
+<p>这种"稳定的在前、易变的在后"的分层，不只是好看——它是<strong>省钱的地基</strong>。因为 system 消息挂着 1 小时缓存点（<code>NewLLMMessageWithCache1Hour</code>），只要它一个字节不变，下次请求这段就能命中缓存、按输入价的一小部分计费。反过来，如果你手贱把"当前秒级时间"写进 system 开头，每次请求这段都不同，缓存全线击穿，账单直接翻量级。这也正是 <code>current_time</code> 被刻意降到日期粒度、且被放进靠后的 developer 消息而不是 system 里的根本原因。（缓存的钱怎么算，是本课程后面成本那一课的主题。）</p>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：产品同学说"我想让 agent 每次都知道现在精确到秒的时间"。你把 <code>2026-07-15 14:32:07</code> 写进了 <code>system_super_agent.go.tmpl</code> 的第一行。这会出什么问题？mino_server 实际是怎么做的？</summary>
+<div class="answer">
+<p><strong>问题</strong>：system 消息挂着 1 小时缓存点。你把秒级时间写进它的开头，意味着<strong>每次请求这条 system 消息都不一样</strong>，缓存永远命中不了；而且前缀缓存是严格前缀匹配，system 一变，排在它后面的模式段、context 段的缓存也跟着全部失效。相当于每次都按全价重算整段前缀，成本量级上涨。</p>
+<p><strong>mino_server 的做法</strong>：时间根本不放 system，而是放进靠后的 <code>developer</code> 消息的 <code>&lt;current_time&gt;</code> 块；而且<strong>只保留到"日期 + 时区"粒度</strong>（<code>StartTime.Format("2006-01-02")</code>），代码注释写明是"避免秒级精度导致跨 session prompt cache miss"。原则一句话：<em>越易变的东西，越要么降精度、要么往后放</em>。真需要精确时间，让 agent 调一个"取当前时间"的工具就行——这正好引出下一课。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：你想让同一个模型在"写代码"和"做幻灯片"两种场景下表现得完全不同。以下哪种做法符合 mino_server 的设计？(A) 训练两个不同的模型 &nbsp; (B) 在一条 user 消息里写"请你现在扮演程序员" &nbsp; (C) 按模式选不同的 <code>system_*.go.tmpl</code> 模板渲染出不同的 system prompt &nbsp; (D) 把两套规则都塞进同一个 system prompt，让模型自己挑</summary>
+<div class="answer">
+<p>正确答案是 <strong>(C)</strong>。mino_server 备了 8 套以上模板（<code>system_developer</code>、<code>system_html_slides</code> 等），启动时用 <code>go:embed</code> 打包，运行时按 <code>SubType</code>/模式挑一套渲染。这就是"多副人格"的工程实现。</p>
+<p>为什么其它不行：<strong>(A)</strong> 模型是同一个、也很贵，为换风格重训一个模型是巨大浪费——人格本就该用文字（system prompt）解决，不该动模型。<strong>(B)</strong> 把人设写进 user 消息，一是会被后续对话冲淡、二是位置靠后注意力弱、三是用户能覆盖它，不稳。<strong>(D)</strong> 把两套规则混在一起，既让 system 变长（多花 token、稀释注意力），又给模型制造"我到底该听哪套"的歧义。分文件、按需渲染，才是"可版本化的工程资产"的正确姿势。</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>现在这台 agent 有了稳定的人格，也知道了"现在几点、面对的是谁"。但请注意：到这一步，它<strong>会说话</strong>，却还是个只会说话的嘴——system prompt 里写满了"你应该怎么用工具"的规矩，可它手上其实<strong>一个真工具都没有</strong>。它能说"我建议你运行这条命令"，却没法自己去运行。</p>
+<p>那么：怎么让这颗大脑真的"请求"调用一个真实的函数、我们再把函数的执行结果还给它，让它接着往下想？这就是下一课要装的零件——<strong>给大脑装上手脚</strong>。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>这一课你装上的零件：<strong>一份可版本化的人格（system prompt）+ 一层运行时注入的动态 context</strong>。人设不是玄学，是磁盘上能进 git、能 code review 的模板文件。下一课：<em>05 · Tool Calling：给大脑装上手脚</em>——让 agent 从"会说"变成"能做"。读到卡壳，回会话里问你的 AI 老师，可要求 ELI5 或看真实代码。 · <a href="index.html">← 返回课程门户</a></p>
+</footer>
+</main>
+</body>
+</html>

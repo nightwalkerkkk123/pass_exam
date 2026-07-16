@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 4 课 · 快速排序 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第一部分《算法图解》④ · 对应 ch04</div>
+  <h1>第 4 课:快速排序 —— 同一个算法,平均情况和最坏情况能差一个数量级</h1>
+  <div class="sub">目标:第3课你已经学过递归的基线条件、递归条件和调用栈——这节课把这套框架直接套进排序问题,
+  搞懂基准值和分区怎么运作,以及为什么"选第一个元素做基准值"在有些输入下会让复杂度整个塌掉。约 25 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>分而治之(D&amp;C)的直觉:</b> 面对一堆乱序的数字不知道怎么下手,就先选一个"基准"(pivot),
+  把剩下的数字分成<b class="hl">比它小的一堆</b>和<b class="hl">比它大的一堆</b>,两堆各自再重复同样的动作,
+  直到每一堆都只剩 0 个或 1 个元素——这时候不用排都已经"有序"了。这就是快速排序的全部思路,
+  书里用"把土地均匀分割成最大方块"的例子讲过同一套两步法:先看能不能整除(基线条件),不能就切出当前能装下的最大方块,
+  剩下的地当新问题继续递归——快速排序只是把这套通用思路套用到了排序上。
+</div>
+
+<h2>一、快速排序的三步</h2>
+<p>快速排序(Quicksort)是 D&amp;C 思路在排序问题上的典范应用,C 标准库的 <code>qsort</code> 就是这么实现的。完整流程:</p>
+<ol>
+  <li><b>基线条件:</b> 数组为空或只有一个元素,直接返回,视为"已经排序"。</li>
+  <li><b>选基准值(pivot):</b> 从数组里选一个元素做参照,初学时最简单的做法是固定选<b class="hl">第一个元素</b>。</li>
+  <li><b>分区(partitioning):</b> 把其余元素分成两组——小于等于基准值的 <code>less</code>,大于基准值的 <code>greater</code>。</li>
+  <li><b>递归:</b> 对 <code>less</code> 和 <code>greater</code> 分别递归调用快速排序。</li>
+  <li><b>合并:</b> <code>quicksort(less) + [pivot] + quicksort(greater)</code>,拼接得到整体有序数组。</li>
+</ol>
+
+<h2>二、基准值与分区 —— 手动追踪一遍</h2>
+<p>以数组 <code>[33, 15, 10]</code> 为例,固定选第一个元素 <code>33</code> 做基准值:</p>
+<table>
+  <tr><th>步骤</th><th>处理对象</th><th>pivot</th><th>less</th><th>greater</th><th>说明</th></tr>
+  <tr><td>顶层</td><td>[33,15,10]</td><td>33</td><td>[15,10]</td><td>[]</td><td>15、10 都 ≤33,进 less;没有元素 &gt;33</td></tr>
+  <tr><td>第二层</td><td>[15,10]</td><td>15</td><td>[10]</td><td>[]</td><td>10 ≤15,进 less;greater 为空</td></tr>
+  <tr><td>第三层</td><td>[10]</td><td>—</td><td>—</td><td>—</td><td>长度=1,触发基线条件,直接返回 [10]</td></tr>
+  <tr><td>合并回第二层</td><td colspan="4">quicksort([10]) + [15] + quicksort([]) = [10] + [15] + [] = [10,15]</td><td></td></tr>
+  <tr><td>合并回顶层</td><td colspan="4">quicksort([15,10]) + [33] + quicksort([]) = [10,15] + [33] + [] = [10,15,33]</td><td></td></tr>
+</table>
+<p class="sub" style="margin-top:-4px">注意分区只处理"基准值以外"的元素——<code>less</code>、<code>greater</code> 都不包含 pivot 自己,pivot 是合并时单独插进去的那一个。</p>
+
+<h2>三、复杂度:平均情况 vs 最坏情况</h2>
+<p>快速排序的复杂度<b>高度依赖基准值选得好不好</b>,同一个算法在不同输入下能差出一个数量级:</p>
+<table>
+  <tr><th>情况</th><th>大O</th><th>触发条件</th><th>调用栈高度</th></tr>
+  <tr><td>平均 / 最优情况</td><td><code>O(n log n)</code></td>
+    <td>基准值每次都能把数组大致分成两半(接近中位数),8个元素只需约 log₂8=3 层就能分完</td>
+    <td>约 <code>log n</code> 层</td></tr>
+  <tr><td>最坏情况</td><td><code>O(n²)</code></td>
+    <td>数组本身已经排好序(升序)+ 每次都固定选第一个元素作基准值 → pivot 恰好是当前区间的最小值,
+    分区后 <code>less</code> 永远为空、<code>greater</code> 拿到几乎全部剩下的元素</td>
+    <td>退化为约 <code>n</code> 层</td></tr>
+</table>
+<p>对照第2课学过的选择排序,能更清楚地看出快排"平均很快、但没有保证"这个特点:</p>
+<table>
+  <tr><th>算法</th><th>平均情况</th><th>最糟情况</th><th>备注</th></tr>
+  <tr><td>选择排序(第2课)</td><td>O(n²)</td><td>O(n²)</td><td>速度慢,但稳定不波动</td></tr>
+  <tr><td>合并排序(merge sort)</td><td>O(n log n)</td><td>O(n log n)</td><td>稳定,但常量比快排大</td></tr>
+  <tr><td>快速排序</td><td>O(n log n)</td><td>O(n²)</td><td>常量小,实践中常比合并排序快;最糟情况取决于基准值选择</td></tr>
+</table>
+<div class="callout big">
+  <b>一个容易被忽略的角度:</b> 快排和合并排序大O阶数都是 <code>O(n log n)</code>,但大O表示法本身会忽略每步操作的固定耗时(常量 c)。
+  快排的常量比合并排序小,这也是为什么大多数标准库更青睐快速排序——"大O相同"不等于"速度一样"。
+</div>
+
+<h3>C 代码(分区函数 + 递归函数,带边界条件详解)</h3>
+<pre>#define MAXN 100                        <span class="c">// 简化起见,假设数组元素不超过 100 个</span>
+
+<span class="c">// 分区函数:以 arr[0] 为基准值(书中"初学时可简单选第一个元素"的做法)</span>
+<span class="c">// 把 arr[1..n-1] 按 &lt;=pivot / &gt;pivot 分别收进 less 和 greater</span>
+int partition(int arr[], int n, int less[], int greater[], int *less_n, int *greater_n) {
+    int pivot = arr[0];
+    int li = 0, gi = 0;
+    for (int i = 1; i < n; i++) {        <span class="c">// ① 从下标1开始,不把 pivot 自己也分进去</span>
+        if (arr[i] <= pivot) less[li++] = arr[i];
+        else                 greater[gi++] = arr[i];
+    }
+    *less_n = li;
+    *greater_n = gi;
+    return pivot;
+}
+
+<span class="c">// 递归主函数:把排好序的结果写进 result</span>
+void quicksort(int arr[], int n, int result[]) {
+    if (n < 2) {                          <span class="c">// ② 基线条件:0 个或 1 个元素,直接视为"已排序"</span>
+        for (int i = 0; i < n; i++) result[i] = arr[i];
+        return;
+    }
+    int less[MAXN], greater[MAXN];
+    int less_n, greater_n;
+    int pivot = partition(arr, n, less, greater, &less_n, &greater_n);
+
+    int sorted_less[MAXN], sorted_greater[MAXN];
+    quicksort(less, less_n, sorted_less);          <span class="c">// 递归处理 less</span>
+    quicksort(greater, greater_n, sorted_greater);  <span class="c">// 递归处理 greater</span>
+
+    int idx = 0;
+    for (int i = 0; i < less_n; i++)    result[idx++] = sorted_less[i];
+    result[idx++] = pivot;                          <span class="c">// ③ 合并顺序:less + [pivot] + greater</span>
+    for (int i = 0; i < greater_n; i++) result[idx++] = sorted_greater[i];
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 分区循环必须从下标 <code>1</code> 开始,跳过 pivot 自己。</b>
+    如果写成 <code>for (i = 0; i < n; i++)</code> 从下标0开始,会把 <code>arr[0]</code>(也就是 pivot 自己)
+    也拿去和自己比较、塞进 <code>less</code> 或 <code>greater</code>,导致分区结果比原数组多算了一个元素,
+    最终合并出来的数组长度和原数组对不上。</li>
+  <li><b>② 基线条件是 <code>n &lt; 2</code>(即 <code>n==0</code> 或 <code>n==1</code>),不能漏写。</b>
+    如果忘记写这个 <code>if</code>,递归到子数组长度为0(空数组)时,函数会直接冲进 <code>partition</code>,
+    而 <code>partition</code> 第一步就是 <code>pivot = arr[0]</code>——这是在读一个根本不存在的下标,
+    在 C 里是<b class="bad">未定义行为</b>(不像 Python 数组越界会直接抛异常),而且函数不会提前结束,
+    子数组会一直以 <code>n=0</code> 的状态继续递归下去,这是期末最容易因为"忘记设基线条件"写出的<b class="bad">无限递归</b>。</li>
+  <li><b>③ 合并顺序必须是 <code>less + [pivot] + greater</code>,顺序不能颠倒或漏掉 pivot。</b>
+    如果写成 <code>greater</code> 在前、<code>less</code> 在后,或者忘记把 <code>pivot</code> 塞进结果里,
+    得到的数组整体顺序就是错的,或者少了一个元素——阅卷通常按"结果错误"扣分,不算部分正确。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱:对已经排序好的数组,总是固定选第一个元素作基准值。</b>
+  如果输入数组本身就是升序(比如 <code>[10,15,33,40,55]</code>),每次选 <code>arr[0]</code> 做 pivot——
+  它正好是当前区间的最小值,分区后 <code>less</code> 永远是空的、<code>greater</code> 拿走了几乎全部剩下的元素,
+  相当于每递归一层只筛掉 1 个元素(pivot 自己),调用栈深度退化到 <code>O(n)</code> 层,总时间退化为最糟情况
+  <code>O(n²)</code>。书中给出的应对方法是:<b>随机选择基准值</b>,让"总是恰好选到最值"这种最坏情况不容易被复现,
+  平均情况的 <code>O(n log n)</code> 才更可靠地体现出来。
+</div>
+
+<h2>四、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 手算分区:数组 <code>[33, 15, 10]</code>,选第一个元素 <code>33</code> 作为基准值。第一次分区后,less 和 greater 分别是什么?</div>
+  <button class="opt" data-ok="0">less=[], greater=[15,10]</button>
+  <button class="opt" data-ok="1">less=[15,10], greater=[]</button>
+  <button class="opt" data-ok="0">less=[15], greater=[10]</button>
+  <button class="opt" data-ok="0">less=[10], greater=[15]</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 数组 <code>[10, 15, 33, 40, 55]</code> 本身已经是升序,快速排序每次都固定选第一个元素做基准值。这种情况下,复杂度和调用栈高度分别是?</div>
+  <button class="opt" data-ok="0">O(n log n),栈高约 log n —— 这是平均情况</button>
+  <button class="opt" data-ok="0">O(n),栈高 1 —— 数组已经有序,不需要真的递归</button>
+  <button class="opt" data-ok="0">O(n!),栈高约 n</button>
+  <button class="opt" data-ok="1">O(n²),栈高约 n —— pivot 是当前最小值,less 永远为空,每层只筛掉1个元素</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段快速排序代码丢了一部分,请找出问题。</div>
+  <p class="sub" style="margin-top:-4px">先想清楚:当子数组长度递归到 0 或 1 时,这段代码会发生什么。</p>
+  <pre>void quicksort(int arr[], int n, int result[]) {
+    int less[MAXN], greater[MAXN];
+    int less_n, greater_n;
+    int pivot = partition(arr, n, less, greater, &less_n, &greater_n);  <span class="c">// ← 直接从这里开始</span>
+
+    int sorted_less[MAXN], sorted_greater[MAXN];
+    quicksort(less, less_n, sorted_less);
+    quicksort(greater, greater_n, sorted_greater);
+
+    int idx = 0;
+    for (int i = 0; i < less_n; i++)    result[idx++] = sorted_less[i];
+    result[idx++] = pivot;
+    for (int i = 0; i < greater_n; i++) result[idx++] = sorted_greater[i];
+}</pre>
+  <button class="opt" data-ok="1">缺少基线条件(n&lt;2 时直接返回),导致空数组或单元素数组还会继续尝试分区,可能无限递归甚至崩溃</button>
+  <button class="opt" data-ok="0">partition 函数写错了,pivot 不应该选 arr[0]</button>
+  <button class="opt" data-ok="0">合并顺序错了,应该是 greater 在前、less 在后</button>
+  <button class="opt" data-ok="0">less 和 greater 数组开得不够大</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q3sol').classList.toggle('hidden')">▸ 看没有基线条件会发生什么</span>
+  <div id="q3sol" class="hidden" style="margin-top:8px">
+    <p style="margin:4px 0">设某次递归调用到 <code>quicksort(sub, 0, result)</code>(<code>sub</code> 是空数组):
+    <code>partition</code> 第一步 <code>pivot = arr[0]</code>——但 <code>sub</code> 长度是0,<code>arr[0]</code>
+    根本不存在,读到的是内存里的垃圾值(未定义行为);接着 <code>for</code> 循环因为 <code>n=0</code> 不会执行,
+    <code>less_n</code>、<code>greater_n</code> 都返回0,然后又递归调用 <code>quicksort(less,0,...)</code> 和
+    <code>quicksort(greater,0,...)</code>——也就是用同样的 <code>n=0</code> 又调用了自己两次。
+    没有任何机制能让 <code>n</code> 发生变化或让函数提前返回,这个 <code>n=0</code> 的递归会不断复制自己,
+    调用栈只会越叠越深,直到耗尽栈空间、程序崩溃(栈溢出)。</p>
+  </div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq">Q4. 快速排序和合并排序(merge sort)的大O阶数都是 O(n log n),但实践中快速排序通常跑得更快。为什么?</div>
+  <button class="opt" data-ok="0">因为大O表示法本身对快速排序的计算方式不一样</button>
+  <button class="opt" data-ok="0">因为快速排序的最坏情况比合并排序更好</button>
+  <button class="opt" data-ok="1">大O相同时还要看常量c——快速排序的常量比合并排序小,所以实际速度更快</button>
+  <button class="opt" data-ok="0">两者实际速度完全一样,只是常见说法上偏爱快速排序</button>
+  <div class="fb"></div>
+</div>
+
+<h2>五、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"快速排序的三步(基准值 → 分区 → 合并)分别在做什么?基线条件是什么?"<br>
+  ②"为什么对已经排序好的数组总选第一个元素做基准值,会让复杂度从 O(n log n) 退化到 O(n²)?调用栈发生了什么变化?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 5 课(散列表)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 5 课):</b> 散列表——把查找问题变成计算问题,延续这节课"用大O衡量不同做法代价"的思路。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/bhargava-algorithms/chapters/ch04-quicksort.md</code>
+  (《算法图解》第4章,原书 Python 代码已改写为 C)。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!15<=33、10<=33,两个都进 less;没有元素比33大,所以 greater 是空数组。这正是书里的讲解示例。',
+      bad:'重新比较每个元素和 pivot=33 的大小:15<=33 进 less,10<=33 也进 less;pivot 自己(下标0)不参与比较。所以 less=[15,10],greater=[]。'},
+  q2:{good:'对!数组已经有序,且 pivot 固定选 arr[0](当前区间的最小值)。这样一来 less 永远是空的、greater 拿走了几乎全部剩下的元素——每递归一层只筛掉1个元素(pivot自己),调用栈深度退化到约 n 层,总时间 O(n)×O(n)=O(n²)。',
+      bad:'再想:pivot 固定选 arr[0]。数组本身已经升序时,arr[0] 就是当前区间里最小的元素,所以 less(小于等于pivot的部分)永远是空的,greater 拿到了几乎全部剩下的元素——每一层只排除掉 pivot 这1个元素,调用栈会长到约 n 层,总时间退化为 O(n)×O(n)=O(n²),这正是最坏情况。'},
+  q3:{good:'对!这段代码从头到尾没有 if (n<2) 直接返回的判断。当递归到 n==0(空数组)时,partition 里 pivot=arr[0] 是在读一个根本不存在的下标——未定义行为,而且函数不会提前结束,子数组会一直以 n=0 的状态继续递归下去,这正是期末最容易因为"忘记设基线条件"写出的无限递归。',
+      bad:'再想:当子数组长度递归到 0(空数组)或 1(单元素)时,这段代码有没有提前返回?没有——它会直接冲进 partition 函数,第一步就是 pivot=arr[0]。当 n==0 时数组根本没有下标0,这是未定义行为,而且函数还会继续递归下去、不会停——这才是真正的问题所在。'},
+  q4:{good:'对!大O表示法只描述增长趋势,会忽略每一步操作实际耗费的固定时间(常量c)。快排和合并排序虽然同为 O(n log n),但快排的常量更小,这也是为什么大多数标准库(包括C的qsort)更青睐快速排序的原因。',
+      bad:'重新想想:大O只是"增长趋势"的抽象,并不代表两个同阶算法跑起来一样快。快排的最坏情况其实是 O(n²),比合并排序稳定的 O(n log n) 更差——但因为快排的常量c比合并排序小,平均、实践中反而通常更快。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0001 · context 是主轴：四支柱耦合与"缓存类比"的三个漏水点</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0001 课 · 预计 10 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>context 是主轴：四支柱耦合与"缓存类比"的三个漏水点</h1>
+
+<p class="lede">你已经有了正确的地图："评估≈CI、context≈状态管理、工具≈RPC、token≈计费单位"。这节课只做一件事：证明这四件事不是并列的四个问题，而是一个中心问题（context 组织）和它的三个投影。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 400" role="img" aria-label="context 组装为中心，质量、成本、评估、工具四支柱是它的投影">
+  <!-- edges -->
+  <line class="dgm-edge" x1="360" y1="200" x2="185" y2="95" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="200" x2="535" y2="95" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="200" x2="185" y2="315" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="200" x2="535" y2="315" stroke-width="1.5"/>
+  <!-- edge labels -->
+  <text class="dgm-muted" x="248" y="135" font-size="12" text-anchor="middle">注意力/位置效应</text>
+  <text class="dgm-muted" x="472" y="135" font-size="12" text-anchor="middle">前缀缓存排列</text>
+  <text class="dgm-muted" x="243" y="278" font-size="12" text-anchor="middle">context 可复现性</text>
+  <text class="dgm-muted" x="478" y="278" font-size="12" text-anchor="middle">返回值占预算</text>
+  <!-- hub -->
+  <ellipse class="dgm-hub" cx="360" cy="200" rx="92" ry="46" stroke-width="2"/>
+  <text class="dgm-accent-text" x="360" y="196" font-size="17" font-weight="700" text-anchor="middle">context 组装</text>
+  <text class="dgm-muted" x="360" y="217" font-size="11" text-anchor="middle">buildConductorMessages</text>
+  <!-- four pillars -->
+  <g>
+    <rect class="dgm-node" x="95" y="62" width="180" height="66" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="185" y="90" font-size="15" font-weight="700" text-anchor="middle">质量</text>
+    <text class="dgm-muted" x="185" y="110" font-size="11" text-anchor="middle">模型答得好不好</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="445" y="62" width="180" height="66" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="535" y="90" font-size="15" font-weight="700" text-anchor="middle">成本与延迟</text>
+    <text class="dgm-muted" x="535" y="110" font-size="11" text-anchor="middle">token 计费</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="95" y="282" width="180" height="66" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="185" y="310" font-size="15" font-weight="700" text-anchor="middle">评估</text>
+    <text class="dgm-muted" x="185" y="330" font-size="11" text-anchor="middle">eval ≈ 新的 CI</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="445" y="282" width="180" height="66" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="535" y="310" font-size="15" font-weight="700" text-anchor="middle">工具调用</text>
+    <text class="dgm-muted" x="535" y="330" font-size="11" text-anchor="middle">工具 ≈ RPC 边界</text>
+  </g>
+</svg>
+</div>
+<figcaption>四支柱不是并列，而是一个中心（context 组织）经四种机制投影出的四张脸。边上的标签就是本课要拆解的耦合机制。</figcaption>
+</figure>
+
+<h2>一、先承认类比对的部分</h2>
+
+<p>把模型调用看作一个<strong>无状态服务</strong>是完全正确的起点。模型每次调用都从零读入全部输入——就像一个没有本地存储的 worker，你必须把它需要的一切随请求带过去。于是"带什么、不带什么"看起来就是 session 管理 + 缓存淘汰问题。</p>
+
+<p>这个视角能让你自然想到 LRU、TTL、分层存储。方向没错。但接下来是三个服务端世界里<strong>不存在</strong>的现象。</p>
+
+<h2>二、三个漏水点</h2>
+
+<h3>漏水点 1：容量不是硬限制，而是软退化（context rot）</h3>
+
+<div class="leak">
+缓存装满了会淘汰或报错——行为是<strong>离散</strong>的。context 不是：远在填满窗口之前，模型对信息的利用率就开始下滑。塞进 128k 窗口的第 90k 个 token 不会报错，它只是被"读得更不认真"。这个现象叫 <strong>context rot</strong>：token 数增长时，模型的注意力预算被摊薄，检索精度连续退化。
+</div>
+
+<p>工程含义：容量规划的目标不是"不超限"，而是"找到质量-长度曲线的拐点"。<a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Anthropic 的说法</a>是：把 context 当作<strong>边际收益递减的有限资源</strong>，目标是"最小的高信号 token 集"。</p>
+
+<h3>漏水点 2：位置影响读取质量</h3>
+
+<div class="leak">
+从 Redis 读一个 key，值不会因为它存的位置不同而变化。context 会：同一段信息放在开头、中间、结尾，模型利用它的概率不同（中间最差，即 "lost in the middle"）。<strong>存储位置本身是影响输出的变量</strong>——这在任何存储系统里都是荒谬的，在 attention 机制下却是常态。
+</div>
+
+<p>工程含义：context 组装不只是"选内容"，还要"排版面"。系统指令、工具定义、少样本示例、对话历史、当前任务——每一段放哪里，是设计决策。</p>
+
+<h3>漏水点 3：淘汰策略反过来被计费系统约束（前缀缓存）</h3>
+
+<div class="leak">
+服务端缓存是为了省你自己的计算。prompt cache 省的是<strong>模型厂商的计算</strong>，所以它的匹配规则由厂商定：<strong>严格前缀匹配</strong>，按 tools → system → messages 顺序逐层构建，改动任何一个字节，其后的缓存全部失效。缓存读取约为正常输入价的 10%，写入加价 25%（<a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching">官方文档</a>）。
+</div>
+
+<p>工程含义：这条规则把"成本"和"context 组织"焊死在一起——<strong>稳定的内容必须放前面，易变的内容必须放后面</strong>。如果你把当前时间戳放在 system prompt 开头，每次请求都会击穿全部缓存，账单直接翻倍量级。你的第 4 个支柱（成本）由此塌缩进第 2 个支柱（context）。</p>
+
+<h2>三、耦合图：一个中心，三个投影</h2>
+
+<table>
+<tr><th>支柱</th><th>与 context 组织的耦合点</th><th>服务端对应物是否存在？</th></tr>
+<tr><td><strong>质量</strong>（模型答得好不好）</td><td>注意力预算摊薄、位置效应决定信息利用率</td><td>不存在——存储系统读取与位置无关</td></tr>
+<tr><td><strong>成本与延迟</strong></td><td>前缀匹配语义强制"稳定在前、易变在后"的排列</td><td>部分存在——像 CDN 按 URL 前缀缓存，但粒度是字节级</td></tr>
+<tr><td><strong>评估</strong></td><td>context 组装不确定（检索结果、历史截断），同一输入难以复现同一 context，eval 必须固定或记录 context</td><td>存在——就是"测试环境与生产环境一致性"问题</td></tr>
+<tr><td><strong>工具调用</strong></td><td>工具定义与工具返回值都是 context 的一部分，占预算；工具返回 10 万 token 的 JSON 会挤掉别的信息</td><td>部分存在——像响应体大小治理，但代价是隐性的质量退化</td></tr>
+</table>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：设计 Agent 系统时，先画 context 组装图（什么内容、什么顺序、何时淘汰），其余三个支柱的大部分决策会从这张图上自动推导出来。这就是为什么这门手艺现在叫 <em>context engineering</em> 而不是 <em>prompt engineering</em>。
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>context engineering</dt>
+<dd>在每次 LLM 调用时，策划并维护"最优 token 集合"的一整套策略——回答"什么样的 context 配置最可能产生期望行为"。</dd>
+<dt>context rot</dt>
+<dd>context 长度增长时，模型检索与利用其中信息的精度连续退化的现象；容量的软失效模式。</dd>
+<dt>注意力预算（attention budget）</dt>
+<dd>把模型的注意力视为随 token 数摊薄的有限资源；每加一个 token 都在花这个预算。</dd>
+<dt>前缀缓存（prompt caching）</dt>
+<dd>厂商按"字节级严格前缀匹配"缓存已处理的 prompt 前段；命中部分按约 10% 计价，未命中即从分歧点起全额重算。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：你的 Agent 在 system prompt 第一行写入 <code>当前时间：2026-07-15 14:32:07</code>。从三个漏水点的角度，这一行字犯了什么错？怎么改？</summary>
+<div class="answer">
+<p><strong>错误</strong>：易变内容（秒级时间戳）放在了最前面。由于前缀缓存是严格前缀匹配，这一行每次请求都不同，导致其后的全部 system prompt、工具定义的缓存永久失效——每次都按全价重算（漏水点 3）。</p>
+<p><strong>改法</strong>：把时间戳移到 messages 尾部（易变区），或降低精度到"日期级"使其在一天内稳定。原则：<em>稳定在前，易变在后</em>。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：工具返回了 80,000 token 的完整日志 JSON，模型还是答对了。测试通过，能上线吗？</summary>
+<div class="answer">
+<p>不能直接上线。缓存装不下会报错，但 context 不会——它<strong>静默退化</strong>（漏水点 1）。这次答对不代表注意力预算没被摊薄：后续轮次里，被挤到中间位置的关键信息利用率会下降（漏水点 2），失败会出现在别的地方、别的轮次，难以归因。正确做法：工具侧做分页/过滤/截断，返回"最小高信号集"；这同时也在省钱（每轮都少带 80k token）。</p>
+</div>
+</details>
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课的一手来源，值得完整读一遍（约 20 分钟）：<a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Effective context engineering for AI agents — Anthropic Engineering</a>。读的时候带着问题：文中三种长任务策略（compaction / 结构化笔记 / 子 agent）分别对应服务端的什么模式？这是下一课的内容。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14 或看真实代码。下一课：<em>context 淘汰的三种策略</em>。</p>
+</footer>
+</main>
+</body>
+</html>

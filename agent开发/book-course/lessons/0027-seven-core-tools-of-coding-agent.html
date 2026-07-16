@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0027 · Coding Agent 的七个核心工具</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0027 课 · 支柱二(工具) · Coding Agent · 预计 10 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>七个核心工具：极简却完整的 Coding Agent 工具箱</h1>
+
+<p class="lede">这节课只拿一件事：<strong>一个能真正干活的 Coding Agent，底层只需要七个核心工具</strong>——它们从何而来、如何配合完成“整理所有 TODO”这类真实任务。这是第 5 章开篇“Coding 是 Agent 的基础能力”一节的骨架。记住它，你才能在后面的沙盒、安全、元能力等重头戏里，始终知道 Agent 手里到底握着哪几样东西。</p>
+
+<h2>一、七个工具从哪来：先看一个真实任务</h2>
+
+<p>作者不是凭空列一张工具清单，而是从一个典型任务倒推出来的：<strong>“整理仓库中所有遗留的 TODO 注释，按优先级分类并生成 issue”</strong>。完成这件事需要哪些动作？</p>
+
+<p>浏览目录结构（ls/glob）、读取代码（read）、修改文件（edit/write）、运行命令（bash）、查找模式（grep/search）——<strong>这五类操作覆盖了几乎所有 Coding Agent 的核心动作</strong>。作者特意提醒：这五类操作自然对应六个工具；第七个 <strong>Code Interpreter</strong> 对应的是“执行代码/计算”这类操作，在有的实现里干脆与 Bash 合并。所以“七个工具”是一个<strong>规范化的参考集</strong>，不必与五类操作严格一一对应。</p>
+
+<p>由此，一个基础的 Coding Agent 只需配备以下七个核心工具：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 680 300" role="img" aria-label="七个核心工具及其对应的操作类别：Code Interpreter 执行代码，Bash 运行命令，读/写/编辑文件，Glob 搜文件名，Grep 搜文件内容">
+  <text class="dgm-muted" x="150" y="20" font-size="11" text-anchor="middle">工具</text>
+  <text class="dgm-muted" x="470" y="20" font-size="11" text-anchor="middle">对应的操作类别</text>
+
+  <!-- 1 Code Interpreter -->
+  <rect class="dgm-hub" x="30" y="30" width="250" height="32" rx="6"/>
+  <text class="dgm-accent-text" x="44" y="51" font-size="12.5" font-weight="700">1 · Code Interpreter 代码解释器</text>
+  <text class="dgm-text" x="320" y="51" font-size="12">执行代码 / 计算（沙盒里跑 Python）</text>
+
+  <!-- 2 Bash -->
+  <rect class="dgm-node" x="30" y="68" width="250" height="32" rx="6"/>
+  <text class="dgm-text" x="44" y="89" font-size="12.5" font-weight="700">2 · Bash Shell 命令行终端</text>
+  <text class="dgm-muted" x="320" y="89" font-size="12">运行命令（跑测试、处理特殊格式）</text>
+
+  <!-- 3 Read -->
+  <rect class="dgm-node" x="30" y="106" width="250" height="32" rx="6"/>
+  <text class="dgm-text" x="44" y="127" font-size="12.5" font-weight="700">3 · 读文件工具</text>
+  <text class="dgm-muted" x="320" y="127" font-size="12">读取（代码 / 配置 / 文档 / 日志）</text>
+
+  <!-- 4 Write -->
+  <rect class="dgm-hub" x="30" y="144" width="250" height="32" rx="6"/>
+  <text class="dgm-accent-text" x="44" y="165" font-size="12.5" font-weight="700">4 · 写文件工具</text>
+  <text class="dgm-text" x="320" y="165" font-size="12">修改：新建 / 完全重写文件</text>
+
+  <!-- 5 Edit -->
+  <rect class="dgm-node" x="30" y="182" width="250" height="32" rx="6"/>
+  <text class="dgm-text" x="44" y="203" font-size="12.5" font-weight="700">5 · 编辑文件工具</text>
+  <text class="dgm-muted" x="320" y="203" font-size="12">修改：对现有文件局部改动</text>
+
+  <!-- 6 Glob -->
+  <rect class="dgm-node" x="30" y="220" width="250" height="32" rx="6"/>
+  <text class="dgm-text" x="44" y="241" font-size="12.5" font-weight="700">6 · 搜索文件名 Glob</text>
+  <text class="dgm-muted" x="320" y="241" font-size="12">浏览：按模式定位文件（**/*.py）</text>
+
+  <!-- 7 Grep -->
+  <rect class="dgm-hub" x="30" y="258" width="250" height="32" rx="6"/>
+  <text class="dgm-accent-text" x="44" y="279" font-size="12.5" font-weight="700">7 · 搜索文件内容 Grep</text>
+  <text class="dgm-text" x="320" y="279" font-size="12">查找：在内容里搜文本模式</text>
+</svg>
+</div>
+<figcaption>七个工具构成一个完整但极简的工具箱，几乎任何 Agent 系统都能低成本集成，且都可通过 MCP 协议暴露为标准化工具服务。高亮的三项（Code Interpreter / Write / Grep）是下面例子里真正被调用到的。</figcaption>
+</figure>
+
+<h2>二、看它们怎么配合：整理 TODO 只用了两个工具</h2>
+
+<p>工具清单容易背，配合方式才是重点。作者给了一个最简单的例子——用户说“帮我把项目里所有 TODO 注释整理成一个清单”：</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step">用户任务：整理项目里所有 TODO 注释成清单</div>
+  <div class="down">↓</div>
+  <div class="step decision">Agent 思考：需要找到所有含 TODO 的代码行</div>
+  <div class="down">↓</div>
+  <div class="step action"><strong>Grep</strong>("TODO", pattern="**/*.py") · 搜索文件内容<br>→ 返回 3 行：src/api.py:42、src/db.py:15、tests/test_api.py:8</div>
+  <div class="down">↓</div>
+  <div class="step decision">Agent 思考：找到 3 个 TODO，整理成清单写入文件</div>
+  <div class="down">↓</div>
+  <div class="step action"><strong>Write</strong>("TODO_LIST.md", content="…") · 写文件</div>
+  <div class="down">↓</div>
+  <div class="step terminal">完成：共发现 3 个 TODO 项，清单已保存在 TODO_LIST.md</div>
+</div>
+<figcaption>整个过程<strong>只用了 Grep（搜索内容）和 Write（写文件）两个工具</strong>。七个工具虽简单，组合起来就能完成非常多样化的任务。</figcaption>
+</figure>
+
+<p>如果任务更复杂——比如“统计每个模块的 TODO 数量并画个柱状图”——Agent 还会用 <strong>Code Interpreter</strong> 执行 Python 代码来做统计和绘图。同样一副工具箱，靠不同的组合方式撑起了截然不同的任务。</p>
+
+<h2>三、为什么这样切分，而不是更多或更少</h2>
+
+<p>你可能会问：为什么恰好是这七个？作者给出的判断链条值得深挖。</p>
+
+<p>第一层，<strong>这七个工具主要覆盖了感知和执行两类操作</strong>。它不同于第四章按调用方向和作用性质划分的五类通用工具分类（感知 / 执行 / 协作 / 事件触发 / 用户沟通）——那么协作、事件触发、用户沟通这三类需求呢？作者的回答是：在 Coding Agent 中，这三类<strong>通常由 Agent 框架（而非工具层）处理</strong>。例如子 Agent 委托由框架的编排逻辑管理，而不是通过一个专用的“协作工具”。所以工具层能保持极简，是因为职责被有意地分层了。</p>
+
+<p>第二层，也是更深的“为什么”：<strong>coding 能力的价值，不在于这七个固定工具本身，而在于它让 Agent 能在遇到新需求时动态扩展自己的能力边界</strong>。遇到数学推理，可以写段代码交给求解器算出精确答案；需要固化业务规则，代码比自然语言精确得多；缺少某个工具，可以临时写一个；数据格式变了，动态生成解析逻辑。正因如此，即使工具箱里只有这七个简单工具，一个具备基本 coding 能力的 Agent 也不会被工具数量卡死。</p>
+
+<div class="pitfall">
+<p>最容易犯的错，是把“七个核心工具”当成一张要死记硬背、且必须与操作类别<strong>严格一一对应</strong>的清单。作者早就打了预防针：五类操作自然对应六个工具，第七个 Code Interpreter 对应“执行代码/计算”，<strong>有的实现里干脆与 Bash 合并</strong>——七个工具是“规范化的参考集”，不是铁律。</p>
+<p>更深一层的误读：以为一个 Coding Agent 之所以强，是因为“工具够多、够强”。恰恰相反——它强在 coding 是一种能<strong>在运行时动态创造新工具和能力</strong>的手段（第 0028 课会把这个“元能力”讲透）。盯着七个工具数数，你就错过了真正的重点。</p>
+</div>
+
+<div class="experiment">
+<p>配套代码：<code>chapter5/coding-agent/</code> —— 一个纯 Python 实现的生产级 Coding Agent，把 <code>tools.json</code> 中全部 17 个工具落地（Read/Write/Edit/MultiEdit、纯 Python 无 rg 依赖的 Grep、Glob、LS、持久 Bash 会话等），并集中演示第二章的系统提示技术（时间戳、工具调用计数防死循环、TODO 跟踪、Write/Edit 后自动 lint 等），带 130+ 测试。它也是实验 5-12“能创造 Agent 的 Agent”可复用的参考范例。跑一遍，你就能亲眼看到这七个核心工具从纸面变成可调用的服务。</p>
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>Code Interpreter（代码解释器）</dt>
+<dd>提供隔离的沙盒环境（sandbox，与主系统隔离的安全运行空间，代码即使出错也不影响宿主机），安全执行 Python 代码。它对应“执行代码/计算”这类操作，是七个工具里区别于纯文件操作的那一个——统计、绘图、精确求解都靠它。</dd>
+<dt>Glob（搜索文件名工具）</dt>
+<dd>通过模式匹配快速定位文件系统中的目标文件，例如用 <code>**/*.py</code> 找出项目中所有 Python 文件。<em>避免</em>与 Grep 混淆：Glob 搜的是<strong>文件名</strong>。</dd>
+<dt>Grep（搜索文件内容工具）</dt>
+<dd>在文件内容中搜索特定的文本模式，例如搜索所有调用了某个函数的代码行。<em>避免</em>与 Glob 混淆：Grep 搜的是<strong>内容</strong>。</dd>
+<dt>元能力（meta-capability）</dt>
+<dd>一种“能创造其他能力”的能力：Agent 用它当场写出新工具、新约束、新表达形式来完成任务，而不必事先把所有能力都预制好。代码生成正是这样的元能力。<em>避免</em>等同于“一个很强的能力”或“万能工具”——关键在“创造能力的能力”，而非能力本身强弱。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：用户要求“统计每个模块的 TODO 数量并画柱状图”，在七个核心工具中，除了 Grep 和 Write，还必须用到哪一个？为什么？</summary>
+<div class="answer">
+<p>必须用 <strong>Code Interpreter（代码解释器）</strong>。因为统计计数和画柱状图属于“执行代码/计算”操作，需要在沙盒里跑 Python 完成，这正是它区别于纯文件操作工具的价值——Grep 只能找到 TODO 行、Write 只能落盘清单，都算不出数量、也画不了图。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：七个核心工具覆盖了第四章五类通用工具中的哪两类？其余三类（协作 / 事件触发 / 用户沟通）在 Coding Agent 里由谁负责？</summary>
+<div class="answer">
+<p>主要覆盖<strong>感知</strong>和<strong>执行</strong>两类。其余三类（协作、事件触发、用户沟通）在 Coding Agent 中通常由 <strong>Agent 框架（而非工具层）</strong>处理——例如子 Agent 委托由框架的编排逻辑管理，而不是通过一个专用的协作工具。这正是工具层能保持极简的原因：职责被有意分层了。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：一个能干活的 Coding Agent，底层只需七个核心工具——代码执行、命令行、读/写/编辑文件、搜文件名、搜内容。它们从“整理 TODO”这类真实任务倒推而来，是规范化的参考集而非死记的铁律；真正让 Agent 不被工具数量卡死的，是 coding 这种能在运行时动态创造新能力的“元能力”。
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课一手来源是本书第 5 章《Coding Agent 与代码生成》开篇“Coding 是 Agent 的基础能力”一节。与本章安全部分密切相关的关键外部来源包括：Simon Willison 提出的“致命三要素”（lethal trifecta），以及作者自己的两篇论文——Li, Bojie and Noah Shi, <em>“Whose Side Is Your Agent On? Multi-Party Principal Loyalty in LLM Agents.”</em>（arXiv:2606.30383, 2026）与 Li, Bojie, <em>“The Application Layer Is No Longer Trusted: Enforcing Data Invariants Below AI-Written Code and AI Agents.”</em>（2026, 待发表）。研究项目网站：<a href="https://01.me/research/">01.me/research/</a>。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把这七个工具各自的适用边界再过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0026-async-event-strategies.html"><span class="dir">← 上一课</span>异步 Agent：训练同步/部署异步的矛盾与三种处理策略</a>
+  <a class="next" href="0028-code-as-meta-capability.html"><span class="dir">下一课 →</span>代码为什么是 Agent 的“元能力”</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

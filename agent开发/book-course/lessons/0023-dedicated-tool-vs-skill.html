@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0023 · 专用工具还是 Skill？先于粒度的第一性问题</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0023 课 · 支柱二(工具) · 工具设计 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>专用工具还是 Skill？先于粒度的第一性问题</h1>
+
+<p class="lede">后面几节会教你怎么把工具的粒度切好、怎么把描述写清——但它们都<strong>偷偷预设了一件事</strong>：这个能力已经决定要做成一个专用工具。本课要拿下的，就是把这个预设翻上台面：在讨论粒度和描述<em>之前</em>，先问一个更基本的问题——<strong>Agent 的能力究竟该以什么形态来表达？</strong>作者给了两种基本形态和一把三维标尺。这一节在第 4 章开头“能力表达形式的选择：专用工具还是 Skill + 通用执行器”一节。</p>
+
+<h2>一、两种基本形态：结构化的手，还是一张会读的说明书</h2>
+
+<p>作者把话说在最前面：“在讨论具体的工具类型之前，首先需要回答一个更基本的设计问题：Agent 的能力应该以什么形式来表达？”——他明确指出，后续关于粒度、通用性、描述艺术的讨论，“都建立在‘应该做成专用工具’这一假设之上”。也就是说，本课要拆的，正是那条一直没被说破的地基。</p>
+
+<p>Agent 的能力有<strong>两种基本的表达形态</strong>：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 220" role="img" aria-label="两种能力表达形态对比：左侧专用代码工具，结构化函数调用、确定性高可测试，但每个工具占数百 token 且数量膨胀破坏 KV Cache；右侧 Skill 加通用执行器，自然语言文档描述流程，Agent 用终端或代码解释器执行，少量通用工具覆盖大量场景">
+  <rect class="dgm-node" x="24" y="30" width="316" height="160" rx="10"/>
+  <text class="dgm-text" x="182" y="60" font-size="15" font-weight="700" text-anchor="middle">🔧 专用代码工具</text>
+  <text class="dgm-muted" x="182" y="86" font-size="12" text-anchor="middle">结构化的函数调用</text>
+  <text class="dgm-muted" x="182" y="108" font-size="12" text-anchor="middle">确定性高 · 可测试</text>
+  <text class="dgm-muted" x="182" y="136" font-size="11.5" text-anchor="middle">代价：每个工具占数百 token</text>
+  <text class="dgm-muted" x="182" y="156" font-size="11.5" text-anchor="middle">数量膨胀会破坏 KV Cache</text>
+
+  <rect class="dgm-hub" x="380" y="30" width="316" height="160" rx="10"/>
+  <text class="dgm-accent-text" x="538" y="60" font-size="15" font-weight="700" text-anchor="middle">📄 Skill + 通用执行器</text>
+  <text class="dgm-muted" x="538" y="86" font-size="12" text-anchor="middle">自然语言 Skill 文档写流程</text>
+  <text class="dgm-muted" x="538" y="108" font-size="12" text-anchor="middle">Agent 用终端/代码解释器执行</text>
+  <text class="dgm-muted" x="538" y="136" font-size="11.5" text-anchor="middle">少量通用工具覆盖大量场景</text>
+  <text class="dgm-muted" x="538" y="156" font-size="11.5" text-anchor="middle">(第五章：七个核心工具)</text>
+</svg>
+</div>
+<figcaption>同一件事，可以做成一只“结构化的手”，也可以写成“一张 Agent 会自己读、然后用 bash 执行的说明书”。左边确定、可测，但贵在 token 与 KV Cache；右边轻、活，把能力从代码挪到了文本。</figcaption>
+</figure>
+
+<p>作者给的例子极具体：一个“部署应用”的 Skill 文档可以就写成三行——<code>1. 运行 npm run build 构建项目；2. 运行 docker build -t app:latest . 打包镜像；3. 运行 kubectl apply -f deploy.yaml 部署到集群</code>。Agent 通过 <strong>bash 工具</strong>逐步执行这些指令，<strong>无需为每个步骤创建专用工具</strong>。三行文本，替掉了三个函数。</p>
+
+<h2>二、三把标尺：凭什么在两者之间选</h2>
+
+<p>“选择哪种形态取决于三个维度。”作者只给了三条，不多不少：<strong>参数复杂度、变更频率、模型能力</strong>。关键在于，这三条不是并列的口诀，而是三根可以让你把任意一个能力“定位”到 Skill 侧还是专用工具侧的坐标轴。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="三维决策图：三条横轴，左端倾向 Skill 加通用执行器，右端倾向专用工具。参数复杂度轴左端参数简单可用 CLI 传参、右端嵌套对象多字段校验；变更频率轴左端频繁变化、右端稳定底层操作；模型能力轴左端 SOTA 强模型、右端较弱模型。部署应用这一能力落在三轴左侧">
+  <text class="dgm-accent-text" x="70" y="26" font-size="12" font-weight="700" text-anchor="start">◀ 倾向 Skill + 通用执行器</text>
+  <text class="dgm-accent-text" x="650" y="26" font-size="12" font-weight="700" text-anchor="end">倾向专用工具 ▶</text>
+
+  <!-- axis 1: 参数复杂度 -->
+  <text class="dgm-text" x="70" y="66" font-size="13" font-weight="700" text-anchor="start">参数复杂度</text>
+  <line class="dgm-edge" x1="70" y1="82" x2="650" y2="82" stroke-width="2"/>
+  <circle class="dgm-accent" cx="150" cy="82" r="6"/>
+  <text class="dgm-muted" x="150" y="104" font-size="10.5" text-anchor="middle">参数简单·CLI 传参同样可靠</text>
+  <text class="dgm-muted" x="570" y="104" font-size="10.5" text-anchor="middle">嵌套对象·多字段联合校验</text>
+
+  <!-- axis 2: 变更频率 -->
+  <text class="dgm-text" x="70" y="150" font-size="13" font-weight="700" text-anchor="start">变更频率</text>
+  <line class="dgm-edge" x1="70" y1="166" x2="650" y2="166" stroke-width="2"/>
+  <circle class="dgm-accent" cx="150" cy="166" r="6"/>
+  <text class="dgm-muted" x="150" y="188" font-size="10.5" text-anchor="middle">频繁变化·改文本就行</text>
+  <text class="dgm-muted" x="570" y="188" font-size="10.5" text-anchor="middle">稳定的底层操作</text>
+
+  <!-- axis 3: 模型能力 -->
+  <text class="dgm-text" x="70" y="234" font-size="13" font-weight="700" text-anchor="start">模型能力</text>
+  <line class="dgm-edge" x1="70" y1="250" x2="650" y2="250" stroke-width="2"/>
+  <circle class="dgm-accent" cx="150" cy="250" r="6"/>
+  <text class="dgm-muted" x="150" y="272" font-size="10.5" text-anchor="middle">SOTA 强模型·可少给工具</text>
+  <text class="dgm-muted" x="570" y="272" font-size="10.5" text-anchor="middle">较弱模型·需 schema 引导</text>
+</svg>
+</div>
+<figcaption>“部署应用”这个能力：参数只是几个字符串（左）、每两周就改一次流程（左）、交给强模型跑（左）——三针都指向左侧，于是它天然是一篇 Skill 文档，而不是一个专用工具。三轴同向时决策很干脆；三轴打架时，才需要你权衡。</figcaption>
+</figure>
+
+<p>逐条把作者的判据说清——注意每一条都是“什么时候该往专用工具那边靠”：</p>
+
+<ul>
+<li><strong>参数复杂度</strong>：涉及嵌套对象、多字段联合校验、复杂类型约束的操作，专用工具的<strong>结构化 schema</strong> 能更好地引导模型正确传参；而参数简单的操作，通过 CLI 命令传参“同样可靠”——简单参数上 schema 是白费力气。</li>
+<li><strong>变更频率</strong>：频繁变化的能力用 Skill 来维护，成本<strong>远低于</strong>专用工具——“改一段文本远比改代码、测试、部署要轻松得多”；而稳定的底层操作更适合固化成专用工具。</li>
+<li><strong>模型能力</strong>：SOTA 模型可以用 Skill + 通用执行器表达更多能力、<strong>减少工具数量</strong>；较弱的模型则需要结构化的工具 schema 来引导正确调用。（作者预告：第八章会讲 Agent 在自我进化中沉淀新能力时，如何做同样的选择。）</li>
+</ul>
+
+<h2>三、为什么这是“第一性问题”——它决定了后面所有讨论的地基</h2>
+
+<p>把这一节放在第 4 章开头，不是排版随意。作者点破：粒度权衡、通用性设计、描述艺术这些后续话题，全都默认“这个能力已经是一个专用工具”。如果你没先回答形态问题，就一头扎进“这个工具该切多细、描述该怎么写”，可能整段功夫都花在了一个<strong>本就不该存在的工具</strong>上——它更该是三行 Skill 文档。</p>
+
+<p>这条框架的生命力还在于它<strong>跨越 MCP 与 Skills 两套体系仍然成立</strong>。作者在本章后文再次确认：一项具体能力究竟做成专用 MCP 工具，还是 Skill + 通用执行器，“本章开头‘能力表达形式的选择’一节给出的三维决策框架（参数复杂度、变更频率、模型能力）仍然适用”。换句话说，这三把尺子不随你用哪种协议而失效。</p>
+
+<div class="pitfall">
+<p><strong>误区：默认“能力就该做成专用工具，越结构化越可靠”。</strong>初学者顺着后面几节的语气，很容易把“做成专用工具”当成不言自明的起点，于是每加一个能力就写一个函数、配一套 schema。错在两点：其一，作者明说参数简单时 CLI 传参“同样可靠”，硬套 schema 并不会更稳；其二，专用工具是有代价的——“每个工具会占据数百个 token，且数量膨胀会破坏 KV Cache”。工具越堆越多，不是能力越强，而是上下文越贵、模型选择越容易出错。真正该先问的，是这三根轴把这件能力指向了哪边。</p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：拿到一项新能力，别默认写成专用工具。先用三把尺子量一遍——<strong>参数复杂度、变更频率、模型能力</strong>：参数简单、变更频繁、模型够强，就交给 Skill + 通用执行器；参数结构复杂、要强约束防呆、且稳定，才值得做成专用工具。工具不是越多越可靠，每个都在吃 token、挤 KV Cache、增加选错的概率。这套判断跨 MCP 与 Skills 两套体系都成立。
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>专用代码工具</dt>
+<dd>把一项能力实现为结构化的函数调用：确定性高、可测试。代价是每个工具会占据数百个 token，且数量膨胀会破坏 KV Cache。参数复杂、底层稳定、或模型较弱时更倾向它。</dd>
+<dt>Skill + 通用执行器</dt>
+<dd>用自然语言编写的 Skill 文档描述操作流程，Agent 通过终端或代码解释器执行，只需少量通用工具就能覆盖大量场景（第五章论证的七个核心工具）。参数简单、变更频繁、或模型够强时更倾向它。</dd>
+<dt>ACI（Agent-Computer Interface）</dt>
+<dd>对标 HCI（人机交互）提出：研究 Agent 如何与计算机交互，核心是让工具对 Agent 而非对人友好——工具应对应 Agent 的目标而非底层 API 操作。<em>避免</em>把它等同于“API”或“函数调用规范”；ACI 是设计理念层面的，不是某种具体协议。</dd>
+<dt>MCP（Model Context Protocol）</dt>
+<dd>Anthropic 于 2024 年底发布的开放标准，用客户端-服务器架构统一 AI 模型与外部工具、数据源的通信。<em>避免</em>说成“Anthropic 的私有 API”——它是被多家框架/IDE 采纳的开放标准；无论走 MCP 还是 Skills，本课的三维框架都仍适用。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：一个每两周就改一次流程、参数只是几个字符串的“部署应用”能力，该做成专用工具还是 Skill 文档？为什么？</summary>
+<div class="answer">
+<p>做成 <strong>Skill 文档 + 通用执行器（bash）</strong>。因为变更频率高——改一段文本远比改代码、测试、部署轻松得多；且参数简单，CLI 传参同样可靠，不需要结构化 schema 引导。只有当参数嵌套复杂、底层稳定、或模型较弱时，才倾向做成专用工具。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：有人主张“工具当然是越结构化越好，能力都做成专用工具最稳”。按本节，这句话忽略了专用工具的哪两项代价？</summary>
+<div class="answer">
+<p>忽略了作者明说的两点代价：<strong>每个专用工具会占据数百个 token</strong>，以及<strong>工具数量膨胀会破坏 KV Cache</strong>。此外参数简单时 CLI 传参“同样可靠”，多此一举的 schema 并不会带来额外可靠性。所以“越多越结构化”常常换来的是上下文更贵、模型在众多工具间更容易选错。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>想亲手摸一摸“通用执行器”这一侧长什么样，去看实验 4-2 的执行工具 MCP 服务器（<code>chapter4/execution-tools/</code>）：里面的沙盒 <code>code_interpreter</code> 与 <code>virtual_terminal</code> 正是“少量通用工具 + 让 Agent 自己写命令/代码来执行”的落地——对照本课，体会为什么强模型加一个通用执行器，往往胜过十几个专用工具。完整代码见 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课的一手来源是第 4 章“能力表达形式的选择：专用工具还是 Skill + 通用执行器”一节（<code>book/chapter4.md</code>），建议连同紧随其后的“工具粒度的权衡”“工具的通用性设计”一起读，才能看清这条地基如何撑起后面几节。要理解“Skill 侧”为何可行，回头看第二章的 Agent Skills 与第五章的“七个核心工具”论证。本章脚注还引用了作者关于持续思考 Agent 的论文——Li, Bojie and Noah Shi. <em>Never Stop Thinking: Continuous-Time Language Agents.</em> 2026（待发表），可作延伸。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师随手给你一个能力，陪你把三根轴各定一次位。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0022-five-tool-categories.html"><span class="dir">← 上一课</span>Agent 的五类工具：调用方向×作用对象</a>
+  <a class="next" href="0024-tool-description-art.html"><span class="dir">下一课 →</span>工具描述的艺术：讲清"不能做什么"</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

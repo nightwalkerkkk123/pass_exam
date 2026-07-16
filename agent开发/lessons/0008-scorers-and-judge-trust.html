@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0008 · 三维判分与裁判可信度：为什么 judge 跨厂商选 Gemini</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0008 课 · 预计 13 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>三维判分与裁判可信度：为什么 judge 跨厂商选 Gemini</h1>
+
+<p class="lede">你已经把 eval 类比成 CI 了——一组固定输入 + 判分逻辑，红了就回滚。这个类比在 <code>containsScore</code> 这类规则判分上一滴不漏。可一旦判据本身是一个 LLM，它就漏了：<strong>断言本身会犯错</strong>。这节课只做一件事——看 <code>memory_eval</code> 如何把"裁判可信不可信"从一个免费假设，变成一个必须动手设计的工程问题。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 860 300" role="img" aria-label="一条 testCase 的评分流水线：Agent 输出分流进三个判据，加权合成后过阈值判定">
+  <defs>
+    <marker id="ah8" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" class="dgm-muted"/>
+    </marker>
+  </defs>
+  <!-- edges: Agent -> three judges -->
+  <line class="dgm-edge" x1="150" y1="148" x2="216" y2="46"  stroke-width="1.5" marker-end="url(#ah8)"/>
+  <line class="dgm-edge" x1="150" y1="148" x2="216" y2="140" stroke-width="1.5" marker-end="url(#ah8)"/>
+  <line class="dgm-edge" x1="150" y1="148" x2="216" y2="234" stroke-width="1.5" marker-end="url(#ah8)"/>
+  <!-- edges: three judges -> hub -->
+  <line class="dgm-edge" x1="430" y1="46"  x2="496" y2="140" stroke-width="1.5" marker-end="url(#ah8)"/>
+  <line class="dgm-edge" x1="430" y1="140" x2="496" y2="148" stroke-width="1.5" marker-end="url(#ah8)"/>
+  <line class="dgm-edge" x1="430" y1="234" x2="496" y2="156" stroke-width="1.5" marker-end="url(#ah8)"/>
+  <!-- edge: hub -> terminal -->
+  <line class="dgm-edge" x1="650" y1="148" x2="696" y2="148" stroke-width="1.5" marker-end="url(#ah8)"/>
+  <!-- Agent output -->
+  <rect class="dgm-node" x="10" y="112" width="140" height="72" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="80" y="140" font-size="14" font-weight="700" text-anchor="middle">Agent 输出</text>
+  <text class="dgm-muted" x="80" y="160" font-size="11" text-anchor="middle">回复 + 工具调用</text>
+  <text class="dgm-muted" x="80" y="175" font-size="11" text-anchor="middle">evalResult</text>
+  <!-- containsScore (rule, trustworthy = green) -->
+  <rect class="dgm-good-node" x="220" y="18" width="210" height="56" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="325" y="42" font-size="13" font-weight="700" text-anchor="middle">containsScore</text>
+  <text class="dgm-muted" x="325" y="60" font-size="11" text-anchor="middle">子串匹配 · 确定性规则</text>
+  <!-- toolCallScore (rule, trustworthy = green) -->
+  <rect class="dgm-good-node" x="220" y="112" width="210" height="56" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="325" y="136" font-size="13" font-weight="700" text-anchor="middle">toolCallScore</text>
+  <text class="dgm-muted" x="325" y="154" font-size="11" text-anchor="middle">写文件判定 · 确定性规则</text>
+  <!-- llmJudge (LLM, risky = accent) -->
+  <rect class="dgm-accent-node" x="220" y="206" width="210" height="56" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="325" y="230" font-size="13" font-weight="700" text-anchor="middle">llmJudge</text>
+  <text class="dgm-muted" x="325" y="248" font-size="11" text-anchor="middle">gemini-2.5-flash · 可失灵→0.5</text>
+  <!-- weightedScore hub -->
+  <rect class="dgm-hub" x="500" y="112" width="150" height="72" rx="8" stroke-width="2"/>
+  <text class="dgm-accent-text" x="575" y="140" font-size="13" font-weight="700" text-anchor="middle">weightedScore</text>
+  <text class="dgm-muted" x="575" y="160" font-size="11" text-anchor="middle">按 category 加权</text>
+  <!-- terminal -->
+  <rect class="dgm-link-node" x="700" y="118" width="150" height="60" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="775" y="143" font-size="13" font-weight="700" text-anchor="middle">Score &lt; 0.6 ?</text>
+  <text class="dgm-muted" x="775" y="161" font-size="11" text-anchor="middle">是 → FAIL</text>
+</svg>
+</div>
+<figcaption>Go 侧一条 testCase 的评分流水线。绿=确定性规则（判据天然可信），红=唯一调用外部模型的维度（<code>llmJudge</code>，判据本身可能出错）。对应 <code>eval/scorer.go:33-43</code> 与 <code>eval/runner.go:88-92</code>。</figcaption>
+</figure>
+
+<h2>一、先承认类比对的部分</h2>
+
+<p>服务端测试里，<strong>oracle（判定对错的那把尺子）是被你构造出来就天然可信的</strong>。<code>assertEqual(x, 42)</code> 里的 42 不会自己算错，schema 校验不会看走眼，状态码断言不会犯困。测试红了，你怀疑的是被测代码，从不怀疑断言。这个"断言免费可信"的假设深到你根本不会意识到它是个假设。</p>
+
+<p><code>memory_eval</code> 的两个维度完全符合这个直觉：</p>
+
+<ul>
+<li><code>containsScore</code>（<code>scorer.go:45-88</code>）：把 Agent 回复转小写做子串匹配。<code>ContainsAll</code> 按命中比例给分，<code>ContainsAny</code> 有一个不中就乘 0，<code>NotContains</code> 命中禁词就乘 0。纯字符串规则，没有模型参与。</li>
+<li><code>toolCallScore</code>（<code>scorer.go:90-125</code>）：扫 <code>result.ToolCalls</code>，用 <code>isWriteTool</code> 判断有没有写文件类工具，再按 <code>WriteFileContains</code> 关键词命中比例给分。也是确定性判断。</li>
+</ul>
+
+<p>这两个维度可信度不需要论证——它们错了就是你规则写错了，和 <code>assertEqual</code> 同一个性质。方向没错。但第三个维度会把这个免费假设整个掀翻。</p>
+
+<h2>二、三个维度，一次加权合成</h2>
+
+<p>一条 testCase 进来，<code>score()</code>（<code>scorer.go:33-43</code>）算出三维明细 <code>scoreDetail{ContainsScore, ToolCallScore, LLMJudgeScore}</code>，然后 <code>weightedScore()</code> 按类目把它们压成一个总分：</p>
+
+<pre><code>func (s *scorer) weightedScore(category string, detail scoreDetail) float64 {
+	switch category {
+	case "recall":
+		return detail.ContainsScore*0.3 + detail.LLMJudgeScore*0.7
+	case "store":
+		return detail.ToolCallScore*0.5 + detail.LLMJudgeScore*0.5
+	case "update":
+		return detail.ToolCallScore*0.4 + detail.LLMJudgeScore*0.6
+	case "rejection":
+		return detail.ContainsScore*0.2 + detail.LLMJudgeScore*0.8</code></pre>
+<p class="meta">— <code>cmd/memory_eval/eval/scorer.go:334-343</code>（其余类目走三者均值，见 L345）</p>
+
+<p>盯着权重看。<code>recall</code> 类里 LLM 裁判占 0.7，<code>rejection</code> 类占到 0.8。<strong>总分几乎押在那个你还没证明可信的维度上。</strong></p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">recall（contains 0.3）</span><div class="track"><div class="val write" style="width:70%">llmJudge 0.7</div></div></div>
+  <div class="row"><span class="lbl">store（toolCall 0.5）</span><div class="track"><div class="val write" style="width:50%">llmJudge 0.5</div></div></div>
+  <div class="row"><span class="lbl">update（toolCall 0.4）</span><div class="track"><div class="val write" style="width:60%">llmJudge 0.6</div></div></div>
+  <div class="row"><span class="lbl">rejection（contains 0.2）</span><div class="track"><div class="val write" style="width:80%">llmJudge 0.8</div></div></div>
+</div>
+<figcaption>红条=LLM 裁判在各类目总分里的权重，括号里是规则维度占的余量。裁判权重越高，判据可信度这件事就越是设计的重心。数值出自 <code>scorer.go:334-343</code>。</figcaption>
+</figure>
+
+<p>合成完，判定极其朴素——<code>runner.go:92</code> 一句 <code>if result.Score &lt; 0.6 { status = "FAIL" }</code>，<code>report.go:54</code> 统计 <code>PassRate</code> 用同一条 <code>res.Score &gt;= 0.6</code>。0.6 是硬编码的通过线，不是可配置项。</p>
+
+<h2>三、漏水点：判据本身是个 LLM</h2>
+
+<div class="leak">
+服务端的断言你从不校准——它天然是对的。可 <code>llmJudge</code>（<code>scorer.go:192-237</code>）的判据本身是一个 LLM，而 LLM 是<strong>不可靠的调用方，也是不可靠的裁判</strong>：它可能吐出解析不了的输出、打分会漂移，最阴险的是<strong>自评偏差</strong>——自家模型给自家 Agent 的输出打分，会系统性地偏袒。于是"判据可信吗"从一个你想都不会想的免费假设，变成了一个必须专门设计的工程问题。
+</div>
+
+<p>代码怎么应对？三招，招招都在承认"裁判会失灵"。</p>
+
+<h3>招数一：裁判默认跨厂商，与被测模型解耦</h3>
+
+<p>被测模型和裁判模型是<strong>两个独立字段、两个不同厂商的默认值</strong>：</p>
+
+<pre><code>fs.StringVar(&cfg.model, "model", "claude-sonnet-4-5", "model to evaluate")
+fs.StringVar(&cfg.judgeModel, "judge-model", "google/gemini-2.5-flash", "model for LLM judge (OpenRouter model ID)")</code></pre>
+<p class="meta">— <code>cmd/memory_eval/eval/config.go:41-42</code></p>
+
+<p>被测的是生产模型 <code>claude-sonnet-4-5</code>（Anthropic），裁判固定走 <code>google/gemini-2.5-flash</code>（Google，经 OpenRouter，<code>baseURL</code> 默认 <code>https://openrouter.ai/api/v1</code>，<code>config.go:50</code>）。用非自家的模型给自家 Agent 的输出打分——这就是"跨厂商裁判"的代码落点。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">被测 model</span><span class="n-sub">claude-sonnet-4-5 · Anthropic · 生产</span></div>
+  <span class="arrow">→产出→</span>
+  <div class="node"><span class="n-title">Agent 输出</span><span class="n-sub">回复 + 工具调用</span></div>
+  <span class="arrow">→打分→</span>
+  <div class="node"><span class="n-title">judge model</span><span class="n-sub">gemini-2.5-flash · Google · @openrouter.ai</span></div>
+</div>
+<figcaption>被测与裁判分属不同厂商、不同 API 通道，规避"自己给自己打分"的偏袒。字段与默认值出自 <code>config.go:41-42, 50</code>。</figcaption>
+</figure>
+
+<div class="good">
+<strong>诚实边界（务必分清"代码写了"和"我推断的"）：</strong>"跨厂商是为了规避自评偏差"这句话，<em>代码里没有任何注释明文写出</em>。它是从配置默认值强推理出来的——<code>model</code> 默认 claude、<code>judgeModel</code> 默认 gemini，且 <code>config.go:42</code> 的注释只说 "model for LLM judge (OpenRouter model ID)"。自评偏差（self-bias）是评估领域公认的动机，但本仓库没留下说明这一意图的注释或文档。正确说法是"从配置可以看出裁判被<strong>刻意</strong>设成跨厂商"，而不是"注释解释了这是为规避自评偏差"。
+</div>
+
+<h3>招数二：强约束裁判输出，并 clamp 到 [0,1]</h3>
+
+<p>裁判的 system 提示写死了"只返回 <code>{score, reasoning}</code> 的 JSON，别的什么都别说"（<code>callOpenRouterJudge</code>，<code>scorer.go:151-189</code>）。返回后代码从文本里抠出第一个 <code>{</code> 到最后一个 <code>}</code> 再解析，拿到 score 还要 clamp 回 [0,1]（<code>scorer.go:229-234</code>）。这是在承认：裁判可能话痨、可能越界，你不能拿它的原始输出当真。</p>
+
+<h3>招数三：失灵时回退中性分 0.5</h3>
+
+<p>三处兜底（无 key、裁判调用出错、解析失败），都退回一个"不表态"的中性分，下面列出其中两处：</p>
+
+<pre><code>if s.cfg.apiKey == "" {
+    return 0.5, "LLM judge skipped (no API key)"
+}
+// ... 调用裁判、抠出 JSON 之后 ...
+if err := json.Unmarshal([]byte(jsonStr), &judgeResult); err != nil {
+    return 0.5, fmt.Sprintf("failed to parse judge response: %s", responseText)
+}</code></pre>
+<p class="meta">— <code>cmd/memory_eval/eval/scorer.go:196-198, 225-227</code></p>
+
+<p>没有 API key、裁判调用本身出错（HTTP/网络，<code>scorer.go:208-210</code>）、或返回的东西解析不成 JSON，都不报错崩溃，而是给 0.5。<strong>这是对"裁判是 oracle"这一假设的最直白否认</strong>：真正的 oracle 不需要"失灵退路"，因为它不会失灵。你得给 LLM 裁判准备退路，正因为你知道它会失灵。</p>
+
+<div class="keydef" style="margin-top:1.5rem">
+<dl>
+<dt>配置层的一个坑（如实记录，非本课主线）</dt>
+<dd>apiKey 加载优先级是 <code>OPENROUTER_API_KEY</code> &gt; 项目 .env &gt; <code>ANTHROPIC_API_KEY</code> &gt; .env &gt; TCC 的 <code>AnthropicAPIKey</code>（<code>config.go:75-87</code>）。但 <code>baseURL</code> 默认指向 OpenRouter——若最终只拿到一个 Anthropic key 却往 OpenRouter 发请求，会失败。这是配置层面的潜在错配，值得知道。</dd>
+</dl>
+</div>
+
+<h2>四、另一套判分器：对抗类根本不请裁判</h2>
+
+<p>别把两套系统搞混。上面讲的是 Go 侧（<code>eval/</code>）对<strong>端到端 Agent 记忆行为</strong>的评估，含 LLM 裁判。仓库里还有一套 Python 侧（<code>memory_eval_suite/</code>），评的是<strong>向量检索召回质量</strong>，<strong>完全不用 LLM 裁判</strong>，纯统计判据——token 级 F1/recall（<code>scorer.py:42-63</code>）。</p>
+
+<p>最值得学的是它处理"对抗类"的方式。对抗样本的正确行为是<em>系统应该说"我不知道"</em>——检索本就不该返回任何相关结果。这种"该沉默"的正确性，它没交给一个 LLM 去主观判断，而是压成了一条机械可判的规则：</p>
+
+<pre><code># Adversarial: expect NO relevant results
+if category == 5:
+    high_score = [r for r in results if r.score >= adversarial_threshold]
+    detail.num_high_score_results = len(high_score)
+    detail.passed = len(high_score) == 0
+    detail.recall = 1.0 if detail.passed else 0.0
+    return detail</code></pre>
+<p class="meta">— <code>cmd/memory_eval/memory_eval_suite/scorer.py:86-92</code></p>
+
+<figure class="diagram">
+<div class="axis">
+  <span class="mark" style="left:50%">score = 0.5 = adversarial_threshold</span>
+  <span class="fill-label" style="left:2%">0 · 全部低分 → PASS(recall=1.0)</span>
+  <span class="fill-label" style="right:2%">1.0 · 出现高分 → FAIL</span>
+</div>
+<figcaption>对抗类（category==5）二元判据：只要有任一结果 <code>score &gt;= 0.5</code>（<code>adversarial_threshold</code>，<code>config.py:20</code>）就 FAIL；全部低于阈值才 PASS。"无高分即通过"——把"该说不知道"变成不依赖裁判的机械判定。类目 1-4 则用 <code>recall &gt;= 0.5</code>（<code>scorer.py:107</code>）。</figcaption>
+</figure>
+
+<p>对照着看，这一节的教训就立体了：<strong>能用确定性规则判的，就别请 LLM 当裁判。</strong>把"正确行为"翻译成一条可机械检验的判据，你就把裁判可信度问题从根上消掉了——对抗类做到了，<code>containsScore</code> 做到了。只有当行为的"好坏"实在无法规则化时（回答是否准确、是否有幻觉），才不得不动用 <code>llmJudge</code>，也才不得不承担它带来的全部可信度负担。</p>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>oracle（判定 oracle）</dt>
+<dd>测试里那把"判定对错"的尺子。服务端里它天然可信（assertEqual 的期望值、schema、状态码）；LLM-as-judge 打破了这个免费假设——尺子本身会出错。</dd>
+<dt>LLM-as-judge（模型裁判）</dt>
+<dd>用一个 LLM 给另一个 LLM 的输出打分。核心风险是裁判可信度与自评偏差。载体：<code>eval/scorer.go:192-237</code> 的 <code>llmJudge</code>，默认 <code>google/gemini-2.5-flash</code> 走 OpenRouter。</dd>
+<dt>自评偏差（self-bias）</dt>
+<dd>模型倾向于给"和自己同源/同厂商"的输出打高分。跨厂商裁判就是为规避它（本仓库这一动机靠配置推断，非注释明写）。</dd>
+<dt>中性回退分（neutral fallback）</dt>
+<dd>裁判失灵（无 key / 调用出错 / 解析失败）时退回的"不表态"分 0.5（<code>scorer.go:196-198, 208-210, 225-227</code>）。它的存在本身即证明裁判不是可信 oracle。</dd>
+<dt>对抗样本（adversarial case）</dt>
+<dd>正确行为是"拒绝/沉默"的用例，判据为"无高分即通过"（<code>scorer.py:86-92</code>）——把主观正确性变成机械判定，绕开 LLM 裁判。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：<code>memory_eval</code> 的三个判分维度里，哪一个的可信度本身需要被专门设计/校准？为什么？代码用了哪些手段应对？</summary>
+<div class="answer">
+<p><strong><code>llmJudge</code>。</strong> <code>containsScore</code>（子串匹配）和 <code>toolCallScore</code>（工具名判断）是确定性规则，判据天然可信，错了只可能是规则写错，和 <code>assertEqual</code> 同性质。而 <code>llmJudge</code> 的判据本身是一个 LLM——不可靠且有自评偏差。</p>
+<p>三招应对：<br>
+(1) 裁判默认 <code>google/gemini-2.5-flash</code> 走 OpenRouter（<code>config.go:42, 50</code>），与被测生产模型 <code>claude-sonnet-4-5</code>（<code>config.go:41</code>）跨厂商解耦，规避自评偏袒；<br>
+(2) 系统提示强制裁判只返回 <code>{score, reasoning}</code> JSON，并把 score clamp 到 [0,1]（<code>scorer.go:229-234</code>）；<br>
+(3) 没 key、调用出错或解析失败时回退中性分 0.5（<code>scorer.go:196-198, 208-210, 225-227</code>）作为失灵兜底。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：一个 <code>rejection</code> 类用例，Agent 正确地拒绝了没有记忆支持的问题——<code>containsScore = 1.0</code>。但这一次 gemini 裁判抽风，返回了一段解析不成 JSON 的文本。最终 Score 是多少？判 PASS 还是 FAIL？这说明了什么？</summary>
+<div class="answer">
+<p><strong>Score = 0.6，判 PASS（勉强压线）。</strong></p>
+<p>裁判解析失败，<code>llmJudge</code> 回退 0.5（<code>scorer.go:225-227</code>）。<code>rejection</code> 权重是 <code>contains*0.2 + judge*0.8</code>：<br>
+<code>= 1.0 × 0.2 + 0.5 × 0.8 = 0.2 + 0.4 = 0.6</code>。<br>
+<code>runner.go:92</code> 是 <code>Score &lt; 0.6</code> 才 FAIL，0.6 不小于 0.6，所以 PASS。</p>
+<p><strong>这恰好是漏水点的活体标本</strong>：一个本该满分的正确行为，因为裁判失灵被硬生生拖到刚好及格线。裁判不可靠会直接污染总分——它不是旁观者，而是占了 0.8 权重的当事人。这就是为什么"裁判可信度"必须当成一等工程问题来对待，而不是像 <code>assertEqual</code> 那样当作免费假设。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（延伸）：产品经理说"对抗类用例也让 gemini 裁判来打分，更智能"。用这节课的逻辑反驳他。</summary>
+<div class="answer">
+<p>对抗类的正确行为是"系统该沉默/说不知道"，这件事<strong>能被确定性规则完全刻画</strong>——"没有任何结果分数 &gt;= 阈值"即通过（<code>scorer.py:86-92</code>）。既然能机械判定，就不该引入 LLM 裁判：引入裁判 = 平白给判据注入不可靠性、自评偏差和失灵回退的全部成本，换不来任何精度。原则是<strong>"能规则化的绝不请裁判"</strong>——只有当"好坏"无法规则化（如回答是否有幻觉）时，才不得不动用 <code>llmJudge</code> 并承担它的可信度负担。</p>
+</div>
+</details>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>这一课的一手延伸，强烈建议读：<a href="https://hamel.dev/blog/posts/evals-faq/">LLM Evals FAQ — Hamel Husain</a>。带着两个问题去读：(1) 他为什么反复强调"先看数据、别急着上 LLM-as-judge"？这和本课"能规则化就别请裁判"是同一个直觉；(2) 他怎么谈 judge 的校准与和人工标注对齐（alignment）？——本仓库只做到了"跨厂商 + 兜底"，还没做到"用人工标注反过来校准裁判"，那是这套 eval 下一步该长出的东西。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让我带你打开 <code>cmd/memory_eval/eval/scorer.go</code> 逐行读 <code>llmJudge</code>。下一课可选方向：<em>pass-rate drift 与 eval 的回归信号——通过率为什么会漂，怎么归因</em>。</p>
+</footer>
+</main>
+</body>
+</html>

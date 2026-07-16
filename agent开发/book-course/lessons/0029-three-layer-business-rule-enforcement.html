@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0029 · 业务规则代码化：最后守门员为什么不能信模型自报的参数</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0029 课 · 支柱二(工具) · Coding Agent · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>业务规则代码化：最后守门员为什么不能信模型自报的参数</h1>
+
+<p class="lede">这节课只押一个判断：<strong>Agent 里所有的政策裁决，必须建立在模型无法伪造的数据之上</strong>。作者在第 5 章「代码作为业务规则的约束」一节，用 τ-bench 的航空取消政策做了一个模具般干净的例子——把它拆成「三重保障」，你就能一眼看出后面所有涉及不可逆操作的 Agent，安全防线到底该焊在哪一层。这是本书第 5 章的核心工程洞察之一。</p>
+
+<h2>一、问题：自然语言规则为什么守不住门</h2>
+
+<p>业务规则、办事流程、决策逻辑如果<strong>只用自然语言描述</strong>，往往充满歧义。作者举的例子很扎心：「购买后 7 天内可退款」看似清楚——但「7 天」是自然日还是工作日？「购买」是下单时间还是发货时间？什么是「合理的退款请求」、什么算「紧急情况」？这些边界在自然语言里根本界定不了。</p>
+
+<p>相比之下，代码是<strong>无歧义、可执行</strong>的知识表达：要么成功运行、要么抛出错误，不存在模棱两可。但真正的赌注不在 token 效率，而在一句话——</p>
+
+<div class="bookquote">
+代码化规则的真正价值不在于优化 token 效率，而在于防止不可逆的错误操作——取消订单、转出资金、删除数据，这些操作一旦执行就无法撤销。
+<span class="src">——《深入理解 AI Agent》第 5 章</span>
+</div>
+
+<p>所以问题被重新框定：不是「怎么让模型更懂规则」，而是「<strong>当模型可能想错、甚至被人诱导想错时，怎么保证错误的念头不会变成一次真实的、撤不回来的取消</strong>」。</p>
+
+<h2>二、方案：一个工具，三重保障</h2>
+
+<p>作者给的解法不是「再加一个独立校验工具」，而是<strong>让执行工具自己内部先校验</strong>——把 checklist、校验、执行合并进 <code>cancel_reservation</code> 一个函数。三重保障各司其职：</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step">第一重 · 系统提示词里的<strong>自然语言规则</strong><br><span style="opacity:.8">让模型能向用户解释政策、寻找变通方案（如"改签而非取消"）</span></div>
+  <div class="down">↓ 帮助理解与沟通</div>
+  <div class="step decision">第二重 · 工具描述 + <code>expected_*</code> 参数 = <strong>强制性 checklist</strong><br><span style="opacity:.8">要填参数就得先查订单、逐条核对；很多违规调用"根本不会发起"</span></div>
+  <div class="down">↓ 减少错误的发生</div>
+  <div class="step terminal">第三重 · 服务端<strong>数据库真值 + 服务端时钟</strong>校验 = 守门员<br><span style="opacity:.8">政策事实一律查库、时间取服务端时钟，绝不采信模型自报参数</span></div>
+</div>
+<figcaption>三重保障漏斗：前两重减少错误的发生，第三重确保错误不会变成不可逆的损失。三者互补，缺了第三重前两重就没有安全兜底。</figcaption>
+</figure>
+
+<p>关键要看懂<strong>数据从哪来</strong>。同样一个「舱位是不是经济舱」的事实，可以有两种取法，而这两种取法的信任级别天差地别：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 250" role="img" aria-label="两条取值路径对比：模型自报参数仅用于比对告警，数据库真值才用于政策裁决">
+  <!-- model self-report path -->
+  <rect class="dgm-node" x="30" y="30" width="150" height="52" rx="8"/>
+  <text class="dgm-text" x="105" y="52" font-size="13" font-weight="700" text-anchor="middle">🧠 模型</text>
+  <text class="dgm-muted" x="105" y="70" font-size="10.5" text-anchor="middle">expected_* 自报值</text>
+
+  <rect class="dgm-node" x="275" y="30" width="160" height="52" rx="8"/>
+  <text class="dgm-text" x="355" y="52" font-size="12.5" font-weight="700" text-anchor="middle">log_mismatch</text>
+  <text class="dgm-muted" x="355" y="70" font-size="10.5" text-anchor="middle">仅比对 / 告警 / 审计</text>
+
+  <line class="dgm-edge" x1="180" y1="56" x2="271" y2="56" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="225" y="46" font-size="10" text-anchor="middle">可能幻觉/被注入</text>
+  <text class="dgm-muted" x="520" y="52" font-size="11" text-anchor="start">✗ 不参与裁决</text>
+
+  <!-- db truth path -->
+  <rect class="dgm-node" x="30" y="150" width="150" height="52" rx="8"/>
+  <text class="dgm-text" x="105" y="172" font-size="13" font-weight="700" text-anchor="middle">🗄 数据库 + 服务端时钟</text>
+  <text class="dgm-muted" x="105" y="190" font-size="10.5" text-anchor="middle">模型无法伪造</text>
+
+  <rect class="dgm-hub" x="275" y="146" width="160" height="60" rx="10"/>
+  <text class="dgm-accent-text" x="355" y="172" font-size="13" font-weight="700" text-anchor="middle">政策裁决</text>
+  <text class="dgm-muted" x="355" y="190" font-size="10.5" text-anchor="middle">能否 execute_cancellation</text>
+
+  <line class="dgm-edge" x1="180" y1="176" x2="271" y2="176" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="520" y="172" font-size="11" text-anchor="start">✓ 唯一真值来源</text>
+
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>同一个事实的两条路径：模型自报的 <code>expected_*</code> 只进「比对/告警」这条虚线支路；实线主路的数据库真值与服务端时钟才决定要不要真的取消。舱位、保险、预订时间、航段使用、航班状态——「没有任何一条政策事实来自模型自报的参数」。</figcaption>
+</figure>
+
+<h2>三、为什么第一重不承担安全责任（深挖"为什么"）</h2>
+
+<p>初学者最容易把 <code>expected_cabin_class</code>、<code>expected_has_insurance</code> 这些参数当成「模型告诉服务端事实」的通道。恰恰相反：它们<strong>只是模型的自我陈述，服务端从不把它当作事实</strong>。它们真正的作用是当 checklist——为了填好这两个参数，模型必须先调用查询工具拿到订单详情，逐一确认每个条件。</p>
+
+<p>这一步的副产品很妙：当模型查到「经济舱且未购保险」时，很可能<strong>在准备调用的过程中就撞上规则 5，从而根本不会发起调用</strong>，而是直接告诉用户「经济舱未购保险无法取消，可考虑购买保险后再取消或改签」。所以第一重的价值是<strong>引导思考、减少无效调用</strong>——它让错误更少发生，但它不负责在错误真的发生时兜底。兜底是第三重的事。</p>
+
+<div class="pitfall">
+<p>致命的错法：把 <code>cabin_class</code>、<code>has_insurance</code> 乃至 <code>current_time</code> 设计成<strong>由模型填写、并直接拿来裁决</strong>能否取消。看起来省了一次查库，实则把守门员的钥匙交给了一个会幻觉、会被提示注入操纵的对象。</p>
+<p>作者原话点破：模型「只要报错（或被诱导报错）一个值，'守门员'就形同虚设」。正如前文「致命三要素」所分析的——<strong>同一上下文中的 Agent 难以自证清白</strong>。所以最后一道防线必须建立在模型无法伪造的数据之上：独立性不仅指独立的模型，更指<strong>独立的数据来源</strong>。连「当前时间」都要用服务端时钟，而不是模型提供，正是这个道理——「预订后 24 小时内可无条件取消」这条规则，一旦时间可被模型操纵，整条规则就作废。</p>
+</div>
+
+<h2>四、边界：这套模具适用在哪、不适用在哪</h2>
+
+<p>别把「代码化规则」当成对自然语言规则的替代——作者反复强调二者<strong>互补而非替代</strong>。自然语言规则写在系统提示词里，好处是模型能据此向用户解释政策、寻找变通方案、调用前初步判断可行性；代码化规则的好处是精确无歧义、执行确定、特别适合复杂条件组合与跨数据源验证。<strong>实践中要结合用</strong>：提示词讲规则供理解沟通，关键决策点配代码化校验当守门员。</p>
+
+<p>还要看清楚这套东西「重」在哪：它的价值「远超实现成本」的前提，是操作<strong>不可逆</strong>——取消订单、转出资金、删除数据。对可撤销、低风险的操作，硬上三重保障就是过度工程。判断标准始终是那句话：错误会不会变成不可逆的损失。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：模型自报的参数（<code>expected_*</code>）只能当 checklist 和告警信号，<strong>永远不能当裁决依据</strong>；所有政策事实必须由服务端查库获取、时间取服务端时钟。前两重（自然语言规则 + 参数 checklist）让错误更少发生，第三重（数据库真值校验）确保错误不会变成撤不回来的损失。设计任何涉及不可逆操作的 Agent 工具，先问：这个裁决依赖的数据，模型能不能伪造？
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>致命三要素（lethal trifecta）</dt>
+<dd>Simon Willison 概括的三个一旦齐备就构成完整攻击闭环的要素：访问私有数据、暴露于不受信任内容、具备外部通信能力。三者齐备本身即高危，不需额外条件。<em>避免</em>把它说成「需要同时满足才危险的四个条件」；持久记忆是作者补充的放大器而非并列必要条件。</dd>
+<dt>三重保障</dt>
+<dd>(1) 系统提示词的自然语言规则帮助理解与解释；(2) 工具描述与 <code>expected_*</code> 参数作为 checklist，引导模型调用前显式核对条件；(3) 服务端基于数据库真值的代码化校验作为最后守门员。前两重减少错误的发生，第三重确保错误不会变成不可逆的损失。</dd>
+<dt>元能力（meta-capability）</dt>
+<dd>一种「能创造其他能力」的能力：Agent 用它当场写出新工具、新约束、新表达形式来完成任务，而不必事先把所有能力都预制好。代码生成正是这样的元能力——把业务规则代码化，就是它在「约束」这一方向的发挥。<em>避免</em>等同于「一个很强的能力」或「万能工具」。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：如果把 cabin_class（舱位）和 has_insurance（是否有保险）设计成由模型填写、并直接用来裁决能否取消，会有什么致命问题？</summary>
+<div class="answer">
+<p>模型可能幻觉或被提示注入操纵，只要报错（或被诱导报错）一个值，守门员就形同虚设。政策裁决必须基于模型无法伪造的数据（数据库真值），模型自报值只能用于比对告警，不能作为裁决依据。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：连「当前时间」都要求用服务端时钟、而不是让模型提供参数，这背后是哪条具体规则在起作用？为什么时间被模型操纵就危险？</summary>
+<div class="answer">
+<p>是规则 2「预订后 24 小时内可无条件取消」。这条规则的裁决要算 <code>hours_since_booking = (now - r.booking_time)</code>。如果 <code>now</code> 由模型提供，模型（或诱导它的攻击者）只要把当前时间报成「刚下单没多久」，就能让一笔早已超出 24 小时窗口的订单被无条件取消。所以 <code>now = server_clock.now()</code>，预订时间也从数据库读——两个输入都必须是模型无法伪造的独立数据。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套代码在开源仓库 <code>chapter5/coding-agent/</code>——一个纯 Python 实现的生产级 Coding Agent，把 <code>tools.json</code> 里 17 个工具全部落地，集中演示第 2 章的系统提示技术（时间戳、调用计数告警、TODO 跟踪、系统状态感知等）。本课对应的对照实验是<strong>「实验 5-3 ★★：小模型通过代码化知识提升执行规则的准确性」</strong>：用 Qwen3-4B 在 τ-bench 航空客服场景上跑控制组（纯自然语言规则）vs 实验组（三重保障），统计任务成功率、政策违规次数，以及 <code>expected_*</code> 自报值与数据库真值不一致的比例——用数据坐实「参数当 checklist」和「服务端真值守门」两件事各自的必要性。仓库入口：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源是第 5 章「代码作为业务规则的约束」一节。守门员思想的上游是 Simon Willison 提出的<strong>「致命三要素」（lethal trifecta）</strong>；作者把「应用层不再可信、要把数据不变量下沉到 AI 代码之下」这条主张写成了两篇论文：Li, Bojie and Noah Shi. <em>"Whose Side Is Your Agent On? Multi-Party Principal Loyalty in LLM Agents."</em> arXiv:2606.30383, 2026；以及 Li, Bojie. <em>"The Application Layer Is No Longer Trusted: Enforcing Data Invariants Below AI-Written Code and AI Agents."</em> 2026（待发表）。研究项目网站：<a href="https://01.me/research/">01.me/research/</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「哪些数据模型能伪造、哪些不能」逐条过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0028-code-as-meta-capability.html"><span class="dir">← 上一课</span>代码为什么是 Agent 的"元能力"</a>
+  <a class="next" href="0030-why-coding-agent-fits-harness.html"><span class="dir">下一课 →</span>任务四象限：为什么 Coding Agent 是最成熟的 Agent 类型</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

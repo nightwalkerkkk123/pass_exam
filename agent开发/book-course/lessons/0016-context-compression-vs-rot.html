@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0016 · 装得下，却找不到：上下文为什么要压缩，怎么压不伤缓存</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0016 课 · 支柱一(上下文) · 上下文工程 · 预计 13 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>装得下，却找不到：上下文为什么要压缩，怎么压不伤缓存</h1>
+
+<p class="lede">前面几节都在讲怎么<strong>往上下文里放东西</strong>——提示工程决定写什么、Skills 决定按需加载什么、状态栏决定注入什么元信息。这节课转向相反的方向：<strong>怎么从上下文里减内容</strong>。唯一要拿下的东西是——分清「上下文溢出（装不下）」和「上下文腐化（装得下却找不到）」是<strong>两个不同的问题</strong>，看懂压缩为什么与 KV Cache「看似矛盾、实则互补」，并记住「上下文感知压缩」凭什么赢过逐页摘要、以及比压缩更釜底抽薪的「隔离优于压缩」。这一节在书里的位置是第 2 章《上下文工程》的最后一站——「上下文压缩策略」。</p>
+
+<h2>一、为什么要压缩：不只是长度问题</h2>
+
+<p>作者把话说在前头：压缩上下文有<strong>两个截然不同的动机</strong>，分不清这两个，就设计不出对的压缩策略。</p>
+
+<p><strong>第一个动机是长度与成本约束。</strong>这是最直观的：上下文窗口有限（比如 128K token），工具调用结果动辄数万字符，几轮交互就撑满窗口，任务被迫中断；而且 token 越多，API 成本越高、推理延迟也急剧上升。</p>
+
+<p><strong>第二个动机更深、也更容易被忽视：总结后的知识，比原始形式更利于模型使用。</strong>即使窗口足够大，把所有原始信息堆着也不是最优。原因藏在注意力机制的本质里——作者的判断是：<strong>上下文学习的内部机制更像检索而非推理</strong>。注意力擅长在已有内容里「查找」（笼子 37 里是什么猫？），却不擅长在一次前向传播里「归纳统计」（一共多少只黑猫？）。</p>
+
+<p>所以，与其让模型每次都从头数一遍，不如提前把「当前统计：黑猫 90 只，白猫 10 只」写进上下文——这就是压缩的第二个价值：<strong>把需要思考才能得到的结论，变成可以直接检索的知识</strong>。这和上一课的「状态栏」是同一枚硬币的两面：状态栏是把算好的结论<strong>加</strong>进去，压缩是把臃肿的原始记录<strong>换</strong>成算好的结论。</p>
+
+<p>由此引出一个关键区分——长上下文本身会让检索精度下降。窗口明明远没满，Agent 却突然找不到关键信息、或反复纠结一个早已解决的问题，这叫<strong>上下文腐化（Context Rot）</strong>。它和上下文溢出是两回事：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 210" role="img" aria-label="上下文溢出与上下文腐化的对比：溢出是窗口装满溢出、任务失败；腐化是窗口没满但关键信息被无关内容稀释、找不到">
+  <rect class="dgm-accent-node" x="30" y="30" width="300" height="150" rx="10"/>
+  <text class="dgm-accent-text" x="180" y="58" font-size="15" font-weight="700" text-anchor="middle">上下文溢出 Overflow</text>
+  <text class="dgm-text" x="180" y="82" font-size="12.5" text-anchor="middle">「装不下了」</text>
+  <rect class="dgm-node" x="55" y="98" width="250" height="20" rx="4"/>
+  <rect class="dgm-accent" x="55" y="98" width="250" height="20" rx="4"/>
+  <text class="dgm-muted" x="180" y="138" font-size="11.5" text-anchor="middle">窗口被填满 → 触发溢出保护</text>
+  <text class="dgm-muted" x="180" y="156" font-size="11.5" text-anchor="middle">任务直接中断，报错明显</text>
+
+  <rect class="dgm-good-node" x="370" y="30" width="300" height="150" rx="10"/>
+  <text class="dgm-text" x="520" y="58" font-size="15" font-weight="700" text-anchor="middle" style="fill:var(--good)">上下文腐化 Context Rot</text>
+  <text class="dgm-text" x="520" y="82" font-size="12.5" text-anchor="middle">「装得下，却找不到」</text>
+  <rect class="dgm-node" x="395" y="98" width="250" height="20" rx="4"/>
+  <rect class="dgm-good-node" x="395" y="98" width="90" height="20" rx="4"/>
+  <text class="dgm-muted" x="520" y="138" font-size="11.5" text-anchor="middle">窗口没满，但注意力被稀释</text>
+  <text class="dgm-muted" x="520" y="156" font-size="11.5" text-anchor="middle">表面正常，决策质量悄然下滑（更隐蔽）</text>
+</svg>
+</div>
+<figcaption>溢出是「装不下」，会直接把任务打断；腐化是「装得下却找不到」——无关内容占了大头，把关键信息淹没了。作者点明：实践中最常见的失效模式不是窗口不够长，而是<strong>信息密度不对</strong>。这也是「大海捞针」实验揭示的问题。</figcaption>
+</figure>
+
+<h2>二、压缩与 KV Cache：看似矛盾，实则互补</h2>
+
+<p>这里有个必须先解开的疑团：前几节反复强调 <strong>KV Cache 要求上下文前缀保持不变</strong>，可压缩不就是要改上下文中间的内容吗？这不打架吗？</p>
+
+<p>作者给的答案是：不矛盾，关键在压缩发生的<strong>时机和位置</strong>。压缩<strong>不</strong>在单次 API 调用过程中改上下文，而是在<strong>两次 API 调用之间</strong>，由 Agent 框架对消息列表做预处理。三条规则：</p>
+
+<ol>
+<li><strong>System Prompt 和 Tool Definitions 永远不动</strong>——这段是上下文最前面的「静态前缀」，KV Cache 持续有效。</li>
+<li><strong>压缩的对象只是对话历史里的 tool results</strong>——用摘要替换原始工具输出时，<strong>替换位置之后</strong>的缓存失效，<strong>之前的仍然有效</strong>。</li>
+<li><strong>这是有意识的权衡</strong>：不压缩，上下文溢出、任务失败；压缩虽损失部分缓存，但长度可控、信息密度更高。所以要在接近阈值时<strong>批量压缩</strong>，而不是每轮都压——频繁压缩会频繁破坏缓存。</li>
+</ol>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 220" role="img" aria-label="上下文长条示意：静态前缀绿色永不动、缓存有效；中部某个 tool result 被替换为更短的摘要，替换点之后标红为缓存失效、替换点之前保持绿色缓存有效">
+  <!-- static prefix -->
+  <rect class="dgm-good-node" x="20" y="70" width="190" height="46" rx="6"/>
+  <text class="dgm-text" x="115" y="90" font-size="12" font-weight="700" text-anchor="middle" style="fill:var(--good)">静态前缀</text>
+  <text class="dgm-muted" x="115" y="107" font-size="10.5" text-anchor="middle">System + Tool Def · 永不动</text>
+
+  <!-- tool result 1 (before, valid) -->
+  <rect class="dgm-good-node" x="214" y="70" width="120" height="46" rx="6"/>
+  <text class="dgm-muted" x="274" y="90" font-size="10.5" text-anchor="middle">tool result</text>
+  <text class="dgm-muted" x="274" y="106" font-size="10.5" text-anchor="middle">缓存有效</text>
+
+  <!-- replaced result (shrunk to summary) -->
+  <rect class="dgm-accent-node" x="338" y="70" width="70" height="46" rx="6"/>
+  <text class="dgm-accent-text" x="373" y="92" font-size="10.5" text-anchor="middle" font-weight="700">摘要</text>
+  <text class="dgm-accent-text" x="373" y="106" font-size="9.5" text-anchor="middle">(替换点)</text>
+
+  <!-- after: invalidated -->
+  <rect class="dgm-node" x="412" y="70" width="140" height="46" rx="6" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+  <text class="dgm-accent-text" x="482" y="90" font-size="10.5" text-anchor="middle">替换点之后</text>
+  <text class="dgm-accent-text" x="482" y="106" font-size="10.5" text-anchor="middle">缓存失效·需重算</text>
+
+  <rect class="dgm-node" x="556" y="70" width="140" height="46" rx="6" style="fill:var(--accent-soft);stroke:var(--accent)"/>
+  <text class="dgm-accent-text" x="626" y="98" font-size="10.5" text-anchor="middle">新增 token</text>
+
+  <!-- brackets -->
+  <path class="dgm-edge" d="M20 130 L334 130" stroke-width="1.5"/>
+  <text class="dgm-text" x="177" y="150" font-size="11.5" text-anchor="middle" style="fill:var(--good)">✓ 替换点之前：缓存全部有效</text>
+  <path class="dgm-edge" d="M338 130 L696 130" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="517" y="150" font-size="11.5" text-anchor="middle">✗ 替换点之后：缓存失效，重建一次</text>
+
+  <text class="dgm-muted" x="360" y="185" font-size="11" text-anchor="middle">→ 越靠前压缩，失效范围越大；所以要在接近阈值时批量压，一次付清重建代价</text>
+</svg>
+</div>
+<figcaption>对应图2-16（上下文压缩策略对比）背后的原理。绿色是缓存仍然有效的部分，红色是被替换点殃及、需要重算的部分。静态前缀永远不动，才是压缩与 KV Cache 能共存的根。</figcaption>
+</figure>
+
+<h2>三、怎么压得聪明：从逐页摘要到「上下文感知」</h2>
+
+<p>光知道能压还不够，怎么压差别巨大。实验 2-9 拿「追踪 OpenAI 联合创始人职业状态」这个任务，用 Kimi K2（128K 窗口）对比了六种策略。先看结果，再讲为什么：</p>
+
+<figure class="diagram">
+<div class="bars">
+<div class="row"><span class="lbl">无压缩</span><div class="track"><div class="val base" style="width:100%">第 5 次迭代溢出 → 任务失败</div></div></div>
+<div class="row"><span class="lbl">个体摘要(逐页)</span><div class="track"><div class="val out" style="width:100%">24 迭代 · 123,205 token</div></div></div>
+<div class="row"><span class="lbl">组合摘要</span><div class="track"><div class="val write" style="width:45%">21 迭代 · 55,462 token</div></div></div>
+<div class="row"><span class="lbl">带引用(感知)</span><div class="track"><div class="val write" style="width:37%">45,544 token</div></div></div>
+<div class="row"><span class="lbl">上下文感知</span><div class="track"><div class="val read" style="width:20%">15 迭代 · 25,198 token</div></div></div>
+</div>
+<figcaption>纵向对比六策略中五种（自适应窗口化因前 5 轮保留全部原文，总 token 最大 181,372，另作一档，此处从略）。「上下文感知压缩」以最少的迭代和 token 完成任务——实验显示它把 token 用量减少了 75% 以上。数据均取自实验 2-9。</figcaption>
+</figure>
+
+<p>为什么「个体摘要」和「组合摘要」这类<strong>非任务感知</strong>的压缩会输？因为它们<strong>缺乏语义理解，无法区分信息的相关性</strong>：个体摘要为每个搜索结果独立生成摘要，导致信息碎片化（多个页面重复描述同一事件，白白浪费空间）；组合摘要把全部结果合并成一份，输入超长时必须截断，可能丢掉末尾信息。</p>
+
+<p>「<strong>上下文感知压缩</strong>」的核心创新，是把<strong>当前查询意图和已积累的信息</strong>也纳入压缩的决策过程——在压缩提示里指定「Given the search query: {query}」和「Current context: {context}」，引导模型生成有针对性的摘要。作者举了一个惊人的例子：把 83,262 个字符压到 976 个字符（约 1.2%），仍然<strong>完整保留了全部 11 位创始人的姓名</strong>，同时过滤掉无关的历史背景和重复内容。它成功的关键洞察是：多步骤任务里，<strong>不同阶段需要的信息密度和类型不同</strong>——初期要广度、中期要精确核验、后期要综合整合。</p>
+
+<p>由此提炼出压缩策略设计的<strong>四条原则</strong>：<strong>信息价值的非均匀分布</strong>（决策点 &gt; 支撑证据 &gt; 冗余噪声）、<strong>语义完整性</strong>（「Sutskever 于 2024 年 5 月离开 OpenAI」不能压成「Sutskever 离开」，时间和公司名不可丢）、<strong>任务相关性</strong>（同样内容在不同任务下应产生不同压缩结果）、<strong>压缩即理解</strong>（有效压缩需要接近主模型的语言理解能力，且结果可审查、可跨会话复用）。</p>
+
+<h2>四、比压缩更釜底抽薪：隔离优于压缩</h2>
+
+<p>压缩是在信息<strong>已经进入</strong>上下文之后做减法。作者指出一个更根本的思路：让大体积中间信息<strong>根本不进入</strong>主上下文——这就是<strong>子 Agent 上下文隔离</strong>。主 Agent 把「读大量文件」「在代码库大范围搜索」这类会产生海量中间内容的任务，委派给一个独立子 Agent；子 Agent 在自己的上下文里完成探索，只把几百 token 的结论性摘要回传。</p>
+
+<p>书里的对比很直观：让主 Agent 亲自「在代码库中找到处理支付回调的函数」，可能要让十几个文件、数万 token 原始代码进入主上下文，找到目标后就沦为永久占窗口的噪声；而委派给搜索子 Agent，主上下文只增加两条消息——一条任务描述，一条结论（「函数位于 <code>src/payment/callbacks.py</code> 的 <code>handle_callback</code>，另有两处调用点」），中间数万 token 随子 Agent 上下文一起被丢弃。<strong>这本质上是用隔离代替压缩</strong>：压缩是有损的、需额外 LLM 调用的事后补救；隔离让噪声从一开始就与主上下文绝缘，主 Agent 的 KV Cache 前缀也完全不受影响。代价是子 Agent 看不到主 Agent 的完整上下文，任务描述必须<strong>自包含、目标明确</strong>。</p>
+
+<div class="pitfall">
+<p><strong>误区一：以为「压缩 = 破坏 KV Cache」，所以能不压就不压。</strong>错在没分清时机和位置。压缩不在单次调用里改上下文，而在两次调用之间预处理消息列表；静态前缀（System + Tool Def）永远不动、缓存持续有效，只有替换点之后的缓存失效。真正的成本是「频繁压缩 = 频繁重建缓存」，所以对策不是不压，而是<strong>在接近阈值时批量压一次</strong>，把重建代价一次付清。</p>
+<p><strong>误区二：把「上下文腐化」和「上下文溢出」当成一回事。</strong>溢出是「装不下了」，报错明显、任务直接失败；腐化是「装得下却找不到」，窗口远没满，Agent 表面还在正常工作，只是决策质量悄然下降——后者更隐蔽，也是实践中更常见的失效模式。把两者混为一谈，就会以为「只要窗口够大就不用压缩」，恰恰踩中第二个动机的坑。</p>
+</div>
+
+<div class="experiment">
+<p>动手看压缩策略的真实差距：<code>chapter2/context-compression/</code>（实验 2-9）。它以「追踪 OpenAI 联合创始人职业状态」为任务，用 Kimi K2（128K）对比六种压缩策略——无压缩、个体摘要、组合摘要、上下文感知、带引用的上下文感知、自适应窗口化——量测迭代次数、token 用量与压缩率。跑一遍，你会亲眼看到「上下文感知」如何把 token 砍掉 75% 以上还不丢关键事实。仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>上下文腐化（Context Rot）</dt>
+<dd>上下文窗口远未装满，但因长上下文导致注意力分散、无关内容占大头，Agent 突然找不到关键信息或反复纠结已解决问题的现象。<em>避免</em>与上下文溢出（窗口用完/装不下）混为一谈——腐化是「装得下却找不到」。</dd>
+<dt>KV Cache</dt>
+<dd>模型内部优化：缓存前文 token 在注意力机制中已算出的键值对（Key-Value pairs），下一轮只算新增 token，前提是前缀完全不变。压缩之所以能与它共存，是因为压缩只替换替换点之后的 tool results，静态前缀永不动。<em>避免</em>与 Prompt Cache（API 服务层跨请求缓存）混为一谈。</dd>
+<dt>上下文蒸馏（Context Distillation）</dt>
+<dd>「提前算好、直接查一眼」这套做法的统一名称——把需要模型现场归纳统计才能得到的结论提前算好放进上下文。状态栏是加法、压缩是换法，同属这一族。<em>避免</em>与模型蒸馏（把知识蒸馏进权重）混淆——这是推理时的上下文层做法。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：前面刚强调 KV Cache 要求前缀不变，压缩却要修改上下文中间的 tool results——这不矛盾吗？为什么说压缩和 KV Cache 其实互补？</summary>
+<div class="answer">
+<p>不矛盾。关键在时机和位置：压缩不在单次 API 调用中改上下文，而在两次调用之间由框架预处理消息列表。System Prompt 和 Tool Definitions 这段静态前缀永远不动、缓存持续有效；压缩只替换对话历史中的 tool results，只有替换点之后的缓存失效、之前仍有效。这是有意识的权衡：不压缩则上下文溢出任务失败，压缩虽损失部分缓存但长度可控、信息密度更高——所以要在接近阈值时批量压缩，而非每轮都压（频繁压缩会频繁破坏缓存）。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：实验 2-9 里，为什么「个体摘要」「组合摘要」这类压缩明显不如「上下文感知压缩」？</summary>
+<div class="answer">
+<p>因为它们是<strong>非任务感知</strong>的，缺乏语义理解、无法区分信息的相关性。个体摘要为每个结果独立生成摘要，导致信息碎片化（多个页面重复描述同一事件，浪费空间）；组合摘要把全部结果合并成一份，输入超长时必须截断、可能丢末尾信息。而上下文感知压缩把当前查询意图和已积累的信息纳入决策（「Given the search query / Current context」），生成有针对性的摘要——15 次迭代、25,198 token 完成任务，把 token 砍掉 75% 以上，还能在把 83,262 字符压到 976 字符时完整保留全部 11 位创始人姓名。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：压缩不只是为了「装得下」，更是为了「找得到」——溢出（装不下）和腐化（装得下却找不到）是两个问题；压缩与 KV Cache 靠「静态前缀永不动、只失效替换点之后」共存；聪明的压缩要感知任务意图（上下文感知 &gt; 逐页摘要），而最釜底抽薪的做法是让噪声压根别进主上下文（隔离优于压缩）。
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是第 2 章《上下文工程》的「上下文压缩策略」一节（<code>book/chapter2.md</code>）。其量化依据来自作者本人的研究——Li, Bojie &amp; Noah Shi, <em>“Distill, Don't Retrieve: Inference-Time Context Distillation for LLM Agent Reasoning”</em>（2026），原文见 <a href="https://01.me/research/context-distillation">01.me/research/context-distillation</a>。配套代码在开源仓库 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a> 的 <code>chapter2/context-compression/</code>（实验 2-9）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，比如让老师用「做菜时前几步没变就能接着切」的类比把 KV Cache 与压缩的共存再过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0015-agent-status-bar-distillation.html"><span class="dir">← 上一课</span>给模型装一个状态栏：把隐式状态提炼成可查的显式知识</a>
+  <a class="next" href="0017-memory-vs-context-and-selective-extraction.html"><span class="dir">下一课 →</span>记忆不是流水账：会话结束后 Agent 该记住什么</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0017 · 记忆不是流水账：会话结束后 Agent 该记住什么</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0017 课 · 支柱一(上下文) · 记忆与知识库 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>记忆不是流水账：一次会话结束后，Agent 到底该记住什么</h1>
+
+<p class="lede">这节课只押一件事：<strong>用户记忆不是把对话逐字存下来，而是主动投入一次额外的算力，把冗长的对话压缩成一个关于用户的“预测模型”</strong>。它落在第三章开篇——上一章刚讲完单次会话的上下文管理，这一章要跨过“会话结束”这道坎。你要在本课把提取的三个特征——<strong>选择性、抽象化、结构化</strong>——刻进直觉，并且分清它和“把东西塞进上下文”这种临时学习的根本区别。</p>
+
+<h2>一、是什么：记忆是一次“主动的学习”，不是录音</h2>
+
+<p>作者一上来就给了一个一秒就懂的类比。我们和朋友相处，从不记住每次对话的原始内容——我们是在持续交往中，在脑海里<strong>逐渐形成一个关于对方的生动模型</strong>：他的爱好、习惯、价值观。这个模型让我们能够理解、甚至预测他的需求。</p>
+
+<p>Agent 的用户记忆应当照此办理。原文把它的本质说得很硬：</p>
+
+<div class="bookquote">
+用户记忆系统的本质是一个主动的、持续的学习过程，其目标是构建一个关于用户的简洁而有效的预测模型。它投入额外的算力（通过专门的 LLM 调用来分析、总结和结构化信息），将分散在冗长对话历史中的关键信息进行显式提取和压缩。
+<span class="src">——《深入理解 AI Agent》第三章 · 用户记忆系统</span>
+</div>
+
+<p>拆开这句话，有两个容易滑过去的词：“<strong>主动</strong>”和“<strong>额外的算力</strong>”。记忆不是对话的副产品，不是顺手留下的日志——它需要一次<strong>专门的、独立的 LLM 调用</strong>，在一段对话结束后，回过头去分析、总结、结构化。你是特地花了一份算力，去换一个更小、更好用的用户模型。</p>
+
+<h2>二、怎么做：一段对话如何被榨成几条记忆</h2>
+
+<p>作者给了一个订机票的例子。用户说：帮我订下周五去东京的航班，我喜欢靠窗座位，我吃素、需要特殊餐食；随后又补了一句：用我的 United MileagePlus 会员号 12345678。中间 Agent 调了搜索工具，返回了 3 个选项。</p>
+
+<p>这段对话结束后，那次“专门的 LLM 调用”提取出的，不是对话原文，而是这样四条：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 740 300" role="img" aria-label="记忆提取流水线：原始对话经专门 LLM 分析调用，在选择性、抽象化、结构化三步作用下产出带类型的记忆条目，而临时信息被丢弃">
+  <!-- 原始对话 -->
+  <rect class="dgm-node" x="20" y="70" width="150" height="72" rx="8"/>
+  <text class="dgm-text" x="95" y="100" font-size="14" font-weight="700" text-anchor="middle">原始对话</text>
+  <text class="dgm-muted" x="95" y="120" font-size="11" text-anchor="middle">订东京航班的</text>
+  <text class="dgm-muted" x="95" y="135" font-size="11" text-anchor="middle">完整来回对话</text>
+
+  <!-- LLM 分析调用 -->
+  <rect class="dgm-hub" x="250" y="64" width="170" height="84" rx="10"/>
+  <text class="dgm-accent-text" x="335" y="96" font-size="14" font-weight="700" text-anchor="middle">专门的 LLM 调用</text>
+  <text class="dgm-muted" x="335" y="116" font-size="11" text-anchor="middle">额外算力 · 分析·总结</text>
+  <text class="dgm-muted" x="335" y="131" font-size="11" text-anchor="middle">选择性 / 抽象化 / 结构化</text>
+
+  <!-- 记忆条目 -->
+  <rect class="dgm-node" x="500" y="40" width="220" height="132" rx="8"/>
+  <text class="dgm-text" x="610" y="64" font-size="13" font-weight="700" text-anchor="middle">带类型的记忆条目</text>
+  <text class="dgm-muted" x="516" y="88" font-size="11">· 偏好靠窗座位（偏好）</text>
+  <text class="dgm-muted" x="516" y="108" font-size="11">· 吃素·需特殊餐（限制）</text>
+  <text class="dgm-muted" x="516" y="128" font-size="11">· 会员号 12345678（账号）</text>
+  <text class="dgm-muted" x="516" y="148" font-size="11">· 近期计划去东京（活动）</text>
+
+  <!-- 丢弃的临时信息 -->
+  <rect class="dgm-node" x="250" y="220" width="170" height="52" rx="8" stroke-dasharray="5 4"/>
+  <text class="dgm-muted" x="335" y="243" font-size="11.5" text-anchor="middle">「搜索返回 3 个选项」</text>
+  <text class="dgm-muted" x="335" y="260" font-size="11" text-anchor="middle">临时信息 → 被丢弃</text>
+
+  <!-- arrows -->
+  <line class="dgm-edge" x1="170" y1="106" x2="246" y2="106" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line class="dgm-edge" x1="420" y1="100" x2="496" y2="100" stroke-width="1.5" marker-end="url(#ar)"/>
+  <path class="dgm-edge" d="M335 148 L335 216" fill="none" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>一段对话进去，出来的是几条被打了类型标签的事实——而「搜索返回 3 个选项」这种当场用完就没价值的信息，被主动丢在了流水线外。这一步对应配套的<strong>实验 3-1</strong>。</figcaption>
+</figure>
+
+<p>为什么恰好是这四条、而不是把对话原样存下？作者点出了这个提取过程的<strong>三个关键特征</strong>——它们不是并列的三条规矩，而是同一次提取里三个不同层面的动作：</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">选择性</div><div class="head">🗑 扔掉噪声</div><div class="sub">不记「返回 3 个选项」这类临时信息，只留对未来有用的事实</div></div>
+  <div class="cell"><div class="role">抽象化</div><div class="head">⬆ 拔高一层</div><div class="sub">「I prefer window seats」提炼成通用偏好，不绑定这次具体航班</div></div>
+  <div class="cell"><div class="role">结构化</div><div class="head">🏷 打上标签</div><div class="sub">每条记忆标类型（偏好 / 限制 / 账号），便于日后检索</div></div>
+</div>
+<figcaption>选择性决定“留哪些”，抽象化决定“留成什么样”，结构化决定“怎么摆好方便再找到”。三者合起来，才把对话变成了可复用的用户模型。</figcaption>
+</figure>
+
+<p>回报是立竿见影的：下次用户再订机票，Agent 无需再问座位偏好和餐食需求——这些已经在记忆里了。这正是那句“预测模型”的兑现：它<strong>预判</strong>了你还没说出口的需求。</p>
+
+<h2>三、为什么这样设计：记忆 vs 上下文学习，差在“持久”与“临时”</h2>
+
+<p>这里是最容易糊涂、也最值得深挖的地方。你可能会想：把用户偏好直接塞进 prompt / 上下文，不也能让模型“记住”吗？——能，但那是另一回事。原文用一句话划清了界：</p>
+
+<div class="bookquote">
+这与上下文学习形成对比——用户记忆是持久的、可审查的，上下文学习则是临时的、会话结束就消失。
+<span class="src">——《深入理解 AI Agent》第三章</span>
+</div>
+
+<p>两个维度上的对立：</p>
+<ul>
+<li><strong>持久 vs 临时</strong>：上下文学习活在这一次会话里，窗口一关就烟消云散；用户记忆被显式写入持久存储，跨会话、跨实例都在。</li>
+<li><strong>可审查 vs 不可见</strong>：用户记忆是一条条被提炼、被打了类型的显式条目，你能看、能改、能删；上下文学习藏在模型对当前 token 的隐式处理里，无从审查。</li>
+</ul>
+
+<p>所以“投入额外算力做一次专门提取”不是浪费——正因为要跨越“会话结束”这道坎、要让记忆可被人和系统检查与维护，才值得把对话主动压缩成一份稳定、显式的档案，而不是指望模型把整段历史一直背在上下文里。</p>
+
+<h2>四、边界与易错：别把“轨迹”当成“记忆”</h2>
+
+<div class="pitfall">
+<p>初学者最容易犯的错，是把<strong>轨迹（Trajectory）</strong>和<strong>用户长期记忆</strong>混为一谈，觉得“把这次会话的完整记录存下来，就是记忆了”。作者专门把这两者对立起来讲：</p>
+<p>轨迹是<strong>单次会话</strong>的完整原始记录，按时间顺序追加、只增不改（append-only）——它是<strong>流水账</strong>。用户长期记忆则是<strong>跨会话提炼出的稳定信息</strong>，会被反复改写、合并、淘汰——它是<strong>档案</strong>。</p>
+<p>把流水账当档案，你会遇到两个必然的麻烦：一是越攒越长、根本喂不进上下文；二是里面全是「返回 3 个选项」这类当场就作废的临时信息，检索时净是噪声。记忆的价值，恰恰在于它<strong>不是</strong>流水账——它是被选择、被抽象、被结构化之后剩下的那一小撮。</p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：用户记忆 = 花一次额外的 LLM 调用，把一段对话<strong>选择性</strong>地留下有用事实、<strong>抽象</strong>成通用结论、<strong>结构化</strong>地打上类型，得到一份持久、可审查的用户档案——而不是把对话流水账原样存下、也不是靠上下文临时“记一下”。判断一条信息该不该进记忆，就问一句：它对未来还有用吗？没用的（如「返回 3 个选项」），扔。</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>用户记忆（User Memory）</dt>
+<dd>针对单个用户 ID 的个性化持久记忆，跨会话提炼出的稳定信息，会被反复改写、合并、淘汰；本质是投入额外算力构建关于用户的简洁预测模型。<em>避免</em>等同于“对话历史”或“轨迹”——轨迹是单次会话按时间追加不可改的流水账，用户记忆是跨会话提炼的档案。</dd>
+<dt>轨迹（Trajectory）</dt>
+<dd>一次 Agent 运行的完整历史记录（用户消息 + 模型回复 + 工具执行结果），按时间顺序 append-only 追加、只增不改，为当前决策提供即时上下文。<em>避免</em>与“工作记忆”混用——工作记忆是经筛选激活的动态子集（按相关性裁剪），轨迹是不可变的完整事件序列。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：订机票对话里出现了“搜索返回了 3 个选项”和“用户偏好靠窗座位”两条信息。记忆提取应保留哪一条？为什么？体现了哪个提取特征？</summary>
+<div class="answer">
+<p>保留“用户偏好靠窗座位”。“3 个选项”是临时信息、对未来无用（<strong>选择性</strong>原则丢弃它）；“偏好靠窗”被从这次具体航班抽象为通用偏好（<strong>抽象化</strong>），并标记为“偏好”类型（<strong>结构化</strong>），下次订票无需再问。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：既然把用户偏好塞进上下文也能让模型“记住”，为什么本书还要专门花一次 LLM 调用去做记忆提取？记忆和上下文学习差在哪两点？</summary>
+<div class="answer">
+<p>差在<strong>持久</strong>与<strong>可审查</strong>两点。上下文学习是临时的、会话结束就消失，且藏在模型对当前 token 的隐式处理里、无从检查；用户记忆是持久的（跨会话写入存储）、可审查的（一条条显式、带类型，能看能改能删）。要跨越“会话结束”这道坎、并让记忆可被人和系统维护，就值得主动投入额外算力做一次专门提取，而不是指望模型把整段历史一直背在上下文里。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套代码在 <code>chapter3/user-memory/</code>——它用统一接口实现了记忆的生成与检索，并把对话 Agent 与后台记忆处理器分离（正是本课说的“专门的 LLM 调用”落地的样子）。<strong>实验 3-1</strong> 就在这个项目里：用三层次框架评估记忆系统，你可以在其中查看每层测试用例的完整定义，亲眼看提取出来的记忆条目长什么样。整本书实验都在开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是第三章“用户记忆系统”开篇。想再往外读一层，作者在本章引用了两项代表性工作：记忆能力评估基准 <strong>LoCoMo</strong>（Long-term Conversational Memory，arXiv:2402.17753）与两阶段记忆管理框架 <strong>Mem0</strong>（arXiv:2504.19413），后者把“选择性提取”和“冲突解决”统一进 ADD/UPDATE/DELETE/NOOP 的对账流水线。本章后半程的检索技术，则以 Anthropic 的 <a href="https://www.anthropic.com/engineering/contextual-retrieval">Contextual Retrieval</a> 为主推蓝本（留待后续几课展开）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“选择性 / 抽象化 / 结构化”各举一个自己的例子过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0016-context-compression-vs-rot.html"><span class="dir">← 上一课</span>装得下却找不到：上下文压缩的两个动机与四条原则</a>
+  <a class="next" href="0018-four-memory-storage-formats-tradeoff.html"><span class="dir">下一课 →</span>四种记忆存储格式：简单性与表达力的根本张力</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

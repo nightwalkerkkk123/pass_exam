@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0034 · Rubric 四准则与一票否决：给开放式任务打分的红线</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0034 课 · 支柱三(模型) · Agent 评估 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>Rubric 四准则与一票否决：给开放式任务打分的红线</h1>
+
+<p class="lede">开放式任务（写报告、处理投诉、创意内容）没有标准答案可比对，只能让评判模型照着 <strong>Rubric（评分标准）</strong>打分。这节课只押一件事：Scale AI 的 <strong>Rubric 四准则</strong>，尤其是其中最反直觉的一招——把幻觉、严重安全违规设成 <strong>一票否决项（veto）</strong>，再把抽象标准改写成自包含、可验证的具体行为。这两手合起来，是本章第 6 章“LLM-as-a-Judge”一节对抗<strong>奖励作弊</strong>的核心武器。</p>
+
+<h2>一、先看一张表：Rubric 把一次轨迹拆成可检查的维度</h2>
+
+<p>书里用一个客服退款的例子开场（表6-1）。Agent 正确查到订单、发起 ¥299 全额退款、告知了到账时间和退款编号。用 Rubric 打分，就是把这一次轨迹拆成几个能逐条检查的维度：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<table>
+<thead><tr><th>维度</th><th>标准</th><th>得分</th></tr></thead>
+<tbody>
+<tr><td>操作正确性</td><td>退款金额、订单号是否正确</td><td>4</td></tr>
+<tr><td>政策合规性</td><td>是否遵循 7 天退款政策</td><td>4</td></tr>
+<tr><td>信息完整性</td><td>是否告知金额、到账时间、退款编号</td><td>4</td></tr>
+<tr><td>幻觉检测（否决项）</td><td>是否编造不存在的信息</td><td>通过</td></tr>
+</tbody>
+</table>
+</div>
+<figcaption>表6-1 · 客服退款任务的 Rubric 评分示例。前三行是 1–4 分的分级维度，最后一行不是打分，而是一道“通过/否决”的闸门。</figcaption>
+</figure>
+
+<p>注意最后一行和前三行<strong>类型不同</strong>：前三个是 1–4 分的分级维度，幻觉检测却只有“通过 / 否决”。书里点明了原因：<strong>幻觉与质量是正交的</strong>——一个流畅、详尽、礼貌的回答如果包含虚假事实，对用户的伤害<strong>远大于</strong>一个简短但准确的回答。所以它不该被摊进加权平均里，而要单独设成一道红线。</p>
+
+<h2>二、Rubric 四准则（Scale AI，“Rubrics as Rewards”）</h2>
+
+<p>为了系统性地对抗评判偏差和作弊，书里给出一套四准则。把它记成“<strong>专家、覆盖、权重、自包含</strong>”四个词：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 250" role="img" aria-label="Rubric 四准则：基于专家指导、全面覆盖含陷阱、标准重要性权重含一票否决、自包含评估">
+  <rect class="dgm-node" x="20" y="30" width="150" height="80" rx="10"/>
+  <text class="dgm-text" x="95" y="60" font-size="14" font-weight="700" text-anchor="middle">① 基于专家指导</text>
+  <text class="dgm-muted" x="95" y="82" font-size="11" text-anchor="middle">反映领域知识</text>
+  <text class="dgm-muted" x="95" y="98" font-size="11" text-anchor="middle">抓核心事实与推理</text>
+
+  <rect class="dgm-node" x="190" y="30" width="150" height="80" rx="10"/>
+  <text class="dgm-text" x="265" y="60" font-size="14" font-weight="700" text-anchor="middle">② 全面覆盖</text>
+  <text class="dgm-muted" x="265" y="82" font-size="11" text-anchor="middle">准确/逻辑/完整/安全</text>
+  <text class="dgm-muted" x="265" y="98" font-size="11" text-anchor="middle">还要标出陷阱 Pitfall</text>
+
+  <rect class="dgm-hub" x="360" y="30" width="150" height="80" rx="10"/>
+  <text class="dgm-accent-text" x="435" y="60" font-size="14" font-weight="700" text-anchor="middle">③ 重要性权重</text>
+  <text class="dgm-muted" x="435" y="82" font-size="11" text-anchor="middle">必要/重要/可选/陷阱</text>
+  <text class="dgm-muted" x="435" y="98" font-size="11" text-anchor="middle">支持一票否决 Veto</text>
+
+  <rect class="dgm-node" x="530" y="30" width="150" height="80" rx="10"/>
+  <text class="dgm-text" x="605" y="60" font-size="14" font-weight="700" text-anchor="middle">④ 自包含评估</text>
+  <text class="dgm-muted" x="605" y="82" font-size="11" text-anchor="middle">每项独立可操作</text>
+  <text class="dgm-muted" x="605" y="98" font-size="11" text-anchor="middle">不依赖评者的知识</text>
+
+  <text class="dgm-muted" x="350" y="150" font-size="12" text-anchor="middle">四准则共同服务于一个目标：</text>
+  <rect class="dgm-good-node" x="180" y="165" width="340" height="55" rx="10"/>
+  <text class="dgm-text" x="350" y="190" font-size="14" font-weight="700" text-anchor="middle">消除评估的主观性 · 防范奖励作弊</text>
+  <text class="dgm-muted" x="350" y="210" font-size="11" text-anchor="middle">让打分客观、可复现、难以被钻空子</text>
+</svg>
+</div>
+<figcaption>Rubric 四准则。准则③（重要性权重）里长出了本课的主角——一票否决机制；准则④（自包含）决定了每个评分档能不能被客观判定。</figcaption>
+</figure>
+
+<p>逐条拆开看它们各自在防什么：</p>
+<ul>
+<li><strong>① 基于专家指导</strong>——必须反映领域知识、抓住核心事实和推理步骤。缺乏专业基础的 Rubric 只能捕捉“语言流畅度”这类表面特征（比如医疗问答，要写进诊断标准和必须避免的医学错误）。</li>
+<li><strong>② 全面覆盖</strong>——涵盖事实准确性、逻辑连贯性、完整性、安全性；而且不只定义正面标准，还要明确<strong>陷阱（Pitfall）</strong>，即高风险的常见错误（如推荐未经验证的疗法）。</li>
+<li><strong>③ 标准重要性权重</strong>——分成必要项（Essential）、重要项、可选项、陷阱项，并<strong>支持一票否决（Veto）</strong>。这是本课的核心，下一节展开。</li>
+<li><strong>④ 自包含评估</strong>——每个评价项独立可操作，不依赖评价者的领域知识。要避免“回应展示了深刻理解”这种<strong>抽象标准</strong>，改成“引用了至少两个权威理论并准确解释如何支持结论”这种<strong>可验证标准</strong>。</li>
+</ul>
+
+<h2>三、一票否决：为什么它无论如何都直接判零</h2>
+
+<p>准则③里最狠的一招是 <strong>veto</strong>。它不参与加权平均，逻辑很简单粗暴：<strong>某个否决维度（幻觉、严重安全违规）一旦触发，无论其他维度多满分，总分直接归零。</strong></p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 260" role="img" aria-label="一票否决逻辑：三个分级维度都接近满分，但幻觉否决闸门触发，总分被拉到零">
+  <text class="dgm-muted" x="120" y="24" font-size="12" text-anchor="middle">分级维度（1–4 分）</text>
+  <rect class="dgm-node" x="30" y="36" width="180" height="34" rx="6"/>
+  <text class="dgm-text" x="50" y="58" font-size="12">事实正确性</text>
+  <text class="dgm-accent-text" x="195" y="58" font-size="13" font-weight="700" text-anchor="end">4</text>
+  <rect class="dgm-node" x="30" y="78" width="180" height="34" rx="6"/>
+  <text class="dgm-text" x="50" y="100" font-size="12">信息完整性</text>
+  <text class="dgm-accent-text" x="195" y="100" font-size="13" font-weight="700" text-anchor="end">4</text>
+  <rect class="dgm-node" x="30" y="120" width="180" height="34" rx="6"/>
+  <text class="dgm-text" x="50" y="142" font-size="12">思考正确性</text>
+  <text class="dgm-accent-text" x="195" y="142" font-size="13" font-weight="700" text-anchor="end">4</text>
+
+  <line class="dgm-edge" x1="210" y1="95" x2="300" y2="95" stroke-width="1.5" marker-end="url(#ar34)"/>
+
+  <rect x="300" y="55" width="150" height="80" rx="10" fill="none" stroke="#d64545" stroke-width="2.5"/>
+  <text x="375" y="88" font-size="14" font-weight="700" text-anchor="middle" fill="#d64545">幻觉否决闸门</text>
+  <text x="375" y="110" font-size="11" text-anchor="middle" fill="#d64545">编造了对话中不存在的信息 → 触发</text>
+
+  <line class="dgm-edge" x1="450" y1="95" x2="540" y2="95" stroke-width="1.5" marker-end="url(#ar34)"/>
+
+  <rect x="540" y="60" width="130" height="70" rx="10" fill="none" stroke="#d64545" stroke-width="2.5"/>
+  <text x="605" y="90" font-size="13" font-weight="700" text-anchor="middle" fill="#d64545">总分</text>
+  <text x="605" y="116" font-size="22" font-weight="800" text-anchor="middle" fill="#d64545">0</text>
+
+  <text class="dgm-muted" x="350" y="185" font-size="12" text-anchor="middle">三个维度全 4 分（近满分）也救不回来——否决项与质量正交，不进加权。</text>
+  <text class="dgm-muted" x="350" y="210" font-size="12" text-anchor="middle">这道红线同时堵死了“关键词堆砌 / 讨好用户”式的奖励作弊。</text>
+  <defs>
+    <marker id="ar34" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>一票否决的逻辑闸门。它不是“扣分”，而是“清零”——这正是它区别于普通分级维度的地方。</figcaption>
+</figure>
+
+<p>书里给了一个符合四准则的完整 Rubric 作为范本（用户记忆 Agent，问题是“我女儿的儿科医生是谁？”，答案要跨两次对话关联：第一次提到“女儿叫 Lily”，第二次提到“带 Lily 去看了 Dr. Chen”）。它的四个维度权重是这样标的：</p>
+
+<div class="formula">
+<div class="eq">事实正确性<span class="op">=</span>essential &nbsp; 信息完整性<span class="op">=</span>important &nbsp; 思考正确性<span class="op">=</span>important &nbsp; <b>幻觉检测</b><span class="op">=</span><b>veto</b></div>
+<div class="gloss">幻觉检测：一旦触发，总分归零</div>
+</div>
+
+<p>而“好的 Rubric vs 坏的 Rubric”的分水岭，就在准则④：每个评分档都写成可验证的具体行为（“准确回答 Dr. Chen”），而不是“展示了对记忆的深刻理解”这种无法客观判定的描述。否决项则把底线钉死：<strong>即使其他维度全部满分，一旦出现幻觉就直接判零。</strong></p>
+
+<h2>四、更深的“为什么”：这是在对抗古德哈特定律</h2>
+
+<p>为什么要这么费劲地防作弊？因为一旦 Rubric 变成 Agent 的优化目标，它就会退化。书里点破了这条铁律——<strong>古德哈特定律</strong>：当一个度量指标变成优化目标时，它就不再是好的度量指标。Agent 越是在某个评分系统上训练或调优，就越倾向于钻这个系统的漏洞，而非真正提升能力。</p>
+
+<p>所以 Rubric 设计要主动防范 <strong>奖励作弊（Reward Hacking）</strong>——即 Agent 找到了获取高分的“捷径”却没有真正完成任务。具体手段就是<strong>明确惩罚</strong>：幻觉、讨好用户、关键词堆砌、回避棘手问题。veto 只是其中最硬的一档；此外还要为每个维度定义客观可验证的评分档次，配上具体示例和<strong>边界案例</strong>帮助区分模糊情况。</p>
+
+<div class="pitfall">
+<p><strong>初学者最容易想错的地方</strong>：把否决项当成“权重特别大的一个维度”，用加权平均去算——“质量三项都满分，幻觉扣一点，平均下来还挺高”。这恰恰是 Rubric 想堵死的思路。</p>
+<p>否决项<strong>根本不参与加权</strong>。它是一道逻辑闸门，输出只有“通过 / 否决”两态，触发即清零。理由是幻觉与质量<strong>正交</strong>——它衡量的不是“答得好不好”，而是“能不能信”。一个既流畅又详尽却夹带假信息的回答，比一个简短但句句属实的回答更危险。如果你用加权平均，等于给了模型一条捷径：把其他维度堆到极高，就能稀释掉造假的代价——这正是奖励作弊。安全与合规违规同理，书里对它们也采取零容忍：一次严重违规即否决整体评价。</p>
+</div>
+
+<div class="bookquote">
+这正是古德哈特定律所说的：当一个度量指标变成优化目标时，它就不再是好的度量指标。
+<span class="src">——《深入理解 AI Agent》第 6 章</span>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：Rubric 四准则里，真正救命的是准则③长出的<strong>一票否决</strong>和准则④要求的<strong>自包含可验证</strong>。幻觉/安全违规不打分、只设闸门，触发即清零；每个评分档必须写成能被客观核对的具体行为。做到这两点，你的评分系统才不会被“流畅但造假”的回答骗过，也才扛得住 Agent 在上面反复调优时的钻空子。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>Rubric（评分标准 / 评分准则）</dt>
+<dd>量化 Agent 表现的评分依据，可以是二元的（通过/不通过）、连续的（0–100 分）或多维的（分别给准确性、效率、安全性打分）。开放式任务无标准答案，靠它让 LLM-as-a-Judge 逐维度评判。</dd>
+<dt>一票否决机制（Veto）</dt>
+<dd>Rubric 中的否决项设计：某维度（如幻觉、严重安全违规）一旦触发，无论其他维度多优秀都直接把总分判零。因为该维度与质量正交且伤害极大。<em>区别于</em>普通的分级评分维度，否决项不参与加权。</dd>
+<dt>奖励作弊（Reward Hacking）</dt>
+<dd>Agent 找到了获取高分的“捷径”却没有真正完成任务（如关键词堆砌、讨好用户、回避棘手问题）。Rubric 需明确惩罚这些行为，veto 是最硬的一道防线。</dd>
+<dt>古德哈特定律（Goodhart's Law）</dt>
+<dd>当一个度量指标变成优化目标时，它就不再是好的度量指标；Agent 越在某评分系统上调优，越倾向钻系统漏洞而非真正提升能力。这是所有防作弊设计的根本动因。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：一个客服回答流畅、详尽、礼貌，四个质量维度都接近满分，但编造了一个对话中不存在的就诊日期。用符合四准则的 Rubric 打分，总分应该是多少？为什么这样设计？</summary>
+<div class="answer">
+<p><strong>总分归零。</strong>因为幻觉是 veto 否决项——它与质量正交，一个流畅详尽的回答若含虚假事实，对用户的伤害远大于简短但准确的回答。否决机制无论其他维度多优秀都直接判零，同时能防范关键词堆砌、讨好用户等奖励作弊（古德哈特定律：度量变成目标就不再是好度量）。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：按准则④（自包含评估），下面哪条评分档是“坏”的，应该怎么改？——“该维度得 4 分：回应展示了对记忆的深刻理解”。</summary>
+<div class="answer">
+<p>这是<strong>坏</strong>的评分档：“展示了深刻理解”是抽象标准，依赖评价者的主观判断，无法客观核对。按准则④要改成<strong>独立可操作、可验证的具体行为</strong>，例如书里范本里的写法——“准确回答 Dr. Chen，且关联到女儿 Lily”。判定标准写得越像“能勾选的清单”，不同评判者给出的分就越一致，也越难被钻空子。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本课偏原理；把 Rubric 跑起来产出逐任务报告后，真正的功夫在“从报告诊断短板”。配套仓库里 <code>chapter6/android-world/</code> 提供了 AndroidWorld 上 t3a Agent 的真实评估报告（116 个任务的成功率/平均步数/耗时、按能力标签与难度的性能分析、失败任务轨迹与失败分析），可作为<strong>实验 6-10</strong> 的起点素材，练习从 Benchmark 报告诊断结构性短板、构建改进假设的完整闭环。完整仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课四准则的一手出处是 <strong>Scale AI 的《Rubrics as Rewards》</strong>（原文正文未给出直接 URL，可在配套项目 README 里找到链接）。想把 Rubric 与后续的“可验证奖励（RLVR）”“奖励模型”串起来看，可继续读本书第 6 章“LLM-as-a-Judge”一节与第 7 章。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“为什么否决项不能进加权平均”再推一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0033-progressive-disclosure-user-simulation.html"><span class="dir">← 上一课</span>为什么不能把答案一次性告诉 Agent：渐进式信息透露</a>
+  <a class="next" href="0035-passk-vs-passhatk.html"><span class="dir">下一课 →</span>Pass@k 和 Pass^k 差一个符号，结论天差地别</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

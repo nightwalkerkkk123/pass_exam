@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0005 · 工具即面向模型的 API：描述、namespacing、返回有意义的上下文</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0005 课 · 预计 12 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>工具即面向模型的 API：描述、namespacing、返回有意义的上下文</h1>
+
+<p class="lede">你有一个精准的类比：工具 schema ≈ Thrift/protobuf 的 RPC 接口定义。这节课要证明它在三个地方漏水——不是因为类比粗糙，而是因为工具 schema 的<strong>消费者不是编译器，是一个概率性的读者</strong>。在 <code>conductorservice</code> 里，约 50 个工具的 name / description / 参数 schema 不是给编译器看的接口文档，而是 prompt 的一部分。它们既决定模型能否选对工具、填对参数，又每一轮都实打实地占用 context 预算。这是"工具调用"支柱的地基。</p>
+
+<h2>一、先承认类比对的部分</h2>
+
+<p>把一个工具的定义看成 IDL 里的一条 RPC，是完全正确的起点。<code>Name</code> 是方法名，参数 schema 是入参结构，返回值是出参。在 <code>mino_server</code> 里这套结构确实存在：每个工具服务实现 <code>AsTools()</code>，产出一个内嵌 eino <code>*schema.ToolInfo</code> 的对象——<code>Name</code> / <code>Desc</code> / <code>ParamsOneOf</code> 三件套，加一个执行函数。参数 schema 用 <code>kin-openapi</code> 的 <code>openapi3.Schema</code> 手写；序列化成 OpenAPI v3 JSON 的机制确实存在（<code>ParamsOneOf.ToOpenAPIV3()</code>，见于 eval 导出路径 <code>conductorservice/tools.go:120</code>），而生产每轮推理的工具序列化由 eino 的 model adapter 在 <code>model.WithTools</code> 内部完成。</p>
+
+<p>先看最朴素的一个工具，它长得就像一条 RPC——短名字、一句注释、两个字段：</p>
+
+<pre><code>agenttypes.NewSerialToolInfo(
+    &amp;schema.ToolInfo{
+        Name: string(types.TaskTypeUpdateTodo),      // "update_todo"
+        Desc: "Update the content of the todo",
+        ParamsOneOf: schema.NewParamsOneOfByOpenAPIV3(&amp;openapi3.Schema{
+            Type: openapi3.TypeObject,
+            Properties: map[string]*openapi3.SchemaRef{
+                "label":   {Value: agenttypes.LabelToolSchema},
+                "content": {Value: &amp;openapi3.Schema{Type: "string", Description: "The content of the todo"}},
+            },
+            Required: []string{"label", "content"},
+        }),
+    },
+    svc.UpdateTodo,
+)</code></pre>
+<p class="meta"><code>todoservice/tool.go:12-33</code> — 一句话描述、两个字段。这就是"接口定义"心智模型能覆盖的部分。</p>
+
+<p>约 50 个这样的工具服务在一处一次性注册成一张 map，再摊平、去重、进模型。整条流水线是这样：</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">GetAllToolServices()</span><span class="n-sub">tools.go:13-71 · ~50 服务</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">hooks.GetToolServices</span><span class="n-sub">按 SubType/FG 过滤</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">FlatMap AsTools</span><span class="n-sub">agent.go:770-772</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">toolMap[name]</span><span class="n-sub">agent.go:773-775</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">getCurrentToolInfos()</span><span class="n-sub">按 name 排序 · L1965-1979</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">model.WithTools</span><span class="n-sub">每轮重发 · L1583</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">LLM Stream</span><span class="n-sub">prompt 的一部分</span></div>
+</div>
+<figcaption>注册期一次成型（左半），推理期每一轮重跑一遍右半：<code>getCurrentToolInfos()</code> 遍历 <code>toolMap</code>、按 name 字典序排序、抽出 <code>*schema.ToolInfo</code>，经 <code>model.WithTools</code> 塞进请求。红=每轮都重发。</figcaption>
+</figure>
+
+<p>注意流水线里有<strong>两道过滤</strong>：<code>hooks.GetToolServices</code> 按品类 / FeatureGate 决定启用哪些工具服务；<code>AsTools</code> 内部还会二次门控——例如 <code>searchservice/tool.go:15-18</code> 里，只有 <code>AvailableSources.IsSearchWebAvailable()</code> 为真才把 <code>search_web</code> append 进去。为什么要过滤两次？答案在下面第二个漏水点。</p>
+
+<h2>二、三个漏水点</h2>
+
+<h3>漏水点 1：消费者是概率性读者，描述就是 prompt</h3>
+
+<div class="leak">
+IDL 里字段名起得含糊无所谓——编译器不读语义，调用方是确定性的代码，类型对得上就永远调得对。工具 schema 不是：它的读者是模型，一个<strong>按概率生成参数</strong>的读者。字段名含糊、描述缺策略，模型就选错工具、填错参数。所以工具描述根本不是接口文档，而是 prompt——带策略、带警告、带劝导。
+</div>
+
+<p>看 <code>search_web</code> 的描述。它不是"一个 Google 搜索工具"一句话，而是一段 <code>//go:embed</code> 进来的 Go template，带 XML 风格标签：</p>
+
+<pre><code>A powerful Google-backed Internet search tool with multi-topic support and flexible filtering.
+
+This is a Google-like search. Leverage Google search operators (site:, filetype:, OR, -, "...", etc.) to search more precisely.
+
+&lt;quick_answer&gt;
+Prefer quick_answer=true for simple factual queries (weather, prices, scores, definitions). Returns an answer with source citations.
+Not for research tasks requiring multiple searches or full page reading.
+&lt;/quick_answer&gt;</code></pre>
+<p class="meta"><code>searchservice/prompts/web_next.go.tmpl:1-8</code> — 后面还有 <code>&lt;search_strategy&gt;</code> / <code>&lt;research_for_content_creation&gt;</code> / <code>&lt;multi_language_strategy&gt;</code> 三段。这是 prompt，不是接口注释。</p>
+
+<p>连一个<strong>枚举参数</strong>都要劝导。<code>time</code> 参数合法取值就是 <code>anytime / past hour / … / past year</code>，枚举本身已经限定了取值范围。但它的 <code>Description</code> 里塞了一整段行为引导（<code>searchservice/tool.go:120-122</code>）：</p>
+
+<pre><code>Time range filter. DEFAULT is "anytime" — ALWAYS prefer this.
+WARNING: Setting a specific time range filters OUT official/authoritative pages
+(docs, product pages) and mostly returns forum posts and blogs...
+Only set a specific range when you explicitly need timeline-bound discussions.</code></pre>
+
+<p>同理 <code>keywords</code> 参数写着 <code>Under 6 decisive keywords per query</code>、<code>One topic/entity per call</code>（<code>tool.go:90-96</code>）。给人类同事的 RPC 永远不会这么写——人类会读文档、有判断力，字段名加一句注释就够，甚至字段名含糊也能靠上下文猜对。<strong>确定性调用方不需要劝导，概率性调用方需要。</strong>这正是"工具描述其实是 prompt 的一部分"的实锤。</p>
+
+<h3>漏水点 2：工具定义吃 context 预算，而且每一轮都重发</h3>
+
+<div class="leak">
+IDL 写在文件里，不占运行时开销——接口定义再长也只是编译期的事。工具 schema 不是：它每一轮推理都被完整序列化进 prompt。约 50 个工具的 name + 多行 desc + 完整 OpenAPI 参数 schema，是每 turn 都要付的<strong>固定 context 税</strong>。
+</div>
+
+<p>税从哪里收？就这两行——工具信息进入模型的唯一入口：</p>
+
+<pre><code>toolInfos := agent.getCurrentToolInfos()
+options = append(options, model.WithTools(toolInfos))</code></pre>
+<p class="meta"><code>conductorservice/agent.go:1582-1583</code> — 每一轮 <code>Stream</code> 前都跑一遍。<code>getCurrentToolInfos()</code>（L1965-1979）遍历 <code>toolMap</code>、按 name 字典序排序求稳定顺序、抽出每个工具的 <code>*schema.ToolInfo</code>。全部工具的定义因此每 turn 重进 prompt 一次。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 280" role="img" aria-label="每一轮 LLM 调用都重新序列化整块工具定义，工具块不变、只有对话增量在变">
+  <text class="dgm-text" x="360" y="24" font-size="15" font-weight="700" text-anchor="middle">每一轮 LLM 调用的 prompt 构成</text>
+  <!-- turn 1 -->
+  <rect class="dgm-node" x="40" y="60" width="160" height="34" rx="5"/>
+  <text class="dgm-muted" x="120" y="82" font-size="12" text-anchor="middle">本轮对话 Δ</text>
+  <rect class="dgm-accent-node" x="40" y="100" width="160" height="120" rx="5"/>
+  <text class="dgm-accent-text" x="120" y="152" font-size="13" font-weight="700" text-anchor="middle">工具定义 × ~50</text>
+  <text class="dgm-muted" x="120" y="172" font-size="10.5" text-anchor="middle">name + desc + schema</text>
+  <text class="dgm-muted" x="120" y="242" font-size="12" text-anchor="middle">Turn 1</text>
+  <!-- turn 2 -->
+  <rect class="dgm-node" x="280" y="52" width="160" height="42" rx="5"/>
+  <text class="dgm-muted" x="360" y="78" font-size="12" text-anchor="middle">本轮对话 Δ</text>
+  <rect class="dgm-accent-node" x="280" y="100" width="160" height="120" rx="5"/>
+  <text class="dgm-accent-text" x="360" y="152" font-size="13" font-weight="700" text-anchor="middle">工具定义 × ~50</text>
+  <text class="dgm-muted" x="360" y="172" font-size="10.5" text-anchor="middle">同一块，原样重发</text>
+  <text class="dgm-muted" x="360" y="242" font-size="12" text-anchor="middle">Turn 2</text>
+  <!-- turn 3 -->
+  <rect class="dgm-node" x="520" y="44" width="160" height="50" rx="5"/>
+  <text class="dgm-muted" x="600" y="74" font-size="12" text-anchor="middle">本轮对话 Δ</text>
+  <rect class="dgm-accent-node" x="520" y="100" width="160" height="120" rx="5"/>
+  <text class="dgm-accent-text" x="600" y="152" font-size="13" font-weight="700" text-anchor="middle">工具定义 × ~50</text>
+  <text class="dgm-muted" x="600" y="172" font-size="10.5" text-anchor="middle">同一块，原样重发</text>
+  <text class="dgm-muted" x="600" y="242" font-size="12" text-anchor="middle">Turn 3</text>
+</svg>
+</div>
+<figcaption>下方的大块（工具定义）每轮原样重发 = 固定 context 税；只有上方对话增量在变。正因如此才有<strong>两道过滤</strong>把用不到的工具挡在预算之外：<code>hooks.GetToolServices</code> 按 SubType/FG 过滤，<code>AsTools</code> 内二次门控（<code>searchservice/tool.go:15-18</code>）。</figcaption>
+</figure>
+
+<p>把这条和上一课连起来：工具定义占的每一个 token，都在花模型的注意力预算、都在推高每轮账单。过滤两次不是洁癖，是省预算——用不到的工具连进 prompt 的资格都没有。</p>
+
+<h3>漏水点 3：返回值必须限量、必须塑形</h3>
+
+<div class="leak">
+一条 RPC 返回 10 万行的 list，顶多是网络和内存问题，不影响"正确性"——调用方是代码，它不会因为 list 太长就读串行。工具返回值不是：返回 10 万 token 的 JSON 会<strong>挤掉 context 里别的信息</strong>，静默拉低后续所有轮次的质量。这是服务端世界不存在的失效模式——超大返回值在这里是"正确性"问题，不是性能问题。
+</div>
+
+<p>所以护栏建在服务端，不信任模型自律。<code>search_web</code> 的 <code>count</code> 参数 schema 里已经写了 <code>max: 50, default: 10</code>（<code>tool.go:129</code>）——但那只是给概率性读者的建议，模型可能填 200。真正的护栏是服务端的硬校验：</p>
+
+<pre><code>if args.Count == nil {
+    args.Count = gptr.Of(int32(10))
+}
+if args.Count != nil &amp;&amp; *args.Count &gt; 50 {
+    return nil, errno.Errorf(errcode.ErrInvalidLLMOutput, "count should be no more than 50")
+}</code></pre>
+<p class="meta"><code>searchservice/service.go:143-148</code> — 默认 10 条、超过 50 直接报错。schema 里的 "max 50" 是建议，这里才是护栏。</p>
+
+<p>限量之外，返回值还要<strong>塑形</strong>——回喂给模型的不只是数据，还有"如何解读这份数据"的元指令。在 <strong>slides 模式</strong>下（<code>isSlidesContext</code> 门控，并非每次 <code>search_web</code> 都加），搜索结果末尾会追加一段提醒，防止模型把 Google snippet 当正文：</p>
+
+<pre><code>const slidesFetchReminder = "&lt;after_search_reminder&gt;\n" +
+    "The `Text` fields above are Google's engine-written snippets, not page bodies — treat them as a URL menu only. " +
+    "Your next action is `get_web_page_contents` on the strongest URLs from this list; " +
+    "do not write research_notes.md, an outline, or slide content from snippet text. " +
+    "Parallel-fetching multiple URLs in one tool turn is encouraged.\n" +
+    "&lt;/after_search_reminder&gt;"</code></pre>
+<p class="meta"><code>searchservice/service.go:31-36</code> 定义、<code>service.go:170-173</code> 仅在 <code>isSlidesContext</code> 为真时注入 — 主动引导模型下一步去 <code>get_web_page_contents</code>，而不是拿 snippet 当研究材料。</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">模型调用 search_web（count 未填？→ 默认 10；&gt; 50？→ 服务端报错）</div>
+  <div class="down">│</div>
+  <div class="step action">返回 snippet 列表（限量的 URL 菜单）</div>
+  <div class="down">│</div>
+  <div class="step action">（slides 模式）末尾追加 &lt;after_search_reminder&gt;：这些只是 snippet，别当正文</div>
+  <div class="down">│</div>
+  <div class="step terminal">模型下一步：get_web_page_contents 抓强 URL 的正文</div>
+</div>
+<figcaption>返回值节制（<code>service.go:143-148</code>）+ 塑形（<code>service.go:31-36</code>）：先限量，再用元指令把模型推向正确的下一步动作。</figcaption>
+</figure>
+
+<h2>三、namespacing：命名即契约</h2>
+
+<p>没有语言级的命名空间可用——工具名是一个扁平的字符串全局空间（就是 <code>TaskType</code> 常量）。于是 namespacing 靠<strong>命名约定</strong>兜底：全部 <code>snake_case</code>、结构是"动词_名词"、同族工具共用前缀。这样模型在一堆工具里靠前缀就能归类、缩小选择范围。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 260" role="img" aria-label="工具命名约定：snake_case 动词_名词，同族共前缀">
+  <text class="dgm-text" x="360" y="24" font-size="15" font-weight="700" text-anchor="middle">命名即契约：snake_case = 动词_名词，同族共前缀</text>
+  <text class="dgm-muted" x="360" y="44" font-size="11" text-anchor="middle">namespacing 靠命名约定，而非语言级 namespace</text>
+  <!-- search family -->
+  <text class="dgm-accent-text" x="90" y="90" font-size="14" font-weight="700" text-anchor="middle">search_*</text>
+  <rect class="dgm-node" x="170" y="66" width="120" height="38" rx="5"/>
+  <text class="dgm-text" x="230" y="90" font-size="12.5" text-anchor="middle" font-family="SF Mono, monospace">search_web</text>
+  <rect class="dgm-node" x="302" y="66" width="145" height="38" rx="5"/>
+  <text class="dgm-text" x="374" y="90" font-size="12.5" text-anchor="middle" font-family="SF Mono, monospace">search_internal</text>
+  <rect class="dgm-node" x="459" y="66" width="130" height="38" rx="5"/>
+  <text class="dgm-text" x="524" y="90" font-size="12.5" text-anchor="middle" font-family="SF Mono, monospace">search_image</text>
+  <!-- get family -->
+  <text class="dgm-accent-text" x="90" y="160" font-size="14" font-weight="700" text-anchor="middle">get_*</text>
+  <rect class="dgm-node" x="170" y="136" width="235" height="38" rx="5"/>
+  <text class="dgm-text" x="287" y="160" font-size="12.5" text-anchor="middle" font-family="SF Mono, monospace">get_web_page_contents</text>
+  <!-- update family -->
+  <text class="dgm-accent-text" x="90" y="230" font-size="14" font-weight="700" text-anchor="middle">update_*</text>
+  <rect class="dgm-node" x="170" y="206" width="120" height="38" rx="5"/>
+  <text class="dgm-text" x="230" y="230" font-size="12.5" text-anchor="middle" font-family="SF Mono, monospace">update_page</text>
+  <rect class="dgm-node" x="302" y="206" width="120" height="38" rx="5"/>
+  <text class="dgm-text" x="362" y="230" font-size="12.5" text-anchor="middle" font-family="SF Mono, monospace">update_todo</text>
+</svg>
+</div>
+<figcaption>工具名即 <code>TaskType</code> 字符串常量：<code>event.go:622</code>(update_page) / <code>627</code>(search_web) / <code>628</code>(search_internal) / <code>629</code>(search_image) / <code>631</code>(get_web_page_contents) / <code>677</code>(update_todo)。共前缀让模型能按家族归类。</figcaption>
+</figure>
+
+<p>还有一个"藏在契约里的 UI 契约"值得一提：几乎每个工具都注入一个公共 <code>label</code> 参数（<code>types.go:400-403</code> 的 <code>LabelToolSchema</code>），描述里写着 <code>Always output this parameter FIRST before all other parameters</code>。这是把前端进度文案（"Searching for latest news"）硬塞进工具契约——让模型在真正干活之前先吐一句给用户看的话。工具 schema 不只是功能接口，它还兼着"产品交互"的活儿。</p>
+
+<h2>四、一张对照表</h2>
+
+<table>
+<tr><th>维度</th><th>RPC / IDL（确定性调用方）</th><th>工具 / 面向模型的 API（概率性调用方）</th></tr>
+<tr><td>字段名与描述</td><td>够用即可，含糊也能靠代码上下文调对</td><td>是 prompt：需策略、警告、劝导，含糊就选错（<code>tool.go:120-122</code>）</td></tr>
+<tr><td>定义的运行时成本</td><td>写在 IDL 文件，不占运行时</td><td>每 turn 完整序列化进 prompt = 固定 context 税（<code>agent.go:1582-1583</code>）</td></tr>
+<tr><td>返回超大结果</td><td>网络/内存问题，不影响正确性</td><td>挤占 context、静默拉低后续质量 → 正确性问题（<code>service.go:143-148</code>）</td></tr>
+<tr><td>命名空间</td><td>语言级 package/namespace</td><td>扁平字符串，靠 snake_case 前缀约定（<code>event.go:622-677</code>）</td></tr>
+</table>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：写工具时，脑子里的读者不是编译器、也不是你的同事，而是一个会读劝导、会忽略建议、会被超大返回值淹没的概率性读者。于是三件事变成硬约束——描述要当 prompt 写、定义要按预算裁、返回值要限量并塑形。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>工具（面向模型的 API）</dt>
+<dd>提供给模型调用外部能力的接口定义，其 name / description / 参数 schema 本身就是面向模型的 API 文档，是 prompt 的一部分并占用 context 预算。载体：<code>conductorservice/tools.go:GetAllToolServices</code>，经 <code>model.WithTools</code> 传入。</dd>
+<dt>namespacing（命名空间约定）</dt>
+<dd>在没有语言级命名空间时，用 <code>snake_case</code> 的"动词_名词"+ 家族共前缀（如 <code>search_*</code>）给扁平的工具名空间制造结构，帮助模型归类与选择。载体：<code>event.go</code> 的 <code>TaskType</code> 常量。</dd>
+<dt>不可靠调用方假设（unreliable-caller assumption）</dt>
+<dd>把模型当成会传错参、会忽略建议、会填超限值的调用方来设计工具边界：服务端硬校验、默认值兜底、可读错误。载体：<code>service.go:143-148</code> 的 count 校验。</dd>
+<dt>返回值塑形（response shaping）</dt>
+<dd>返回给模型的不只是数据，还包括"如何解读这份数据"的元指令——限量、过滤、追加提醒，主动把模型推向正确的下一步。载体：<code>service.go:31-36</code> 的 <code>slidesFetchReminder</code>（slides 模式专属）。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：<code>search_web</code> 的 <code>time</code> 参数是个普通枚举（anytime / past hour / …），但它的 Description 里塞了一整段 "DEFAULT is anytime — ALWAYS prefer this. WARNING: Setting a specific time range filters OUT official/authoritative pages…"（<code>tool.go:120-122</code>）。为什么一个枚举参数需要这么长的劝导文字？换成给人类同事的 RPC 会这样写吗？</summary>
+<div class="answer">
+<p>因为这个 schema 的消费者是<strong>概率性读者</strong>（模型），不是确定性的调用方代码。枚举本身只能限定"合法取值"，却拦不住模型在不该用时主动选 <code>past week</code>——它是按概率生成参数的。所以描述里必须做 prompt 级的行为引导：默认值 + 反面警告 + 何时才该偏离。给人类同事的 RPC 不会这么写：人类会读文档、有判断力，字段名加一句注释就够，甚至字段名含糊也能靠上下文猜对。这正是"工具描述其实是 prompt 的一部分"的直接体现——类比在这里漏水。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：<code>count</code> 参数的 schema 描述已经写了 "max: 50"，为什么 <code>service.go:146-147</code> 还要在服务端再判一次"&gt; 50 就报错"？既然模型能读到 schema，两处校验不是冗余吗？</summary>
+<div class="answer">
+<p>不冗余，因为两处的<strong>信任级别不同</strong>。schema 里的 "max 50" 是写给概率性读者的建议，模型可能忽略、可能填 200。服务端的硬校验（<code>L147</code> 直接返回 <code>ErrInvalidLLMOutput</code>）才是真正的护栏。它保护的不是数据结构合法性，而是 <strong>context 预算</strong>——一次返回上百条结果会挤占 context、静默拉低后续所有轮次的质量。这是服务端世界没有的失效模式：传统 RPC 里返回超大 list 顶多是性能问题，在 Agent 里它是"正确性"问题。同理 <code>count</code> 默认 10（<code>L143-144</code>）也是主动的返回值节制。</p>
+</div>
+</details>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源，值得完整读一遍：<a href="https://www.anthropic.com/engineering/writing-tools-for-agents">Writing effective tools for agents — Anthropic Engineering</a>。读的时候带着本课的三条对照问自己：文中"给工具写好描述""控制返回给模型的 token 量""合并/裁剪工具"这几条建议，分别对应上面哪个漏水点？你会发现它们几乎是一一对应的——因为这三处漏水不是 <code>mino_server</code> 的特殊问题，而是所有 Agent 系统的共同地基。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让老师带你翻真实代码（<code>searchservice/tool.go</code>、<code>conductorservice/agent.go</code>、<code>common/types/event.go</code>）逐行看。下一支柱：<em>工具的执行边界——超时、幂等、错误回注</em>。</p>
+</footer>
+</main>
+</body>
+</html>

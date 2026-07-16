@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 81 课 · Ch3 调度 · 计算 · SRTN 抢占式短作业优先·带你做一道</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb;
+    --p1:#2b6cb0;--p2:#2f855a;--p3:#b7791f;--p4:#6b46c1}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+
+  /* ==== 甘特图(单行,答对才亮) ==== */
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0;font-size:13px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:16px;height:16px;border-radius:3px;display:inline-block}
+  .gwrap{overflow-x:auto;margin:12px 0;padding-bottom:2px}
+  .gbar{position:relative;height:46px;min-width:520px;background:#f0f2f6;border:1px solid var(--line);border-radius:6px}
+  .gseg{position:absolute;top:0;bottom:0;border-radius:4px;color:#fff;font-weight:700;font-size:12.5px;
+    display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .35s;box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)}
+  .gseg.show{opacity:1}
+  .gaxis{position:relative;height:20px;min-width:520px;margin-top:2px}
+  .gtick{position:absolute;top:0;font-size:11px;color:var(--muted);transform:translateX(-50%)}
+  .gtick::before{content:"";position:absolute;left:50%;top:-4px;height:4px;border-left:1px solid var(--line)}
+
+  /* ==== 交互带练 ==== */
+  .stage{background:#fff;border:2px solid var(--blue);border-radius:12px;padding:18px;margin:14px 0}
+  .evt{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:12px 14px;font-size:14px;margin-bottom:12px}
+  .evt b{color:#ffd479}
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+  .chip{border:1px solid var(--line);border-radius:8px;padding:8px 12px;background:#f7f9fc;font-size:13.5px;text-align:center;min-width:92px}
+  .chip .cn{font-weight:700}
+  .chip .cr{color:var(--muted);font-size:12px}
+  .q{font-weight:700;margin:12px 0 8px}
+  .opts{display:flex;flex-wrap:wrap;gap:10px}
+  .opt{padding:10px 18px;border:1px solid var(--blue);background:#fff;color:var(--blue);border-radius:8px;cursor:pointer;font-size:15px;font-weight:600}
+  .opt:hover{background:var(--soft)}
+  .opt:disabled{cursor:default;opacity:.9}
+  .opt.right{background:var(--green);border-color:var(--green);color:#fff}
+  .opt.wrong{background:#fbe6e6;border-color:var(--red);color:var(--red);text-decoration:line-through}
+  .fb{margin-top:12px;border-radius:8px;padding:12px 14px;font-size:14px;display:none}
+  .fb.ok{display:block;background:#ecfdf5;border:1px solid #b7e4c7}
+  .fb.no{display:block;background:#fdecec;border:1px solid #f2b8b8}
+  .fb b{color:inherit}
+  .barbtn{margin-top:12px;padding:8px 18px;background:var(--blue);color:#fff;border:0;border-radius:8px;cursor:pointer;font-size:14px;display:none}
+  .barbtn.show{display:inline-block}
+  .prog{font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .win{display:none;background:#ecfdf5;border:2px solid var(--green);border-radius:12px;padding:18px;margin:14px 0}
+  .win.show{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 81 课 · Ch3 调度 · 计算 · SRTN 抢占式短作业优先</p>
+  <h1>SRTN 带你做一道:每个到达点,你来决定"谁上 CPU"</h1>
+  <p class="sub">SRTN(Shortest Remaining Time Next)= SJF 的抢占版。这一节不讲空理论,<b>直接让你在每个事件点做一次判断</b>,选对了甘特图才往前长一段。前置概念 → <a href="./0064-sjf-with-timeslice.html">0064 SJF/SRTN 对比</a> · 姊妹 → <a href="./0080-mlfq-worked-example.html">0080 MLFQ 例题</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·一句话</a>
+    <a href="#s1">1·规则②</a>
+    <a href="#s2">2·题面</a>
+    <a href="#s3">3·带你做</a>
+    <a href="#s4">4·完整图</a>
+    <a href="#s5">5·算指标</a>
+    <a href="#s6">6·会饿死③</a>
+    <a href="#s7">7·三算法对比</a>
+    <a href="#s8">8·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>SRTN 三句话:</b><br>
+① 它是 <b>SJF 的抢占版</b>——SJF 一旦开跑就不放手,SRTN 中途可以被打断。<br>
+② <b>决策点只在"有进程到达 / 有进程完成"这两类时刻</b>:比较"新来者的服务时间"与"在跑者的剩余时间",<b>谁短谁跑</b>。<br>
+③ 它对<b>长作业可能饥饿</b>:短作业不断到来,长作业的剩余时间总是最大,永远排不上。
+</div>
+
+<h2 id="s0">🗺 0. 一句话:SJF 装了个"抢占开关"</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> 想象超市结账。<b>SJF</b> 是"谁篮子里东西少谁先结,但一旦开始结账,后面来的人再少也得等他结完"。<b>SRTN</b> 更狠:结账中途,只要新来的人东西比你<b>剩下没扫的</b>还少,收银员立刻停下你的、先给他结。你手里的商品(剩余时间)越多,越容易被插队。
+</div>
+
+<h2 id="s1">📖 1. 规则②:一次"局部比较",不是全局重排</h2>
+<div class="panel">
+<p>很多人以为 SRTN 每一刻都在把所有进程重新排序——<b>不是的</b>。CPU 平时一直跑同一个进程,<b>只有两类事件会触发一次比较</b>:</p>
+<ul>
+<li><b>有新进程到达</b> → 拿它的服务时间,去挑战当前在跑进程的<b>剩余时间</b>。新来者更短就抢占。</li>
+<li><b>当前进程跑完</b> → 从就绪队列里挑<b>剩余时间最短</b>的接班。</li>
+</ul>
+<div class="tmpl"><b>📐 判断动作(每个事件点重复一次):</b> 把"就绪 + 在跑"的所有进程的<b>剩余时间</b>列出来 → 选最小的那个运行 → 让它一直跑到<b>下一个事件</b>(下一次到达 / 它自己跑完)。</div>
+<p class="hint">正因为只在离散事件点比较,<b>抢占只可能发生在"进程到达"的时刻</b>——两个到达时刻之间,CPU 绝不换人。这是画图时的省力关键:你只需在每个到达/完成时刻停下来想一次。</p>
+</div>
+
+<h2 id="s2">📋 2. 题面(下面这道就是你要做的)</h2>
+<div class="panel">
+<table>
+<tr><th>进程</th><th>到达时间</th><th>服务时间(burst)</th></tr>
+<tr><td><b>P1</b></td><td>0</td><td>7</td></tr>
+<tr><td><b>P2</b></td><td>2</td><td>4</td></tr>
+<tr><td><b>P3</b></td><td>4</td><td>1</td></tr>
+<tr><td><b>P4</b></td><td>5</td><td>4</td></tr>
+</table>
+<p>要求:用 SRTN 画出甘特图,并算出各进程的<b>周转时间、带权周转时间、等待时间</b>及其平均值。<b>先别往下滚看答案——直接玩下面的带练。</b></p>
+</div>
+
+<h2 id="s3">🎮 3. 带你做:点选"谁上 CPU"</h2>
+<p>每一步我会告诉你"刚发生了什么事件"和"现在谁在就绪队列(附剩余时间)",你点选此刻该运行谁。<b>选对甘特图才长一段</b>;选错我会告诉你哪里想岔了。</p>
+
+<div class="panel">
+  <div class="legend">
+    <span><i class="sw" style="background:var(--p1)"></i>P1</span>
+    <span><i class="sw" style="background:var(--p2)"></i>P2</span>
+    <span><i class="sw" style="background:var(--p3)"></i>P3</span>
+    <span><i class="sw" style="background:var(--p4)"></i>P4</span>
+  </div>
+  <div class="gwrap">
+    <div class="gbar" id="bar">
+      <div class="gseg" data-r="0" style="left:0%;width:12.5%;background:var(--p1)">P1</div>
+      <div class="gseg" data-r="1" style="left:12.5%;width:12.5%;background:var(--p2)">P2</div>
+      <div class="gseg" data-r="2" style="left:25%;width:6.25%;background:var(--p3)">P3</div>
+      <div class="gseg" data-r="3" style="left:31.25%;width:12.5%;background:var(--p2)">P2</div>
+      <div class="gseg" data-r="4" style="left:43.75%;width:25%;background:var(--p4)">P4</div>
+      <div class="gseg" data-r="5" style="left:68.75%;width:31.25%;background:var(--p1)">P1</div>
+    </div>
+    <div class="gaxis">
+      <span class="gtick" style="left:0%">0</span>
+      <span class="gtick" style="left:12.5%">2</span>
+      <span class="gtick" style="left:25%">4</span>
+      <span class="gtick" style="left:31.25%">5</span>
+      <span class="gtick" style="left:43.75%">7</span>
+      <span class="gtick" style="left:68.75%">11</span>
+      <span class="gtick" style="left:100%">16</span>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="prog" id="prog"></div>
+    <div class="evt" id="evt"></div>
+    <div id="chipsWrap"><div class="hint">当前就绪队列(剩余时间):</div><div class="chips" id="chips"></div></div>
+    <div class="q" id="q">此刻谁应该占用 CPU?</div>
+    <div class="opts" id="opts"></div>
+    <div class="fb" id="fb"></div>
+    <button class="barbtn" id="nextBtn" onclick="nextRound()">下一步 ▶</button>
+  </div>
+
+  <div class="win" id="win">
+    <h3 style="margin-top:0;color:var(--green)">🎉 全部做对!甘特图已完整</h3>
+    <p>你刚刚亲手推完了整张 SRTN 甘特图。完成时刻:<b>P3=5，P2=7，P4=11，P1=16</b>。<br>现在往下看第 5 节,把周转/等待时间算出来——数字都能对上。</p>
+    <button class="barbtn show" onclick="restart()" style="background:#fff;color:var(--green);border:1px solid var(--green)">↺ 再做一遍</button>
+  </div>
+</div>
+
+<script>
+const ROUNDS=[
+ {t:0, evt:"<b>t=0</b>：P1 到达（服务 7）。系统刚启动，就绪队列里只有它。",
+  ready:[{n:"P1",rem:7}], correct:"P1",
+  reason:"此刻只有 P1，直接运行。它会一直跑到下一个<b>事件</b>——即 t=2 时 P2 到达。所以 P1 先跑 0→2。",
+  segTxt:"P1 运行 0→2"},
+ {t:2, evt:"<b>t=2</b>：P2 到达（服务 4）。P1 已经跑了 2 格，<b>剩余 5</b>。",
+  ready:[{n:"P1",rem:5},{n:"P2",rem:4}], correct:"P2",
+  reason:"比较新来者与在跑者：P2 服务 4 &lt; P1 剩余 5 → P2 更短，<b>抢占</b> P1。P1 带着剩余 5 回到就绪队列。P2 跑到下一个事件 t=4。",
+  segTxt:"P2 运行 2→4"},
+ {t:4, evt:"<b>t=4</b>：P3 到达（服务 1）。P2 又跑了 2 格，<b>剩余 2</b>。",
+  ready:[{n:"P1",rem:5},{n:"P2",rem:2},{n:"P3",rem:1}], correct:"P3",
+  reason:"三者比剩余：P3(1) &lt; P2(2) &lt; P1(5) → P3 最短，抢占 P2。P3 只需 1 格。",
+  segTxt:"P3 运行 4→5"},
+ {t:5, evt:"<b>t=5</b>：P3 只需 1 格，已<b>跑完离开</b>；<b>同一时刻</b> P4 到达（服务 4）。",
+  ready:[{n:"P1",rem:5},{n:"P2",rem:2},{n:"P4",rem:4}], correct:"P2",
+  reason:"P3 走了，就绪队列重新比：P2 剩 2 最短 → 继续跑 P2。它还剩 2 格，跑到 t=7 正好完成。",
+  segTxt:"P2 运行 5→7"},
+ {t:7, evt:"<b>t=7</b>：P2 的 4 格全部完成，<b>离开</b>。此后不再有新进程到达。",
+  ready:[{n:"P1",rem:5},{n:"P4",rem:4}], correct:"P4",
+  reason:"只剩 P1、P4。P4 剩 4 &lt; P1 剩 5 → P4 先跑。它一口气跑 4 格到 t=11 完成。",
+  segTxt:"P4 运行 7→11"},
+ {t:11, evt:"<b>t=11</b>：P4 完成离开。就绪队列里只剩 P1 了。",
+  ready:[{n:"P1",rem:5}], correct:"P1",
+  reason:"只剩 P1，一口气跑完剩下的 5 格，t=16 结束。全部完成！",
+  segTxt:"P1 运行 11→16"},
+];
+let ri=0, done=false;
+const $=id=>document.getElementById(id);
+function renderRound(){
+  const r=ROUNDS[ri];
+  $('prog').innerText=`第 ${ri+1} / ${ROUNDS.length} 步`;
+  $('evt').innerHTML=r.evt;
+  const minRem=Math.min(...r.ready.map(x=>x.rem));
+  $('chips').innerHTML=r.ready.map(x=>
+    `<div class="chip"><div class="cn">${x.n}</div><div class="cr">剩 ${x.rem}${x.rem===minRem?' ⟵最短':''}</div></div>`).join('');
+  $('opts').innerHTML=r.ready.map(x=>
+    `<button class="opt" onclick="choose('${x.n}',this)">${x.n}</button>`).join('');
+  $('fb').className='fb'; $('fb').innerHTML='';
+  $('nextBtn').className='barbtn';
+  done=false;
+}
+function choose(name,btn){
+  if(done) return;
+  const r=ROUNDS[ri];
+  if(name===r.correct){
+    done=true;
+    btn.classList.add('right');
+    document.querySelectorAll('#opts .opt').forEach(b=>b.disabled=true);
+    $('fb').className='fb ok';
+    $('fb').innerHTML=`✅ <b>对！</b> ${r.reason}<br><span class="hint">→ 甘特图新增一段：<b>${r.segTxt}</b></span>`;
+    const seg=document.querySelector(`.gseg[data-r="${ri}"]`);
+    if(seg) seg.classList.add('show');
+    $('nextBtn').className = (ri<ROUNDS.length-1)?'barbtn show':'barbtn';
+    if(ri===ROUNDS.length-1){ $('win').classList.add('show'); $('stage').style.borderColor='var(--green)'; }
+  }else{
+    btn.classList.add('wrong'); btn.disabled=true;
+    const picked=r.ready.find(x=>x.n===name).rem;
+    const minRem=Math.min(...r.ready.map(x=>x.rem));
+    const shortest=r.ready.find(x=>x.rem===minRem).n;
+    $('fb').className='fb no';
+    $('fb').innerHTML=`❌ <b>${name}</b> 此刻剩余 <b>${picked}</b>，不是最短。SRTN 要选<b>剩余时间最短</b>的——现在最短的是剩 <b>${minRem}</b> 的进程。再选选看。`;
+  }
+}
+function nextRound(){ if(ri<ROUNDS.length-1){ ri++; renderRound(); } }
+function restart(){ ri=0; done=false; document.querySelectorAll('.gseg').forEach(s=>s.classList.remove('show')); $('win').classList.remove('show'); $('stage').style.borderColor='var(--blue)'; renderRound(); }
+renderRound();
+</script>
+
+<h2 id="s4">📊 4. 完整甘特图</h2>
+<p>做完带练,整张图就是下面这样(共 6 段)。<b>抢占发生在 t=2(P2 打断 P1)和 t=4(P3 打断 P2)</b>——都恰好在"有新进程到达"的时刻,印证了规则②。</p>
+<div class="gwrap">
+<table>
+<tr><th>时段</th><td>0–2</td><td>2–4</td><td>4–5</td><td>5–7</td><td>7–11</td><td>11–16</td></tr>
+<tr><th>运行</th><td>P1</td><td>P2</td><td>P3✓</td><td>P2✓</td><td>P4✓</td><td>P1✓</td></tr>
+</table>
+</div>
+<p class="hint">✓ 表示该段结束时进程完成。完成时刻:P3=5、P2=7、P4=11、P1=16。</p>
+
+<h2 id="s5">🧮 5. 算指标(先自己算,再展开对答案)</h2>
+<div class="tmpl">
+<b>📐 三个公式:</b> 周转 T<sub>i</sub> = 完成 − 到达 ｜ 带权 W<sub>i</sub> = T<sub>i</sub> / 服务时间 ｜ 等待 = 周转 − 服务时间。
+</div>
+<div class="panel">
+<p>先动笔:P1 到达 0、服务 7、完成 16,它的周转、带权、等待各是多少?算完再点开。</p>
+<details><summary>点我看完整答案表</summary>
+<table>
+<tr><th>进程</th><th>到达</th><th>服务</th><th>完成</th><th>周转 T<sub>i</sub></th><th>带权 W<sub>i</sub></th><th>等待</th></tr>
+<tr><td><b>P1</b></td><td>0</td><td>7</td><td>16</td><td>16</td><td>16/7 ≈ 2.29</td><td>9</td></tr>
+<tr><td><b>P2</b></td><td>2</td><td>4</td><td>7</td><td>5</td><td>5/4 = 1.25</td><td>1</td></tr>
+<tr><td><b>P3</b></td><td>4</td><td>1</td><td>5</td><td>1</td><td>1/1 = 1.00</td><td>0</td></tr>
+<tr><td><b>P4</b></td><td>5</td><td>4</td><td>11</td><td>6</td><td>6/4 = 1.50</td><td>2</td></tr>
+</table>
+<div class="key">
+<b>平均值:</b><br>
+平均周转 = (16 + 5 + 1 + 6) / 4 = 28 / 4 = <b>7</b><br>
+平均带权周转 = (2.29 + 1.25 + 1.00 + 1.50) / 4 ≈ <b>1.51</b><br>
+平均等待 = (9 + 1 + 0 + 2) / 4 = 12 / 4 = <b>3</b>
+</div>
+<p class="hint">SRTN 的平均周转/等待时间在所有非抢占与抢占算法里通常<b>最小</b>(它是理论上对平均等待时间最优的)——代价就是第 6 节要说的饥饿。</p>
+</details>
+</div>
+
+<h2 id="s6">💀 6. 规则③:为什么长作业会"饿死"</h2>
+<div class="panel">
+<p>本题里 P1(最长,7)运气还行——因为新进程到 t=5 就到齐了,后面没人再抢,它 t=11 起就能安心跑完。<b>但只要短作业源源不断地来,P1 就永远轮不上</b>。看这个极端场景:</p>
+<div class="gwrap">
+<table>
+<tr><th>进程</th><th>到达</th><th>服务</th></tr>
+<tr><td><b>P<sub>长</sub></b></td><td>0</td><td>100</td></tr>
+<tr><td>P<sub>a</sub></td><td>0</td><td>1</td></tr>
+<tr><td>P<sub>b</sub></td><td>1</td><td>1</td></tr>
+<tr><td>P<sub>c</sub></td><td>2</td><td>1</td></tr>
+<tr><td>…每隔 1 单位来一个服务 1 的短作业…</td><td>…</td><td>1</td></tr>
+</table>
+</div>
+<div class="warnbox">
+<b>饥饿链条:</b> 每来一个短作业,它的服务时间(1)都远小于 P<sub>长</sub> 的剩余时间(始终 ≥ 99)→ <b>每次都抢占 P<sub>长</sub></b>。P<sub>长</sub> 一格都跑不动,<b>剩余时间永远不减、永远排最后</b>——这就是<b>饥饿(starvation)</b>。<b>剩余时间越大越容易被插队,而被插队又让剩余时间降不下去</b>,形成死循环。
+</div>
+<div class="eli5">
+<b>🧸 对照 MLFQ(接上一节):</b> 同样是"偏爱短作业",<a href="./0080-mlfq-worked-example.html">MLFQ(0080)</a> 给长作业留了条活路——它会<b>沉到最低队 Q3 里按 RR 轮转</b>,总能分到时间片。SRTN 连这条活路都没有。这就是为什么真实系统更爱用 MLFQ 而不是纯 SRTN;也是为什么有的教材给 MLFQ 再加"定时优先级提升(Priority Boost)"当双保险(注:<b>你们老师 PPT 没讲 Boost,考试不用写</b>,这里只为让你看清算法演进的逻辑)。
+</div>
+<div class="key"><b>口述满分版:</b> SRTN 是抢占式短作业优先,能获得最小的平均等待时间;但它<b>依赖预知服务时间</b>,且<b>对长作业不公平、可能产生饥饿</b>——只要短作业不断到达,长作业的剩余时间始终最大,将长期得不到调度。</div>
+</div>
+
+<h2 id="s7">⚖️ 7. SJF / SRTN / RR 三算法对比</h2>
+<div class="gwrap">
+<table>
+<tr><th></th><th>SJF(短作业优先)</th><th>SRTN(最短剩余时间)</th><th>RR(时间片轮转)</th></tr>
+<tr><td><b>抢占?</b></td><td>非抢占</td><td><b>抢占</b>(有更短者到达时)</td><td>抢占(时间片到)</td></tr>
+<tr><td><b>选谁</b></td><td>就绪中服务时间最短</td><td>就绪+在跑中<b>剩余时间</b>最短</td><td>队头,轮流</td></tr>
+<tr><td><b>换人时机</b></td><td>仅当前进程完成</td><td>进程<b>到达</b>或完成</td><td>时间片用完或完成</td></tr>
+<tr><td><b>平均等待</b></td><td>小</td><td><b>最小</b></td><td>较大但公平</td></tr>
+<tr><td><b>缺点</b></td><td>长作业等待;需预知</td><td>长作业<b>饥饿</b>;需预知;切换多</td><td>时间片难选;周转偏大</td></tr>
+</table>
+</div>
+<p class="hint">一句话串起来:SJF 加"抢占"变 SRTN(更优但会饿);RR 靠"时间片"保公平(不饿但不最优);MLFQ 把两者揉在一起(多级 RR + 优先短作业),是工程上的折中。</p>
+
+<h2 id="s8">✅ 8. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 抢占时机</h3>
+<p>在 SRTN 中,下面哪个时刻<b>不可能</b>发生进程切换(换人)?</p>
+<p>A. 有新进程到达时<br>B. 当前进程运行完成时<br>C. 两次到达之间、无人到达的普通时刻<br>D. 一个比在跑进程剩余时间更短的进程到达时</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:C</b>。SRTN 是事件驱动的,只在"到达"和"完成"时刻才比较、才可能换人;A、D 是"到达"触发,B 是"完成"触发。两次事件之间 CPU 绝不换人。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 带权周转的分母</h3>
+<p>P1 到达 0、服务 7、完成 16。它的带权周转时间 W 是多少?</p>
+<p>A. 16 / 16 = 1<br>B. 16 / 7 ≈ 2.29<br>C. 9 / 7 ≈ 1.29<br>D. 7 / 16 ≈ 0.44</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:B</b>。W = 周转时间 / <b>服务时间</b> = 16 / 7 ≈ 2.29。坑点:分母是<b>服务时间(7)</b>,不是周转(16)也不是等待(9);而且 W 必 ≥ 1(D 小于 1 一看就错)。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 会不会饿死</h3>
+<p>"SRTN 一定会让长作业饿死"——这句话对吗?</p>
+<details><summary>点我看答案</summary>
+<p><b>不完全对,应说"可能饿死"</b>。饥饿只在"短作业持续不断到达"时才发生;若新进程有限(像本题 t=5 后无新到达),长作业最终能跑完。准确表述是:<b>SRTN 对长作业不公平,存在饥饿的可能</b>。</p>
+</details>
+</div>
+
+<footer>
+第 81 课 · Ch3 调度 · 计算 · SRTN 抢占式短作业优先·带你做一道。<br>
+前置概念 → <a href="./0064-sjf-with-timeslice.html">0064 SJF/SRTN 对比</a> · 姊妹例题 → <a href="./0080-mlfq-worked-example.html">0080 MLFQ 例题</a> · 指标公式 → <a href="./0067-scheduling-metrics.html">0067</a> · 调度总览 → <a href="./0059-scheduling-algorithms.html">0059</a><br>
+大题全套:0059 调度算法 · 0063 MLFQ 规则 · 0064 SJF/SRTN · 0080 MLFQ 例题 · <b>0081 SRTN 带练</b> · 0067 调度指标
+</footer>
+
+</div>
+</body>
+</html>

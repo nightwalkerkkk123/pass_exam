@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="data:,">
-<title>操作系统 · 期末复习总门户 · 87 节微课导航</title>
+<title>操作系统 · 期末复习总门户 · 90 节微课导航</title>
 <style>
   :root{
     --ink:#1a2230; --muted:#667; --line:#e3e6ec; --bg:#f7f8fb;
@@ -86,8 +86,8 @@
 
 <header class="h">
   <p class="eyebrow">操作系统 · 学校自命题期末复习 · 课程总门户</p>
-  <h1>《操作系统》87 节微课 · 一门可导航的完整复习课</h1>
-  <p class="sub">Ch1 引论 → Ch2 进程 → Ch3 调度与死锁 → Ch4 存储 → Ch5 虚存 / 设备 → Ch6 文件，外加 xv6 源码与实验加餐。每节课只解决一个关键概念或一类题，可独立打开阅读。新增 <a href="./0080-semaphore-sync-code.html">0080 期末 PV 同步代码 6 题冲刺</a> + <a href="./0081-scheduling-and-bankers.html">0081 调度+银行家 5 题冲刺</a> + <a href="./0082-paging-address-translation.html">0082 页式地址变换 3 题冲刺</a> + <a href="./0083-paging-foundations.html">0083 页式 5 公式可视化底座</a> + <a href="./0084-page-replacement-lru-clock.html">0084 LRU + CLOCK 页面置换冲刺</a> + <a href="./0085-file-allocation-and-fat.html">0085 文件分配 4 方案 + FAT 排障冲刺</a> + <a href="./0086-clock-deep-dive.html">0086 CLOCK 置换深入</a> + <a href="./0087-power-of-two-conversion.html">0087 2 的幂次换算</a>，配套 <a href="../exams/final-test.html">final-test.html</a>。</p>
+  <h1>《操作系统》90 节微课 · 一门可导航的完整复习课</h1>
+  <p class="sub">Ch1 引论 → Ch2 进程 → Ch3 调度与死锁 → Ch4 存储 → Ch5 虚存 / 设备 → Ch6 文件，外加 xv6 源码与实验加餐。每节课只解决一个关键概念或一类题，可独立打开阅读。调度进阶 → <a href="./0080-mlfq-worked-example.html">0080 MLFQ 例题</a> · <a href="./0081-srtn-guided-practice.html">0081 SRTN 带练</a>；期末代码冲刺 → <a href="./0080-semaphore-sync-code.html">0080 期末 PV 6 题</a> · <a href="./0081-scheduling-and-bankers.html">0081 调度+银行家 5 题</a> · <a href="./0082-paging-address-translation.html">0082 页式地址变换 3 题</a> · <a href="./0083-paging-foundations.html">0083 页式 5 公式底座</a> · <a href="./0084-page-replacement-lru-clock.html">0084 LRU+CLOCK</a> · <a href="./0085-file-allocation-and-fat.html">0085 文件分配+ FAT</a> · <a href="./0086-clock-deep-dive.html">0086 CLOCK 深入</a> · <a href="./0087-power-of-two-conversion.html">0087 2 的幂次</a> · <a href="./0088-exam-cram-cards.html">0088 考前卡</a>，配套 <a href="../exams/final-test.html">final-test.html</a>。</p>
   <nav class="nav">
     <a href="#how">如何复习</a>
     <a href="#ch1">Ch1 引论</a>
@@ -159,14 +159,16 @@
 
   <!-- Ch3 -->
   <div class="card" id="ch3">
-    <div class="chhead"><h3>Ch3 · 处理机调度与死锁</h3><span class="cnt">12 课</span></div>
+    <div class="chhead"><h3>Ch3 · 处理机调度与死锁</h3><span class="cnt">14 课</span></div>
     <ul>
       <li><a href="./0002-scheduling-algorithms.html"><span class="num">0002</span><span class="ttl">调度算法（FCFS/SJF/RR/优先级）</span></a><span class="badge b-algo">算法</span><span class="desc">周转时间/带权周转/等待时间的手算，大题常客。</span></li>
       <li><a href="./0059-scheduling-algorithms.html"><span class="num">0059</span><span class="ttl">调度算法专项计算</span></a><span class="badge b-calc">计算</span><span class="desc">大题 10 分：周转时间/带权周转时间手算+对比。</span></li>
       <li><a href="./0044-scheduling-levels-mlfq.html"><span class="num">0044</span><span class="ttl">三级调度 + 多级反馈队列 MFQ</span></a><span class="badge b-algo">算法</span><span class="desc">老师重点：MFQ 的队列升降规则与时间片翻倍。</span></li>
       <li><a href="./0056-three-level-scheduling.html"><span class="num">0056</span><span class="ttl">三级调度详解</span></a><span class="badge b-cram">冲刺</span><span class="desc">高级/中级/低级调度的对象与时机，简答题。</span></li>
       <li><a href="./0063-multilevel-feedback-queue.html"><span class="num">0063</span><span class="ttl">多级反馈队列专攻</span></a><span class="badge b-algo">算法</span><span class="desc">MFQ 队列升降规则+例题。</span></li>
+      <li><a href="./0080-mlfq-worked-example.html"><span class="num">0080</span><span class="ttl">多级反馈队列例题精算</span></a><span class="badge b-calc">计算</span><span class="desc">PPT 原题：甘特图逐段推+降级/抢占时刻+周转/带权手算。</span></li>
       <li><a href="./0064-sjf-with-timeslice.html"><span class="num">0064</span><span class="ttl">抢占式 SJF 与时间片</span></a><span class="badge b-algo">算法</span><span class="desc">SJF/抢占式 SJF/RR 调度的对比。</span></li>
+      <li><a href="./0081-srtn-guided-practice.html"><span class="num">0081</span><span class="ttl">SRTN 带你做一道</span></a><span class="badge b-calc">计算</span><span class="desc">交互带练：每个到达点你来选谁跑，逐段生成甘特图+饥饿演示。</span></li>
       <li><a href="./0067-scheduling-metrics.html"><span class="num">0067</span><span class="ttl">调度算法评价指标</span></a><span class="badge b-concept">概念</span><span class="desc">CPU 利用率/吞吐量/周转/等待/响应五大指标。</span></li>
       <li><a href="./0003-bankers-algorithm.html"><span class="num">0003</span><span class="ttl">银行家算法</span></a><span class="badge b-calc">计算</span><span class="desc">安全序列判定，五道大题之一，务必手推熟。</span></li>
       <li><a href="./0058-bankers-algorithm.html"><span class="num">0058</span><span class="ttl">银行家算法专项大题</span></a><span class="badge b-calc">计算</span><span class="desc">大题 10 分：Available/Max/Allocation/Need 矩阵手推。</span></li>
@@ -331,8 +333,8 @@
 </div>
 
 <footer>
-《操作系统》期末复习总门户 · 共 87 节微课（含两份 0024 编号）· 按 Ch1–Ch6 + xv6 加餐编排<br>
-从这里开始 → <a href="./0001-overview-and-question-map.html">0001 总览与题型地图</a> · 全书速查 → <a href="./0013-exam-cheatsheet-map.html">0013 速查地图</a> · 考前默写 → <a href="./0050-pv-pseudocode-drills.html">0050 PV 默写</a> · 读者写者专攻 → <a href="./0051-reader-writer-priority.html">0051 读者优先</a> · 哲学家专攻 → <a href="./0052-dining-philosophers.html">0052 哲学家</a> · 期末 6 题代码冲刺 → <a href="./0080-semaphore-sync-code.html">0080 期末代码 6 题</a> · 期末 5 题计算冲刺 → <a href="./0081-scheduling-and-bankers.html">0081 调度+银行家</a> · 期末 3 题地址变换 → <a href="./0082-paging-address-translation.html">0082 页式地址变换</a> · 0082 前置基础 → <a href="./0083-paging-foundations.html">0083 5 公式可视化</a> · 五道大题专项 → <a href="./0058-bankers-algorithm.html">0058 银行家</a> · <a href="./0059-scheduling-algorithms.html">0059 调度</a> · <a href="./0060-paging-segmentation-calc.html">0060 地址</a> · <a href="./0061-page-replacement-calc.html">0061 置换</a> · <a href="./0062-disk-scheduling-calc.html">0062 磁盘</a> · 位示图专题 → <a href="./0079-bitmap-introduction.html">0079 位示图专题</a>
+《操作系统》期末复习总门户 · 共 90 节微课（含重复编号 0080/0081/0024）· 按 Ch1–Ch6 + xv6 加餐编排<br>
+从这里开始 → <a href="./0001-overview-and-question-map.html">0001 总览与题型地图</a> · 全书速查 → <a href="./0013-exam-cheatsheet-map.html">0013 速查地图</a> · 考前默写 → <a href="./0050-pv-pseudocode-drills.html">0050 PV 默写</a> · 读者写者专攻 → <a href="./0051-reader-writer-priority.html">0051 读者优先</a> · 哲学家专攻 → <a href="./0052-dining-philosophers.html">0052 哲学家</a> · 调度进阶 → <a href="./0080-mlfq-worked-example.html">0080 MLFQ 例题</a> · <a href="./0081-srtn-guided-practice.html">0081 SRTN 带练</a> · 期末代码冲刺 → <a href="./0080-semaphore-sync-code.html">0080 期末代码 6 题</a> · 期末计算冲刺 → <a href="./0081-scheduling-and-bankers.html">0081 调度+银行家 5 题</a> · 期末地址变换 → <a href="./0082-paging-address-translation.html">0082 页式地址变换 3 题</a> · <a href="./0083-paging-foundations.html">0083 5 公式可视化</a> · <a href="./0084-page-replacement-lru-clock.html">0084 LRU+CLOCK</a> · <a href="./0085-file-allocation-and-fat.html">0085 文件分配+ FAT</a> · <a href="./0086-clock-deep-dive.html">0086 CLOCK 深入</a> · <a href="./0087-power-of-two-conversion.html">0087 2 的幂次</a> · <a href="./0088-exam-cram-cards.html">0088 考前卡</a> · 五道大题专项 → <a href="./0058-bankers-algorithm.html">0058 银行家</a> · <a href="./0059-scheduling-algorithms.html">0059 调度</a> · <a href="./0060-paging-segmentation-calc.html">0060 地址</a> · <a href="./0061-page-replacement-calc.html">0061 置换</a> · <a href="./0062-disk-scheduling-calc.html">0062 磁盘</a> · 位示图专题 → <a href="./0079-bitmap-introduction.html">0079 位示图专题</a>
 </footer>
 
 </div>

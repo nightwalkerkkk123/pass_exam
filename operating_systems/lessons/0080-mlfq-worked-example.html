@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>第 80 课 · Ch3 调度 · 计算 · 多级反馈队列例题精算</title>
+<style>
+  :root{--ink:#1a2230;--muted:#667;--line:#e3e6ec;--bg:#f7f8fb;--blue:#2b6cb0;--green:#2f855a;--amber:#b7791f;--red:#c53030;--purple:#6b46c1;--soft:#eef4fb;
+    --q1:#3182ce;--q2:#dd8a1a;--q3:#c53030}
+  *{box-sizing:border-box}html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--ink);background:var(--bg);line-height:1.75;font-size:16px}
+  .wrap{max-width:920px;margin:0 auto;padding:36px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink);padding-bottom:14px;margin-bottom:22px}
+  .eyebrow{color:var(--blue);font-weight:700;letter-spacing:.05em;font-size:13px}
+  h1{font-size:24px;margin:6px 0 8px}
+  .sub{color:var(--muted);font-size:14px}
+  h2{font-size:19px;margin:36px 0 10px;border-left:4px solid var(--blue);padding-left:10px;scroll-margin-top:14px}
+  h3{font-size:16px;margin:18px 0 6px;color:var(--blue)}
+  p{margin:8px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13.5px;background:#eef1f6;padding:1px 5px;border-radius:3px}
+  .eli5{background:#fff7ed;border:1px solid #f0d9b5;border-left:4px solid var(--amber);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .eli5 b{color:var(--amber)}
+  .key{background:#ecfdf5;border:1px solid #b7e4c7;border-left:4px solid var(--green);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .key b{color:var(--green)}
+  .warnbox{background:#fdecec;border:1px solid #f2b8b8;border-left:4px solid var(--red);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .warnbox b{color:var(--red)}
+  .tmpl{background:#f3e8fb;border:1px solid #d8c2ef;border-left:4px solid var(--purple);border-radius:6px;padding:12px 14px;margin:14px 0}
+  .tmpl b{color:var(--purple)}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:18px;margin:16px 0;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+  th{background:#eef2f8}
+  footer{margin-top:56px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:13px}
+  a{color:var(--blue);text-decoration:none}a:hover{text-decoration:underline}
+  .hint{font-size:12.5px;color:var(--muted);margin:2px 0 6px}
+  details{margin:8px 0}summary{cursor:pointer;color:var(--blue);font-weight:600}details[open] summary{margin-bottom:6px}
+  .nav{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px}
+  .nav a{font-size:13px;border:1px solid var(--line);background:#fff;border-radius:20px;padding:4px 11px;color:var(--blue)}
+  .nav a:hover{background:var(--soft);text-decoration:none}
+  @media print{body{background:#fff}.panel{box-shadow:none}}
+
+  /* ==== 队列色例 ==== */
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:10px 0;font-size:13px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:16px;height:16px;border-radius:3px;display:inline-block}
+
+  /* ==== 逐进程行甘特图 ==== */
+  .gwrap{overflow-x:auto;margin:14px 0;padding-bottom:4px}
+  .gcanvas{min-width:660px}
+  .grow{display:grid;grid-template-columns:52px 1fr;gap:10px;align-items:center;margin:5px 0}
+  .glab{font-weight:700;color:var(--ink);text-align:center;font-size:14px}
+  .gtrack{position:relative;height:30px;background:#f0f2f6;border-radius:5px;border:1px solid var(--line)}
+  .gblk{position:absolute;top:0;bottom:0;border-radius:4px;color:#fff;font-size:11px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;transition:opacity .25s;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+  .gblk.done{box-shadow:inset 0 0 0 2px #133}
+  .gaxis{position:relative;height:20px;margin-top:2px;border-top:1px solid var(--line)}
+  .gtick{position:absolute;top:0;font-size:11px;color:var(--muted);transform:translateX(-50%)}
+  .gtick::before{content:"";position:absolute;left:50%;top:-4px;height:4px;border-left:1px solid var(--line)}
+  .dim{opacity:.16}
+
+  /* ==== 播放器 ==== */
+  .player{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
+  .player button{padding:6px 14px;background:var(--blue);color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:14px}
+  .player button.ghost{background:#fff;color:var(--blue);border:1px solid var(--line)}
+  .player button:disabled{opacity:.4;cursor:not-allowed}
+  .stepnote{background:#0f1b2d;color:#e6edf3;border-radius:8px;padding:14px 16px;font-size:13.5px;line-height:1.7;margin:8px 0;min-height:70px}
+  .stepnote b{color:#8fd3ff}
+  .stepnote .t{color:#ffd479;font-weight:700}
+
+  /* ==== 推演表 ==== */
+  .trace td:nth-child(1){font-family:"SF Mono",monospace;white-space:nowrap;text-align:center}
+  .trace td.q{font-family:"SF Mono",monospace;text-align:center;white-space:nowrap}
+  .trace .fin{color:var(--green);font-weight:700}
+  .badge{display:inline-block;font-size:11px;padding:1px 6px;border-radius:10px;color:#fff}
+  .b1{background:var(--q1)}.b2{background:var(--q2)}.b3{background:var(--q3)}
+
+  /* ==== 地基 on-ramp ==== */
+  .wstack{margin:12px 0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .wrow{padding:11px 14px;font-size:14px;border-left:6px solid var(--line);background:#fff}
+  .wrow+.wrow{border-top:1px solid var(--line)}
+  .wrow b{font-family:"SF Mono",monospace}
+  .wrow.q1{border-left-color:var(--q1)}
+  .wrow.q2{border-left-color:var(--q2);background:#fcfaf3}
+  .wrow.q3{border-left-color:var(--q3);background:#fdf6f6}
+  .wrow .tag{color:var(--muted);font-size:12.5px;margin-left:6px}
+  .mini th,.mini td{padding:6px 9px;font-size:13.5px}
+  .mini td:nth-child(1){white-space:nowrap;text-align:center;font-family:"SF Mono",monospace}
+  .mini td:nth-child(2){white-space:nowrap;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <p class="eyebrow">第 80 课 · Ch3 调度 · 计算 · 多级反馈队列例题精算</p>
+  <h1>MLFQ 例题精算:一张甘特图从头推到底,算出平均周转时间</h1>
+  <p class="sub">用<b>老师 PPT 幻灯片 168–187 的原题</b>（含官方标准答案）走一遍完整解题流程——你会看到降级、抢占、沉底 RR 三种动作如何在时间轴上依次发生。教材出处:<code>3_处理机调度/ppt文本.md</code> 幻灯片 168–187。前置 → <a href="./0063-multilevel-feedback-queue.html">0063 MLFQ 五条规则</a> · 姊妹 → <a href="./0081-srtn-guided-practice.html">0081 SRTN 带你做</a>。</p>
+  <nav class="nav">
+    <a href="#s0">0·考什么</a>
+    <a href="#base" style="background:#ecfdf5;border-color:#b7e4c7;color:var(--green);font-weight:700">🧱 先补地基</a>
+    <a href="#s1">1·题面</a>
+    <a href="#s2">2·三条动作</a>
+    <a href="#s3">3·播放推演</a>
+    <a href="#s4">4·完整甘特图</a>
+    <a href="#s5">5·逐段推演表</a>
+    <a href="#s6">6·算周转</a>
+    <a href="#s7">7·抢占那一步</a>
+    <a href="#s8">8·会饿死吗</a>
+    <a href="#s9">9·自测</a>
+  </nav>
+</header>
+
+<div class="key">
+<b>这道大题的三步套路:</b><br>
+① <b>画甘特图</b>:从 t=0 起,永远运行"最高非空队列的队头",逐格推进,遇到到达/时间片用完/完成就换人。<br>
+② <b>读完成时刻</b>:每个进程在甘特图上最后一段的右端 = 它的完成时刻。<br>
+③ <b>套公式</b>:周转 T<sub>i</sub> = 完成时刻 − 到达时刻;带权 W<sub>i</sub> = T<sub>i</sub> / 服务时间;再取算术平均。
+</div>
+
+<h2 id="s0">🗺 0. 这道题在考什么</h2>
+<div class="eli5">
+<b>🧸 一句话:</b> MLFQ 像一所"分班学校"——新生全进<b>火箭班(Q1,时间片最短)</b>,一节课没做完就被<b>降到普通班(Q2→Q3,时间片越来越长)</b>。谁做题快谁早毕业,做题慢的也能在慢班慢慢磨完。这道题就是让你当班主任,把每个学生什么时候在哪个班、什么时候毕业,一格一格排出来。
+</div>
+<p>老师的大题几乎照搬 PPT 这道原题:<b>给 5 个进程的到达时间和服务时间,画甘特图,算平均周转时间和平均带权周转时间</b>。会画图 + 会套公式 = 稳拿这道大题。本节就把这道原题从第 0 格推到最后一格。</p>
+<div class="warnbox"><b>第一次看觉得晕?</b> 太正常了——下面的大题一次叠了好几件事。<b>先别往下滚</b>,先看紧接着的「🧱 先补地基」小节,一次只吃透一件,再回头看大题就顺了。</div>
+
+<h2 id="base">🧱 先补地基:一次只看一件事(不晕版)</h2>
+<div class="eli5">
+<b>🧸 别急:</b> 如果下面的大题让你晕,那不是你的问题——是它把好几件事叠在了一起。这一节我们<b>一次只看一件</b>,把两层地基打牢,再回头看大题就不晕了。
+</div>
+
+<h3>第 ① 层:MLFQ 就是「一排从上到下的窗口」</h3>
+<div class="wstack">
+  <div class="wrow q1"><b>Q1</b> 最优先 · 每次只给 1 分钟<span class="tag">← 所有新进程都从这里进</span></div>
+  <div class="wrow q2"><b>Q2</b> 次之 · 每次给 2 分钟</div>
+  <div class="wrow q3"><b>Q3</b> 最次 · 每次给 4 分钟</div>
+</div>
+<p>只有两条铁规矩:</p>
+<div class="key">
+① <b>所有新来的进程,都先去最上面的 Q1 排队。</b><br>
+② <b>CPU 永远先招呼「最上面那个有人的窗口」的队头</b>;上面没人了,才轮到下面。
+</div>
+<p class="hint">窗口越靠上给的时间越短(1 分钟),是<b>故意</b>的:让办事快的短任务在 Q1 一次办完就走(响应快);办事慢的长任务注定在 Q1 办不完,被慢慢挪到下面时间更长的窗口去磨。这就是「多级<b>反馈</b>」里「反馈」二字的意思——用「你有没有在限定时间内办完」反过来决定把你放哪一层。</p>
+
+<h3>第 ② 层:全场只有两种「被请到队尾」的动作——晕多半晕在这</h3>
+<p>它俩<b>长得像</b>(都是排到某个队尾),但<b>触发原因完全不同</b>。用一张表钉死:</p>
+<table>
+<tr><th></th><th>降级(往下掉一层)</th><th>抢占退回(留在原层)</th></tr>
+<tr><td><b>何时发生</b></td><td>分给你的时间<b>用完了,事还没办完</b></td><td>你<b>没用完</b>时间,但<b>上面窗口来了新人</b></td></tr>
+<tr><td><b>结果</b></td><td>去<b>下一层</b>窗口的队尾</td><td>留在<b>本层</b>窗口的队尾,不往下掉</td></tr>
+<tr><td><b>一句话</b></td><td>「超时了 → 你降级」</td><td>「有 VIP 插队 → 你先回去等,但不降级」</td></tr>
+</table>
+
+<h3>拿两个进程走一遍(超小例子 · 先只看「降级」)</h3>
+<p>只用 2 级窗口:Q1 给 1 分钟、Q2 给 2 分钟。两个进程都在 t=0 到:<b>P1 要办 3 分钟、P2 要办 1 分钟</b>。</p>
+<table class="mini">
+<tr><th>时段</th><th>谁在办</th><th>发生了什么</th></tr>
+<tr><td>0–1</td><td>P1(Q1)</td><td>P1 在 Q1 用满 1 分钟没办完(剩 2)→ <b>降级</b>到 Q2 队尾</td></tr>
+<tr><td>1–2</td><td>P2(Q1)</td><td>Q1 里还有 P2(它也是新进程、在 Q1),<b>先招呼最上面</b>;P2 只需 1 分钟,<b>办完走人</b></td></tr>
+<tr><td>2–4</td><td>P1(Q2)</td><td>Q1 空了,才轮到 Q2 的 P1;它剩 2 分钟,在 Q2(给 2 分钟)里<b>办完</b></td></tr>
+</table>
+<p class="hint">看到两件事没:<b>(1) 降级</b>——P1 在 Q1 超时,掉到了 Q2;<b>(2) 先招呼最上面</b>——t=1 时 P2 还在 Q1、P1 已在 Q2,所以先跑 P2。第 ①② 层的全部就在这三行里。</p>
+
+<h3>再走一遍(看「抢占退回」· 和降级对比)</h3>
+<p>还是 Q1=1、Q2=2。这次 <b>P1 要办 3 分钟、t=0 到</b>;<b>P2 只办 1 分钟、但 t=2 才到</b>。</p>
+<table class="mini">
+<tr><th>时段</th><th>谁在办</th><th>发生了什么</th></tr>
+<tr><td>0–1</td><td>P1(Q1)</td><td>P1 在 Q1 用满 1 分钟没完(剩 2)→ <b>降级</b>到 Q2</td></tr>
+<tr><td>1–2</td><td>P1(Q2)</td><td>Q1 空,P1 在 Q2 开始办(Q2 给 2 分钟);但只办了 1 分钟……</td></tr>
+<tr><td>2–3</td><td>P2(Q1)</td><td><b>t=2 新进程 P2 到达 Q1!</b> 上面来了人 → <b>抢占</b>:P1 立刻停(它没用满 Q2 的 2 分钟)→ <b>退回 Q2 队尾、不降级</b>。P2 办完走人</td></tr>
+<tr><td>3–4</td><td>P1(Q2)</td><td>P2 走了,P1 回到 Q2 接着办剩下的 1 分钟,<b>办完</b>——它<b>还在 Q2、没掉到 Q3</b>(因为上次是被抢占、不是超时)</td></tr>
+</table>
+<div class="key"><b>对比就懂了:</b> 两个例子里 P1 都在 3–4 段「排到队尾等」。但第一个是<b>超时 → 降级(掉到下一层)</b>;第二个是<b>被插队 → 抢占退回(留在本层)</b>。<br><b>一句话记死:掉不掉层,只看「你有没有把分给你的时间用满」。</b></div>
+
+<div class="tmpl"><b>地基打好了。</b> 下面第 1 节起是「期末大题级」的完整例题(5 个进程),它无非是把上面这两层动作<b>重复了很多遍</b>——你现在带着「窗口分层 + 降级/抢占退回」这两把钥匙去看就行了。</div>
+
+<h2 id="s1">📋 1. 题面(PPT 原题)</h2>
+<div class="panel">
+<p>系统采用多级反馈队列调度,共 <b>3 个就绪队列</b>,时间片依次为 <b>Q1=1、Q2=2、Q3=4</b>(逐级翻倍)。5 个进程如下,求<b>平均周转时间</b>与<b>平均带权周转时间</b>。</p>
+<table>
+<tr><th>进程</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th></tr>
+<tr><td><b>到达时间</b></td><td>0</td><td>1</td><td>3</td><td>4</td><td>5</td></tr>
+<tr><td><b>服务时间 T<sub>si</sub></b></td><td>3</td><td>8</td><td>4</td><td>5</td><td>7</td></tr>
+</table>
+<p class="hint">这就是 <a href="./0063-multilevel-feedback-queue.html">0063</a> 结尾没算完的那道题的"官方正版"——0063 自测里的参数是练习杜撰的,没有标准答案;这里用的是 PPT 原题,答案可对拍。</p>
+</div>
+
+<h2 id="s2">⚙️ 2. 只有三条动作要记(全靠它推图)</h2>
+<div class="panel">
+<div class="steps" style="display:flex;flex-wrap:wrap;gap:8px">
+  <div class="tmpl" style="flex:1 1 200px;margin:0"><b>动作①·降级</b><br>在某队列<b>用满一个时间片</b>还没结束 → 移到<b>下一级队列的队尾</b>。<span class="hint">Q1(1格)→Q2(2格)→Q3(4格)</span></div>
+  <div class="warnbox" style="flex:1 1 200px;margin:0"><b>动作②·抢占</b><br>正在跑低优先级进程时,<b>更高级队列来了新进程</b> → 立刻停,当前进程<b>退回它本队的队尾(不降级)</b>,转去跑高优先级的。</div>
+  <div class="key" style="flex:1 1 200px;margin:0"><b>动作③·沉底 RR</b><br>到了<b>最低队 Q3</b>,用满时间片没完就<b>原地回 Q3 队尾轮转</b>,不再降级。</div>
+</div>
+<p class="hint"><b>降级 vs 抢占退回,是这道题最大的坑</b>:降级(动作①)是"用<u>满</u>时间片没做完"→往下掉一级;抢占退回(动作②)是"没用<u>满</u>就被高优先级打断"→留在原级队尾。两者都"排到队尾",但一个降级、一个不降。第 7 节专门讲这一步。</p>
+</div>
+
+<h2 id="s3">▶️ 3. 播放推演:一格一格看它怎么走</h2>
+<p>点"下一步",甘特图会逐段亮起,右侧黑框讲解这一段发生了什么。<b>建议先自己在纸上推,再用它对答案。</b></p>
+
+<div class="panel">
+  <div class="legend">
+    <span><i class="sw" style="background:var(--q1)"></i>Q1 最高(时间片 1)</span>
+    <span><i class="sw" style="background:var(--q2)"></i>Q2 中(时间片 2)</span>
+    <span><i class="sw" style="background:var(--q3)"></i>Q3 最低(时间片 4)</span>
+    <span><i class="sw" style="box-shadow:inset 0 0 0 2px #133;background:#889"></i>粗框 = 该段跑完即完成</span>
+  </div>
+
+  <div class="gwrap"><div class="gcanvas" id="canvas">
+    <!-- 5 行,每行一个进程;block 按 [start,end] 定位,color 按队列 -->
+    <div class="grow"><div class="glab">A</div><div class="gtrack">
+      <div class="gblk" data-i="0"  style="left:0%;width:3.70%;background:var(--q1)">Q1</div>
+      <div class="gblk" data-i="2"  style="left:7.41%;width:3.70%;background:var(--q2)">Q2</div>
+      <div class="gblk done" data-i="7" style="left:29.63%;width:3.70%;background:var(--q2)">✓</div>
+    </div></div>
+    <div class="grow"><div class="glab">B</div><div class="gtrack">
+      <div class="gblk" data-i="1"  style="left:3.70%;width:3.70%;background:var(--q1)">Q1</div>
+      <div class="gblk" data-i="6"  style="left:22.22%;width:7.41%;background:var(--q2)">Q2</div>
+      <div class="gblk" data-i="11" style="left:55.56%;width:14.81%;background:var(--q3)">Q3</div>
+      <div class="gblk done" data-i="15" style="left:96.30%;width:3.70%;background:var(--q3)">✓</div>
+    </div></div>
+    <div class="grow"><div class="glab">C</div><div class="gtrack">
+      <div class="gblk" data-i="3"  style="left:11.11%;width:3.70%;background:var(--q1)">Q1</div>
+      <div class="gblk" data-i="8"  style="left:33.33%;width:7.41%;background:var(--q2)">Q2</div>
+      <div class="gblk done" data-i="12" style="left:70.37%;width:3.70%;background:var(--q3)">✓</div>
+    </div></div>
+    <div class="grow"><div class="glab">D</div><div class="gtrack">
+      <div class="gblk" data-i="4"  style="left:14.81%;width:3.70%;background:var(--q1)">Q1</div>
+      <div class="gblk" data-i="9"  style="left:40.74%;width:7.41%;background:var(--q2)">Q2</div>
+      <div class="gblk done" data-i="13" style="left:74.07%;width:7.41%;background:var(--q3)">✓</div>
+    </div></div>
+    <div class="grow"><div class="glab">E</div><div class="gtrack">
+      <div class="gblk" data-i="5"  style="left:18.52%;width:3.70%;background:var(--q1)">Q1</div>
+      <div class="gblk" data-i="10" style="left:48.15%;width:7.41%;background:var(--q2)">Q2</div>
+      <div class="gblk done" data-i="14" style="left:81.48%;width:14.81%;background:var(--q3)">✓</div>
+    </div></div>
+    <div class="grow"><div class="glab" style="font-size:11px;color:var(--muted)">时刻</div><div class="gaxis">
+      <span class="gtick" style="left:0%">0</span>
+      <span class="gtick" style="left:18.52%">5</span>
+      <span class="gtick" style="left:37.04%">10</span>
+      <span class="gtick" style="left:55.56%">15</span>
+      <span class="gtick" style="left:74.07%">20</span>
+      <span class="gtick" style="left:92.59%">25</span>
+      <span class="gtick" style="left:100%">27</span>
+    </div></div>
+  </div></div>
+
+  <div class="stepnote" id="note">点「下一步 ▶」开始逐段推演。</div>
+  <div class="player">
+    <button class="ghost" id="prev" onclick="step(-1)">◀ 上一步</button>
+    <button id="next" onclick="step(1)">下一步 ▶</button>
+    <button class="ghost" onclick="reset()">↺ 重置</button>
+    <button class="ghost" onclick="showAll()">显示全部</button>
+    <span class="hint" id="prog" style="margin-left:6px"></span>
+  </div>
+</div>
+
+<script>
+// 16 段,时间顺序;每段:时段/运行进程/队列/说明。data-i 与甘特 block 对应。
+const STEPS=[
+ {seg:"0–1",p:"A",q:1,txt:"A(0 到达)进最高队 Q1。跑满 1 格没做完(剩 2)<b>→ 降到 Q2 队尾</b>。同一时刻 t=1，B 到达进 Q1。"},
+ {seg:"1–2",p:"B",q:1,txt:"Q1 里现在是 B(新到)。B 跑满 Q1 的 1 格没做完(剩 7)<b>→ 降到 Q2 队尾</b>。此时 Q2 = [A, B]。"},
+ {seg:"2–3",p:"A",q:2,txt:"Q1 空了，调 Q2 队头 A。A 本可在 Q2 跑 2 格(到 t=4)——但 <b class=t>t=3 时 C 到达 Q1</b>！"},
+ {seg:"3–4",p:"C",q:1,txt:"<b class=t>抢占发生：</b>C 在更高的 Q1，立刻抢占 A。A 只跑了 1 格(剩 1)，<b>退回 Q2 队尾、不降级</b>。C 跑满 Q1 的 1 格没做完(剩 3)→ 降 Q2。同时 t=4，D 到达 Q1。"},
+ {seg:"4–5",p:"D",q:1,txt:"Q1 里是 D。D 跑满 1 格没做完(剩 4)→ 降 Q2。同时 t=5，E 到达 Q1。"},
+ {seg:"5–6",p:"E",q:1,txt:"Q1 里是 E。E 跑满 1 格没做完(剩 6)→ 降 Q2。至此 5 个进程全被 Q1「过了一遍手」，Q2 = [B, A, C, D, E]。"},
+ {seg:"6–8",p:"B",q:2,txt:"Q1 空，进入 Q2 轮转(时间片 2)。队头 B 跑 2 格没做完(剩 5)<b>→ 降到 Q3 队尾</b>。"},
+ {seg:"8–9",p:"A",q:2,txt:"Q2 队头 A 只剩 1，跑 1 格 <b class=fin style='color:#8fffbf'>完成 ✓(完成时刻 9)</b>。A 是第一个毕业的。"},
+ {seg:"9–11",p:"C",q:2,txt:"Q2 队头 C 跑 2 格没做完(剩 1)→ 降 Q3。"},
+ {seg:"11–13",p:"D",q:2,txt:"Q2 队头 D 跑 2 格没做完(剩 2)→ 降 Q3。"},
+ {seg:"13–15",p:"E",q:2,txt:"Q2 队头 E 跑 2 格没做完(剩 4)→ 降 Q3。现在所有没完成的都沉到 Q3 = [B, C, D, E]。"},
+ {seg:"15–19",p:"B",q:3,txt:"进入最低队 Q3(时间片 4)。B 跑 4 格还没完(剩 1)——<b>Q3 是底队，不再降级，B 回 Q3 队尾原地轮转</b>。"},
+ {seg:"19–20",p:"C",q:3,txt:"Q3 队头 C 只剩 1，跑 1 格 <b class=fin style='color:#8fffbf'>完成 ✓(完成时刻 20)</b>。"},
+ {seg:"20–22",p:"D",q:3,txt:"Q3 队头 D 剩 2，跑 2 格 <b class=fin style='color:#8fffbf'>完成 ✓(完成时刻 22)</b>。"},
+ {seg:"22–26",p:"E",q:3,txt:"Q3 队头 E 剩 4，跑 4 格 <b class=fin style='color:#8fffbf'>完成 ✓(完成时刻 26)</b>。"},
+ {seg:"26–27",p:"B",q:3,txt:"只剩 B(它上一轮回了队尾)，剩 1 跑 1 格 <b class=fin style='color:#8fffbf'>完成 ✓(完成时刻 27)</b>。全部结束！"},
+];
+let cur=-1;
+const blocks=Array.from(document.querySelectorAll('.gblk'));
+function render(){
+  blocks.forEach(b=>{
+    const i=+b.dataset.i;
+    b.classList.toggle('dim', i>cur);
+  });
+  const note=document.getElementById('note');
+  if(cur<0){ note.innerHTML="点「下一步 ▶」开始逐段推演。"; }
+  else{ const s=STEPS[cur];
+    note.innerHTML=`<span class="t">时段 ${s.seg}</span> ｜ 运行 <b>${s.p}</b>（Q${s.q}）<br>${s.txt}`; }
+  document.getElementById('prev').disabled = cur<0;
+  document.getElementById('next').disabled = cur>=STEPS.length-1;
+  document.getElementById('prog').innerText = cur<0? "" : `第 ${cur+1} / ${STEPS.length} 段`;
+}
+function step(d){ cur=Math.max(-1,Math.min(STEPS.length-1,cur+d)); render(); }
+function reset(){ cur=-1; render(); }
+function showAll(){ cur=STEPS.length-1; render(); }
+reset();
+</script>
+
+<h2 id="s4">📊 4. 完整甘特图(一图总览)</h2>
+<p>把上面播放的 16 段合起来看,横轴是时间 0→27,每个进程一行,颜色代表它当时所在的<b>队列层级</b>——你能清楚看到 <b>B、E 这样的长作业"越沉越低"</b>(蓝→黄→红),而 <b>A、C 这样的短作业早早毕业</b>。</p>
+<div class="warnbox">
+<b>读图要点:</b> 同一进程被切成好几段是正常的——MLFQ 会反复打断长作业。<b>每个进程最后一段的右端 = 完成时刻</b>:A→9、C→20、D→22、E→26、B→27。B 虽然到得早(t=1),却因为最长(8)被切得最碎、最晚毕业(27)。
+</div>
+
+<h2 id="s5">🧮 5. 逐段推演表(可当标准答案抄)</h2>
+<div class="gwrap">
+<table class="trace">
+<tr><th>时段</th><th>运行(队列)</th><th>关键事件</th><th>Q1</th><th>Q2</th><th>Q3</th></tr>
+<tr><td>0–1</td><td>A <span class="badge b1">Q1</span></td><td>A 到达入 Q1;跑满 1 格未完(剩 2)→降 Q2。t=1 B 到达→Q1</td><td class="q">B</td><td class="q">A</td><td class="q">—</td></tr>
+<tr><td>1–2</td><td>B <span class="badge b1">Q1</span></td><td>B 跑满 Q1 时间片未完(剩 7)→降 Q2</td><td class="q">—</td><td class="q">A,B</td><td class="q">—</td></tr>
+<tr><td>2–3</td><td>A <span class="badge b2">Q2</span></td><td><b>t=3 C 到达 Q1 → 抢占 A</b>(A 只跑 1,剩 1,退回 Q2 队尾<b>不降级</b>)</td><td class="q">C</td><td class="q">B,A</td><td class="q">—</td></tr>
+<tr><td>3–4</td><td>C <span class="badge b1">Q1</span></td><td>C 跑满 Q1 未完(剩 3)→降 Q2。t=4 D 到达→Q1</td><td class="q">D</td><td class="q">B,A,C</td><td class="q">—</td></tr>
+<tr><td>4–5</td><td>D <span class="badge b1">Q1</span></td><td>D 跑满 Q1 未完(剩 4)→降 Q2。t=5 E 到达→Q1</td><td class="q">E</td><td class="q">B,A,C,D</td><td class="q">—</td></tr>
+<tr><td>5–6</td><td>E <span class="badge b1">Q1</span></td><td>E 跑满 Q1 未完(剩 6)→降 Q2</td><td class="q">—</td><td class="q">B,A,C,D,E</td><td class="q">—</td></tr>
+<tr><td>6–8</td><td>B <span class="badge b2">Q2</span></td><td>Q1 空,调 Q2 队头 B,跑满 2 格未完(剩 5)→降 Q3</td><td class="q">—</td><td class="q">A,C,D,E</td><td class="q">B</td></tr>
+<tr><td>8–9</td><td>A <span class="badge b2">Q2</span></td><td>A 剩 1,跑 1 格 <span class="fin">完成✓(9)</span></td><td class="q">—</td><td class="q">C,D,E</td><td class="q">B</td></tr>
+<tr><td>9–11</td><td>C <span class="badge b2">Q2</span></td><td>C 跑 2 格未完(剩 1)→降 Q3</td><td class="q">—</td><td class="q">D,E</td><td class="q">B,C</td></tr>
+<tr><td>11–13</td><td>D <span class="badge b2">Q2</span></td><td>D 跑 2 格未完(剩 2)→降 Q3</td><td class="q">—</td><td class="q">E</td><td class="q">B,C,D</td></tr>
+<tr><td>13–15</td><td>E <span class="badge b2">Q2</span></td><td>E 跑 2 格未完(剩 4)→降 Q3</td><td class="q">—</td><td class="q">—</td><td class="q">B,C,D,E</td></tr>
+<tr><td>15–19</td><td>B <span class="badge b3">Q3</span></td><td>Q3 时间片 4,B 跑 4 格未完(剩 1)→<b>底队 RR</b>退回 Q3 队尾(不再降)</td><td class="q">—</td><td class="q">—</td><td class="q">C,D,E,B</td></tr>
+<tr><td>19–20</td><td>C <span class="badge b3">Q3</span></td><td>C 剩 1,跑 1 格 <span class="fin">完成✓(20)</span></td><td class="q">—</td><td class="q">—</td><td class="q">D,E,B</td></tr>
+<tr><td>20–22</td><td>D <span class="badge b3">Q3</span></td><td>D 剩 2,跑 2 格 <span class="fin">完成✓(22)</span></td><td class="q">—</td><td class="q">—</td><td class="q">E,B</td></tr>
+<tr><td>22–26</td><td>E <span class="badge b3">Q3</span></td><td>E 剩 4,跑 4 格 <span class="fin">完成✓(26)</span></td><td class="q">—</td><td class="q">—</td><td class="q">B</td></tr>
+<tr><td>26–27</td><td>B <span class="badge b3">Q3</span></td><td>B 剩 1,跑 1 格 <span class="fin">完成✓(27)</span></td><td class="q">—</td><td class="q">—</td><td class="q">—</td></tr>
+</table>
+</div>
+
+<h2 id="s6">🎯 6. 算周转时间与带权周转时间</h2>
+<div class="tmpl">
+<b>📐 公式:</b> 周转 T<sub>i</sub> = 完成时刻 − 到达时刻 ｜ 带权 W<sub>i</sub> = T<sub>i</sub> / 服务时间 T<sub>si</sub>(注意分母是<b>服务时间</b>,不是周转时间;W<sub>i</sub> 永远 ≥ 1)。
+</div>
+<table>
+<tr><th>进程</th><th>到达</th><th>服务 T<sub>si</sub></th><th>完成时刻</th><th>周转 T<sub>i</sub></th><th>带权 W<sub>i</sub> = T<sub>i</sub>/T<sub>si</sub></th></tr>
+<tr><td><b>A</b></td><td>0</td><td>3</td><td>9</td><td>9 − 0 = <b>9</b></td><td>9/3 = <b>3.00</b></td></tr>
+<tr><td><b>B</b></td><td>1</td><td>8</td><td>27</td><td>27 − 1 = <b>26</b></td><td>26/8 = <b>3.25</b></td></tr>
+<tr><td><b>C</b></td><td>3</td><td>4</td><td>20</td><td>20 − 3 = <b>17</b></td><td>17/4 = <b>4.25</b></td></tr>
+<tr><td><b>D</b></td><td>4</td><td>5</td><td>22</td><td>22 − 4 = <b>18</b></td><td>18/5 = <b>3.60</b></td></tr>
+<tr><td><b>E</b></td><td>5</td><td>7</td><td>26</td><td>26 − 5 = <b>21</b></td><td>21/7 = <b>3.00</b></td></tr>
+</table>
+<div class="key">
+<b>最终答案(与 PPT 标准答案一致):</b><br>
+平均周转时间 T = (9 + 26 + 17 + 18 + 21) / 5 = 91 / 5 = <b>18.2</b><br>
+平均带权周转时间 W = (3.00 + 3.25 + 4.25 + 3.60 + 3.00) / 5 = 17.1 / 5 = <b>3.42</b>
+</div>
+<p class="hint">小注:C 的带权最高(4.25)——它服务时间中等(4)却被夹在中间等了很久;这类"中等长度、又不够短"的作业在 MLFQ 里往往带权最差,是老师可能追问的点。</p>
+
+<h2 id="s7">⚠️ 7. 全场唯一的"抢占那一步"(t=3)——最容易画错</h2>
+<div class="panel">
+<p>整道题只有<b>一次真正的抢占</b>,就在 <b>t=3</b>。想清楚它,这道题就不会崩:</p>
+<ul>
+<li>t=2 时 A 从 Q2 被调度,Q2 时间片是 2,它"本应"一直跑到 t=4。</li>
+<li>但 t=3 时 <b>C 到达,进入更高的 Q1</b>。规则:<b>高优先级队列一非空,立即抢占</b>。</li>
+<li>于是 A 在 t=3 被打断:它<b>只跑了 1 格(剩 1),没用满 Q2 的时间片</b> → 所以它<b>退回 Q2 队尾,不降级</b>(它后来在 8–9 段还是在 Q2 里跑完的,印证了没降级)。</li>
+</ul>
+<div class="warnbox">
+<b>对比记牢(降级 ≠ 抢占退回):</b><br>
+· <b>降级</b>:用<u>满</u>时间片还没完 → 掉到<b>下一级</b>队尾(如 6–8 段 B 用满 Q2 的 2 格 → 降 Q3)。<br>
+· <b>抢占退回</b>:没用满就被高优先级打断 → 留在<b>本级</b>队尾(如 2–3 段 A 被 C 打断 → 仍在 Q2)。<br>
+画错这一步,会误把 A 降到 Q3,后面完成时刻全盘皆错。
+</div>
+</div>
+
+<h2 id="s8">🍚 8. MLFQ 会饿死长作业吗?(顺带纠正一个常见笔记错误)</h2>
+<div class="key">
+<b>你们老师的考试口径(照这个答):</b> 本教材/PPT<b>没有</b>"优先级提升 / Priority Boost"这一说。MLFQ 防止长作业无限等待,靠的是"<b>长作业最终沉到最低队 Q3,在 Q3 里按 RR 轮流拿到 CPU</b>"——像本题里 B 最晚也在 t=27 跑完。答"MLFQ 如何兼顾/是否饿死"时,写这一句即可。
+</div>
+<div class="warnbox">
+<b>笔记纠偏:</b> 有的资料(如 OSTEP 教材)会讲"<b>每隔一段时间把所有进程提升回 Q1(Priority Boost)</b>"来防饿死。<b>这是正确的通用知识,但不是你们老师讲的内容</b>——考试别把它当采分点写,以免被判超纲。它对应的真实问题见下。
+</div>
+<div class="eli5">
+<b>🧸 加深(想拿满口述分再看):</b> 严格说,<b>纯 MLFQ(没有 Boost)在"短作业源源不断到来"时,确实可能饿死长作业</b>——因为新作业总进 Q1 抢占,长作业永远轮不到。本题不会饿死,是因为进程<b>到 t=5 就到齐了、不再有新到达</b>,长作业才能安心沉底跑完。这正是下一节 <a href="./0081-srtn-guided-practice.html">0081 SRTN</a> 的第③条"长作业会饿死"的同一个道理——只是 SRTN 连"沉底 RR"这个兜底都没有,饿得更彻底。两节对照着看,你就懂了为什么真实系统要给 MLFQ 加 Boost。
+</div>
+
+<h2 id="s9">✅ 9. 自测</h2>
+
+<div class="panel">
+<h3>Q1 · 抢占那一步</h3>
+<p>t=3 时 C 到达抢占了正在 Q2 运行的 A。此后 A 应该在哪个队列里等待被重新调度?</p>
+<p>A. 降到 Q3 队尾　　B. 留在 Q2 队尾　　C. 回到 Q1 队尾　　D. 直接结束</p>
+<details><summary>点我看答案</summary>
+<p><b>答案:B</b>。A 是被"抢占"(没用满时间片),不是"降级"(用满没做完),所以留在<b>本级 Q2</b>队尾,不降级。后面 8–9 段 A 正是在 Q2 里跑完的。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q2 · 读完成时刻</h3>
+<p>不看上面的表,只看甘特图:哪个进程最<b>晚</b>完成?它的周转时间是多少?</p>
+<details><summary>点我看答案</summary>
+<p><b>B 最晚,完成时刻 27</b>。周转 = 27 − 1(到达)= <b>26</b>。B 到得早却最晚走——因为它服务时间最长(8),被 MLFQ 反复打断、一路沉到 Q3。</p>
+</details>
+</div>
+
+<div class="panel">
+<h3>Q3 · 换个数自己算(练手)</h3>
+<p>把本题的 <b>C 的到达时间从 3 改成 2</b>(其余不变),前 3 格甘特图会变成什么样?(提示:t=2 时谁在跑、谁到达?)</p>
+<details><summary>点我看思路</summary>
+<p>t=2 时:A 刚从 Q2 被调度准备跑,但 C 在 t=2 就到达 Q1 → C 立即抢占,A 根本没跑成(或刚起步就被打断)。这会让 0–2 变成 A(Q1)、B(Q1) 之后直接 C(Q1) 插入,A 在 Q2 的首次运行被推后。<b>关键是体会:到达时间只要挪一格,抢占点就变,整张图跟着变</b>——所以画图时一定要在时间轴上标清每个到达时刻。完整重推留给你当练习,推完可对照本页方法自检。</p>
+</details>
+</div>
+
+<footer>
+第 80 课 · Ch3 调度 · 计算 · 多级反馈队列例题精算。<br>
+前置规则 → <a href="./0063-multilevel-feedback-queue.html">0063 MLFQ 五条规则</a> · 姊妹练习 → <a href="./0081-srtn-guided-practice.html">0081 SRTN 带你做</a> · 调度级别 → <a href="./0044-scheduling-levels-mlfq.html">0044</a> · 指标公式 → <a href="./0067-scheduling-metrics.html">0067</a><br>
+大题全套:0059 调度算法 · 0063 MLFQ 规则 · 0064 SJF/SRTN · <b>0080 MLFQ 例题</b> · 0081 SRTN 带练 · 0067 调度指标
+</footer>
+
+</div>
+</body>
+</html>

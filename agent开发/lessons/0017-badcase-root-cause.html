@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0017 · Badcase 根因定位</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0017 课 · 预计 15 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>Badcase 根因定位</h1>
+
+<p class="lede">你在 <a href="0016-scoring-tiers-and-human-routing.html">0016</a>（评分输出结构化：分层筛查 + 问题分类=现象入口）学过——评分不只吐 pass/fail，还要给出<strong>问题分类、问题现象、置信度、判定依据</strong>，让 badcase 带着"现象入口"进下一站。这节课往下走一步：现象入口只告诉你"看起来像哪类问题"，它<strong>不等于</strong>责任模块。本课只做一件事——把一条错例<strong>稳定地追到"责任模块 + 可修复原因"</strong>，而不是停在"这条答错了"。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 860 230" role="img" aria-label="离线评测与线上运营两条通路汇入同一 badcase 任务表，再进同一套 RCA Pipeline">
+  <defs>
+    <marker id="ah17" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" class="dgm-muted"/>
+    </marker>
+  </defs>
+  <line class="dgm-edge" x1="200" y1="55"  x2="336" y2="100" stroke-width="1.5" marker-end="url(#ah17)"/>
+  <line class="dgm-edge" x1="200" y1="165" x2="336" y2="130" stroke-width="1.5" marker-end="url(#ah17)"/>
+  <line class="dgm-edge" x1="530" y1="115" x2="626" y2="115" stroke-width="1.5" marker-end="url(#ah17)"/>
+  <!-- 离线通路 -->
+  <rect class="dgm-node" x="20" y="28" width="180" height="54" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="110" y="50" font-size="13" font-weight="700" text-anchor="middle">离线评测</text>
+  <text class="dgm-muted" x="110" y="68" font-size="11" text-anchor="middle">评测集 · 版本回归失败</text>
+  <!-- 线上通路 -->
+  <rect class="dgm-node" x="20" y="138" width="180" height="54" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="110" y="160" font-size="13" font-weight="700" text-anchor="middle">线上运营</text>
+  <text class="dgm-muted" x="110" y="178" font-size="11" text-anchor="middle">会话 · 质检 · 工单 · 告警</text>
+  <!-- hub -->
+  <rect class="dgm-hub" x="340" y="82" width="190" height="66" rx="8" stroke-width="2"/>
+  <text class="dgm-accent-text" x="435" y="110" font-size="13" font-weight="700" text-anchor="middle">同一 badcase 任务表</text>
+  <text class="dgm-muted" x="435" y="130" font-size="11" text-anchor="middle">状态以持久化记录为准</text>
+  <!-- terminal -->
+  <rect class="dgm-link-node" x="630" y="82" width="200" height="66" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="730" y="110" font-size="13" font-weight="700" text-anchor="middle">同一套 RCA Pipeline</text>
+  <text class="dgm-muted" x="730" y="130" font-size="11" text-anchor="middle">收集证据→收敛→定责落盘</text>
+</svg>
+</div>
+<figcaption>两条来源不同的通路（离线评测 + 线上运营）在<strong>入口处</strong>就被统一进同一张 badcase 任务表、同一套 RCA Pipeline。这样既覆盖线上长尾，又支持运营/研发主动排查——不为"线上 badcase"和"离线 badcase"各造一套分析流程。</figcaption>
+</figure>
+
+<h2>一、直觉先行：服务端"看堆栈定位"，在 Agent 里失灵</h2>
+
+<p>服务端排障有一个你用惯了、深到不会去质疑的动作：程序崩了，翻 stack trace，第一行就写着 <code>NullPointerException at OrderService.java:142</code>——<strong>责任模块和责任行是运行时免费给你的</strong>。你不需要"推断谁的错"，异常传播链把它直接摊在你面前。</p>
+
+<div class="leak">
+Agent 的端到端失败<strong>没有堆栈</strong>。用户问"已发货的订单能退款吗"，Agent 答"可以，马上帮您办"——这条会话既没抛异常、也没 500，它只是<strong>业务上错了</strong>（跳过了订单状态校验、违反了"已发货需先协商"的 SOP）。你手里只有一个"端到端结果不对"的表象，没有任何一行日志自动告诉你责任落在<em>意图识别、槽位抽取、工具选择、还是回复生成</em>。责任模块在 Agent 世界里<strong>不是被抛出来的，是要靠 RCA 反推出来的</strong>。"看堆栈就知道哪一行崩了"这个服务端直觉，在这里整个失效。
+</div>
+
+<p>所以"根因定位"（RCA，Root Cause Analysis）在 Agent 里是一件独立的、必须专门设计的工程活儿：把"端到端错了"这个表象，一步步收敛成"<strong>哪个模块、什么可修复原因</strong>"。</p>
+
+<h2>二、badcase 从哪来：不止离线评测集</h2>
+
+<p>第一个容易踩的窄化，是以为 badcase 只从离线评测集里跑出来。真实的 badcase 来源是<strong>两条通路、多个入口</strong>：</p>
+
+<table>
+<thead><tr><th>通路</th><th>入口举例</th><th>特点</th></tr></thead>
+<tbody>
+<tr><td><strong>离线评测</strong></td><td>评测集不通过、版本回归失败</td><td>可复现、有 golden、批量</td></tr>
+<tr><td rowspan="4"><strong>线上运营</strong></td><td>线上真实会话</td><td>覆盖长尾、不可控</td></tr>
+<tr><td>人工质检抽样</td><td>有人工标注、质量高</td></tr>
+<tr><td>投诉工单 / 低满意度样本</td><td>用户负反馈驱动</td></tr>
+<tr><td>监控告警</td><td>指标异常触发</td></tr>
+</tbody>
+</table>
+
+<p>关键设计（首图已画）：这两条通路<strong>在入口就汇入同一张 badcase 任务表、同一套 RCA Pipeline</strong>。不要为线上和离线各建一套分析口径——否则同一个根因会在两套系统里被拆成两个标签，既没法统计，也没法聚类。</p>
+
+<h2>三、端到端失败只是表象：真因散在十来个环节</h2>
+
+<p>为什么不能"端到端错了就说是模型不行"？因为一条会话是一串环节的接力，任何一环偏一点，都可能在终点被放大成错误结论（这正是 <a href="0013-from-cases-to-eval-system.html">0013</a> 讲的错误级联）。真因可能落在：</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">意图识别</span><span class="n-sub">听懂要什么</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">上下文记忆</span><span class="n-sub">多轮不丢</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">检索召回</span><span class="n-sub">找对证据</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">工具选择 / 参数</span><span class="n-sub">调对、传对</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">业务规则 / 推理</span><span class="n-sub">口径不错</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">回复生成</span><span class="n-sub">忠实表达</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">Guardrail / 外部系统</span><span class="n-sub">拦截 · 依赖异常</span></div>
+</div>
+<figcaption>端到端失败是"终点表象"，真因可能藏在这条链的<strong>任意一环或多环</strong>（含 Guardrail 误拦、外部系统异常）。RCA 的任务就是从终点反推到出问题的那一环。</figcaption>
+</figure>
+
+<div class="leak">
+CI/服务端里，"哪个函数错了"和"哪个断言红了"几乎是同一件事——断言红在哪，锅就在那附近。Agent 的<strong>评分结论和责任模块是脱钩的</strong>：0016 的评分说这条现象是"过度承诺"，但"过度承诺"可能是风险拦截没拦、也可能是回复生成擅自加戏——现象入口只缩小了怀疑范围，<strong>不等于定责</strong>。把现象直接当根因，是 RCA 最常见的偷懒。
+</div>
+
+<h2>四、RCA 五步通用链路（本课核心）</h2>
+
+<p>把"表象 → 责任模块 + 可修复原因"这段路，拆成一条可复用的五步链路。记住它的骨架节奏：<strong>先收集证据 → 再收敛范围 → 最后定责落盘</strong>。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">① 证据汇总</span><span class="n-sub">拉全链路日志</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">② 范围收敛</span><span class="n-sub">现象×模块映射</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">③ 分模块诊断</span><span class="n-sub">逐模块 PASS/FAIL</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">④ 责任判定</span><span class="n-sub">定责+分类+建议</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">⑤ 结构化落盘</span><span class="n-sub">写任务记录+渐进展示</span></div>
+</div>
+<figcaption>RCA 五步。绿=②有确定性映射兜底。整条链可建模为一次<strong>异步 Multi-Agent Workflow</strong>：状态以持久化任务记录为准，中间产物放运行时工作区，便于异步执行、轮询查询和失败恢复。</figcaption>
+</figure>
+
+<h3>① 证据汇总：把链路"摊开"</h3>
+<p>按 <code>sessionId / chatId / traceId / 评测运行 ID</code> 找到对应链路日志，汇总：<strong>用户输入、Agent 回复、各功能模块的输入输出、prompt、工具调用、异常、耗时、中间产物</strong>。工程约束：<em>状态以持久化任务记录为准，运行时工作区只存中间产物</em>——这样一条 badcase 分析崩在半路，可以恢复接着跑，而不是从头再来。</p>
+
+<h3>② 范围收敛：现象 × 模块映射表</h3>
+<p>不要对全部模块无差别排查（成本高、噪声大、结论散）。维护一张"<strong>问题现象 × 功能模块</strong>"的映射：命中就走确定性路径直接缩圈，未命中再让 LLM 兜底缩圈。</p>
+
+<table>
+<thead><tr><th>问题现象（0016 给的入口）</th><th>优先排查的候选模块</th></tr></thead>
+<tbody>
+<tr><td>答非所问</td><td>意图识别 · Query 改写 · 知识筛选</td></tr>
+<tr><td>过度承诺</td><td>风险拦截 · 回复生成</td></tr>
+<tr><td>订单未澄清</td><td>槽位抽取 · 上下文判断</td></tr>
+<tr><td>事实性错误</td><td>FAQ 检索 · 知识检索 · 回复生成</td></tr>
+</tbody>
+</table>
+<p><strong>这张表只缩范围，不等于最终定责。</strong>最终责任仍要结合 Trace、模块输入输出、工具返回和规则/Judge 结论确认。</p>
+
+<h3>③ 分模块诊断：逐个读 IO，输出结构化结论</h3>
+<p>对候选模块<strong>逐个</strong>读 input / output / prompt / 工具返回 / 异常日志，每个模块产出：问题摘要 + 关键证据 + 改进建议 + 可归因的结构化字段（状态 <code>PASS / SOFT_PASS / FAIL</code>，SOFT_PASS = 基本通过但有轻微瑕疵）。</p>
+<p>举例（"事实性错误"样本）：先看 FAQ 检索是否召回正确政策 → 再看知识检索是否保留关键片段 → 最后看回复生成是否忠实使用这些证据。若前两段都通过、最终回复仍说错，就把<strong>回复生成标 FAIL，前两个模块标 PASS/SOFT_PASS</strong>。诊断到此，责任已经被证据夹逼出来了。</p>
+
+<h3>④ 责任判定：消费诊断结果，定责 + 分类</h3>
+<p>这一步消费"<strong>问题现象 + 分模块诊断结果 + 根因知识库</strong>"，输出四样东西：</p>
+<table>
+<thead><tr><th>输出字段</th><th>含义</th><th>上例（事实性错误）</th></tr></thead>
+<tbody>
+<tr><td>责任模块</td><td>锅落在哪个模块（主责/次责）</td><td>回复生成模块</td></tr>
+<tr><td>问题分类</td><td>面向报告/看板的<strong>大类</strong></td><td>模型指令遵循（语义理解）</td></tr>
+<tr><td>问题枚举</td><td>更细的<strong>失败类型</strong></td><td>证据使用错误</td></tr>
+<tr><td>修复建议</td><td>指向具体可改动的东西</td><td>回复生成 Prompt / 引用约束 / 忠实性校验</td></tr>
+</tbody>
+</table>
+<p>注意区分两个层：<strong>问题分类</strong>是给人看报告的大类（语义理解 / 知识召回 / 工具执行 / 风险防控），<strong>问题枚举</strong>是更细、能绑定处理动作的失败类型。定责用<strong>三层策略</strong>（下一节）而非全交给 LLM。</p>
+
+<h3>⑤ 结构化落盘与渐进展示</h3>
+<p>根因结果不能只躺在一次性报告里，要<strong>结构化写入任务记录</strong>，至少含：问题分类 / 问题现象 / 问题枚举 / 责任层 / 责任模块 / 置信度 / 详细报告 / 修复建议。前端渐进展示：</p>
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">RCA 进行到哪一步，前端就展示到哪一层</div>
+  <div class="down">│</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">② 收敛后</div>
+      <div class="step action">候选模块列表</div>
+    </div>
+    <div class="branch">
+      <div class="label">③ 诊断后</div>
+      <div class="step action">逐模块结论 PASS/SOFT_PASS/FAIL</div>
+    </div>
+    <div class="branch">
+      <div class="label">④ 定责后</div>
+      <div class="step terminal">主责 / 次责 / 建议动作</div>
+    </div>
+  </div>
+</div>
+<figcaption>渐进展示：每完成一步就把该层结论暴露给运营/研发，而不是等整条 RCA 跑完才出结果——契合它是异步 Workflow 的本质。</figcaption>
+</figure>
+
+<h2>五、定责策略：确定性优先 → 模型辅助 → 人审兜底</h2>
+
+<p>责任判定<strong>不该全交给一个 LLM</strong>（那会重蹈 <a href="0008-scorers-and-judge-trust.html">0008</a> 里"裁判不可信"的覆辙）。落地按三层，和评分同一套哲学：</p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">① 规则定硬错</span><div class="track"><div class="val read" style="width:40%">工具未调 / 顺序违 SOP / 参数缺 / 库未变</div></div></div>
+  <div class="row"><span class="lbl">② Trace 定偏差</span><div class="track"><div class="val read" style="width:65%">计划跑偏 / 证据不足 / 工具返回误读 / 上下文被覆盖</div></div></div>
+  <div class="row"><span class="lbl">③ 映射表缩圈</span><div class="track"><div class="val base" style="width:80%">按现象锁定候选模块</div></div></div>
+  <div class="row"><span class="lbl">④ LLM 语义归类</span><div class="track"><div class="val write" style="width:100%">复杂链路责任传递 + 聚类 + 标签映射</div></div></div>
+  <div class="row"><span class="lbl">⑤ 人审兜底</span><div class="track"><div class="val out" style="width:55%">高风险 / 低置信 / 规则⇄Judge 冲突</div></div></div>
+</div>
+<figcaption>绿/灰=确定性能判的先判（快、可复现），红=只有确定性判不了时才上 LLM（汇总复杂链路的责任传递、做语义归类与聚类），蓝=高风险/低置信/规则与 Judge 冲突的样本进人工终判，人工结论<strong>反向校准</strong>规则、Judge Prompt 和根因标签体系。</figcaption>
+</figure>
+
+<p>三层定责对应到"责任判定"内部就是：<strong>严重模块结论直接定责 → 规则引擎匹配确定性模式 → LLM 汇总复杂链路中的责任传递关系</strong>。既保留确定性，又能处理多模块耦合。</p>
+
+<h2>六、根因标签体系与 badcase 聚类</h2>
+
+<p>RCA 的产物不是一堆零散描述，而要沉淀成<strong>稳定、可统计、能指向明确 owner 与处理动作</strong>的根因标签体系。标签稳定了，两件事才成立：</p>
+
+<dl class="keydef">
+<dt>能绑定解决角色（owner）</dt>
+<dd>每个问题枚举可以映射到处理角色：运营可配置 / 算法需优化 / 工程需修复 / 业务需定口径。例：<em>"用户申请已发货订单退款，Agent 没先查订单状态就承诺可退"</em> → 问题分类"工具覆盖与执行"、问题枚举"关键工具未调用"、责任模块"退款 Skill / 退款流程执行模块"。</dd>
+<dt>能聚类（clustering）</dt>
+<dd>同一根因 / 同一业务场景 / 同一工具 / 同一知识点的失败，自动聚成<strong>问题簇</strong>。报告就不再是"列 100 条 badcase"，而是一句可行动的结论：<em>"退款已发货场景中，Agent 23 次跳过订单状态校验，主要集中在 v1.8 Prompt。"</em></dd>
+</dl>
+
+<p>为什么聚类这么重要？因为 100 条散装 badcase 没法排优先级，而"23 次同一根因、集中在某版本 Prompt"直接就是一张可派单的工单——这正是下一课"从根因到行动项"的原料。</p>
+
+<h2>七、落到你的项目：mino 处在哪一格</h2>
+
+<div class="good">
+<strong>诚实映射（严格区分"mino 真有"和"方法论层、mino 未实现"）：</strong>
+<p><strong>mino 没有 badcase RCA 子系统。</strong>这一整节讲的现象×模块映射、分模块诊断、责任判定、根因标签体系、聚类——都属于<em>方法论层，mino 未实现</em>，代码里没有任何对应符号，本课不虚构。</p>
+<p>mino 真有的，只是"证据的最原始地基"这一小格：<code>memory_eval</code> 落盘时<strong>每条用例写一份完整 JSON</strong>（含 <code>Response</code> / <code>ToolCalls</code> / <code>JudgeReasoning</code>），并生成 <code>results/index.html</code> 供人工翻看。对照 RCA 五步，这恰好只覆盖了<strong>第①步"证据汇总"里最底层的一层——原始报告 JSON</strong>，而且还是单一 memory 能力、非多模块链路的证据。</p>
+<p>诚实结论：<strong>mino 有 badcase 的原始证据（报告 JSON + 人工翻看界面），还没有把证据变成"责任模块 + 可修复原因"的 RCA 流水线</strong>——没有现象×模块映射、没有分模块诊断、没有责任判定、没有根因标签体系、没有聚类。它停在"人能一条条看"，还没到"系统能自动定责"。</p>
+</div>
+
+<h2>八、关键定义</h2>
+
+<dl class="keydef">
+<dt>根因定位 / RCA（Root Cause Analysis）</dt>
+<dd>把一条 badcase 的<strong>端到端表象</strong>，稳定追溯到<strong>责任模块 + 可修复原因</strong>的过程。核心不是"判它错了"（那是评分的活），而是"错在谁、怎么修"。</dd>
+<dt>现象 × 模块映射表</dt>
+<dd>由"问题现象"（0016 给的现象入口）指向"优先排查的候选模块"的映射。作用是<strong>缩小范围</strong>，命中走确定性路径、未命中让 LLM 兜底缩圈；<strong>它不等于最终定责</strong>。</dd>
+<dt>分模块诊断（PASS / SOFT_PASS / FAIL）</dt>
+<dd>对候选模块逐个读 IO/prompt/工具返回/异常，输出结构化结论。SOFT_PASS = 基本通过但有轻微瑕疵。这一步用证据把责任夹逼出来。</dd>
+<dt>问题分类 vs 问题枚举</dt>
+<dd>问题分类=面向报告/看板的<strong>大类</strong>（语义理解 / 知识召回 / 工具执行 / 风险防控）；问题枚举=更细、能绑定处理动作的<strong>失败类型</strong>（如"关键工具未调用""证据使用错误"）。</dd>
+<dt>根因标签体系 + 聚类</dt>
+<dd>稳定、可统计、能指向 owner 与处理动作的标签集合；聚类把同根因/同场景/同工具/同知识点的失败聚成<strong>问题簇</strong>，让报告从"列 N 条"变成"一句可行动的结论"。</dd>
+</dl>
+
+<h2>九、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：0016 的评分把某条 badcase 的"问题现象"标成了"过度承诺"。有人说"那责任模块就是回复生成，直接定责就行"。用本课逻辑指出他错在哪，并说明正确该怎么走。</summary>
+<div class="answer">
+<p><strong>他把"现象入口"当成了"最终定责"</strong>——这正是本课 leak 点破的偷懒。"过度承诺"这个现象，候选模块<strong>至少</strong>有两个：风险拦截（该拦没拦）和回复生成（擅自加戏承诺）。映射表只负责<strong>缩小怀疑范围</strong>，不负责下结论。</p>
+<p>正确路径：走完 RCA 后三步。③ 分模块诊断——读风险拦截模块的 IO：它到底有没有识别到"已发货订单"这个风险点并尝试拦截？再读回复生成：它拿到的证据/约束里有没有"不得无条件承诺退款"？④ 责任判定——如果风险拦截压根没触发，主责在风险拦截；如果风险拦截给了约束、回复生成却无视约束照样承诺，主责在回复生成。<strong>证据决定定责，现象只决定从哪几个模块开始查。</strong></p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：一条 badcase 的分模块诊断结果是：FAQ 检索 PASS、知识检索 PASS、回复生成 FAIL（正确政策被解释错）。为什么这条应该走"规则/严重模块直接定责"而不是"扔给 LLM 汇总责任传递"？什么样的 badcase 才需要 LLM 那一层？</summary>
+<div class="answer">
+<p>因为这条的责任<strong>已经被证据夹逼成单点</strong>了：前两段检索都通过（证据齐全且正确），唯独回复生成 FAIL——责任传递关系是<em>确定的、无歧义的</em>，主责直接落回复生成即可。此时上 LLM 纯属给判据平白注入不确定性（0008 的教训），换不来任何精度。这属于"确定性优先"里的"严重模块结论直接定责"。</p>
+<p>需要 LLM 汇总的是<strong>多模块耦合、责任传递链复杂</strong>的情形：比如检索召回了错的片段、回复生成又"忠实地"用了这个错片段——到底该怪检索给错料，还是怪生成没做忠实性/合理性二次校验？这种责任在多个模块间弥散、规则难以一刀切的链路，才交给 LLM 做语义归类与责任汇总，且结论若低置信/与规则冲突，再进人工兜底。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（延伸）：团队已经能把每条 badcase 定责了，报告里老老实实列出了 100 条"责任模块 + 修复建议"。leader 看完说"没法排期"。缺了本课哪个能力？补上它之后报告会变成什么样？</summary>
+<div class="answer">
+<p>缺的是<strong>聚类（clustering）与根因标签体系</strong>。100 条散装 badcase 即使每条都定了责，也无法回答"先修哪个、影响多大、归谁"——因为没有把"同一根因/同一场景/同一工具/同一知识点"的失败聚成问题簇，也就没有量级和 owner。</p>
+<p>补上之后，报告从"列 100 条"变成"一句可行动的结论"，例如：<em>"退款已发货场景，Agent 23 次跳过订单状态校验，集中在 v1.8 Prompt。"</em>——有场景、有量级（23 次）、有版本定位、能绑定 owner（工程需修复 / 退款 Skill 负责人）。这样才排得出优先级，也正好是下一课把"根因"翻译成"行动项"的输入。这也要求根因标签<strong>稳定、可统计</strong>：标签一乱，同类问题被拆成零散标签，聚类就失效了。</p>
+</div>
+</details>
+</div>
+
+<h2>十、承上启下</h2>
+
+<p>这节课把一条 badcase 从"端到端表象"稳定追到了"责任模块 + 可修复原因"：统一入口（两通路汇一表）→ RCA 五步（收集证据→收敛范围→定责落盘）→ 三层定责（确定性优先→模型辅助→人审兜底）→ 沉淀成可统计、可聚类、可绑 owner 的根因标签。但 RCA 的终点"修复建议"仍然只是一句话——<strong>"优化 Prompt""加强训练"这种泛化表述修不了任何东西</strong>。下一课要解决的是：怎么把"原因"翻译成带失败范围、证据、具体动作、owner、验收方式和优先级的<strong>行动项</strong>，并让它闭环回评测集，形成全链路运转。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让我带你把 mino 的 <code>memory_eval</code> 落盘 JSON（<code>Response</code>/<code>ToolCalls</code>/<code>JudgeReasoning</code>）摊开，对照本课 RCA 第①步"证据汇总"看它到底只覆盖了哪一层。下一课：<em><a href="0018-actions-and-closed-loop.html">0018 从根因到行动项与全链路闭环</a>——把根因翻译成可验收的动作，并让 badcase 变成 bug/工单/回归用例回流评测集</em>。</p>
+</footer>
+</main>
+</body>
+</html>

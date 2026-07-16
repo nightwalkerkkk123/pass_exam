@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12 · Token 是新的钱：成本、延迟与前缀缓存</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 如何长出一个 Agent · 第 12 课 · 预计 10 分钟 · 上一课：<a href="11-eval-basics.html">评估：给 Agent 装一套 CI</a> · 下一课：<a href="13-zero-to-production-capstone.html">从零到上线：把十二个零件拼成一台机器</a></p>
+
+<h1>Token 是新的钱：成本、延迟与前缀缓存</h1>
+
+<p class="lede">前十一课我们把一个 Agent 的零件拆了个遍。这一课换一个视角：每一次调用大脑，你都在花钱、花时间。我们来看 mino_server 用什么手艺，让一个真跑起来的 Agent 不被账单和延迟拖垮——核心只有一个词：<strong>前缀缓存</strong>。</p>
+
+<div class="chain in">
+<p>上一课我们发现：大脑是<strong>无状态</strong>的，它不记得上一轮说过什么。所以每一轮，我们都得把「完整对话历史 + 全部工具定义」重新打包，原封不动地再发一遍。第 10 轮时，第 1 轮那句「你好」还在被重新发送、重新计费、重新处理。这很浪费。一个真上线的 Agent，怎么才能不为「重复发送同样的开头」反复付全价？</p>
+</div>
+
+<h2>一、先建立直觉：token 就是计价的水表</h2>
+
+<p>第一次接触大模型计费的人常有个误解：以为「问一次收一次钱，像点一杯咖啡」。不是。它更像<strong>自来水表</strong>——按流过的量收费。你灌进去多少字（<dfn>输入 token</dfn>）、它吐出来多少字（<dfn>输出 token</dfn>），都逐个 token 计量。</p>
+
+<p><strong>token</strong>（词元）是模型眼里的最小计量单位，大致是「一个字 / 半个英文单词」。一次调用的账单，就是「输入 token 数 × 输入单价 + 输出 token 数 × 输出单价」。这份单价表在 <code>llms/common/model.go</code> 里，每个模型一行。以 Claude Sonnet 为例（<code>ModelNameClaudeSonnet</code>）：</p>
+
+<ul>
+<li>输入 <code>PriceInputTokens: 3</code>（每 100 万 token 3 美元）</li>
+<li>输出 <code>PriceOutputTokens: 15</code>（输出比输入贵 5 倍——生成比阅读费劲）</li>
+</ul>
+
+<p>结账逻辑在同文件的 <code>getPrice</code> 函数里，<code>ModelFamilyAnthropic</code> 那一支：把输入、输出、缓存读、缓存写各自乘上单价再相加。<strong>关键点来了</strong>：这里出现了两个新词——「缓存读」和「缓存写」。它们就是省钱的门道。</p>
+
+<h2>二、前缀缓存：把「不变的开头」存起来，别再付全价</h2>
+
+<p>想象一个剧组每天拍同一间客厅的戏。如果每天开拍前都把整套布景拆了重搭，那太蠢了——<strong>布景不变，只有台词在变</strong>。聪明的做法是：布景搭一次留着，第二天只补拍新台词。</p>
+
+<p>大模型厂商也这么干，叫 <dfn>前缀缓存（prompt caching）</dfn>：你这次请求的开头，如果和上次一模一样，厂商就不必从头再算一遍，直接复用上次的中间结果。省下的算力，它以<strong>大幅折扣</strong>回馈给你。</p>
+
+<figure class="diagram">
+<div class="bars">
+<div class="row"><div class="lbl">基础输入（不缓存）</div><div class="track"><div class="val base" style="width:50%">$3 / 1M</div></div><span>&nbsp;1×</span></div>
+<div class="row"><div class="lbl">写 5 分钟缓存</div><div class="track"><div class="val write" style="width:62.5%">$3.75 / 1M</div></div><span>&nbsp;1.25×</span></div>
+<div class="row"><div class="lbl">写 1 小时缓存</div><div class="track"><div class="val write" style="width:100%">$6 / 1M</div></div><span>&nbsp;2×</span></div>
+<div class="row"><div class="lbl">命中缓存（读）</div><div class="track"><div class="val read" style="width:5%">&nbsp;</div></div><span>&nbsp;$0.3 / 1M &nbsp;0.1×</span></div>
+</div>
+<figcaption>Sonnet 缓存计价（<code>model.go</code> 的 <code>ModelNameClaudeSonnet</code>）：写入是一次性投资，读取几乎免费。<code>CacheCreationPricing{Price5Minutes: 3.75, Price1Hour: 6}</code>、<code>PriceCacheReadTokens: 0.3</code>。</figcaption>
+</figure>
+
+<p>读这张图要抓住三个倍率：</p>
+
+<dl class="keydef">
+<dt>命中读 ≈ 0.1×</dt>
+<dd>缓存里已经有的部分，这次读出来只花基础输入价的 <strong>十分之一</strong>（Sonnet：$3 → $0.3）。这是省钱的主战场。</dd>
+<dt>写入 5 分钟 ≈ 1.25×</dt>
+<dd>第一次把开头「存进」缓存，要多付 25% 手续费（$3 → $3.75）。这是一次性投资。</dd>
+<dt>写入 1 小时 ≈ 2×</dt>
+<dd>想让缓存活得更久（1 小时而不是 5 分钟），预付得更多——两倍价（$3 → $6）。</dd>
+</dl>
+
+<p>算笔账就懂了：一段 10 万 token 的稳定开头，第一次写入多花点（1.25×），但从第二轮起每轮都只按 0.1× 读。轮数越多，越划算。这就是为什么一个「多轮 Agent」几乎必然要用缓存。</p>
+
+<div class="good">
+<strong>理想与现实的差（一个真实的教学点）</strong>：内部虽然区分了 5m / 1h 两档 TTL（<code>llms/common/common.go</code> 里 <code>CacheTTL5Minutes = "5m"</code>、<code>CacheTTL1Hour = "1h"</code>、<code>NewCacheControl1Hour()</code>），但在 <code>llms/claude/convert.go</code> 的 <code>convertCacheControl</code> 里，把内部标记翻译成 Anthropic 的 <code>ephemeral</code> 参数时，<code>TTL</code> 字段被<strong>注释掉了</strong>，注释写着「GCP 目前不支持 1h 缓存」。结果：1h / 5m / 默认三个分支发出去的都只是 <code>Type: "ephemeral"</code>——实际上全按 5 分钟走。代码里的价格表准备好了 1h，线上却还没放开。这就是工程：理想的接口先建好，现实的开关慢慢开。
+</div>
+
+<h2>三、代价：缓存是「严格前缀」，一个字节变了，其后全部重算</h2>
+
+<p>缓存不是白给的，它有一条铁律：<strong>严格前缀匹配</strong>。厂商是从头开始逐字节比对的——从你发送内容的第一个字节起，一路命中，直到遇到第一个不一样的字节。<strong>从那个分歧点往后，全部作废，按全价重算</strong>。就像磁带：前面对得上就快进，一旦对不上，剩下的只能重录。</p>
+
+<figure class="diagram">
+<div class="cacheline">
+<div class="seg hit">工具定义 ✓ 命中<br><small>getCurrentToolInfos 字典序</small></div>
+<div class="seg hit">system ✓ 命中<br><small>NewLLMMessageWithCache1Hour</small></div>
+<div class="seg diverge">↯ 一个字节变了</div>
+<div class="seg recompute">其后全部按全价重算<br><small>历史 + 本轮，一个都跑不掉</small></div>
+</div>
+<figcaption>严格前缀匹配：分歧点（<code>.seg.diverge</code>）之前命中读 0.1×，之后（<code>.seg.recompute</code>）全额重算。哪怕只改了中间一个字，后面全赔进去。</figcaption>
+</figure>
+
+<p>这条规则有个可怕的推论：<strong>它反过来把 context 的排列顺序焊死了</strong>。既然「越靠前的内容越容易被缓存复用」，那么设计原则只能是一句话——<strong>稳定的放前面，易变的放后面</strong>。</p>
+
+<p>mino_server 处处都在遵守这条铁律。看这张请求版面图，每一段的位置都不是随便排的：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 760 300" role="img" aria-label="一次请求的 prompt 版面：工具与 system 在前可缓存，历史与本轮在后每次重算">
+  <!-- 顶部标题 -->
+  <text class="dgm-muted" x="20" y="26" font-size="13">发送顺序（左＝先发＝稳定）→</text>
+  <!-- 四段 -->
+  <rect class="dgm-good-node" x="20"  y="46" width="150" height="72" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="95"  y="78"  font-size="14" font-weight="700" text-anchor="middle">工具定义</text>
+  <text class="dgm-muted" x="95"  y="98"  font-size="10" text-anchor="middle">按名字字典序排</text>
+
+  <rect class="dgm-good-node" x="176" y="46" width="150" height="72" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="251" y="78"  font-size="14" font-weight="700" text-anchor="middle">system 提示</text>
+  <text class="dgm-muted" x="251" y="98"  font-size="10" text-anchor="middle">挂 1h 缓存断点</text>
+
+  <rect class="dgm-node" x="332" y="46" width="230" height="72" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="447" y="78"  font-size="14" font-weight="700" text-anchor="middle">对话历史</text>
+  <text class="dgm-muted" x="447" y="98"  font-size="10" text-anchor="middle">每轮增长，但前缀稳定</text>
+
+  <rect class="dgm-accent-node" x="568" y="46" width="172" height="72" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="654" y="78"  font-size="14" font-weight="700" text-anchor="middle">本轮输入</text>
+  <text class="dgm-muted" x="654" y="98"  font-size="10" text-anchor="middle">易变区</text>
+
+  <!-- 缓存断点旗标 -->
+  <line class="dgm-accent" x1="326" y1="40" x2="326" y2="140" stroke="var(--accent)" stroke-width="2" stroke-dasharray="4 3"/>
+  <text class="dgm-accent-text" x="326" y="156" font-size="11" text-anchor="middle">缓存断点</text>
+
+  <!-- 命中区括号 -->
+  <path class="dgm-edge" d="M20 176 L20 186 L326 186 L326 176" stroke-width="1.5"/>
+  <text class="dgm-text" x="173" y="206" font-size="12" text-anchor="middle" font-weight="700">命中区：下轮只读，0.1×</text>
+
+  <!-- 重算区括号 -->
+  <path class="dgm-edge" d="M332 176 L332 186 L740 186 L740 176" stroke-width="1.5"/>
+  <text class="dgm-text" x="536" y="206" font-size="12" text-anchor="middle" font-weight="700">重算区：每轮全价</text>
+
+  <!-- 底部：为什么时间要写成日期 -->
+  <rect class="dgm-node" x="20" y="228" width="720" height="52" rx="8" stroke-width="1"/>
+  <text class="dgm-muted" x="36" y="250" font-size="11">陷阱：若把「当前时间」精确到秒写进靠前的位置，每轮都不同 → 缓存永久击穿。</text>
+  <text class="dgm-text" x="36" y="270" font-size="11">对策：<current_time> 只写到日期 + 时区（context.go 用 Format("2006-01-02")），一整天都命中缓存。</text>
+</svg>
+</div>
+<figcaption>请求版面的每个位置都是设计决策。工具定义 <code>getCurrentToolInfos()</code> 按 <code>Name</code> 字典序排（顺序稳定才可缓存）；system 用 <code>NewLLMMessageWithCache1Hour</code> 挂缓存点；<code>&lt;current_time&gt;</code> 在 <code>conductorservice/context.go</code> 里只 <code>Format("2006-01-02")</code>，注释直言「避免秒级精度导致跨 session prompt cache miss」。</figcaption>
+</figure>
+
+<p>三个细节，三条同样的原则在起作用：</p>
+<ul>
+<li><strong>工具定义按名字排序</strong>（<code>conductorservice/agent.go</code> 的 <code>getCurrentToolInfos</code>）：如果每次工具顺序随机，前缀就每次都不同，缓存全废。排序让它稳定。</li>
+<li><strong>system 挂 1 小时缓存点</strong>（<code>reactagentservice/agent.go</code> 的 <code>NewLLMMessageWithCache1Hour(common.System, systemPrompt)</code>）：系统提示词整个会话都不变，值得为它多付一次写入费。</li>
+<li><strong>时间只精确到「天」</strong>（<code>conductorservice/context.go</code>）：如果写成 <code>15:04:05</code>，每一秒都是新前缀，缓存命中率归零。写成日期，一整天稳定。</li>
+</ul>
+
+<h2>四、延迟：流式让人「感觉」它更快</h2>
+
+<p>省钱之外还有一个维度：<strong>延迟</strong>。模型生成一长段回答要几秒甚至十几秒。如果你憋到全部生成完才一次性显示，用户会盯着空白屏干等。<dfn>流式（streaming）</dfn>的思路很朴素——像打字机，生成一个字就吐一个字。总时间没变，但用户第一眼就看到东西在动，<strong>感知延迟</strong>大大降低。</p>
+
+<p>这在 <code>llms/stream.go</code> 里。两个真实设计值得记：</p>
+<ul>
+<li><strong>自动续写</strong>：<code>streamWithContinue</code> 默认开启续写，一段回答如果撞到 <code>max_tokens</code>（一次能输出的上限）被截断，它会自动再发一轮接着写，把碎片拼起来——最多续 <code>maxRounds := 10</code> 轮，超了就记一条 <code>Reached max continue rounds (10)</code> 的告警。对上层来说，一段完整回答无缝出现。</li>
+<li><strong>session 粘性</strong>：<code>_stream</code> 会把用户 ID 注入成 <code>session_id</code>（<code>common.WithSessionID</code>）。中台按这个 ID 做账号粘性路由——让同一个用户的连续请求尽量落到<strong>同一台机器</strong>，那台机器上才有你上次的 prompt cache。路由对了，缓存才命中。你看，延迟优化又绕回了缓存。</li>
+</ul>
+
+<h2>五、账单撑不住时：两道保命闸（浅尝）</h2>
+
+<p>缓存是「省」，但当整个系统被挤爆时，还需要「保」。mino_server 有两道闸，这里只点到为止——它们是通往进阶课「成本支柱」的桥。</p>
+
+<figure class="diagram">
+<div class="flow">
+<div class="step decision">请求到达，PTU 准入检查（<code>ptuquota/admission.go</code> 的 <code>Admit</code>）</div>
+<div class="down">↓</div>
+<div class="branches">
+<div class="branch">
+<div class="label">令牌桶还没到软阈值</div>
+<div class="step terminal">直接走 PTU（预留算力，便宜）</div>
+</div>
+<div class="branch">
+<div class="label">到了软阈值 SoftRatio 且受限</div>
+<div class="step action">排队等 → 超时就降级到 PayGo（按量付费，贵但保服务）</div>
+</div>
+</div>
+</div>
+<figcaption>PTU 准入：先用预留的便宜算力，撑不住才花钱买保命的现付算力。加权 burndown 里输出 token 权重 ×6（<code>ptu_advisor.go</code>：<code>output × 6</code>），因为生成最耗资源。</figcaption>
+</figure>
+
+<dl class="keydef">
+<dt>过载限流（<code>loadshedding/policy.go</code>）</dt>
+<dd>系统被打爆时主动丢弃一部分请求，用一条 sigmoid 曲线算丢弃比例（<code>ThrottlePercent</code>，<code>defaultSlope = 0.11</code>、<code>defaultMidpoint = 22.0</code>）：错误越多，丢得越狠。但 <code>DecideForMessage</code> 只对<strong>免费用户</strong>下手——付费用户（<code>subItem.Type != Free</code>）直接放行。而且默认 <code>Enabled = false</code>，靠 TCC 配置临时打开，是个应急阀门，不是常态。</dd>
+<dt>PTU 准入（<code>ptuquota/admission.go</code>）</dt>
+<dd>PTU 是预付的「包月算力」，便宜但有限；PayGo 是「按量现付」，贵但无限。<code>Admit</code> 在发请求前看令牌桶：够就走 PTU，快耗尽（触达 <code>SoftRatio</code>）就排队，等超时再降级 PayGo——宁可多花钱，也不让用户等到断线。</dd>
+</dl>
+
+<h2>六、自测</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：某工程师为了「让日志更精确」，把 <code>&lt;current_time&gt;</code> 从「日期」改成了精确到秒，并且它位于 system 提示词内部（靠前）。上线后账单暴涨、延迟变大。为什么？</summary>
+<div class="answer">
+<p>因为他亲手击穿了前缀缓存。时间精确到秒，意味着<strong>每一次请求的这个字段都不同</strong>；而它位于靠前的可缓存区内，根据「严格前缀匹配」，从这个分歧点往后——包括后面所有工具定义、system 剩余部分、历史——<strong>全部作废，按全价重算</strong>。原本 0.1× 的读缓存，退化成 1.25× 的重新写入。既贵（账单暴涨）又慢（重算耗时，延迟变大）。</p>
+<p>正解就是代码里的做法：时间只写到日期粒度（<code>Format("2006-01-02")</code>），放在稳定区里一整天都不变；真需要秒级信息就放到<strong>最末尾的易变区</strong>，让它只作废它自己后面那一点点。原则不变：稳定在前，易变在后。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：写 1h 缓存要付 2× 的价，比不缓存（1×）还贵一倍。既然这么贵，为什么还要用它？什么情况下反而不该用？</summary>
+<div class="answer">
+<p>因为 2× 是<strong>一次性的写入投资</strong>，换来的是之后每一轮都只按 <strong>0.1× 读</strong>。假设一段开头 10 万 token，会话里被复用 10 轮：不缓存 = 10 × 1× = 10 份成本；缓存 = 1 × 2×（写）+ 9 × 0.1×（读）≈ 2.9 份。轮数越多，回本越快。缓存赌的是「这段开头会被反复读」。</p>
+<p>反过来，如果这段内容<strong>只会用一次</strong>（比如一次性的单轮请求），那 2× 的写入费永远没机会靠 0.1× 的读回本——纯亏，这时就不该缓存，或只用便宜的 5m 档（1.25×）。另外别忘了现实约束：本仓库里 1h 档的 TTL 在 <code>convertCacheControl</code> 里被注释掉了（GCP 不支持），线上实际都按 5m 走——所以现在这个选择题，答案暂时是「想用也用不上 1h」。</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>我们现在集齐了全部零件：context 是主轴、工具是手脚、评估是 CI、token 是钱。但十二课都是「一个零件看一个零件」。真正的问题是——把这十二个零件<strong>同时</strong>塞进一次真实请求，它们会互相打架吗？稳定前缀要求「别动」，但工具会动态增删、历史会被压缩、时间会推进……当所有约束一起生效，一台完整的 Agent 到底长什么样？下一课我们把它拼起来看一遍。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>这一课记住一句话就够：<strong>token 是钱，前缀缓存是省钱的唯一大杠杆，而它的代价是把「稳定在前、易变在后」焊进你的每一个设计决策</strong>。有不懂的地方，回会话里问你的 AI 老师，可以要求 ELI5 或直接看 <code>model.go</code> / <code>convert.go</code> 的真实代码。</p>
+<p>下一课预告：<a href="13-zero-to-production-capstone.html">从零到上线：把十二个零件拼成一台机器</a>——总复习，一次真实请求的全景走查。 · <a href="index.html">返回课程门户</a></p>
+</footer>
+</main>
+</body>
+</html>

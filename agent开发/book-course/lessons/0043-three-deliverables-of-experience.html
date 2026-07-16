@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0043 · 经验该存成什么：知识库、代码工具，还是 Skill</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0043 课 · 进阶应用 · 自我进化 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>经验该存成什么：知识库、代码工具，还是 Skill</h1>
+
+<p class="lede">上一课我们确认了一件事：上下文再长，Agent 也不会自动学会。那学到的经验总得<strong>落到某处</strong>。这节课只拿下一件事——<strong>一条可落地的判别法则，决定每条经验用哪种外部载体沉淀</strong>。它出现在第 8 章开篇为“外部化学习”定位之后、展开各种工程机制之前，对应书里的<strong>表8-1</strong>。把这条法则记牢，你读后面所有具体机制（策略摘要、工作流录制、Skills 生成）时，就能一眼看出它在往哪个格子里塞东西。</p>
+
+<h2>一、是什么：一条经验，三种去处</h2>
+
+<p>作者用一个客服 Agent 的场景把话说得很具体：它在帮客户处理退款时，可能同时学到<strong>三类不同性质</strong>的东西。注意——不是“三种存法随便挑”，而是这三类东西<strong>性质不同</strong>，天然对应三种载体。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="一条经验按三个判据分流到三种产物形态：纯事实存知识库条目、稳定可复用存专用代码工具、常变涉策略存 Skill 文档">
+  <!-- input -->
+  <rect class="dgm-hub" x="20" y="120" width="150" height="60" rx="10"/>
+  <text class="dgm-accent-text" x="95" y="146" font-size="14" font-weight="700" text-anchor="middle">一条学到的经验</text>
+  <text class="dgm-muted" x="95" y="165" font-size="11" text-anchor="middle">任务完成后总结</text>
+
+  <!-- branch edges -->
+  <path class="dgm-edge" d="M170 140 C230 100, 250 70, 330 66" fill="none" stroke-width="1.5" marker-end="url(#ar43)"/>
+  <path class="dgm-edge" d="M170 150 C240 150, 260 150, 330 150" fill="none" stroke-width="1.5" marker-end="url(#ar43)"/>
+  <path class="dgm-edge" d="M170 160 C230 200, 250 230, 330 234" fill="none" stroke-width="1.5" marker-end="url(#ar43)"/>
+
+  <!-- criteria labels on edges -->
+  <text class="dgm-muted" x="250" y="78" font-size="11" text-anchor="middle">纯事实？</text>
+  <text class="dgm-muted" x="250" y="140" font-size="11" text-anchor="middle">常用+参数复杂？</text>
+  <text class="dgm-muted" x="250" y="252" font-size="11" text-anchor="middle">常变+要判断？</text>
+
+  <!-- product boxes -->
+  <rect class="dgm-node" x="330" y="40" width="360" height="52" rx="8"/>
+  <text class="dgm-text" x="348" y="63" font-size="13" font-weight="700" text-anchor="start">知识库条目</text>
+  <text class="dgm-muted" x="348" y="81" font-size="11" text-anchor="start">事实和规则 · 语义搜索或 grep 检索</text>
+
+  <rect class="dgm-node" x="330" y="124" width="360" height="52" rx="8"/>
+  <text class="dgm-text" x="348" y="147" font-size="13" font-weight="700" text-anchor="start">专用代码工具</text>
+  <text class="dgm-muted" x="348" y="165" font-size="11" text-anchor="start">可重复的操作流程 · 固化为代码、按参数调用</text>
+
+  <rect class="dgm-node" x="330" y="208" width="360" height="52" rx="8"/>
+  <text class="dgm-text" x="348" y="231" font-size="13" font-weight="700" text-anchor="start">Skill 文档</text>
+  <text class="dgm-muted" x="348" y="249" font-size="11" text-anchor="start">复杂但常变的工作策略 · 自然语言、按需加载</text>
+
+  <defs>
+    <marker id="ar43" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>表8-1 的可视化：同一条经验，按“性质”被分流到三种产物。判据不是“想存哪儿”，而是“这条经验是什么”。</figcaption>
+</figure>
+
+<p>书里给的三个例子，把三格填满了：</p>
+
+<ul>
+<li><strong>“A 公司退款必须验证信用卡后四位”</strong> —— 一条特定规则，是<strong>事实性知识</strong>，存入知识库即可。</li>
+<li><strong>“用 X API 自动查询订单状态”</strong> —— 一段<strong>稳定可复用</strong>的操作序列，沉淀为<strong>代码工具</strong>最划算。</li>
+<li><strong>“退款流程的完整 Skill / 处理保险理赔的最佳实践”</strong> —— 涉及<strong>策略判断</strong>且业务规则<strong>经常变动</strong>，更适合写成 <strong>Skill 文档</strong>。</li>
+</ul>
+
+<p>三种产物的“使用方式”也各不相同，这一列往往被读者跳过，但它恰恰解释了为什么要分——见下图。</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">知识库条目</div><div class="head">📇 事实/规则</div><div class="sub">语义搜索或 grep 精确检索</div></div>
+  <div class="cell"><div class="role">专用代码工具</div><div class="head">🔧 操作流程</div><div class="sub">固化为代码、通过参数调用</div></div>
+  <div class="cell"><div class="role">Skill 文档</div><div class="head">📖 工作策略</div><div class="sub">自然语言文档、按需加载</div></div>
+</div>
+<figcaption>三种载体的检索/执行方式天然不同：事实靠“查”，流程靠“跑”，策略靠“读”。载体选错，用起来就别扭。</figcaption>
+</figure>
+
+<h2>二、为什么这样分：判别法则的三根轴</h2>
+
+<p>作者把整段判断压缩成一句话，值得逐字记住：</p>
+
+<div class="formula">
+<div class="eq"><b>纯事实</b> <span class="op">→</span> 知识库　<b>常用+参数复杂</b> <span class="op">→</span> 代码　<b>常变+要判断</b> <span class="op">→</span> 文档</div>
+<div class="gloss">表8-1 的判别法则 · 三根轴：事实性、复用稳定性、变动与判断</div>
+</div>
+
+<p>为什么偏偏是这三根轴，而不是“简单/复杂”或“重要/次要”？因为它们各自对应载体的一个<strong>硬约束</strong>：</p>
+
+<ul>
+<li><strong>纯事实 → 知识库</strong>：事实没有“执行逻辑”，把它写成代码是浪费；它需要的是<strong>被检索到</strong>，所以存成条目，用语义搜索或 <code>grep</code> 找出来即可。</li>
+<li><strong>常用且参数复杂 → 代码</strong>：一段操作序列如果<strong>稳定</strong>（不常变）、<strong>频繁</strong>被用、参数还多，那每次让模型重新“想”一遍既慢又不可靠。固化成代码，就从“每次重新思考”变成“一次生成、多次复用”——作者的类比是：第一次手动部署服务器后，把步骤写成自动化脚本。</li>
+<li><strong>常变且涉及策略判断 → 文档（Skill）</strong>：如果规则<strong>经常变</strong>，写成代码就要不停改代码；而策略判断本就没法用固定参数穷举。写成自然语言 Skill，更新快、可被人类专家直接审查修改、按需加载即可。</li>
+</ul>
+
+<p>后两种（代码 + Skill）在书里被合称为<strong>“工具生成”</strong>——外部化学习的更高阶形式：它不只把“知识”外部化，更把“流程”外部化、代码化。至于代码工具与 Skill 之间更细的取舍框架，书里说明第四章已详细讨论过，本课不展开。</p>
+
+<h2>三、更宏观：这条法则挂在哪根主线上</h2>
+
+<p>这条法则不是孤立技巧，它是<strong>外部化学习（Externalized Learning）</strong>的落地出口。第 8 章的整章主张是：在<strong>不改动模型权重</strong>的前提下，把经验和能力外部化为可持久、可检索、可复用的知识库与工具库，让 Agent 从“聪明”走向“越来越能干”。三种学习范式里，后训练固化参数、上下文学习做临时适应，而外部化学习是<strong>开发者最容易忽略的第三条路</strong>——也是本章的主角。</p>
+
+<p>作者引用 Karpathy 的比喻点出了动机：LLM 像电影《记忆碎片》的主角，每次醒来都不记得之前发生了什么，而我们<strong>还没给它们提供“记录本”</strong>。表8-1 回答的正是：这个“记录本”该分成哪几册、每条经验记进哪一册。</p>
+
+<div class="pitfall">
+<p><strong>误区一：把“外部化学习”和第五章的“Agent 自举”搞混。</strong>它们方向完全不同：外部化学习是<strong>不改权重</strong>的能力增长（往知识库/工具库里沉淀经验）；第五章“代码创造代码：Agent 自举”讲的是 Agent <strong>创建与自身同类的系统</strong>。前者让自己更能干，后者造出另一个自己，别混为一谈。</p>
+<p><strong>误区二：把第三章的“用户记忆”当成本章要沉淀的“能力”。</strong>用户记忆存的是“用户是谁”的<strong>信息</strong>（偏好、事实、习惯）；本章要沉淀的是解题策略、操作流程、失败教训乃至新工具这类<strong>能力</strong>。表8-1 的三种产物属于后者。</p>
+<p><strong>误区三：以为“存哪儿”看的是难易或重要程度。</strong>不是。判据是这条经验<strong>本身的性质</strong>——是不是纯事实、稳不稳定、变不变、要不要判断。载体跟着性质走，不跟着“它有多重要”走。</p>
+</div>
+
+<div class="experiment">
+<p>配套实验：<code>chapter8/gaia-experience/</code>（实验 8-1，策略摘要）演示这套“学习-应用”闭环最直接的落地——基于 AWorld + GAIA，成功轨迹经 LLM 反思总结为结构化经验、向量化存入知识库，新任务再语义检索最相似的成功案例注入系统提示词。它填的正是三格里的“知识库”这一格。想看“代码工具”那一格如何落地，见下一课要讲的 <code>chapter8/browser-use-rpa/</code>（实验 8-2，工作流录制与回放）。完整代码在开源仓库 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>外部化学习（Externalized Learning）</dt>
+<dd>把知识沉淀到模型之外的文件、知识库和工具中的学习范式，持久、可解释、可随时修正；含“经验外部化为知识/Skill”与“能力外部化为工具”两个维度。<em>避免</em>等同于“记忆”或泛泛的“持久化”——它特指不改权重的第三条学习路径。</dd>
+<dt>策略摘要（Strategy Summary）</dt>
+<dd>把一次成功解题过程浓缩为结构化经验笔记（方法、踩过的坑、关键步骤），向量化存入知识库供后续语义检索。<em>避免</em>与“上下文压缩”混同——它是跨会话可迁移的经验，不是单次会话的临时压缩。</dd>
+<dt>渐进式披露（Progressive Disclosure）</dt>
+<dd>Skills 机制启动时只暴露每个 skill 的 name 与 description（数百 token），需要时才逐层读取 sub-skill 及脚本子文档。<em>避免</em>说成“检索”——它由模型上下文中的实际需要驱动，靠通用文件阅读而非向量索引。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：“A 公司退款必须验证信用卡后四位”、“用 X API 查询订单状态”、“处理保险理赔的最佳实践”——这三条各该沉淀为哪种产物？</summary>
+<div class="answer">
+<p>第一条是<strong>纯事实性规则 → 知识库条目</strong>（语义搜索或 grep 检索）；第二条是稳定可复用、参数明确的操作序列 → <strong>专用代码工具</strong>（固化为代码、参数调用）；第三条涉及策略判断且业务规则常变 → <strong>Skill 文档</strong>（自然语言、按需加载）。法则：纯事实存知识库，经常用且参数复杂写成代码，经常变且涉及策略判断写成文档。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：判别法则用的三根轴分别是什么？为什么“变不变”决定了该不该写成代码？</summary>
+<div class="answer">
+<p>三根轴：<strong>是不是纯事实、复用是否稳定且频繁（参数是否复杂）、是否常变且涉及策略判断</strong>。“变不变”之所以关键：代码固化的是稳定流程，一旦规则经常变动，写成代码就要不停改代码、维护成本高；这类常变且需判断的经验更适合写成 Skill 文档——更新快、可被人类专家直接审查修改、按需加载。所以“常用+参数复杂”才进代码，“常变+要判断”进文档。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：给 Agent 沉淀经验前，先问这条经验<strong>是什么性质</strong>——纯事实就进知识库（靠查），稳定常用且参数复杂就写成代码工具（靠跑），常变且要判断就写成 Skill 文档（靠读）。载体跟着性质走，不跟着重要程度走。这就是表8-1 的全部。
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课一手来源是第 8 章开篇“三种学习范式与自我进化的定位”及<strong>表8-1</strong>（<code>book/chapter8.md</code>）。章末“最小预定义、最大自我进化”原则出自 Alita 论文：Qiu, J., et al. <em>Alita: Generalist Agent Enabling Scalable Agentic Reasoning with Minimal Predefinition and Maximal Self-Evolution.</em> <a href="https://arxiv.org/abs/2505.20286">arXiv:2505.20286</a>（2025）。相关背景还有 Reflexion（<a href="https://arxiv.org/abs/2303.11366">arXiv:2303.11366</a>）、Voyager，以及 Anthropic 的 <a href="https://github.com/anthropics/skills/blob/main/skill-creator/SKILL.md">Skill Creator</a>。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“三种产物各自的检索/执行方式为什么不同”再过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0042-why-agents-dont-auto-learn.html"><span class="dir">← 上一课</span>为什么无限上下文也不会让 Agent 自动学习</a>
+  <a class="next" href="0044-record-and-replay-with-verification.html"><span class="dir">下一课 →</span>录制-回放：重复任务提速数倍，但必须装上验证闸门</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

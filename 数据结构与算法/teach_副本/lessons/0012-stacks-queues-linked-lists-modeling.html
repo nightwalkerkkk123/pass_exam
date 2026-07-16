@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 12 课 · 栈、队列、链表建模 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第二部分《啊哈！算法》② · 对应 ch02</div>
+  <h1>第 12 课:栈、队列、链表建模 —— 用"小猫钓鱼"学会挑对结构</h1>
+  <div class="sub">目标:用"小猫钓鱼"这个双结构建模范例吃透队列/栈的分工,把数组实现的判空判满、数组模拟链表这些期末最容易失分的细节一次讲透。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>承接第11课:</b> 上一课复习了桶排序、冒泡排序,并和第2/4课的排序算法做了对照——那节课的重点是"同一类问题,换一种排序算法效率天差地别"。这节课换一个角度:<b class="hl">同一个问题,可能需要同时用两种结构建模</b>。你已经学过数组、链表、栈、队列的基本操作,不熟练没关系——这节课不重讲"什么是栈",而是借《啊哈！算法》里"小猫钓鱼"这个例子,练"拿到一个新场景,先想清楚该用哪个结构"这项能力,顺带扫清数组实现栈/队列判空判满、数组模拟链表这些期末最容易失分的细节。
+</div>
+
+<h2>一、开场类比:小猫钓鱼——一个游戏,两套结构</h2>
+<p>"小猫钓鱼"是《啊哈！算法》里的一道纸牌游戏例题:两人轮流出牌,出的牌放到桌上;如果某人打出的牌,牌面和桌上已经放着的某张牌相同,就把这两张相同牌之间夹着的牌(<b>含这两张</b>)<b>全部收进自己手牌的末尾</b>;谁先把手里的牌出完,谁就输(对方获胜)。</p>
+<p>这道题真正在考的不是"你会不会写队列/栈的代码",而是:<b class="hl">看到一个具体场景,能不能拆出"这里该用队列、那里该用栈"</b>——这正是这一章要练的抽象建模能力,不是新语法。</p>
+<div class="callout">
+  <b>拆解:</b> 每个人手里的牌,行为是"从最前面打出一张、赢回一沓牌之后接到最后面排队等待"——这是<b class="hl">先进先出</b>,建模成<b>队列</b>。桌面上摞的牌,行为是"每次出牌都盖在最上面、被赢走时也是从最上面一张一张往下收,直到收到那张匹配的牌为止"——这是<b class="hl">后进先出</b>,建模成<b>栈</b>。同一个游戏,两套结构各管一半。
+</div>
+
+<h2>二、核心概念:队列管手牌、栈管桌面</h2>
+<p>用队列/栈的语言重新说一遍上面的拆解:</p>
+<ul>
+  <li><b>手牌 = 队列。</b> 出牌 = 出队(从 <code>head</code> 位置拿走一张);赢牌之后,新赢到的牌要<b class="hl">接到手牌末尾排队</b>,而不是插到最前面下一轮优先打出——这就是入队(在 <code>tail</code> 位置追加)。</li>
+  <li><b>桌面 = 栈。</b> 出牌上桌 = 入栈(盖在最上面);被赢走 = 从栈顶开始连续出栈,直到弹出那张牌面匹配的牌为止。</li>
+</ul>
+<p>判断"桌上是否已经有某个牌面"这件事,如果每次都从栈顶到栈底逐张扫一遍,是 O(n)。这里可以复用第1章桶排序的思路:开一个 <code>book[]</code> 标记数组,牌面为 <code>t</code> 的牌一上桌就令 <code>book[t]=1</code>,查询"桌上有没有牌面 t"直接看 <code>book[t]</code>,降到 O(1)。</p>
+
+<h3>为什么考试里常用数组下标模拟指针,而不是真的用指针?</h3>
+<p>链表本身你已经学过:每个结点是 <code>struct node { int data; struct node *next; }</code>,<code>next</code> 存下一个结点的地址,<code>head</code> 指向第一个结点,<code>next==NULL</code> 表示到了末尾;插入/删除只需要改 <code>next</code> 的指向,不用搬移已有数据。</p>
+<p>但笔试、以及很多不想用指针的场合,会改用<b class="hl">两个下标对齐的数组</b>来模拟同样的逻辑:<code>data[i]</code> 存第 i 个结点的值,<code>right[i]</code> 存"第 i 个结点右边那个结点在 data 里的下标",<code>right[i]==0</code> 表示右边没有元素了——用数组下标 0 顶替"空指针"的角色。插入新值时,直接把新值追加到 <code>data</code> 数组末尾,再顺着原有的 <code>right</code> 链找到插入点,只改两个 <code>right[]</code> 的值就完成"接线"。这样既不需要 <code>malloc</code>,也不用担心指针语法(比如漏写 <code>-&gt;</code>、忘记判空)在默写时出错——期末"不允许用指针,请用数组实现链表"这类题型,考的就是这套等价映射。</p>
+
+<h2>三、栈 vs 队列速查表</h2>
+<table>
+  <tr><th>维度</th><th>队列(Queue)</th><th>栈(Stack)</th></tr>
+  <tr><td>规则</td><td>FIFO 先进先出</td><td>LIFO 后进先出</td></tr>
+  <tr><td>插入操作</td><td>入队:<code>data[tail++]=x</code></td><td>入栈:<code>data[++top]=x</code></td></tr>
+  <tr><td>删除操作</td><td>出队:<code>data[head++]</code></td><td>出栈:<code>data[top--]</code></td></tr>
+  <tr><td>判空条件</td><td><code>head==tail</code></td><td><code>top==0</code></td></tr>
+  <tr><td>在小猫钓鱼里对应</td><td>手牌(打出=出队,赢牌=入队排队)</td><td>桌面(出牌=入栈,赢走=连续出栈)</td></tr>
+  <tr><td>典型考点场景</td><td>排队叫号、QQ号解密、BFS广度优先搜索</td><td>括号匹配、回文判断、DFS/递归调用栈</td></tr>
+</table>
+
+<h2>四、C代码:小猫钓鱼的核心模拟逻辑(数组实现)</h2>
+<p>下面用数组实现的队列/栈,拼出"某一方打出一张牌"这个核心动作。三处标号是期末最容易写错、丢分的地方。</p>
+<pre><span class="c">/* 队列:两个下标 head/tail 代替搬移数据(FIFO) —— 对应"手牌" */</span>
+struct queue { int data[1000]; int head, tail; };
+void q_init(struct queue *q)       { q->head = q->tail = 1; }     <span class="c">// ①</span>
+int  q_empty(struct queue *q)      { return q->head == q->tail; } <span class="c">// ①</span>
+void q_push(struct queue *q, int x){ q->data[q->tail++] = x; }    <span class="c">// 入队</span>
+int  q_pop(struct queue *q)        { return q->data[q->head++]; } <span class="c">// 出队</span>
+
+<span class="c">/* 栈:一个下标 top 代替搬移数据(LIFO) —— 对应"桌面" */</span>
+struct stack { int data[1000]; int top; };
+void s_init(struct stack *s)       { s->top = 0; }                <span class="c">// ②</span>
+void s_push(struct stack *s, int x){ s->data[++s->top] = x; }     <span class="c">// ② 入栈:先加下标再存值</span>
+int  s_pop(struct stack *s)        { return s->data[s->top--]; }  <span class="c">// ② 出栈:先取值再减下标</span>
+
+#define MAXV 15                    <span class="c">// 牌面范围,按题目实际牌值调整</span>
+int book[MAXV];                    <span class="c">// book[t]==1 表示桌上已有牌面 t</span>
+
+<span class="c">/* 出一张牌 x:桌上没有就盖上去;桌上已有就把中间夹的牌全部赢回来 */</span>
+void play(struct queue *me, struct stack *table, int x) {
+    if (book[x] == 0) {
+        s_push(table, x);
+        book[x] = 1;
+    } else {
+        while (table->data[table->top] != x) {
+            int c = s_pop(table);
+            book[c] = 0;              <span class="c">// ③ 牌收走了,标记要跟着清零</span>
+            q_push(me, c);            <span class="c">// 赢来的牌接到手牌末尾排队</span>
+        }
+        int c = s_pop(table);         <span class="c">/* 收走牌面等于 x 本身的那张 */</span>
+        book[c] = 0;                  <span class="c">// ③</span>
+        q_push(me, c);
+        q_push(me, x);                <span class="c">// 自己刚出的这张也一起收进末尾</span>
+    }
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 队列判空条件是 <code>head==tail</code>,初始化时两者必须设成同一个值。</b> 这里 <code>q_init</code> 把 <code>head</code>、<code>tail</code> 都设为 1;如果两者初始值不一致(比如一个从 0、一个从 1 开始),空队列的判断从一开始就是错的,后面所有出队/入队都会跟着错位。</li>
+  <li><b>② 入栈是"先加下标再存值",出栈是"先取值再减下标",顺序不能颠倒。</b> <code>s_push</code> 写成 <code>data[++top]=x</code>,<code>s_pop</code> 写成 <code>data[top--]</code>;如果哪一步顺序写反(比如出栈先减 <code>top</code> 再取值),读到的就是栈顶下面那一格,真正的栈顶元素被跳过,数据从此错位——这是"入栈先加后存、出栈先取后减"这条口诀最容易被默写反的地方。</li>
+  <li><b>③ book[] 标记数组必须和"牌被收走"同步清零。</b> 牌从桌上(栈)被弹出去的同时,一定要把对应的 <code>book[c]=0</code> 一起改掉;漏了这一行,<code>book</code> 数组和桌面实际内容就不一致了,下一轮"桌上是否已有这张牌"的 O(1) 判断会直接给出错误答案。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱(来自本章"常见陷阱"清单):</b>
+  <ul>
+    <li>用普通数组实现队列时,如果删除队首靠"所有元素依次前移一位"来补位,时间开销很大;正确做法是只移动 <code>head</code> 下标,用空间换时间,不搬数据。</li>
+    <li>把队列的 <code>tail</code> 定义成"队尾本身"而不是"队尾的下一位置",会导致队列只剩一个元素时 <code>head</code> 和 <code>tail</code> 重合,和"空队列"的判定条件冲突——这也是为什么本章特意把 <code>tail</code> 定义成"下一位置"。</li>
+    <li>链表插入代码如果用 <code>t->next->data</code> 判断插入点,必须先处理"插入到链表最末尾"的情况;这时 <code>t->next</code> 是 <code>NULL</code>,再去访问 <code>t->next->data</code> 会出错。</li>
+    <li>像小猫钓鱼这种"双方轮流对战直到一方牌出完"的模拟题,如果没有额外规则限制,可能出现游戏永远无法结束的死循环——这是原书留给读者自己思考的开放问题,笔试遇到类似题目要留意这个边界。</li>
+  </ul>
+</div>
+
+<h2>五、通关前自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 用数组模拟的队列,初始化为 <code>head=tail=1</code>。依次执行:入队 3、入队 5、入队 8、出队一次、入队 2。这时 <code>head</code> 和 <code>tail</code> 分别是多少?</div>
+  <button class="opt" data-ok="0">head=1,tail=5</button>
+  <button class="opt" data-ok="0">head=2,tail=4</button>
+  <button class="opt" data-ok="1">head=2,tail=5</button>
+  <button class="opt" data-ok="0">head=3,tail=4</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 以下哪种行为最适合用栈(而不是队列)建模?</div>
+  <button class="opt" data-ok="0">银行排队取号,先来的先办理业务</button>
+  <button class="opt" data-ok="1">浏览器点击后退按钮,总是先回到最近访问过的那个页面</button>
+  <button class="opt" data-ok="0">QQ号解密规则:反复把队首的数移到队尾</button>
+  <button class="opt" data-ok="0">广度优先搜索(BFS)里等待被扩展的节点</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 在小猫钓鱼这个游戏里,某人赢牌之后,这些牌被接到自己手牌的末尾排队等待被打出,而不是立刻插到手牌最前面下一轮优先打出。这说明"手牌"应该建模成什么结构?</div>
+  <button class="opt" data-ok="0">栈,因为最后赢到的牌应该最先打出</button>
+  <button class="opt" data-ok="0">既可以是栈也可以是队列,规则里没有强调顺序</button>
+  <button class="opt" data-ok="0">需要一个新的数据结构,栈和队列都不够用</button>
+  <button class="opt" data-ok="1">队列,因为赢来的牌接在末尾排队,和原来手里的牌一样要按顺序等待</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq">Q4. 找茬题:下面这段出栈函数,和标准写法 <code>return s->data[s->top--];</code> 相比,有什么问题?</div>
+  <pre>int s_pop(struct stack *s) {
+    s->top--;
+    return s->data[s->top];
+}</pre>
+  <button class="opt" data-ok="1">先减后取,实际读到的是栈顶下面那一格,真正的栈顶元素被跳过了</button>
+  <button class="opt" data-ok="0">完全等价,没有任何区别</button>
+  <button class="opt" data-ok="0">会导致 top 变成负数,程序崩溃</button>
+  <button class="opt" data-ok="0">这段代码会让栈变成先进先出,和队列一样</button>
+  <div class="fb"></div>
+</div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"小猫钓鱼里,为什么手牌要建模成队列、桌面要建模成栈?各自对应哪种'进出顺序'?"<br>
+  ②"数组实现的栈和队列,判空条件分别是什么?出栈'先取后减'、入栈'先加后存'这个顺序,为什么不能颠倒?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 13 课(枚举与暴力搜索)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 13 课):</b> 枚举与暴力搜索——什么时候暴力法是可接受的解法。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/aha-algorithms/chapters/ch02-stacks-queues-linked-lists.md</code>
+  (《啊哈！算法》第2章:栈、队列、链表)。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!手算一遍:初始 head=tail=1;push 3→data[1]=3,tail=2;push 5→data[2]=5,tail=3;push 8→data[3]=8,tail=4;pop→返回 data[1]=3,head=2;push 2→data[4]=2,tail=5。最终 head=2,tail=5,队列里剩下的是 5、8、2 三个数。',
+      bad:'按顺序一步步走,别漏步:每次入队只把 tail 加一次,出队只把 head 加一次。push3(tail:1→2)、push5(tail:2→3)、push8(tail:3→4)、pop一次(head:1→2,弹出data[1]=3)、push2(tail:4→5)。最终 head=2,tail=5。'},
+  q2:{good:'对!"总是先处理最近发生的那个"正是 LIFO(后进先出)的特征,浏览器历史记录、括号匹配、DFS/递归调用栈都是这一类。A是排队叫号(先来先服务)、C是QQ解密的队列操作、D明确是BFS用队列——这三个都是队列(FIFO)的经典场景。',
+      bad:'判断标准是看"谁先被处理":排队叫号、QQ解密、BFS都是"先来的先处理",属于队列(FIFO)。只有"总是先处理最近发生的那一个"才是栈(LIFO)的特征——浏览器后退就是这种:最近访问的页面最先被回退到。'},
+  q3:{good:'对!赢来的牌"接到末尾"这个动作就是入队(q_push),它和原本手里的牌一起排队,谁先入队谁先被打出——这正是队列 FIFO 的行为,也是这道题"选对结构"的关键判据。',
+      bad:'再看规则原文:赢来的牌是"放回手中末尾",不是"放在最前面下一轮优先出"。如果是栈(LIFO),最后赢到的牌应该被最先打出;但规则明确说是排到末尾排队等待——这正是队列(FIFO)的行为。'},
+  q4:{good:'对!标准写法是"先取值(data[top])再减下标",这里颠倒成"先减下标再取值",结果读到的是 top-1 位置——也就是真正栈顶下面那一格,而真实的栈顶元素既没被返回、也再没机会被单独弹出,数据从此错位。这正是"入栈先加后存、出栈先取后减"这条口诀最容易被默写反的地方。',
+      bad:'逐步跟踪一下:假设 top=3(栈顶是 data[3])。先执行 top-- 变成 2,再 return data[2]——返回的是 data[2],但真正的栈顶其实是 data[3]。少读了一格,真正的栈顶元素被跳过、再也不会被单独弹出。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

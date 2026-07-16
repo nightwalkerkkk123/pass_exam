@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 17 课 · 树、堆与并查集 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第二部分《啊哈！算法》⑦ · 对应 ch07</div>
+  <h1>第 17 课:树、堆与并查集 —— 组织架构图,以及"帮派认老大"的最优实现</h1>
+  <div class="sub">上一课(第16课)学了 Floyd-Warshall、Bellman-Ford、SPFA 三种最短路径算法,和第7课的 Dijkstra
+  一起凑成了完整的最短路径工具箱。这一课换个方向:"树"这种层级结构,以及它在两个经典问题里的应用——
+  堆(优先队列)和并查集(分组合并)。本课信息量较大,但重点只有一个:并查集;树和堆的部分概念性带过即可。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>直觉类比:公司组织架构图,以及"想知道你是不是我们这一伙的,先问你老大是谁"。</b>
+  公司组织架构图、家族族谱,说的是同一种结构:一个"上级"可以带很多"下级",但每个"下级"只认一个直接上级——
+  这就是<b class="hl">树</b>。这一课真正要练的,是树的一种特殊用法:警察抓到一批嫌疑人,要判断"这几个人是不是一伙的",
+  靠谱的办法不是问"你俩关系近不近",而是一路往上问:<b class="hl">"你的老大是谁?他的老大又是谁?一直问到没有老大
+  (自己就是老大)为止。"</b> 两个人只要能一路问到同一个"总老大",就认定是同一伙——这正是
+  <b class="hl">并查集(Union-Find)</b>的核心直觉:靠"认祖归宗"来判断归属、合并分组。
+</div>
+
+<h2>一、树与二叉树 —— 30 秒复习</h2>
+<p>树是<b>任意两个结点之间有且仅有一条路径</b>的无向图,等价于"不包含回路的连通无向图"。由这一条"无环"性质,
+可以直接推出:n 个结点的树恰好有 n-1 条边;树里任加一条边,必然构成回路。术语上,没有父结点的叫<b>根结点</b>,
+没有子结点的叫<b>叶结点</b>,其余叫<b>内部结点</b>;从根往下数,根算第 1 层,这个层数就是<b>深度</b>。</p>
+<p>二叉树是每个结点最多两个子树(左儿子、右儿子)的树。<b>满二叉树</b>要求每个内部结点都有两个儿子;
+<b>完全二叉树</b>允许最后一层不满,但必须从左到右连续排列,不能"右边有、左边缺"。这部分遍历算法
+第一部分《算法图解》第11章已经讲过,这里不重复,只补一条后面"堆"要用到的关键规则:
+<b class="hl">完全二叉树可以直接用一维数组存,不需要指针</b>——父结点编号 k 的左儿子是 <code>2k</code>,
+右儿子是 <code>2k+1</code>;反过来,儿子编号 x 的父结点是 <code>x/2</code>(C 语言整数除法自动向下取整)。
+书中代码统一从下标 1 开始存,这条规则才成立;如果改成从 0 开始存,公式要跟着变成 <code>2k+1</code>/<code>2k+2</code>,
+两套下标体系混用是常见出错点。</p>
+
+<h2>二、堆(优先队列) —— 不用整体排序,也能秒取最值</h2>
+<p>堆是一种特殊的完全二叉树:<b>最小堆</b>要求每个父结点的值都不大于子结点,<b>最大堆</b>则相反。
+它解决的问题是:如果要反复"取出当前最大/最小值,再塞入新值",普通数组线性扫描找最值单次是 <code>O(N)</code>,
+做 N 次就退化成 <code>O(N²)</code>;换成堆,单次操作能压到 <code>O(log N)</code>。</p>
+<p>堆靠两个局部修复动作维持自己的性质,都是 <code>O(log N)</code>:<b>向下调整(siftdown)</b>——
+堆顶被替换后不满足性质了,和左右儿子中较小者比较、交换,沿路径一直往下修;<b>向上调整(siftup)</b>——
+插入新元素放到数组末尾,再和父结点比较、交换,一直往上修。建堆时,逐个插入再 siftup 整体是
+<code>O(N log N)</code>;更优的做法是把 N 个数直接摆进数组,再<b class="hl">从最后一个非叶结点(编号 N/2)开始倒着往前</b>,
+对每个结点做一次 siftdown,整体只要 <code>O(N)</code>。堆排序就是建好堆后,不断把堆顶和末尾元素交换、
+堆缩小一格、再对新堆顶 siftdown,整体 <code>O(N log N)</code>。</p>
+<div class="callout big">
+  <b>一个直观的数字对比:</b>14 个数反复"取最小值+插入新值",如果每次都线性扫描,做 1 亿次操作大约要
+  1 亿的平方次运算(按每秒 10 亿次估算,约 115 天);换成最小堆,每次取最小只要 <code>O(log N)</code>,
+  1 亿次操作总共约 27 亿次运算,只要 2.7 秒——这就是"用对数据结构"的威力。
+</div>
+
+<h2>三、并查集 —— 本课重点</h2>
+<p>并查集(Union-Find,也叫不相交集 Disjoint Set)维护的是"分组归属"这件事:一开始每个元素各自成一伙
+(各自是一棵只有自己一个结点的树),之后不断根据"这两个元素是一伙的"这类信息,把树合并成更大的树。
+它专门解决"频繁判断两个元素是否已在同一分组、并支持合并两个分组"这类问题——判断连通性、分组归类、
+后续第18课 Kruskal 最小生成树判环,都要用它。</p>
+
+<h3>查找(find):必须一路问到"根",不能只看直接上级</h3>
+<p>用一个数组 <code>parent[i]</code> 记录 i 的"直接上级",初始时 <code>parent[i] = i</code>(每个人的老大是自己)。
+<b>查找 find(v)</b> 就是递归地沿着 parent 往上走,直到走到 <code>parent[x] == x</code> 的那个结点——这就是这个集合的
+<b>根(代表元)</b>。判断两个元素是否同一集合,<b class="hl">必须比较两者各自的根,而不能只看直接父结点是否相同</b>——
+这是全章最容易踩的坑,后面的常见陷阱和自测题都会反复考这一点。</p>
+
+<h3>路径压缩(Path Compression):顺手把沿途结点都挂到根下</h3>
+<p>如果每次 find 都老老实实沿链条走一遍,树合并多了会越长越"瘦",最坏情况退化成一条链,单次 find 变成
+<code>O(N)</code>。路径压缩的做法是:<b>在 find 递归返回的同时,把沿途经过的每个结点的 parent 直接改成指向最终的根</b>,
+写法就是 <code>parent[v] = find(parent[v]); return parent[v];</code>。这不会增加这一次查找的开销,却让后面所有
+经过这些结点的查找都直接"一步到根",近似摊薄到 <code>O(1)</code>。</p>
+
+<h3>合并(union):找到两个根,不同才接起来</h3>
+<p>合并 <code>union(v, u)</code> 分别对 v、u 做 find,得到两个根 <code>t1</code>、<code>t2</code>;
+<b>只有 t1 ≠ t2 时才需要真正合并</b>——把 <code>parent[t2] = t1</code>(书里称"靠左"法则:右边的根归顺到左边的根下)。
+比如警方线索里出现"5 号和 2 号是同伙",如果 2 号的老大是 1 号、5 号还是自己的老大,"靠左"就是让 5 号那一支
+归顺 1 号那一支,把 <code>parent[1]</code> 改成指向 5——这也提醒我们:<b class="hl">判断和合并都必须先找到根,
+中间层级(谁是谁的直接上级)会随着合并顺序不断变化,不能只看一层</b>。</p>
+
+<table>
+  <tr><th>操作</th><th>无路径压缩</th><th>有路径压缩</th></tr>
+  <tr><td>初始化(建 n 个各自独立的集合)</td><td>O(N)</td><td>O(N)</td></tr>
+  <tr><td>查找 find / 判断是否同一集合</td><td>最坏 O(N)(树可能退化成一条链)</td><td>近似 O(1)(均摊)</td></tr>
+  <tr><td>合并 union(内部先做两次 find)</td><td>最坏 O(N)</td><td>近似 O(1)(均摊)</td></tr>
+</table>
+
+<h3>C 代码实现(带边界条件详解)</h3>
+<p>注意函数不能叫 <code>union</code>——那是 C 语言的保留关键字(联合体),这里改名 <code>union_set</code>。</p>
+<pre>#define MAXN 1000
+int parent[MAXN];                  <span class="c">// 下标 1~n,存的是"我的直接上级是谁"</span>
+
+void init(int n) {
+    for (int i = 1; i <= n; i++)
+        parent[i] = i;              <span class="c">// ① 每个人初始时老大是自己,不是 0</span>
+}
+
+int find(int v) {                   <span class="c">// 查找 v 所在集合的根(代表元)</span>
+    if (parent[v] == v)
+        return v;                   <span class="c">// 已经是根,直接返回</span>
+    parent[v] = find(parent[v]);    <span class="c">// ② 路径压缩:顺手把沿途结点都挂到根下</span>
+    return parent[v];
+}
+
+void union_set(int v, int u) {
+    int t1 = find(v), t2 = find(u);
+    if (t1 != t2) {                 <span class="c">// ③ 必须先判断两个根是否已经相同</span>
+        parent[t2] = t1;            <span class="c">// "靠左"法则:右边的根归顺左边的根</span>
+    }
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① <code>init</code> 里 <code>parent[i] = i</code> 不能漏。</b> 如果这个数组是全局数组、又忘了调用
+    <code>init</code>,C 语言会把它默认清零,所有 <code>parent[i]</code> 都变成 0。这时 <code>find(3)</code> 会一路走到
+    <code>parent[0] == 0</code> 才停下——在还没做任何 <code>union</code> 之前,所有元素的 find 结果都会收敛到同一个"根" 0,
+    程序会误判"所有人从一开始就是同一伙",这是比"忘记初始化数组"更隐蔽的一种事故。</li>
+  <li><b>② <code>find</code> 如果不做路径压缩,单次查找可能退化到 O(N)。</b> 反复合并之后,树可能长成一条长链
+    (比如每次都是新结点挂在旧根下面),这时不压缩路径,每次 find 都要从叶子一路走到根;考试里如果要求
+    "分析最坏情况复杂度",漏掉这一条会把 O(1) 均摊和 O(N) 最坏混为一谈。</li>
+  <li><b>③ union 前必须分别 find 出两个根,再比较 <code>t1 != t2</code>。</b> 如果图省事写成
+    <code>parent[v] = u;</code>(不经过 find,直接把原始结点 v 挂到 u 下面),一旦 v、u 已经在同一个集合里
+    (比如 u 本来就是 v 的子孙),这一步会把 v 原来的父指针连接砍断、还可能连出一个环,导致后续 find
+    顺着环一直递归下去,程序死循环。<b class="bad">"合并"操作的对象永远是两个根,不是两个原始元素</b>。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱:</b>
+  <ul>
+    <li>误以为只要两个结点的<b>直接父结点</b>相同就算同一伙——必须一路 find 到根(最终祖先),中间层级会随合并顺序变化,只看一层会算错。</li>
+    <li>建堆时逐个插入再 siftup,虽然结果正确但是 <code>O(N log N)</code>,不是本章推荐的最优做法;应该优先用"从最后一个非叶结点(N/2)倒序 siftdown"的 <code>O(N)</code> 方法建堆。</li>
+    <li>完全二叉树的数组下标如果从 0 开始存,<code>2k</code>/<code>2k+1</code> 的父子编号公式要相应变成 <code>2k+1</code>/<code>2k+2</code>;书中代码统一从下标 1 开始存,混用两套下标体系是常见出错点。</li>
+  </ul>
+</div>
+
+<h2>四、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 手算集合分组:6 个元素(1~6),并查集初始化 <code>parent[i]=i</code>。依次执行
+  <code>union(1,2)</code>、<code>union(3,4)</code>、<code>union(5,6)</code>、<code>union(2,3)</code>。全部执行完毕后,
+  一共有几个独立的集合?</div>
+  <button class="opt" data-ok="0">1个:全部 6 个元素归为一组</button>
+  <button class="opt" data-ok="1">2个:{1,2,3,4} 一组,{5,6} 一组</button>
+  <button class="opt" data-ok="0">3个:{1,2}、{3,4}、{5,6} 各自一组</button>
+  <button class="opt" data-ok="0">4个:因为一共执行了 4 次 union,所以有 4 组</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 判断是否同一集合:某并查集数组(下标 1~6)当前状态是
+  <code>parent[1]=1, parent[2]=1, parent[3]=2, parent[4]=1, parent[5]=6, parent[6]=6</code>。
+  问 3 和 4 是否属于同一集合?</div>
+  <button class="opt" data-ok="0">不同集合,因为 parent[3]=2、parent[4]=1,两者的直接父结点不一样</button>
+  <button class="opt" data-ok="1">同一集合,因为顺着往上找:find(3) 沿 2 走到 1(根),find(4) 直接就是 1(根),两者的根都是 1</button>
+  <button class="opt" data-ok="0">无法判断,并查集只能统计集合总数,不能判断两个具体元素是否同组</button>
+  <button class="opt" data-ok="0">不同集合,因为 5、6 那一支和 3、4 无关,所以 3、4 也必然各自独立</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬改错:下面这个 <code>union_set</code> 的改写版本有 bug,选出问题所在。</div>
+  <pre>void union_set(int v, int u) {
+    parent[v] = u;              <span class="c">// ← 这一行</span>
+}</pre>
+  <button class="opt" data-ok="0">find 函数没写路径压缩,这里也要补上</button>
+  <button class="opt" data-ok="1">这里应该先分别求出 v、u 各自的根 t1=find(v)、t2=find(u),判断 t1≠t2 后再让根相连;直接 parent[v]=u 没有先找根,如果 v、u 恰好已经同处一个集合,还可能连出环,引发 find 递归死循环</button>
+  <button class="opt" data-ok="0">参数顺序反了,应该写成 union_set(u, v)</button>
+  <button class="opt" data-ok="0">这段代码没有 bug,只是比标准写法效率低一些</button>
+  <div class="fb"></div>
+</div>
+
+<h2>五、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"并查集判断两个元素是否同一集合,为什么必须递归找到根,不能只比较直接父结点?"<br>
+  ②"路径压缩具体做了什么、为什么能让后面的 find 操作变快?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 18 课(最小生成树与图的进阶结构)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 18 课):</b> 最小生成树与图的进阶结构——Kruskal、Prim、割点割边、二分图匹配。
+  其中 Kruskal 判断"加边是否成环"正好要用到这节课学的并查集。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/aha-algorithms/chapters/ch07-trees-heaps-union-find.md</code>
+  (《啊哈！算法》第7章"神奇的树"。全书第3~9章原文由扫描页 OCR 重建,质量参差,本章也在此范围内,
+  如需逐字引用请交叉核对原书)。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!逐步模拟 parent 数组:union(1,2)→parent[2]=1;union(3,4)→parent[4]=3;union(5,6)→parent[6]=5;此时还是3个独立集合。最后 union(2,3):find(2)=1,find(3)=3,两个根不同,于是 parent[3]=1,{1,2,3,4} 并成一组;5、6 全程没有任何操作把它们和别的元素连起来,所以 {5,6} 独立成一组。最终 2 个集合。',
+      bad:'union 操作的次数不等于最终集合数——union(2,3) 这一步能把前两组 {1,2}、{3,4} 连起来,但没有任何一步涉及 5 或 6 以外的元素。逐条模拟:union(1,2)→parent[2]=1;union(3,4)→parent[4]=3;union(5,6)→parent[6]=5;union(2,3)→find(2)=1、find(3)=3,不同,于是 parent[3]=1。最终只剩两个根(1 和 5),对应 2 个集合:{1,2,3,4} 和 {5,6}。'},
+  q2:{good:'对!这正是并查集最容易出错的地方——不能只比较直接父结点(parent[3]=2 和 parent[4]=1 看着不一样),必须递归找根。find(3):parent[3]=2,再看 parent[2]=1,parent[1]=1(是根,停),所以 find(3)=1。find(4):parent[4]=1,已经是根,find(4)=1。两个根都是 1,所以 3 和 4 确实同一集合。',
+      bad:'小心"常见陷阱":直接父结点相同或不同都不能直接下结论,必须一路递归到 parent[x]==x 的根。这里 find(3):parent[3]=2,再看 parent[2]=1,parent[1]=1(是根),所以 find(3)=1。find(4):parent[4]=1,已经是根,find(4)=1。两者的根都是 1,所以 3 和 4 属于同一集合——即使它们的直接父结点(2 和 1)看起来不一样。'},
+  q3:{good:'对!合并操作的对象必须是两个"根",不能是原始元素。这段代码跳过了 find,直接把 v 挂到 u 下面:如果 v 原来带着一整棵子树,子树会跟着断链;如果 v、u 恰好已经同处一个集合(比如 u 本来就是 v 的子孙),这一操作还会连出一个环,后续 find 顺着环递归下去,程序会死循环。',
+      bad:'再看一遍:正确写法要先 t1=find(v)、t2=find(u) 分别找到两人各自的"老大",判断 t1≠t2 之后才让 parent[t2]=t1。这里直接 parent[v]=u,既没找根,又没检查是否已经同组——如果 v、u 已经在同一集合里(比如 u 是 v 的子孙),这一步会连出环,find 会顺着环一直递归下去,陷入死循环。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

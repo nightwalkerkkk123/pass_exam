@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0009 · token 经济学：输入/输出/缓存读写的非对称计价</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0009 课 · 预计 14 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>token 经济学：输入/输出/缓存读写的非对称计价</h1>
+
+<p class="lede">你把 prompt cache 类比成 Redis / CDN：命中省钱、读近乎免费、写不过是多存一份。方向对。但这本账不是你记的，是厂商记的——一次调用被拆成<strong>四类 token</strong>，每类单价不同，而且读写不对称到会直接颠覆你的成本直觉。这节课用 <code>mino_server</code> 里真实的单价表和成本函数，逐字把这本账拆开。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 780 486" role="img" aria-label="一次 Anthropic usage 从四路 token 汇入 TokenUsage、LLMStats、getPrice，最后落到 cost">
+  <defs></defs>
+  <!-- 四路输入 chips -->
+  <g>
+    <rect class="dgm-node" x="6" y="14" width="180" height="54" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="96" y="38" font-size="13" font-weight="700" text-anchor="middle">input_tokens</text>
+    <text class="dgm-muted" x="96" y="56" font-size="10.5" text-anchor="middle">仅最后断点之后</text>
+  </g>
+  <g>
+    <rect class="dgm-accent-node" x="200" y="14" width="180" height="54" rx="8" stroke-width="1.5"/>
+    <text class="dgm-accent-text" x="290" y="38" font-size="12.5" font-weight="700" text-anchor="middle">cache_creation</text>
+    <text class="dgm-muted" x="290" y="56" font-size="10.5" text-anchor="middle">写缓存 · 贵</text>
+  </g>
+  <g>
+    <rect class="dgm-good-node" x="394" y="14" width="180" height="54" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="484" y="38" font-size="12.5" font-weight="700" text-anchor="middle">cache_read</text>
+    <text class="dgm-muted" x="484" y="56" font-size="10.5" text-anchor="middle">读缓存 · 廉</text>
+  </g>
+  <g>
+    <rect class="dgm-link-node" x="588" y="14" width="180" height="54" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="678" y="38" font-size="13" font-weight="700" text-anchor="middle">output_tokens</text>
+    <text class="dgm-muted" x="678" y="56" font-size="10.5" text-anchor="middle">输出</text>
+  </g>
+  <!-- 汇聚线 -->
+  <line class="dgm-edge" x1="96" y1="68" x2="390" y2="150" stroke-width="1.4"/>
+  <line class="dgm-edge" x1="290" y1="68" x2="390" y2="150" stroke-width="1.4"/>
+  <line class="dgm-edge" x1="484" y1="68" x2="390" y2="150" stroke-width="1.4"/>
+  <line class="dgm-edge" x1="678" y1="68" x2="390" y2="150" stroke-width="1.4"/>
+  <!-- TokenUsage hub -->
+  <rect class="dgm-hub" x="150" y="150" width="480" height="92" rx="10" stroke-width="2"/>
+  <text class="dgm-accent-text" x="390" y="176" font-size="15" font-weight="700" text-anchor="middle">common.TokenUsage</text>
+  <text class="dgm-text" x="390" y="200" font-size="11.5" text-anchor="middle">PromptTokens = input + cache_creation + cache_read</text>
+  <text class="dgm-muted" x="390" y="220" font-size="10.5" text-anchor="middle">CacheCreationTokens / CacheReadTokens / CacheCreation{5m,1h} 各自留档</text>
+  <text class="dgm-muted" x="390" y="236" font-size="10" text-anchor="middle">convert.go:90</text>
+  <!-- arrow -->
+  <line class="dgm-edge" x1="390" y1="242" x2="390" y2="272" stroke-width="1.4"/>
+  <polygon points="390,280 385,270 395,270" fill="var(--muted)"/>
+  <!-- LLMStats -->
+  <rect class="dgm-node" x="190" y="280" width="400" height="60" rx="9" stroke-width="1.5"/>
+  <text class="dgm-text" x="390" y="304" font-size="13.5" font-weight="700" text-anchor="middle">LLMStats.SetUsage</text>
+  <text class="dgm-muted" x="390" y="324" font-size="10.5" text-anchor="middle">inputTokens=PromptTokens · cacheReadTokens · cacheCreation5m/1hTokens · stats.go:155</text>
+  <!-- arrow -->
+  <line class="dgm-edge" x1="390" y1="340" x2="390" y2="370" stroke-width="1.4"/>
+  <polygon points="390,378 385,368 395,368" fill="var(--muted)"/>
+  <!-- getPrice -->
+  <rect class="dgm-accent-node" x="120" y="378" width="540" height="94" rx="10" stroke-width="2"/>
+  <text class="dgm-accent-text" x="390" y="402" font-size="14" font-weight="700" text-anchor="middle">getPrice · Anthropic 分支 · model.go:745</text>
+  <text class="dgm-text" x="390" y="428" font-size="12" text-anchor="middle">cost = 3·in + 15·out + 0.3·cacheRead + (3.75·5m + 6·1h)</text>
+  <text class="dgm-muted" x="390" y="450" font-size="10.5" text-anchor="middle">四类 token 各乘各的单价 → tea 埋点 / trace span 的 usageMap</text>
+  <text class="dgm-muted" x="390" y="466" font-size="10" text-anchor="middle">stats.go:630 · infrastructure/llms/stats.go:89</text>
+</svg>
+</div>
+<figcaption>一次调用的 usage 被拆成四路，汇入 <code>common.TokenUsage</code>（<code>convert.go:90</code>）→ <code>LLMStats.SetUsage</code>（<code>stats.go:155</code>）→ <code>getPrice</code>（<code>model.go:745</code>）→ cost。颜色即价：红=写缓存（贵）、绿=读缓存（廉）、蓝=输出。</figcaption>
+</figure>
+
+<h2>一、先承认类比对的部分</h2>
+
+<p>把模型调用看作<strong>无状态服务</strong>是对的：每次调用都得把全部输入随请求带过去，厂商从零读一遍。prompt cache 的动机也确实像 CDN——"别让厂商重新处理你上次已经处理过的前缀"。这个视角让你自然想到 TTL、前缀命中、写一次读多次摊薄。方向没错。</p>
+
+<p>问题出在<strong>计量权</strong>：服务端缓存省的是你自己机器的 CPU/内存，账你自己心里有数；prompt cache 的账由厂商记，而且厂商把一次调用拆成四类分别计价。要谈成本，先得认识这四类。</p>
+
+<h2>二、四类 token：一次 usage 被拆成四路</h2>
+
+<p>Anthropic 回传的 <code>usage</code> 有四个字段，<code>mino_server</code> 在 <code>common.go</code> 里用一大段注释把它钉死了口径（<code>common.go:146-156</code>）：</p>
+
+<pre><code>//   "input_tokens": 2328,                // 仅表示请求中最后一个缓存断点之后的 token, 并非发送的所有输入 token
+//   "cache_creation_input_tokens": 2200, // 写入缓存
+//   "cache_read_input_tokens": 37687,    // 从缓存读取
+//   "output_tokens": 176
+// 总输入 = input_tokens + cache_creation_input_tokens + cache_read_input_tokens</code></pre>
+
+<p>第一个坑就在这里：<strong>Anthropic 的 <code>input_tokens</code> 不是"总输入"</strong>，它只是最后一个缓存断点之后的那一小截。服务端工程师最容易在这对不上账——你以为拿到的是总输入，实际只是零头。真正的总输入要把三者相加。代码正是这么合并的（<code>convert.go:86-93</code>）：</p>
+
+<pre><code>// Claude 的 input_tokens 仅表示最后一个缓存断点之后的 token
+// 需要加上 cache_creation_input_tokens 和 cache_read_input_tokens 才是总输入
+usage := &common.TokenUsage{
+	PromptTokens:        int(e.Message.Usage.InputTokens + e.Message.Usage.CacheCreationInputTokens + e.Message.Usage.CacheReadInputTokens),
+	CompletionTokens:    int(e.Message.Usage.OutputTokens),
+	CacheCreationTokens: int(e.Message.Usage.CacheCreationInputTokens),
+	CacheReadTokens:     int(e.Message.Usage.CacheReadInputTokens),</code></pre>
+
+<p>合并进内部的 <code>common.TokenUsage</code>（<code>common.go:184-205</code>）后，有四个计费字段：<code>PromptTokens</code>（含缓存的总输入）、<code>CompletionTokens</code>（输出）、<code>CacheCreationTokens</code>（写缓存）、<code>CacheReadTokens</code>（读缓存），外加一个 <code>CacheCreation{Ephemeral5mInputTokens, Ephemeral1hInputTokens}</code> 明细。这四路就是全部记账基础。</p>
+
+<div class="good">
+<strong>厂商差异不能忽略</strong>：同一段注释还写明，OpenAI 的 <code>prompt_tokens</code> 与 Gemini 的 <code>promptTokenCount</code> <em>已经把缓存 token 含在总输入里</em>（<code>common.go:158-180</code>），只有 Anthropic 是分离计量的。所以"总输入怎么算"这件事，跨厂商没有统一答案——这是后面成本函数要分 provider 分支的根因。
+</div>
+
+<h2>三、非对称计价：四类不是同一个价</h2>
+
+<p>拆成四类只是记账，真正的冲击在单价。看 <code>mino_server</code> 里 ClaudeSonnet（<code>claude-sonnet-4-5</code>）的真实定价（<code>model.go:288-291</code>、<code>298-300</code>，单位 USD / 1M tokens）：</p>
+
+<pre><code>PriceInputTokens:         3,
+PriceOutputTokens:        15,
+PriceCacheCreationTokens: 3.75, // 5分钟缓存价格
+PriceCacheReadTokens:     0.3,
+// CacheCreationPricing: Price5Minutes: 3.75, Price1Hour: 6</code></pre>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">缓存读 read</span><div class="track"><div class="val read" style="width:2%">$0.3 · 0.1×</div></div></div>
+  <div class="row"><span class="lbl">普通输入 input</span><div class="track"><div class="val base" style="width:19%">$3 · 1×</div></div></div>
+  <div class="row"><span class="lbl">缓存写 5m</span><div class="track"><div class="val write" style="width:24%">$3.75 · 1.25×</div></div></div>
+  <div class="row"><span class="lbl">缓存写 1h</span><div class="track"><div class="val write" style="width:38%">$6 · 2×</div></div></div>
+  <div class="row"><span class="lbl">输出 output</span><div class="track"><div class="val out" style="width:96%">$15 · 5×</div></div></div>
+</div>
+<figcaption>ClaudeSonnet 五档单价（USD / 1M，相对普通输入的倍率）。数据源 <code>model.go:288-300</code>。条宽按真实单价比例，倍率写在条内。</figcaption>
+</figure>
+
+<p>把倍率读出来，就是三个反直觉的事实：</p>
+<ul>
+<li><strong>输出是输入的 5 倍</strong>（15 vs 3）。一次长回答的钱可能盖过整段 prompt。</li>
+<li><strong>缓存写比普通输入还贵</strong>：5m 写是 1.25×，1h 写是 2×。第一次建缓存不是免费，反而要多掏 25%~100% 的溢价。</li>
+<li><strong>缓存读不是零成本</strong>，仍要付输入的 0.1×（10%）。近乎免费，但不是免费。</li>
+</ul>
+
+<h2>四、类比在这里漏水</h2>
+
+<p>服务端世界里，缓存是<strong>为省你自己的钱</strong>：算力是你自家服务器的成本，命中缓存 = 少跑一次昂贵计算，缓存读近乎零成本，缓存写不过是多写一份数据。成本按"请求数"或 QPS 大致就能估。这套直觉在 token 经济学里会漏得很惨。</p>
+
+<div class="leak">
+token 成本由<strong>厂商</strong>计量、按<strong>四类分别计价</strong>、且<strong>读写非对称</strong>。以 ClaudeSonnet 真实单价为证（<code>model.go:288-300</code>）：<br>
+（1）<strong>缓存写不是免费，反而更贵</strong>——首次建缓存要多掏 25%（5m）到 100%（1h）的溢价。指望靠后续多次命中把它摊薄；只被读一次就过期，反而比不加缓存更亏。<br>
+（2）<strong>缓存读不是零成本</strong>——仍要付输入价的 10%（$0.3 / 1M）。<br>
+（3）<strong>输出通常比输入贵几倍</strong>（这里 5 倍）——省 prompt 省不到点子上，控制输出长度才是大头。<br>
+所以成本归因必须像 <code>getPrice</code>（<code>model.go:745-752</code>）那样把四类 token 各乘各的单价分开算，<strong>绝不能笼统按"请求数"估</strong>——这正是服务端类比彻底漏水的地方。
+</div>
+
+<h2>五、成本函数：四路分账在代码里的样子</h2>
+
+<p>四路分账最终落在 <code>getPrice</code>（<code>model.go:708-777</code>）。它按 provider family 分支，Anthropic 分支（<code>model.go:745-752</code>）长这样：</p>
+
+<pre><code>case ModelFamilyAnthropic:
+	price = info.PriceInputTokens*float64(stats.InputTokens())/1000_000 +
+		info.PriceOutputTokens*float64(stats.OutputTokens())/1000_000 +
+		info.PriceCacheReadTokens*float64(stats.CacheReadTokens())/1000_000
+	if info.CacheCreationPricing != nil && (stats.CacheCreation5mTokens() > 0 || stats.CacheCreation1hTokens() > 0) {
+		price += info.CacheCreationPricing.Price5Minutes*float64(stats.CacheCreation5mTokens())/1000_000 +
+			info.CacheCreationPricing.Price1Hour*float64(stats.CacheCreation1hTokens())/1000_000</code></pre>
+
+<p>读出来就是那句公式：<code>3·input + 15·output + 0.3·cacheRead + (3.75·5m + 6·1h)</code>。四类 token 各乘各的单价再相加。算出的 <code>cost</code> 连同四类 token、<code>cache_hit_rate</code> 一起进 tea 埋点（<code>stats.go:630-638</code>）和 trace span 的 <code>usageMap</code>（<code>infrastructure/llms/stats.go:89-99</code>），成为成本归因的最终落点。其中 <code>CacheHitRate = cacheReadTokens / RealInputTokens</code>，而 <code>RealInputTokens()</code> 直接返回 <code>inputTokens</code>（即 <code>PromptTokens</code>，已含缓存）（<code>stats.go:206-215</code>）。</p>
+
+<div style="border-left:4px solid var(--muted); background:var(--code-bg); padding:.8em 1em; margin:1.2rem 0; border-radius:0 6px 6px 0;">
+<strong style="font-family:'PingFang SC',sans-serif;">⚠ 一处口径存疑（观察，非已证实的 bug）</strong><br>
+注意 Anthropic 分支用的是 <code>PriceInputTokens × stats.InputTokens()</code>，而 <code>InputTokens()</code> 返回的 <code>inputTokens = PromptTokens</code>——这个数<em>已经</em>包含了 cache_read 和 cache_creation（见 <code>convert.go:90</code>）。随后该分支又<em>另外</em>加上 <code>0.3 × cacheRead</code> 和缓存写成本。对照 Gemini / default 分支（<code>model.go:758</code>、<code>772</code>）会先做 <code>InputTokens - CacheReadTokens</code> 再乘输入价，Anthropic 分支没有这个扣减。结果是缓存 token 疑似被同时按"输入价 + 缓存价"计，内部成本估算偏高。这是本节埋点（不是 Anthropic 真实账单），把它当作"成本归因很容易算错"的活教材——但请注意这是观察到的疑点，仓库里未找到确认修复的记录。
+</div>
+
+<h2>六、写缓存标记：1h vs 5m，与一个现状 gap</h2>
+
+<p>前面都是响应侧记账。缓存标记则在<strong>请求侧</strong>由业务 Agent 构造消息时打上：稳定不变的 system prompt 用 <code>common.NewLLMMessageWithCache1Hour</code>（<code>common.go:403</code>，挂 <code>NewCacheControl1Hour()</code>，TTL=1h，<code>common.go:617-623</code>），默认的 <code>NewLLMMessageWithCache</code> 则是 5m（<code>common.go:395</code>）。这也解释了为什么 1h 缓存只用在几十处稳定的 system prompt 上，而不用在易变内容上——只有反复命中才能把写入溢价赚回来。</p>
+
+<figure class="diagram">
+<div class="axis">
+  <span class="mark" style="left:30%">5m 写 → $3.75 / 1M（1.25×）</span>
+  <span class="mark" style="left:78%">1h 写 → $6 / 1M（2×）</span>
+  <span class="fill-label" style="left:2%">TTL 越长，写入越贵</span>
+  <span class="fill-label" style="right:2%">但 SDK TTL 当前被注释</span>
+</div>
+<figcaption>缓存写单价随 TTL 分层：<code>Price5Minutes=3.75</code>、<code>Price1Hour=6</code>（<code>model.go:299-300</code>）。注意 <code>convert.go:64/69</code> 里发给 SDK 的真实 TTL 字段当前被注释掉了。</figcaption>
+</figure>
+
+<p>到 Claude 客户端时，<code>convertCacheControl</code>（<code>convert.go:53-77</code>）把内部 TTL 映射成 Anthropic SDK 的 <code>BetaCacheControlEphemeralParam</code>。但 5m 与 1h 两个 case 里真正的 SDK TTL 字段都被注释掉了（<code>convert.go:64/69/74</code>，注释写 <code>TODO: GCP 目前不支持 1h 缓存，后续再放开</code>）。也就是说：<code>NewLLMMessageWithCache1Hour</code> 在内部标了 1h，<strong>但当前实际发给厂商的其实是不带显式 TTL 的裸 ephemeral 标记</strong>，1h vs 5m 的差别在请求侧当前并不生效。响应侧仍会分别读回 5m/1h 明细并分层计价——这属于"内部意图与当前实际下发之间的 gap"，讲 1h 缓存时务必注明此现状。</p>
+
+<h2>七、关键定义</h2>
+
+<dl class="keydef">
+<dt>四类 token（four billable token classes）</dt>
+<dd>Anthropic 把一次调用的 usage 拆成 <code>input_tokens</code>（最后缓存断点之后）/ <code>cache_creation</code>（写缓存）/ <code>cache_read</code>（读缓存）/ <code>output_tokens</code>，各自单价不同，各自记账。载体：<code>common.TokenUsage</code>（<code>common.go:184-205</code>）。</dd>
+<dt>非对称计价（asymmetric pricing）</dt>
+<dd>四类 token 单价不成比例：ClaudeSonnet 输出=5×、缓存写=1.25×~2×、缓存读=0.1×（相对普通输入）。成本必须四类分开算，不能按请求数估。载体：<code>model.go:288-300</code>。</dd>
+<dt>cache creation vs cache read</dt>
+<dd>首次把 prompt 写进厂商缓存（比普通输入<em>更贵</em>）与后续命中读取（约为普通输入的 10%）。溢价靠多次命中摊薄，只读一次即亏。载体：<code>CacheCreationTokens</code> / <code>CacheReadTokens</code>。</dd>
+<dt>CacheHitRate</dt>
+<dd><code>cacheReadTokens / RealInputTokens</code>，其中 <code>RealInputTokens = inputTokens = PromptTokens</code>（已含缓存）。载体：<code>stats.go:206-215</code>。</dd>
+</dl>
+
+<h2>八、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：ClaudeSonnet 一次调用：uncached input=100、cache 写(5m)=400、cache 读=1000、output=500 tokens。只看"缓存读那 1000 个 token"这一项，按单价表要花多少钱？为什么不是按普通输入价算？</summary>
+<div class="answer">
+<p><strong>1000 / 1e6 × 0.3 = $0.0003</strong>。因为 <code>PriceCacheReadTokens = 0.3</code>（<code>model.go:291</code>），是普通输入价（<code>PriceInputTokens = 3</code>）的 1/10——缓存读单独按 0.1× 计价。这正是四类分账的意义：命中缓存的 token 不能按输入价算，否则会把成本高估 10 倍。（对照：同样 1000 token 若走普通输入是 $0.003。）</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：为什么"缓存写"(cache creation) 会比"普通输入"还贵？在 mino_server 里贵多少，设计上指望靠什么把这笔溢价赚回来？</summary>
+<div class="answer">
+<p>Sonnet 缓存写 5m = 3.75 是输入（3）的 <strong>1.25×</strong>，写 1h = 6 是 <strong>2×</strong>（<code>model.go:290/300</code>，<code>CacheCreationPricing</code>）。首次把 prompt 写进厂商缓存要做额外的持久化，所以收溢价；设计上指望后续多次命中——每次命中缓存读只花 0.1×，用足够多次命中把首写的 25%~100% 溢价摊薄。若一段缓存只被读一次就过期，反而比不加缓存更亏——这就是 <code>NewLLMMessageWithCache1Hour</code>（<code>common.go:403</code>）只用在稳定不变的 system prompt 上、而不用在易变内容上的原因。</p>
+</div>
+</details>
+</div>
+
+<h2>九、主推资源</h2>
+
+<p>本课的一手来源，值得完整读一遍：<a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching">Prompt caching — Claude Platform Docs</a>。读的时候带着问题：文档里的 cache write / cache read 计价倍数，和 <code>mino_server</code> 里 <code>model.go</code> 的单价表能否对上？1h 缓存在文档里怎么声明——而我们请求侧当前为什么没真正下发 TTL（<code>convert.go:64/69</code>）？把文档口径和代码口径并排读，是校准成本直觉最快的方式。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14 或看真实代码。相关联的上一课：<em>0001 · context 是主轴</em>（前缀缓存如何把成本焊进 context 组织）。</p>
+</footer>
+</main>
+</body>
+</html>

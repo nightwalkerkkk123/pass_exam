@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0001 · Agent 核心公式：大脑 + 眼睛 + 手脚</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0001 课 · 引言 · 预计 10 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>Agent 核心公式：大脑 + 眼睛 + 手脚</h1>
+
+<p class="lede">整本书只押一句话：<strong>Agent = LLM + 上下文 + 工具</strong>。这节课的唯一目标，是让你把这句公式刻进肌肉记忆，并且立刻知道它对应的身体隐喻——大脑、眼睛、手脚——好在哪、又在<strong>哪里会漏水</strong>。后面九十多页、十章内容，全都是这三个词的展开。先把地基夯实。</p>
+
+<h2>一、公式：三个词，缺一不可</h2>
+
+<p>作者在引言里把话说得很满：“本书的核心公式只有一句话。”不是“大概由这几部分组成”，而是一个等式——少任何一项，它就不再是一个 Agent。</p>
+
+<div class="formula">
+<div class="eq"><b>Agent</b> <span class="op">=</span> LLM <span class="op">+</span> 上下文 <span class="op">+</span> 工具</div>
+<div class="gloss">图0-1 · 三者缺一不可</div>
+</div>
+
+<p>为什么“缺一不可”不是修辞？把任意一项抽掉，剩下的东西都还有名字，但都不是 Agent：</p>
+
+<ul>
+<li>只有 <strong>LLM</strong>，没有上下文、没有工具 → 那是一个<strong>聊天机器人</strong>：能说话，但看不到世界、也动不了手。</li>
+<li>有 LLM + 工具，但<strong>不把工具执行的结果喂回上下文</strong> → 它会盲目地一遍遍做同一件事，因为它“看不到”自己刚才做了什么（这一点第 0007 课会用消融实验坐实）。</li>
+<li>有 LLM + 上下文，但<strong>没有工具</strong> → 它能想得头头是道，却对现实世界零影响力。</li>
+</ul>
+
+<h2>二、身体隐喻：把公式变成直觉</h2>
+
+<p>公式好记，但抽象。作者给了一个一秒就懂的隐喻——把 Agent 想象成一个身体：</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">LLM</div><div class="head">🧠 大脑</div><div class="sub">思考与决策</div></div>
+  <div class="cell"><div class="role">上下文</div><div class="head">👁 眼睛</div><div class="sub">能看到什么信息</div></div>
+  <div class="cell"><div class="role">工具</div><div class="head">🖐 手脚</div><div class="sub">能做什么事情</div></div>
+</div>
+<figcaption>大脑负责想，眼睛决定它能看见什么，手脚决定它能改变什么。任务再复杂，也逃不出这三件事。</figcaption>
+</figure>
+
+<p>这三者不是并排摆着不动，而是转成一个<strong>循环</strong>：大脑读眼睛看到的信息 → 决定动哪只手脚 → 手脚改变世界 → 世界的新状态又回到眼睛里。Agent 干活的全过程，就是这个圈一圈圈转，直到任务完成。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 680 220" role="img" aria-label="感知-决策-行动循环：眼睛看到信息进大脑，大脑决定调用手脚，手脚改变世界，世界新状态再回到眼睛">
+  <!-- nodes -->
+  <rect class="dgm-node" x="40" y="86" width="140" height="52" rx="8"/>
+  <text class="dgm-text" x="110" y="110" font-size="14" font-weight="700" text-anchor="middle">👁 上下文</text>
+  <text class="dgm-muted" x="110" y="128" font-size="11" text-anchor="middle">能看到的信息</text>
+
+  <rect class="dgm-hub" x="270" y="80" width="140" height="60" rx="10"/>
+  <text class="dgm-accent-text" x="340" y="106" font-size="14" font-weight="700" text-anchor="middle">🧠 LLM</text>
+  <text class="dgm-muted" x="340" y="124" font-size="11" text-anchor="middle">思考·决策</text>
+
+  <rect class="dgm-node" x="500" y="86" width="140" height="52" rx="8"/>
+  <text class="dgm-text" x="570" y="110" font-size="14" font-weight="700" text-anchor="middle">🖐 工具</text>
+  <text class="dgm-muted" x="570" y="128" font-size="11" text-anchor="middle">改变世界</text>
+
+  <!-- arrows -->
+  <line class="dgm-edge" x1="180" y1="112" x2="266" y2="110" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line class="dgm-edge" x1="410" y1="110" x2="496" y2="112" stroke-width="1.5" marker-end="url(#ar)"/>
+  <!-- feedback loop bottom -->
+  <path class="dgm-edge" d="M570 138 C570 195, 110 195, 110 140" fill="none" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="340" y="188" font-size="11.5" text-anchor="middle">工具结果回喂 → 眼睛看到新状态</text>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>看→想→做→再看，循环往复。这就是后面第 0008 课要展开的 <strong>ReAct 循环</strong>的雏形；本课先记住“三件事转成一个圈”。</figcaption>
+</figure>
+
+<h2>三、“眼睛”这个类比，在这里漏水</h2>
+
+<p>身体隐喻好用，但作者本人在引言里就主动打了个补丁——而这个补丁，恰恰是初学者最容易忽略、后面最常栽跟头的地方。</p>
+
+<div class="pitfall">
+<p>把“上下文 = 眼睛”理解成“Agent 看到的<strong>环境信息</strong>”，是不够的，甚至会误导你。作者原话：上下文“不仅包含环境信息和对话历史，还包含<strong>工具定义</strong>等内容”——也就是说，Agent “看到”的信息里，<strong>也包括“它有哪些手脚可用”</strong>。</p>
+<p>所以别把上下文窄化成“对话历史”或“prompt”。它的准确定义是一句更狠的话：<strong>上下文 = 模型能感知到的一切信息</strong>。手脚长什么样、能干什么，也是被眼睛看见的——这就是为什么第二章会说“上下文决定 Agent 的能力上限”。</p>
+</div>
+
+<div class="bookquote">
+这个隐喻旨在传达核心直觉：上下文是模型能感知到的一切信息。
+<span class="src">——《深入理解 AI Agent》引言</span>
+</div>
+
+<p>记住这条边界，你就能提前看懂一件后面反复出现的事：工具定义写得好不好、放在上下文的哪个位置，直接决定模型选不选得对工具。因为工具定义本身，就是“眼睛看到的东西”。</p>
+
+<h2>四、为什么值得为一个公式单开一课（宏观背景）</h2>
+
+<p>因为它是全书的<strong>坐标系</strong>。作者的野心不是教你跑通一个 Demo，而是把 Agent 设计“从感觉驱动变成原则驱动”。当下一代模型、下一个热门框架出现时，你需要一个不随版本翻篇的框架去安放它——而这个框架就是三个问题：<strong>它能看到什么（上下文）、能做什么（工具）、大脑本身有多强（LLM）</strong>。</p>
+
+<p>作者还借强化学习之父 Richard Sutton 的话把 Agent 抬到了宇宙演化的高度：宇宙从尘埃→恒星→生命→<strong>智能体</strong>，走了四个阶段。生物进化是盲目的（随机变异、自然选择，多数生物并不理解自己怎么运作）；而 Agent 是一种全新的存在——它能通过<strong>生成代码实现自举（bootstrap）</strong>和自我进化，“就像一个程序员编写了另一个程序员，新程序员又能继续编写下一个”。这一句是第 5 章（代码是元能力）和第 8 章（自我进化）的总伏笔。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：任何一个 Agent，无论多花哨，都能拆成三个问题——大脑（LLM）多强、眼睛（上下文）看到了什么、手脚（工具）能做什么。而“眼睛”看到的，<strong>不只是环境，还包括自己有哪些手脚</strong>。以后读任何 Agent 系统、排查任何 Agent 故障，先把它套进这三个格子。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>Agent 核心公式（Agent = LLM + 上下文 + 工具）</dt>
+<dd>全书主线：Agent 由大语言模型（大脑，思考决策）、上下文（眼睛，能看到的信息）、工具（手脚，能做的事）三者构成，缺一不可。对应图0-1。</dd>
+<dt>上下文（Context）</dt>
+<dd>模型能感知到的<strong>一切</strong>信息——不止环境信息与对话历史，还包含工具定义等内容。对应强化学习里的观察空间（Observation Space）。<em>避免</em>把它窄化为“对话历史”或“prompt”。</dd>
+<dt>工具（Tools）</dt>
+<dd>决定 Agent 能做什么事（搜索网页、调 API、操作数据库……）的能力集合。对应强化学习里的动作空间（Action Space）。<em>避免</em>把它混同为普通的函数调用。</dd>
+<dt>自举（bootstrap）</dt>
+<dd>Agent 通过生成代码实现自我进化——像一个程序员写出了另一个程序员，新程序员又能继续写下一个。<em>避免</em>与编译器 bootstrap 的狭义含义混淆。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：Agent 核心公式的三个组成部分是什么？它们分别对应身体的哪个部位？</summary>
+<div class="answer">
+<p><strong>LLM + 上下文 + 工具</strong>。LLM = 大脑（思考、决策）；上下文 = 眼睛（决定能看到什么信息）；工具 = 手脚（决定能做什么事）。三者缺一不可。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：有人说“上下文就是 Agent 看到的环境信息和对话历史”。按本书的定义，这句话缺了什么关键的一块？为什么这一块很重要？</summary>
+<div class="answer">
+<p>缺了<strong>工具定义</strong>。上下文的准确定义是“模型能感知到的一切信息”，其中也包含“Agent 有哪些手脚可用”——工具长什么样、能干什么，同样是被“眼睛”看见的。这一块重要，是因为它直接解释了后面反复出现的结论：工具定义写得好不好、放在上下文哪个位置，会决定模型能否选对工具。把上下文窄化成“对话历史/prompt”，就会漏掉这条因果。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本课属引言，尚无独立配套代码；但整本书的实验都放在开源仓库里，<strong>强烈建议边读边跑</strong>：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。第一次真正动手，会是下一部分的“实验 1.1 上下文消融”（对应仓库 <code>chapter1/context/</code>）——那时你会亲眼看到：抽掉三个组件里的任意一个，Agent 会以三种完全不同的方式崩坏。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源就是书的<strong>引言</strong>本身（<code>book/introduction.md</code>），值得完整读一遍——尤其是“全书结构”一节，它是你这门课的地图。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把这三个词各自的“丰富含义”先过一遍。</p>
+<nav class="lesson-nav">
+  <span class="none"></span>
+  <a class="next" href="0002-three-layer-rl-mapping.html"><span class="dir">下一课 →</span>从直觉到学术：Agent 三层映射</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

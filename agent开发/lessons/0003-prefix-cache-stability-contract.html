@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0003 · prefix cache 稳定性契约：为什么 &lt;current_plan&gt; 是个雷</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0003 课 · 预计 14 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>prefix cache 稳定性契约：为什么 &lt;current_plan&gt; 是个雷</h1>
+
+<p class="lede">上一课的结论是"成本"这根支柱会塌缩进"context 排列"。这一课把它钉死在一处真实代码上：conductorservice 里一个藏在 <code>&lt;context_info&gt;</code> 中间的布尔量，在两次 LLM 调用之间悄悄翻转，就能击穿整条前缀缓存。你会看到一段亲自写下"这里会 cache miss"的警告注释——以及仓库怎么把这个雷焊成了 CI 卡点。</p>
+
+<h2>一、先把物理背景讲清楚：每个 step 都重拼一份完整请求</h2>
+
+<p>在 conductorservice 里，一个 turn 不是一次调用，而是一个循环：<code>step 0 → tool call → step 1 → tool call → …</code>。每进一个 step，<code>buildConductorMessages</code> 都会<strong>从头重新拼</strong>一整份消息数组发给 Claude。它不是增量补丁，是整份重发。装配顺序固定（<code>agent.go:1471-1485</code>）：</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">tools</span><span class="n-sub">client.go:165</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">System Prompt</span><span class="n-sub">断点① 1h·agent.go:1471</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">Mode / Hook<br>Developer</span><span class="n-sub">agent.go:1474-1479</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">&lt;context_info&gt;</span><span class="n-sub">Developer·会抖动</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">History</span><span class="n-sub">历史消息</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">User Request</span><span class="n-sub">本轮请求</span></div>
+  <span class="arrow">‖</span>
+  <div class="node volatile"><span class="n-title">New Messages</span><span class="n-sub">断点②·每 step 增长</span></div>
+</div>
+<figcaption>Anthropic 的规范缓存顺序是 <code>tools → system → messages</code>，与 struct 里 <code>param.Messages / param.System / param.Tools</code>（<code>client.go:123 / 130 / 165</code>）的赋值先后无关。绿=本应稳定的缓存前缀，红=易变段。断点①是 System Prompt 上的 <code>cache_control</code>，断点②在 New Messages 尾部。<strong>问题就出在那个红色的 <code>&lt;context_info&gt;</code>——它本该是绿的。</strong></figcaption>
+</figure>
+
+<p>为什么"整份重发 + 严格前缀"能省钱？因为厂商在 GPU 上缓存了已经算过的 KV。只要你这次请求的<strong>前缀字节</strong>和上次完全一致，它就直接读缓存（便宜），不重算。这就是 prefix cache 的全部动机：省 token 成本、降延迟。前提只有一个——前缀必须 <strong>byte-identical</strong>。</p>
+
+<h2>二、这颗雷长什么样：一段自己写下的死亡注释</h2>
+
+<p>看 <code>buildContextPayload</code>（<code>agent.go:1492</code>）末尾这段。注释不是我加的，是代码里就有的，它精确点名了本课的标题：</p>
+
+<pre><code>// 计划相关信息（仅在启用了计划工具时才注入）
+// 注意：&lt;current_plan&gt; 在第 1→2 次 LLM 调用间会变化（IsLastMessageFromUser 从 true→false），
+// 导致 context_info 改变、prefix cache miss。不需要 plan 提示的 Agent（如 Slides）
+// 应在 CustomizeContextPayload hook 中清除这些字段。
+if agent.agentFeatures.PlanEnabled {
+	payload.CurrentPlan = agent.currentPlan
+	payload.IsLastMessageFromUser = len(agent.newMessages) == 0
+}</code></pre>
+<p class="meta">— <code>agent.go:1524-1531</code></p>
+
+<p>关键在最后一行：<code>IsLastMessageFromUser = len(agent.newMessages) == 0</code>。这个布尔量不是配置、不是常量，它是从 agent 的<strong>运行时状态</strong>推导出来的——而这个状态每个 step 都在变：</p>
+
+<ul>
+<li><strong>step 0</strong>：还没有任何工具回填，<code>newMessages</code> 为空 → <code>len == 0</code> → <code>IsLastMessageFromUser = true</code>。</li>
+<li><strong>step 1 起</strong>：上一步的 <code>appendToolResultToNewMessages</code> 已经往 <code>newMessages</code> 追加了 assistant + tool 两条 → <code>len &gt; 0</code> → <code>IsLastMessageFromUser = false</code>。</li>
+</ul>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">IsLastMessageFromUser = len(agent.newMessages)==0 &nbsp;<span style="color:var(--muted)">(agent.go:1530)</span></div>
+  <div class="down">│</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">step 0：newMessages 为空 → true</div>
+      <div class="step terminal">&lt;context_info&gt; <strong>含</strong> &lt;current_plan&gt; 块<br><span style="color:var(--muted)">context.go:269-278 的 if 命中</span></div>
+    </div>
+    <div class="branch">
+      <div class="label">step 1+：工具回填后 → false</div>
+      <div class="step action">&lt;current_plan&gt; 块<strong>整体消失</strong><br><span style="color:var(--muted)">这条 Developer 消息字节改变</span></div>
+    </div>
+  </div>
+</div>
+<figcaption>同一个 turn 内，<code>IsLastMessageFromUser</code> 从 true 翻到 false，只发生在 step 0→1 这一跳。step 1→2 之后它一直是 false，字节稳定。</figcaption>
+</figure>
+
+<p>翻转的物理后果在 <code>context.go</code> 的渲染分支里。这个布尔量直接门控整块 XML 是否写入字符串：</p>
+
+<pre><code>// 计划提示（只有当最后一条消息是用户消息时才显示）
+if payload.IsLastMessageFromUser {
+	sb.WriteString("&lt;current_plan&gt;\n")
+	if payload.CurrentPlan != nil {
+		sb.WriteString("The user has provided new input. ...")
+	} else {
+		sb.WriteString("No plan exists yet. ...")
+	}
+	sb.WriteString("\n&lt;/current_plan&gt;\n")
+}</code></pre>
+<p class="meta">— <code>context.go:269-278</code>（<code>buildDeveloperContextMessage</code> 内，最终以 <code>Role=Developer</code>、<code>Content=</code>整串 <code>&lt;context_info&gt;</code> 返回，见 <code>context.go:356-359</code>）</p>
+
+<p>step 0 时这段 <code>WriteString</code> 全跑，<code>&lt;context_info&gt;</code> 里多出一整块 <code>&lt;current_plan&gt;...&lt;/current_plan&gt;</code>；step 1 时这个 <code>if</code> 不进，那一块凭空消失。<strong>同一条 Developer 消息，两个 step 的字节不同了。</strong>而它排在装配顺序里的 System / Mode / Hook 之后、History 之前——正处在缓存前缀内（<code>context.go:76-88</code> 装配入口）。</p>
+
+<h2>三、类比在这里漏水</h2>
+
+<p>你会本能地把 prompt cache 当成 Redis / CDN / 本地 LRU 来推理。这个类比对的部分要先承认：两者都是"把算过的结果存下来，下次命中就省"。但接下来是服务端世界里<strong>不存在</strong>的三层新现象。</p>
+
+<div class="leak">
+服务端缓存是<strong>你自家的</strong>：省的是你自己的 CPU 和 DB 压力，缓存 key 的匹配规则<strong>由你定</strong>——你可以 normalize、hash、忽略无关字段、给不同前缀分桶，怎么命中你说了算。<br><br>
+prompt cache 省的<strong>不是你的算力，是厂商 GPU 上的 KV 计算</strong>，所以匹配规则<strong>由厂商定死，你无权更改</strong>：字节级严格前缀匹配，顺序固定为 <code>tools → system → messages</code>，前缀里任何一个字节变，其后全部失效。于是三重漏水：
+<ol style="margin:.5em 0 0">
+<li><strong>你以为能调 key，其实只能被动保持前缀 byte-identical</strong>。本仓库干脆放弃"调 key"的幻想，把"前缀必须一致"写成了 CI 卡点（下一节）。</li>
+<li><strong>波及面远超一条缓存项</strong>。一个藏在 <code>&lt;context_info&gt;</code> 中间的布尔量翻转，就让它<strong>之后</strong>的断点全部 miss——不是丢一个 key，是从分歧点起整条链塌方。</li>
+<li><strong>"成本"支柱塌缩进"context 排列"支柱</strong>。省钱不再靠缓存策略，而是靠你能不能保证 <code>&lt;current_plan&gt;</code> 这类字段不在 step 间抖动。</li>
+</ol>
+</div>
+
+<p>把 miss 的代价画出来。分歧点之前是绿色的命中前缀，分歧点（那块消失的 <code>&lt;current_plan&gt;</code>）之后全部按全价重算：</p>
+
+<figure class="diagram">
+<div class="cacheline">
+  <div class="seg hit">命中前缀<br>tools + system + hook</div>
+  <div class="seg diverge">分歧点<br>&lt;current_plan&gt; 块消失</div>
+  <div class="seg recompute">其后全部重算<br>History + User + New Messages</div>
+</div>
+<figcaption>一个字节不同，分歧点之后全部按全价重算。命中走 <code>CacheReadInputTokens</code>（便宜），未命中走 <code>CacheCreationInputTokens</code>（贵）——两者加上断点后的 <code>InputTokens</code> 才还原出真实的 <code>PromptTokens</code>（<code>convert.go:88-93</code>）。</figcaption>
+</figure>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">基础输入 1×</span><div class="track"><div class="val base" style="width:40%">CacheRead 之外</div></div></div>
+  <div class="row"><span class="lbl">缓存写入 1.25×</span><div class="track"><div class="val write" style="width:50%">CacheCreationInputTokens（miss 时）</div></div></div>
+  <div class="row"><span class="lbl">缓存读取 0.1×</span><div class="track"><div class="val read" style="width:6%">CacheReadInputTokens（命中时）</div></div></div>
+</div>
+<figcaption>计价倍数为课程既定值（写入约 1.25×、读取约 0.1×，见 <a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching">官方文档</a>）。step 0→1 的一次前缀漂移，会把本该走 0.1× 读取的那一大段前缀，掉回 1.25× 写入——成本与延迟双升。</figcaption>
+</figure>
+
+<h2>四、仓库怎么防：把"前缀必须 byte-identical"写成 CI 卡点</h2>
+
+<p>既然规则由厂商定死、你只能被动保持一致，那"保持一致"这件事就必须被<strong>自动化守卫</strong>，否则任何人改一行 <code>buildContextPayload</code> 都可能在无声中击穿缓存。<code>cache_prefix_stability_test.go</code> 就是这道守卫。它顶部自带一张消息布局图，直接把每一段标注了"是否应 step 间稳定"：</p>
+
+<pre><code>//     [System Prompt]                   ← 应 step 间稳定
+//     [Mode Developer Messages]         ← mode 激活后应稳定（首次激活允许变化）
+//     [Hook Developer Messages]         ← 应 step 间稳定
+//     [Context Info]                    ← 应 step 间稳定（已知问题：PlanEnabled 会导致变化）
+//     [History Messages]               ← 应 step 间稳定（风险：refreshMessages 改 distance 可能影响截断）
+//     [Pre-User Hooks]                 ← 应 step 间稳定
+//     [User Request]                   ← 应 step 间稳定
+//     -------- 以上为 "稳定前缀"，cache 命中的关键 --------
+//     [New Messages + cache_control]   ← 每 step 增长（预期行为）</code></pre>
+<p class="meta">— <code>cache_prefix_stability_test.go:12-20</code></p>
+
+<p>注意 <code>[Context Info]</code> 那行的括注：<strong>应 step 间稳定（已知问题：PlanEnabled 会导致变化）</strong>。本课的雷被明明白白写进了契约文档里。测试的机制很直白（<code>assertPrefixStable</code>，<code>cache_prefix_stability_test.go:288</code>）：</p>
+
+<ol>
+<li>step 0：<code>refreshMessages</code> + <code>newConductorBasicMessages</code> 构一次消息，<code>extractStablePrefix</code> 取到<strong>最后一条 User 消息为止</strong>的前缀（<code>test.go:99-116</code>），算一个 SHA256。</li>
+<li>模拟推进：<code>runStepCount++</code> 且 <code>appendToolResultToNewMessages</code> 往 newMessages 追加工具结果（<code>test.go:298-299</code>）。</li>
+<li>step 1：再构一次、再取前缀、再算一个 hash。</li>
+<li>断言 <code>hash0 == hash1</code>。不等就 <code>t.Errorf</code>，并逐条 diff 报告哪条消息变了（<code>test.go:305-320</code>）。</li>
+</ol>
+
+<p>还有一个反向测试 <code>TestCachePrefixStability_DetectsKnownDrift_PlanEnabled</code>（<code>test.go:413</code>）：它<strong>故意</strong>开 <code>PlanEnabled</code>，断言两次 hash <strong>应该不同</strong>——用来证明"检测管线确实抓得到这种漂移"。这是一种自证：守卫本身也被守卫着。</p>
+
+<div class="good">
+<strong>正确的修复方向</strong>不是"把 <code>&lt;current_plan&gt;</code> 换成等长占位串骗过匹配"（严格前缀是 byte-identical，不看长度，见自测题 Q2），而是<strong>让抖动字段根本不进前缀</strong>：不需要 plan 提示的 Agent（如 Slides）在 <code>CustomizeContextPayload</code> hook（<code>context.go:86</code> 调用点）里把 <code>CurrentPlan</code>、<code>IsLastMessageFromUser</code> 清零；真正需要动态内容的，就挪到前缀之外的 New Messages 段——那里本就每 step 增长，是预期行为。</div>
+
+<h2>五、更深一层的漏水：连你选的 TTL 都没真正发出去</h2>
+
+<p>你可能已经注意到断点①用的是 <code>NewLLMMessageWithCache1Hour</code>（<code>agent.go:1471</code>、<code>common.go:403</code>），字面意思是"打 1 小时缓存"。内部类型也确实区分两档：<code>CacheTTL5Minutes = "5m"</code> 与 <code>CacheTTL1Hour = "1h"</code>（<code>common.go:600-601</code>）。但看它落到 Anthropic SDK 的那一步 <code>convertCacheControl</code>（<code>convert.go:54</code>）：</p>
+
+<pre><code>// TODO: GCP 目前不支持 1h 缓存，后续再放开
+switch cacheControl.TTL {
+case common.CacheTTL1Hour:
+	return anthropic.BetaCacheControlEphemeralParam{
+		Type: "ephemeral",
+		// TTL:  anthropic.BetaCacheControlEphemeralTTLTTL1h,
+	}
+case common.CacheTTL5Minutes:
+	return anthropic.BetaCacheControlEphemeralParam{
+		Type: "ephemeral",
+		// TTL:  anthropic.BetaCacheControlEphemeralTTLTTL5m,
+	}</code></pre>
+<p class="meta">— <code>convert.go:59-70</code>（<code>default</code> 分支同样把 TTL 行注释掉了，<code>convert.go:71-76</code>）</p>
+
+<div class="leak">
+你以为你在控制缓存的<strong>生命周期</strong>——选 1h 还是 5m。但真实 TTL 字段（<code>BetaCacheControlEphemeralTTLTTL1h</code> / <code>...TTL5m</code>）在 <code>convert.go</code> 里<strong>全被注释掉了</strong>，TODO 写着"GCP 目前不支持 1h 缓存"。当前所有分支都只返回 <code>{Type:"ephemeral"}</code>、不带 TTL，退化为 Anthropic 的默认——也就是 <strong>5 分钟</strong>。<code>NewLLMMessageWithCache1Hour</code> 表达的 1h 意图，此刻并没有真正传到厂商。这是又一处"你以为你在掌控，其实规则/实现不在你手里"的漏水。
+</div>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">内部意图 TTL</span><div class="track"><div class="val out" style="width:92%">CacheTTL1Hour = "1h"（common.go:601）</div></div></div>
+  <div class="row"><span class="lbl">实际发出 TTL</span><div class="track"><div class="val base" style="width:12%">{Type:"ephemeral"} → 默认 5m</div></div></div>
+</div>
+<figcaption>意图与实际的落差：<code>convert.go:60-76</code> 里 TTL 行被 TODO 注释，1h 意图当前退化为默认 5m ephemeral。讲这个字段时，别照搬"1h 生效"——那是意图态，不是当前行为。</figcaption>
+</figure>
+
+<p class="meta" style="margin-top:1.5rem">教学附注（关于"行号会漂移"）：反向测试的文档注释里把漂移根因标成了 <code>agent.go:1426</code>（<code>test.go:405-407</code>），但当前真实代码在 <code>agent.go:1528-1530</code>。注释的行号已过期——这本身就是"断言必须以实际 Read 到的行号为准，不能信任二手引用"的活教材。</p>
+
+<h2>六、关键定义</h2>
+
+<dl class="keydef">
+<dt>prefix cache / prompt caching（前缀缓存）</dt>
+<dd>厂商按"字节级严格前缀匹配"缓存已处理的 prompt 前段，顺序为 <code>tools → system → messages</code>；命中约 10% 计价、写入加价约 25%，未命中即从分歧点起全额重算。省的是厂商的算力，故匹配规则由厂商定死。</dd>
+<dt>分歧点（divergence point）</dt>
+<dd>一次请求的 prompt 与已缓存前缀第一个字节不同的位置；其后所有 token 缓存全部失效。本课的分歧点就是 <code>&lt;context_info&gt;</code> 里 <code>&lt;current_plan&gt;</code> 块存在与否造成的那几个字节。</dd>
+<dt>IsLastMessageFromUser</dt>
+<dd>conductorAgent 的运行时派生量，<code>= len(agent.newMessages) == 0</code>（<code>agent.go:1530</code>）。step 0 为 true、step 1 起为 false。它门控 <code>&lt;current_plan&gt;</code> 是否写入 <code>&lt;context_info&gt;</code>，因此是这颗雷的引信。</dd>
+<dt>cache write / cache read</dt>
+<dd>首次写入缓存（比基础输入贵约 25%）与后续命中读取（约基础输入价的 10%）。usage 里以 <code>CacheCreationInputTokens</code> / <code>CacheReadInputTokens</code> 区分，与断点后的 <code>InputTokens</code> 相加还原 <code>PromptTokens</code>（<code>convert.go:88-93</code>）。</dd>
+<dt>前缀稳定性契约（prefix stability contract）</dt>
+<dd>"稳定前缀必须 step 间 byte-identical"这条要求被固化为可执行断言的做法。载体：<code>cache_prefix_stability_test.go</code>，取到最后一条 User 消息为止的前缀算 SHA256 并断言 step0/step1 相等。</dd>
+</dl>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：conductorAgent 开启 PlanEnabled 后，为什么恰恰是 step 0 → step 1 之间发生 prefix cache miss，而不是 step 1 → step 2？</summary>
+<div class="answer">
+<p>因为引信是 <code>IsLastMessageFromUser = len(agent.newMessages) == 0</code>（<code>agent.go:1530</code>）。step 0 时 <code>newMessages</code> 为空 → <code>true</code>，<code>&lt;context_info&gt;</code> 里带 <code>&lt;current_plan&gt;</code> 块；step 1 起，上一步的 assistant+tool 回填让 <code>newMessages</code> 非空 → <code>false</code>，那一块从 <code>context.go:269-278</code> 的分支里消失。<strong>这一次 true→false 的翻转</strong>让 Context Info 这条 Developer 消息的字节改变，而它在缓存前缀内，导致 miss。</p>
+<p>step 1→2 时 <code>IsLastMessageFromUser</code> 一直是 <code>false</code>、该块一直不存在，字节稳定，就不再因这个字段 miss。（这也是为什么另有 <code>TestCachePrefixStability_BasicStepProgression</code> 额外检测 step1→2 的累积漂移——那是为了抓 distance 等<em>别的</em>渐进漂移源，不是这个布尔量。）</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：服务端同学说"那我把 &lt;current_plan&gt; 换个等长的占位串，字节数不变不就不 miss 了？" 这个想法哪里没理解 prompt cache 的匹配规则？</summary>
+<div class="answer">
+<p>错在把它当成自家缓存、以为可以靠"长度对齐"或自定义规则骗过匹配。Anthropic 是 <strong>byte-identical 的严格前缀匹配</strong>，不是按长度、也不是按语义匹配——只要有一个字节不同（哪怕总长完全相同），从该位置往后的缓存断点全部失效。</p>
+<p>正确做法不是"伪装稳定"，而是<strong>真正保持前缀不变</strong>：要么根本不注入会抖动的字段（Slides 等在 <code>CustomizeContextPayload</code> hook 里把 <code>CurrentPlan</code>、<code>IsLastMessageFromUser</code> 清零），要么把动态内容挪到前缀之外的 New Messages 段（那里本就每 step 增长，是预期行为）。这正是"成本"支柱塌缩进"context 排列"支柱的含义——省钱靠的是排版纪律，不是缓存技巧。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（进阶）：如果只看 <code>NewLLMMessageWithCache1Hour</code> 这个名字，你会以为 System Prompt 的缓存能活 1 小时。为什么当前这是错的？在哪一行被"截胡"了？</summary>
+<div class="answer">
+<p>因为意图态与行为态脱节了。内部确实建了一个 <code>TTL="1h"</code> 的 <code>CacheControl</code>（<code>common.go:618-623</code>），但 <code>convertCacheControl</code>（<code>convert.go:54</code>）把它映射到 Anthropic SDK 时，<code>case CacheTTL1Hour</code> 分支里真正的 <code>TTL: anthropic.BetaCacheControlEphemeralTTLTTL1h</code> <strong>被注释掉了</strong>（<code>convert.go:64</code>），TODO 说明"GCP 目前不支持 1h"。于是实际发出的是 <code>{Type:"ephemeral"}</code> 不带 TTL，退化为默认 5m。名字承诺 1h，链路只交付 5m——读代码时不能只信函数名，要跟到映射的最后一跳。</p>
+</div>
+</details>
+</div>
+
+<h2>八、主推资源</h2>
+
+<p>本课的一手来源，值得对着代码读一遍：<a href="https://platform.claude.com/docs/en/build-with-claude/prompt-caching">Prompt caching — Claude Platform Docs</a>。读的时候带三个问题回来对照本仓库：(1) 文档里 cache breakpoint 的放置规则，和 <code>agent.go:1471</code>（System 打 1h）、New Messages 尾部（断点②）是否吻合？(2) 文档说的 5m / 1h TTL，和 <code>convert.go</code> 里被注释掉的现状差在哪？(3) 文档强调"稳定在前、易变在后"，正是 <code>cache_prefix_stability_test.go</code> 那张布局图的依据。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14 或直接看 <code>conductorservice/agent.go</code>、<code>context.go</code>、<code>cache_prefix_stability_test.go</code> 的真实代码。下一课预告：<em>context 淘汰与压缩（compaction）——当历史逼近窗口时，谁来决定丢什么。</em></p>
+</footer>
+</main>
+</body>
+</html>

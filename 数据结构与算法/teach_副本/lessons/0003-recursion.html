@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 3 课 · 递归 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第一部分《算法图解》③ · 对应 ch03</div>
+  <h1>第 3 课:递归 —— 用"缩小规模的自己"解决问题</h1>
+  <div class="sub">目标:第2课学了数组/链表的读写代价对比和选择排序 O(n²);这节课换个角度,不再比较"快慢",
+  而是学一种新的思考方式——递归,以及它最容易在期末考试里翻车的两处:漏写基线条件、忽视调用栈代价。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>用俄罗斯套娃理解递归。</b> 一层套娃里装着更小的一层,再里面还有更小的一层……你不需要一次性想清楚"里面到底有几层",
+  只需要重复问同一个问题:<b class="hl">"这一层里面还有娃娃吗?"</b> 有,就打开它,对里面那个更小的娃娃重复同样的问题;
+  没有(打开的是最里层那个实心娃娃),就停下来。这个"停下来"的时刻,就是<b class="hl">基线条件(base case)</b>;
+  每一次"打开、往里传"的动作,就是<b class="hl">递归条件(recursive case)</b>——而打开到一半、还没合上的那些外层娃娃,
+  正对应着<b class="hl">调用栈(call stack)</b>里那些"暂停、等待"的函数调用。
+</div>
+
+<h2>一、基线条件 vs 递归条件</h2>
+<p>递归(Recursion)指函数调用自身,用它可以把"重复处理直到条件满足"的问题表达得比循环更清晰。
+但一个正确的递归函数,必须同时具备两个部分:</p>
+<ul>
+  <li><b>基线条件(base case)</b>:函数<b class="hl">不再调用自己、直接返回结果</b>的情形——防止无限循环的关键。</li>
+  <li><b>递归条件(recursive case)</b>:函数<b class="hl">调用自身、处理更小规模子问题</b>的情形——必须让问题规模严格变小,
+  才能保证最终一定能触达基线条件。</li>
+</ul>
+<p>每一次递归调用,都会在<b>调用栈</b>上压入一个新的栈帧(stack frame),保存这次调用自己的局部变量;
+基线条件触发后,栈帧从顶部依次弹出,逐层把结果往外传。递归的"清晰"和调用栈的"内存开销",是同一枚硬币的两面。</p>
+
+<h2>二、递归 vs 循环:不是快慢之争,是权衡</h2>
+<table>
+  <tr><th>维度</th><th>递归</th><th>循环</th></tr>
+  <tr><td>清晰度</td><td>表达嵌套/自相似结构更自然,不用自己维护"待处理列表"——调用栈自动替你记住</td>
+      <td>需要自己手动维护一个显式的待办堆/索引变量,逻辑更繁琐但过程直观</td></tr>
+  <tr><td>内存代价</td><td>每次调用压入新栈帧,递归层数很深时栈会变得很高,可能耗尽内存</td>
+      <td>通常只用固定几个变量,不随处理规模增长而额外占用调用栈</td></tr>
+  <tr><td>性能</td><td>没有性能优势,书中明确指出"使用循环的性能可能更好"</td>
+      <td>性能通常更好或至少不差</td></tr>
+  <tr><td>适用场景</td><td>嵌套/树形/自相似结构(如盒中盒、遍历链表或树)</td>
+      <td>能清楚表达"重复直到条件满足"的线性重复任务</td></tr>
+</table>
+<div class="callout big">
+  <b>期末简答题最爱问的角度:</b> "为什么说递归 vs 循环不是性能选择题?" —— 因为选递归从来不是为了跑得更快,
+  而是为了让"问题本身就是嵌套/自相似结构"这件事表达得更清楚;能用循环写清楚的问题,就不必强行套上递归。
+</div>
+
+<h3>C 代码(阶乘,带边界条件详解)</h3>
+<pre>int fact(int x) {
+    if (x == 1) {                    <span class="c">// ① 基线条件:不再递归,直接返回</span>
+        return 1;
+    } else {
+        return x * fact(x - 1);      <span class="c">// ② 递归条件:问题规模从 x 缩小到 x-1</span>
+    }
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 基线条件不能漏写。</b> 如果把 <code>if (x == 1) return 1;</code> 整行删掉,只剩
+    <code>return x * fact(x - 1);</code>,函数永远不会"停下来返回"——这正是本章开头 <code>countdown</code>
+    例子的翻版:没有终止条件,会像 <code>3...2...1...0...-1...-2...</code> 一样<b class="bad">无限递归</b>下去,
+    最终耗尽调用栈内存。</li>
+  <li><b>② 递归条件必须让问题规模严格变小,不能只是"看起来在递归"。</b> 如果不小心把
+    <code>fact(x - 1)</code> 误写成 <code>fact(x)</code>(忘记 <code>-1</code>),基线条件本身没写错,
+    但 <code>x</code> 永远不会变化、永远碰不到 <code>x == 1</code>,同样会无限递归——这比"忘写基线条件"更隐蔽,
+    因为代码表面上"看起来"有终止条件。</li>
+  <li><b>③ 递归深度过大时的栈溢出风险。</b> 即使这段逻辑完全正确,如果 <code>x</code> 非常大(比如计算
+    <code>fact(100000)</code>),调用栈会压入等量的栈帧,可能耗尽内存导致<b class="bad">栈溢出(stack overflow)</b>——
+    这时标准做法是改写成循环,或使用尾递归(如果语言支持,本章明确说这属于更高级、不在讨论范围内的技巧)。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱:</b>
+  <ul style="margin:6px 0 0">
+    <li><b>忘记写基线条件</b>——没有终止条件会导致无限递归。</li>
+    <li><b>误以为递归总是比循环快</b>——递归只是让方案更清晰,并没有性能优势,循环的性能可能更好。</li>
+    <li><b>忽视调用栈的内存代价</b>——递归层数很深时,栈会变得很高,每层调用都占内存,可能带来严重的内存开销。</li>
+  </ul>
+</div>
+
+<h2>三、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 如果把 <code>fact</code> 函数的基线条件整行删掉,只剩
+    <code>return x * fact(x - 1);</code> 这一句,调用 <code>fact(3)</code> 会发生什么?</div>
+  <button class="opt" data-ok="0">正常返回 6,只是速度稍慢</button>
+  <button class="opt" data-ok="0">编译时报错,提示缺少 return</button>
+  <button class="opt" data-ok="1">无限递归——函数不断调用自己,问题规模一路缩小到负数也停不下来,最终耗尽调用栈内存(栈溢出)</button>
+  <button class="opt" data-ok="0">返回 0,因为 C 语言里递归到 x&lt;=0 时默认返回 0</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 调用 <code>fact(3)</code> 时,以下哪个栈帧最先触达基线条件、最先开始把返回值往外传?</div>
+  <button class="opt" data-ok="0">fact(3)</button>
+  <button class="opt" data-ok="0">fact(2)</button>
+  <button class="opt" data-ok="1">fact(1)</button>
+  <button class="opt" data-ok="0">三个栈帧同时返回</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q2sol').classList.toggle('hidden')">▸ 看完整调用栈追踪</span>
+  <div id="q2sol" class="hidden" style="margin-top:8px">
+    <table>
+      <tr><th>阶段</th><th>调用</th><th>x</th><th>说明</th></tr>
+      <tr><td>压栈</td><td>fact(3)</td><td>3</td><td>未命中基线条件,等待 fact(2) 返回</td></tr>
+      <tr><td>压栈</td><td>fact(2)</td><td>2</td><td>未命中基线条件,等待 fact(1) 返回</td></tr>
+      <tr><td>压栈</td><td>fact(1)</td><td>1</td><td>命中基线条件 <code>x==1</code>,直接 <code>return 1</code></td></tr>
+      <tr><td>弹栈</td><td>fact(1) → fact(2)</td><td>—</td><td>fact(2) 算出 <code>2*1=2</code></td></tr>
+      <tr><td>弹栈</td><td>fact(2) → fact(3)</td><td>—</td><td>fact(3) 算出 <code>3*2=6</code></td></tr>
+      <tr><td>弹栈</td><td>fact(3) → 调用者</td><td>—</td><td>最终结果 6</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段改写过的阶乘递归函数,有一行有 bug,选出问题所在。</div>
+  <p class="sub" style="margin-top:-4px">先在纸上模拟一遍 <code>fact(3)</code> 再选。</p>
+  <pre>int fact(int x) {
+    if (x == 0) {
+        return 1;
+    } else {
+        return x * fact(x);   <span class="c">// ← 这一行</span>
+    }
+}</pre>
+  <button class="opt" data-ok="0">基线条件 <code>x == 0</code> 写错了,应该是 <code>x == 1</code></button>
+  <button class="opt" data-ok="1">递归调用里应该是 <code>fact(x - 1)</code>,不是 <code>fact(x)</code>——否则问题规模永远不会缩小,无法触达基线条件,陷入无限递归</button>
+  <button class="opt" data-ok="0">else 分支多余,可以删掉</button>
+  <button class="opt" data-ok="0">这段代码完全正确,只是效率低</button>
+  <div class="fb"></div>
+</div>
+
+<h2>四、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"基线条件(base case)和递归条件(recursive case)分别是什么、为什么两者缺一不可?"<br>
+  ②"调用栈(call stack)在递归里是怎么工作的——为什么说递归的'清晰'是用内存代价换来的?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 4 课(快速排序,用递归实现分而治之)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 4 课):</b> 快速排序——用这节课学到的递归(基线条件/递归条件、调用栈)实现"分而治之",
+  看看递归到底能怎么把 O(n²) 的选择排序甩在身后。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/bhargava-algorithms/chapters/ch03-recursion.md</code>
+  (《算法图解》第3章,原书 Python 代码已改写为 C)。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!这正是本章开头 countdown 例子的翻版——没有终止条件,函数会像 3...2...1...0...-1...-2... 一样无限递归下去,唯一区别是这里没有 print,但一样会一路压栈,直到耗尽调用栈内存导致栈溢出。',
+      bad:'再想想:没有基线条件,fact 永远不会"停下来返回",而是持续调用 fact(x-1)、fact(x-2)……问题规模确实在缩小(变成负数),但从来碰不到能让它 return 的条件。所以既不是"正常但慢",也不是编译错误——这是无限递归,最终会栈溢出。'},
+  q2:{good:'对!调用栈从栈底到栈顶依次压入 fact(3)→fact(2)→fact(1),fact(1) 因为 x==1 最先命中基线条件、直接 return 1,然后才轮到 fact(2) 算 2*1=2,最后 fact(3) 算 3*2=6。',
+      bad:'调用栈是后进先出:最先调用的 fact(3) 最先压栈、最后弹栈;最后调用的 fact(1) 因为 x==1 命中基线条件,反而最先返回。所以顺序是 fact(1) 先返回 1 给 fact(2),fact(2) 算出 2 返回给 fact(3),fact(3) 才算出最终结果 6。'},
+  q3:{good:'对!这是比"忘记基线条件"更隐蔽的陷阱——代码表面上"看起来"有终止条件(x==0 确实能 return 1),但递归调用永远传的还是 x 本身,问题规模从来没有缩小过,x 永远不会自然变成 0,所以同样是无限递归,只是原因不是"没写基线条件"而是"递归条件没有让规模变小"。',
+      bad:'再模拟一遍:fact(3) 调用 fact(3),又调用 fact(3)……x 从来没变过。基线条件本身没错(x==0 确实能触发,只是 x 永远到不了 0),问题出在递归调用的参数上——递归条件必须让问题规模严格缩小,才能保证最终一定能碰到基线条件。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>
