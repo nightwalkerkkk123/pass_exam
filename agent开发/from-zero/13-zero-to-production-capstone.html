@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>13 · 从零到生产：你亲手装完的这台 Agent</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 长出一个 Agent · 第 13 课（收口）· 预计 12 分钟 · 上一课：<a href="12-token-economics-basics.html">12 Token 是新的钱</a> · 全书完 · <a href="index.html">返回门户</a></p>
+
+<h1>从零到生产：你亲手装完的这台 Agent</h1>
+
+<p class="lede">前面 12 课，我们从"只会聊天的大脑"开始，一个零件一个零件地把它装成了一台能自己干活、扛得住长对话、还负担得起的生产级 agent。这最后一课不装新零件，只做一件事：<strong>退后一步，把整台机器看一遍</strong>——每个零件当初是被什么问题逼出来的，串起来就是这门课真正想让你带走的东西。</p>
+
+<div class="chain in">
+<p>12 个零件都装上了：会说（messages）、会做（工具）、不失控（编排 + 可靠性）、记得住（压缩 + 记忆）、可信又可负担（评估 + 成本）。可现在把它们摆在一起看，一个更根本的问题浮出来了——</p>
+<p>这些零件<strong>不是一份功能清单</strong>，而是一条问题链：每一个的出现，都是为了填上一个零件留下的坑。如果说不清"这一层是被下一层的什么痛逼出来的"，你就只是背了 12 个名词，而没有真正理解 agent 是怎么长出来的。这一课，我们把这条链彻底看清。</p>
+</div>
+
+<h2>一、先站远一点：这台机器是"长"出来的，不是"设计"出来的</h2>
+
+<p>先用最生活化的方式想（ELI5）。假设你要拼一辆自行车：你不会一上来就照着成品图纸把零件全焊死。你会先有两个轮子和一个车架——它能滚，但你得用脚蹬地（"只会聊天的大脑"）。滚起来才发现：得有脚踏板（循环），有了脚踏板发现坐着累，得有座椅（人格与规矩）……<strong>每加一个零件，都是因为上一个状态暴露了一个新的痛点。</strong></p>
+
+<p>mino_server 里这个真实的 agent 就是这么长出来的。它的心脏是一个叫 <strong>Conductor</strong>（指挥官）的东西——一个无状态的大模型，外面套着一圈会不断"再走一步"的循环。这门课的 13 节，本质上就是这圈循环的<strong>施工顺序</strong>。下面这张图，是我们从第 01 课到第 12 课一路盖起来的塔。请你从<strong>最底下一层往上读</strong>，每读一层，都在心里补一句"因为下面那层的痛，所以有了这一层"。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 760 600" role="img" aria-label="从大模型自底向上叠加 12 层能力长成生产级 agent 的能力塔，每层标注课号、能力与它解决的痛">
+  <!-- left build-order arrow -->
+  <line x1="34" y1="556" x2="34" y2="70" class="dgm-edge" stroke-width="1.5"/>
+  <path d="M34 66 l-5 11 l10 0 z" class="dgm-accent"/>
+  <text class="dgm-muted" x="20" y="320" font-size="11" text-anchor="middle" transform="rotate(-90 20 320)">自底向上 · 每层都被下层的痛逼出来</text>
+
+  <!-- capstone -->
+  <rect class="dgm-hub" x="86" y="18" width="620" height="44" rx="8" stroke-width="2"/>
+  <text class="dgm-accent-text" x="396" y="38" font-size="14" font-weight="700" text-anchor="middle">🏛 生产级 Agent ＝ 可信 · 可负担 · 记得住 · 不失控</text>
+  <text class="dgm-muted" x="396" y="54" font-size="10.5" text-anchor="middle">这 12 层叠加的结果，就是 mino_server 里那个真实的 Conductor</text>
+
+  <!-- layer 12 -->
+  <rect class="dgm-node" x="86" y="74" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="90" font-size="12" font-weight="700" text-anchor="start">第12课 · Token 经济学：前缀缓存把成本与 context 排列焊死</text>
+  <text class="dgm-muted" x="100" y="103" font-size="10" text-anchor="start">痛：能跑，但每轮重发全部历史 → 烧钱 · 缓存读 0.1× / 写 1.25×</text>
+
+  <!-- layer 11 -->
+  <rect class="dgm-node" x="86" y="114" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="130" font-size="12" font-weight="700" text-anchor="start">第11课 · 评估 ＝ 新的 CI，裁判要跨厂商</text>
+  <text class="dgm-muted" x="100" y="143" font-size="10" text-anchor="start">痛：改一句 prompt / 换个小模型，怎么知道它没变笨 · memory_eval 阈值 0.6</text>
+
+  <!-- layer 10 -->
+  <rect class="dgm-node" x="86" y="154" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="170" font-size="12" font-weight="700" text-anchor="start">第10课 · 长期记忆：落盘 + 向量库，跨会话记得住</text>
+  <text class="dgm-muted" x="100" y="183" font-size="10" text-anchor="start">痛：压缩是有损的，会把重要的事忘掉 · memory_flush.go · WithoutCancel</text>
+
+  <!-- layer 09 -->
+  <rect class="dgm-node" x="86" y="194" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="210" font-size="12" font-weight="700" text-anchor="start">第09课 · 主动压缩，不等窗口爆掉</text>
+  <text class="dgm-muted" x="100" y="223" font-size="10" text-anchor="start">痛：聊得太久，context 会撑爆窗口 · summary.go min(0.8×窗口, 200K)</text>
+
+  <!-- layer 08 -->
+  <rect class="dgm-node" x="86" y="234" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="250" font-size="12" font-weight="700" text-anchor="start">第08课 · 可靠性：分层超时 / 坏 JSON 回注自愈 / 多 provider 兜底</text>
+  <text class="dgm-muted" x="100" y="263" font-size="10" text-anchor="start">痛：模型不可靠、会吐坏 JSON · toolcall.go 5.5min · AnthropicDirect→GCP（tryModelFallback 仅 slides）</text>
+
+  <!-- layer 07 -->
+  <rect class="dgm-node" x="86" y="274" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="290" font-size="12" font-weight="700" text-anchor="start">第07课 · 编排：何时再走一步、何时停、能否并行</text>
+  <text class="dgm-muted" x="100" y="303" font-size="10" text-anchor="start">痛：会用工具了，但可能停不下来 / 一件件串行太慢 · maxParallelToolCount=5</text>
+
+  <!-- layer 06 -->
+  <rect class="dgm-node" x="86" y="314" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="330" font-size="12" font-weight="700" text-anchor="start">第06课 · 工具描述就是 prompt</text>
+  <text class="dgm-muted" x="100" y="343" font-size="10" text-anchor="start">痛：工具装上了，模型却不会用 / 乱用 · ToOpenAPIV3 · 字典序注入</text>
+
+  <!-- layer 05 -->
+  <rect class="dgm-node" x="86" y="354" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="370" font-size="12" font-weight="700" text-anchor="start">第05课 · Tool Calling：给模型装上手脚</text>
+  <text class="dgm-muted" x="100" y="383" font-size="10" text-anchor="start">痛：只会说不会动手，改不了世界 · tools.go 约 55 个工具 / toolcall.go</text>
+
+  <!-- layer 04 -->
+  <rect class="dgm-node" x="86" y="394" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="410" font-size="12" font-weight="700" text-anchor="start">第04课 · System Prompt：给 agent 人格与规矩</text>
+  <text class="dgm-muted" x="100" y="423" font-size="10" text-anchor="start">痛：有消息了，但没人设、没边界、不知道自己是谁 · prompts.go</text>
+
+  <!-- layer 03 -->
+  <rect class="dgm-node" x="86" y="434" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="450" font-size="12" font-weight="700" text-anchor="start">第03课 · 从聊天到 messages：每步组装一整包上下文</text>
+  <text class="dgm-muted" x="100" y="463" font-size="10" text-anchor="start">痛：无状态大脑记不住，循环每步都得把历史重发 · buildConductorMessages</text>
+
+  <!-- layer 02 -->
+  <rect class="dgm-node" x="86" y="474" width="620" height="34" rx="6" stroke-width="1.3"/>
+  <text class="dgm-text" x="100" y="490" font-size="12" font-weight="700" text-anchor="start">第02课 · 无状态大脑 ＋ 外部循环 ＝ 会连续干活</text>
+  <text class="dgm-muted" x="100" y="503" font-size="10" text-anchor="start">痛：一次问答做不完一件事，需要反复"再走一步" · streamChat for 循环 · maxStepCount=100</text>
+
+  <!-- layer 01 (foundation) -->
+  <rect class="dgm-good-node" x="86" y="514" width="620" height="34" rx="6" stroke-width="1.5"/>
+  <text class="dgm-text" x="100" y="530" font-size="12" font-weight="700" text-anchor="start">第01课 · 地基：大脑 ＋ 循环 ＋ 工具 三件套</text>
+  <text class="dgm-muted" x="100" y="543" font-size="10" text-anchor="start">痛：光有一个大模型，它只会聊天，不会自己干活</text>
+</svg>
+</div>
+<figcaption>能力叠加塔：从最底层 <code>第01课</code> 的"大脑+循环+工具"地基，到塔顶 <code>第12课</code> 收束成生产级 Agent。每一层的第二行都是它<strong>为之而生的那个痛</strong>，并落到 mino_server 真实符号（<code>streamChat</code> 循环 · <code>buildConductorMessages</code> · <code>summary.go</code> · <code>memory_flush.go</code> · <code>tryModelFallback</code> · <code>memory_eval</code>）。这座塔的施工顺序，就是这门课的顺序。</figcaption>
+</figure>
+
+<h2>二、把塔读成一句话：问题链</h2>
+
+<p>塔是空间的看法。把它<strong>拉直成时间</strong>，就是一条环环相扣的问题链——这才是这门课真正的脊椎。你可以试着不看下面这段，自己先复述一遍；卡住的地方，就是还没打通的关节。</p>
+
+<div class="good">
+<p><strong>一口气读完的问题链：</strong></p>
+<p>大模型只会聊天 → 给它套个<strong>外部循环</strong>让它能"再走一步"（第02课，<code>streamChat</code> 的 step 循环，上限 <code>maxStepCount=100</code>）→ 可它无状态、记不住，于是每步都得<strong>重新组装 messages</strong>（第03课，<code>buildConductorMessages</code>）→ 这包消息最前面得先立<strong>人格与规矩</strong>（第04课，<code>prompts.go</code>）→ 光会说不够，得<strong>装上工具的完整往返</strong>（第05课，<code>tools.go</code> 约 55 个工具服务）→ 可工具装了模型不会用，因为<strong>工具描述本身就是 prompt</strong>（第06课，<code>ToOpenAPIV3</code>，还得按字典序稳定注入）→ 会用工具又怕它停不下来 / 太慢，于是要<strong>编排</strong>：何时停、能否并行（第07课，<code>maxParallelToolCount=5</code>）→ 模型还是个不可靠的调用方，得靠<strong>分层超时、坏 JSON 回注自愈、多 provider 兜底</strong>（第08课，<code>toolcall.go</code>；通用供应商兜底在 LLM 客户端层的多 provider 重试 <code>AnthropicDirect→GCP</code>；<code>tryModelFallback</code> 则仅是 slides 编辑专用的限流降级 Gemini 3.1 Pro→Gemini 3 Flash）→ 干得久了 context 会爆，得<strong>主动压缩</strong>（第09课，<code>summary.go</code>）→ 压缩有损会失忆，得把重要的事<strong>落盘成长期记忆</strong>（第10课，<code>memory_flush.go</code>）→ 改了这么多东西怎么知道没变笨？得靠<strong>统计性评估</strong>守（第11课，<code>memory_eval</code>）→ 最后，这一切每轮都在花钱，<strong>token 就是新的钱</strong>，前缀缓存把成本和 context 排列焊死（第12课）。</p>
+</div>
+
+<p>看清这条链，你就拿到了这门课最贵的那个判断：<strong>agent 工程里几乎每一个"零件"，都不是凭空的最佳实践，而是上一步的痛留下的补丁。</strong> 当你以后读任何一个陌生的 agent 框架，就该反过来问："它这层是在补什么痛？"——这比记住 API 有用一百倍。</p>
+
+<h2>三、经验清单：每条经验，绑一个真实机制</h2>
+
+<p>下面这张表，是把整门课压成 8 条"以后能直接用"的经验。左边是经验，中间是为什么，右边<strong>钉死在 mino_server 的真实文件与符号上</strong>——因为脱离了机制的经验只是鸡汤，绑上机制才是你能复现的手艺。</p>
+
+<table>
+<tr><th>一句话经验</th><th>为什么成立</th><th>绑定的真实机制（文件 · 符号）</th></tr>
+<tr>
+  <td><strong>无状态大脑 + 外部循环 = agent</strong></td>
+  <td>大脑本身不会连续做事，"能自己干活"来自外面那圈"再走一步"的循环，不是来自模型更聪明</td>
+  <td><code>conductorservice/agent.go</code> · <code>streamChat</code> 的 step for 循环 · <code>defaultMaxStepCount = 100</code></td>
+</tr>
+<tr>
+  <td><strong>每轮都重发完整历史与工具定义</strong> → 成本与"缓存 + context 排列"强耦合</td>
+  <td>模型无状态，每次调用都得把一切带过去；于是内容放哪、顺序如何，直接决定缓存命中与账单</td>
+  <td><code>agent.go · getCurrentToolInfos</code>（按工具名字典序，保持稳定顺序）＋ <code>context.go</code> 里的 <code>&lt;current_time&gt;</code></td>
+</tr>
+<tr>
+  <td><strong>工具描述就是 prompt</strong></td>
+  <td>模型只能看到工具的名字 + 描述 + 参数 schema，写不好它就不会用 / 乱用——工具治理其实是文字治理</td>
+  <td>工具 schema 经 <code>ToOpenAPIV3()</code> 转成模型能读的定义（<code>llms/claude/convert.go</code> 等处调用）</td>
+</tr>
+<tr>
+  <td><strong>把模型当不可靠的调用方</strong>：分层超时 / 并发上限 / 坏 JSON 回注自愈</td>
+  <td>模型会卡、会超时、会吐出解析不了的 JSON；生产系统必须假设它随时出错并自愈，而不是期待它永远正确</td>
+  <td><code>conductorservice/toolcall.go</code>（<code>defaultToolCallTimeout=5.5min</code>、子代理/ACP/文件传输 <code>30min</code>、slides <code>10min</code>、<code>maxParallelToolCount=5</code>）＋ <code>agent.go · categorizeToolCalls</code>；通用供应商兜底在 LLM 客户端层多 provider 重试 <code>claude/provider.go · getProvider</code>（<code>AnthropicDirect→GCP</code>）；另 <code>tryModelFallback</code> 仅 slides 编辑专用的限流降级（Gemini 3.1 Pro→Gemini 3 Flash，429/overload）</td>
+</tr>
+<tr>
+  <td><strong>主动压缩，而不是等窗口爆</strong></td>
+  <td>context 窗口有限且"越长越笨"；等到撑爆才处理就晚了，要在一条红线前主动摘要</td>
+  <td><code>conductorservice/summary.go</code> · <code>summaryContextLine = min(窗口×0.8, 200_000)</code></td>
+</tr>
+<tr>
+  <td><strong>短期 context 会被压缩，长期 memory 要落盘可检索</strong></td>
+  <td>压缩是有损的，重要的事必须在被糊掉之前抢救到硬盘，日后还能按语义捞回</td>
+  <td><code>conductorservice/memory_flush.go</code> · <code>concurrency.SafeGo</code> + <code>context.WithoutCancel</code> → 写 <code>memory/YYYY-MM-DD.md</code> 再入向量库</td>
+</tr>
+<tr>
+  <td><strong>质量靠统计性 eval 守，裁判要跨厂商</strong></td>
+  <td>agent 输出天生带随机性，不能靠"跑一次看着对"；要像 CI 一样批量判分，且用别家模型当裁判避免自评偏袒</td>
+  <td><code>cmd/memory_eval</code> · 判分 <code>Score &lt; 0.6</code> 即视为不达标（<code>eval/runner.go</code>）</td>
+</tr>
+<tr>
+  <td><strong>稳定在前、易变在后</strong>，是前缀缓存的铁律</td>
+  <td>前缀缓存按字节严格前缀匹配，改动越靠前失效越多；把易变的东西降精度、往后放，缓存才留得住</td>
+  <td><code>conductorservice/context.go</code> · <code>&lt;current_time&gt;</code> 只用 <code>Format("2006-01-02")</code>（只到日期，一天之内不变）</td>
+</tr>
+</table>
+
+<div class="good">
+<strong>把这张表钉在墙上。</strong> 它不是这门课的"总结页"，而是你下一次真正动手写 agent 时的 checklist：每做一个决定，回来问一句"这条经验管不管这里、对应哪个机制？"</div>
+
+<h2>四、你现在站在哪：从"发育学"走向"解剖学"</h2>
+
+<p>这门入门课，讲的是<strong>发育学</strong>——一台 agent 是怎么从一个大脑一层层长出来的。它回答的是"<strong>为什么会有这个零件</strong>"。但一个成熟系统，光懂它怎么长出来还不够，你还得会<strong>按关注点把它解剖开</strong>——这就是进阶课要做的事。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 250" role="img" aria-label="从入门发育学课过桥到进阶四支柱解剖课，同一个 mino_server 的两种看法">
+  <!-- left: this course -->
+  <rect class="dgm-good-node" x="40" y="60" width="250" height="130" rx="10" stroke-width="1.8"/>
+  <text class="dgm-text" x="165" y="92" font-size="14" font-weight="700" text-anchor="middle">入门课 · 发育学</text>
+  <text class="dgm-muted" x="165" y="114" font-size="11" text-anchor="middle">「这台 agent 怎么长出来」</text>
+  <text class="dgm-muted" x="165" y="136" font-size="11" text-anchor="middle">01 → 13 · 一条问题链</text>
+  <text class="dgm-muted" x="165" y="158" font-size="10.5" text-anchor="middle">你现在在这里 ✓</text>
+
+  <!-- bridge arrow -->
+  <line x1="292" y1="125" x2="426" y2="125" class="dgm-edge" stroke-width="2"/>
+  <path d="M430 125 l-12 -6 l0 12 z" class="dgm-accent"/>
+  <text class="dgm-accent-text" x="361" y="112" font-size="11" font-weight="700" text-anchor="middle">过桥</text>
+  <text class="dgm-muted" x="361" y="150" font-size="10" text-anchor="middle">同一个 mino_server</text>
+
+  <!-- right: advanced course -->
+  <rect class="dgm-hub" x="432" y="46" width="256" height="158" rx="10" stroke-width="2"/>
+  <text class="dgm-accent-text" x="560" y="76" font-size="14" font-weight="700" text-anchor="middle">进阶课 · 四支柱解剖学</text>
+  <text class="dgm-muted" x="560" y="98" font-size="11" text-anchor="middle">「成熟系统按关注点拆」</text>
+  <text class="dgm-text" x="560" y="122" font-size="10.5" text-anchor="middle">① context 组织　② 工具 ≈ RPC</text>
+  <text class="dgm-text" x="560" y="140" font-size="10.5" text-anchor="middle">③ 评估 ≈ CI　④ token ≈ 成本</text>
+  <text class="dgm-muted" x="560" y="164" font-size="10" text-anchor="middle">../index.html · 微课 0001–0012</text>
+  <text class="dgm-muted" x="560" y="184" font-size="10" text-anchor="middle">（0001 已证明四支柱其实是一个中心的四张脸）</text>
+</svg>
+</div>
+<figcaption>两种看法，同一台机器：入门课沿"问题链"纵向长出零件；进阶《四支柱工程课》横向把成熟系统切成四个关注点。发育学让你懂"为什么"，解剖学让你会"怎么权衡"。入口：进阶门户 <code>../index.html</code>，进阶微课目录 <code>../lessons/</code>（<code>0001</code> 到 <code>0012</code>）。</figcaption>
+</figure>
+
+<p>两门课不是重复，而是<strong>互补的两个视角</strong>。举个例子你就懂它们怎么接上：本课经验清单第 (2)、(8) 条讲的"每轮重发历史"和"稳定在前、易变在后"，在进阶课里被提炼成一个更锋利的判断——<a href="../lessons/0001-context-is-the-spine.html">进阶 0001《context 是主轴》</a>证明：成本、质量、评估、工具这四支柱<strong>不是并列的四个问题，而是一个中心（context 组织）投影出的四张脸</strong>。你在这里辛苦一层层装出来的直觉，到那边会被收拢成一句可推导的原理。</p>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>问题链（problem chain）</dt>
+<dd>这门课的组织方式：每一节课的"零件"都是为了填补上一节留下的一个真实痛点而出现，环环相扣。理解 agent 的正确姿势，是理解这条链，而不是记住零件清单。</dd>
+<dt>能力叠加塔</dt>
+<dd>把问题链画成空间结构：以"大脑+循环+工具"为地基，自底向上每层补一个痛，塔顶收束成生产级 agent。塔的层序 = 课程的施工顺序。</dd>
+<dt>发育学视角 vs 解剖学视角</dt>
+<dd>发育学（本入门课）回答"这台 agent 怎么<em>长</em>出来、每个零件<em>为什么</em>存在"；解剖学（进阶《四支柱》课，<code>../index.html</code>）回答"成熟系统按 context / 工具 / 评估 / 成本四个关注点<em>怎么切、怎么权衡</em>"。同一个 <code>mino_server</code>，两种互补看法。</dd>
+<dt>前缀缓存契约</dt>
+<dd>由厂商定价规则强加的排列约束：prompt 按字节严格前缀匹配缓存，改动越靠前失效越多。工程上落成"稳定在前、易变在后"，mino_server 的体现是 <code>&lt;current_time&gt;</code> 只精确到日期（<code>Format("2006-01-02")</code>）。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：有人说"agent 就是给大模型加了一堆工具"。用这门课的问题链反驳他——为什么"工具"其实排在很靠后的位置，它前面必须先有什么？</summary>
+<div class="answer">
+<p>这句话把"手脚"当成了"生命"。按塔的层序，工具（第05课）之前必须先有三层地基：<strong>外部循环</strong>（第02课，<code>streamChat</code> 的 step 循环）让它能"再走一步"，否则调完一个工具就结束了；<strong>每步重组 messages</strong>（第03课，<code>buildConductorMessages</code>）让无状态的大脑记得住上一步发生了什么；<strong>system 人格与规矩</strong>（第04课，<code>prompts.go</code>）让它知道自己是谁、该干嘛。</p>
+<p>更关键的是工具后面还有一长串：工具装了不会用要靠"描述即 prompt"（第06课），会用了怕失控要靠编排（第07课，<code>maxParallelToolCount=5</code>），还要假设它不可靠而自愈（第08课）。所以"加一堆工具"只是塔中间的一层——<strong>真正让它成为 agent 的是那圈循环和它周围的一整套治理，而不是工具本身。</strong></p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：为什么"落盘长期记忆"（第10课）必须排在"主动压缩"（第09课）之后，而不能反过来？把这两层调换会发生什么？</summary>
+<div class="answer">
+<p>因为第10课这个零件，正是被第09课的痛<strong>逼</strong>出来的——它俩是问题链上紧挨着的一环，顺序反了整条逻辑就断了。</p>
+<p>第09课的 <code>summary.go</code> 解决"context 会爆"，代价是<strong>有损压缩</strong>：旧对话被糊成一段摘要，细节没了。正因为压缩会让 agent"失忆"，才需要第10课在<strong>压缩发生之前</strong>把重要的事抢救到硬盘（<code>memory_flush.go</code> 里落盘就是刻意安排在压缩前触发的）。如果先有长期记忆、还没有压缩机制，那 context 根本不会爆，你也就没有动机去建长期记忆——这个零件会显得多余。这正说明：<strong>零件的价值只在它对应的痛出现之后才成立</strong>，这就是问题链的意义。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（收口题）：本课经验清单第 (2) 条说"每轮重发完整历史 → 成本与 context 排列强耦合"。请把它和第 (8) 条"稳定在前、易变在后"接起来，说清为什么 <code>&lt;current_time&gt;</code> 只精确到日期。</summary>
+<div class="answer">
+<p>两条经验是一根链子的两端。第 (2) 条讲根因：模型无状态，<strong>每一轮都得把全部历史 + 工具定义重新发一遍</strong>，所以厂商用前缀缓存来省重复计算——但缓存是<strong>按字节严格前缀匹配</strong>的（读命中只花约 0.1×、未命中要按写入 1.25× 重算）。</p>
+<p>第 (8) 条是它的直接推论：既然改动越靠前、后面失效越多，那<strong>凡是每次都变的东西都不能放前面</strong>。时间戳恰恰是最"易变"的——如果 <code>&lt;current_time&gt;</code> 精确到秒，那每一次请求这个字节都不同，会把它后面所有缓存全部击穿，账单直接翻倍量级。mino_server 的解法就一行：<code>context.go</code> 里 <code>&lt;current_time&gt;</code> 只用 <code>Format("2006-01-02")</code>——<strong>降精度到"日期级"，让它在一整天内保持稳定</strong>，缓存就留得住了。一个看似随手的格式选择，背后是"成本 = context 排列"这条铁律。</p>
+</div>
+</details>
+</div>
+
+<footer class="lesson-footer">
+<p>全书到此收口。你现在手里有的，不是 13 个孤立的知识点，而是<strong>一条能自己复述、能钉到真实代码上的问题链</strong>：从"只会聊天的大脑"到生产级 Agent，每一层都知道自己为什么存在。这就是这门发育学课想给你的东西。</p>
+<p>下一步，去<strong>解剖学</strong>：<a href="../index.html">《四支柱工程课》进阶门户</a> 与它的微课目录 <a href="../lessons/0001-context-is-the-spine.html">0001–0012</a>，看同一个 <code>mino_server</code> 被按 context / 工具 / 评估 / 成本四个关注点重新切开。读到卡壳，随时回会话里问你的 AI 老师——可以要求 ELI5、ELI14，或直接让它带你看真实代码。返回 <a href="index.html">课程门户</a>。</p>
+</footer>
+</main>
+</body>
+</html>

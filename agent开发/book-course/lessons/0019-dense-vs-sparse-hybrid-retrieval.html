@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0019 · 稠密 vs 稀疏 vs 重排序：生产级 RAG 为什么三管齐下</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0019 课 · 支柱一(上下文) · 记忆与知识库 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>稠密 vs 稀疏 vs 重排序：生产级 RAG 为什么三管齐下</h1>
+
+<p class="lede">检索器的质量直接决定 RAG 的效果——检索不到相关片段，LLM 再强也无米之炊。这节课只押一件事：<strong>看懂稠密嵌入与稀疏 BM25 各自的盲区，以及混合检索三个阶段（并行检索 → 融合 → 重排序）为什么各自不可替代</strong>。它对应第三章“检索器的两大技术路线”与“混合检索：两全其美的艺术”一节，是全书 RAG 底层技术的地基。</p>
+
+<h2>一、两条路线，两种盲区</h2>
+
+<p>文档进了知识库，检索器要从里面把最相关的几块捞出来。作者给了两条技术路线，它们的世界观截然不同：</p>
+
+<ul>
+<li><strong>稠密嵌入（Dense Embedding）</strong>：用深度学习把文本映射到向量空间，语义相近的内容向量距离也近。判断“有多近”用<strong>余弦相似度</strong>——比较两个向量夹角，值越接近 1 语义越相似。它<strong>懂语义</strong>，同一个词“苹果”在“苹果公司”和“买两斤苹果”里会得到不同向量。</li>
+<li><strong>稀疏嵌入（Sparse Embedding）</strong>：根植于传统信息检索，核心是<strong>精确的关键词匹配</strong>。经典代表 BM25 靠<strong>倒排索引</strong>（从词到文档的反向映射表）做字面命中，在 TF-IDF 基础上引入 <code>k1</code>（词频饱和度）和 <code>b</code>（文档长度归一化）两个参数。它<strong>精确</strong>，但<strong>读不懂同义表达</strong>。</li>
+</ul>
+
+<p>关键不在于谁更强，而在于两者的盲区<strong>恰好互补</strong>。作者用两个具体例子把这层互补说透了：</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">稠密 · 余弦相似度</div><div class="head">🧭 懂语义</div><div class="sub">盲区：搜“HTTP-403”<br>可能返回“服务器错误”的泛泛讨论</div></div>
+  <div class="cell"><div class="role">稀疏 · BM25</div><div class="head">🔎 精确匹配</div><div class="sub">盲区：搜“kitty”<br>找不到只写了“cat”的文档</div></div>
+  <div class="cell"><div class="role">跨编码器 · 重排序</div><div class="head">🎯 深度精排</div><div class="sub">把候选池前 N 个<br>逐词交互重新打分</div></div>
+</div>
+<figcaption>稠密漏关键词、稀疏漏同义词——两个盲区正好错开。所以生产级做法不是二选一，而是让两个引擎都跑、再用一层更强的匹配范式精排。</figcaption>
+</figure>
+
+<h2>二、混合检索三阶段：各司其职、层层递进</h2>
+
+<p>混合检索的思路很简单——两个引擎都跑，结果合并——难点在于把分布迥异的两组得分整合成一个有意义的排序。作者把典型流水线拆成三个阶段，<strong>三者各司其职、层层递进</strong>：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="混合检索三阶段流水线：查询并行进入稠密引擎与稀疏引擎，两路结果经 RRF 融合成候选池，跨编码器对前 N 个候选精排后输出最终排序">
+  <!-- query -->
+  <rect class="dgm-hub" x="20" y="120" width="96" height="56" rx="10"/>
+  <text class="dgm-accent-text" x="68" y="145" font-size="13" font-weight="700" text-anchor="middle">查询</text>
+  <text class="dgm-muted" x="68" y="163" font-size="10.5" text-anchor="middle">query</text>
+
+  <!-- stage 1: parallel -->
+  <rect class="dgm-node" x="180" y="58" width="150" height="56" rx="8"/>
+  <text class="dgm-text" x="255" y="82" font-size="12.5" font-weight="700" text-anchor="middle">稠密引擎</text>
+  <text class="dgm-muted" x="255" y="99" font-size="10.5" text-anchor="middle">余弦相似度 · 懂语义</text>
+
+  <rect class="dgm-node" x="180" y="182" width="150" height="56" rx="8"/>
+  <text class="dgm-text" x="255" y="206" font-size="12.5" font-weight="700" text-anchor="middle">稀疏引擎</text>
+  <text class="dgm-muted" x="255" y="223" font-size="10.5" text-anchor="middle">BM25 · 精确匹配</text>
+
+  <!-- stage 2: fusion -->
+  <rect class="dgm-node" x="392" y="120" width="150" height="56" rx="8"/>
+  <text class="dgm-text" x="467" y="142" font-size="12.5" font-weight="700" text-anchor="middle">融合 · RRF</text>
+  <text class="dgm-muted" x="467" y="160" font-size="10" text-anchor="middle">Σ 1/(k+rank) → 候选池</text>
+
+  <!-- stage 3: rerank -->
+  <rect class="dgm-hub" x="600" y="120" width="104" height="56" rx="10"/>
+  <text class="dgm-accent-text" x="652" y="142" font-size="12" font-weight="700" text-anchor="middle">跨编码器</text>
+  <text class="dgm-muted" x="652" y="160" font-size="10" text-anchor="middle">前 N 个精排</text>
+
+  <!-- edges -->
+  <line class="dgm-edge" x1="116" y1="140" x2="176" y2="90" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line class="dgm-edge" x1="116" y1="156" x2="176" y2="206" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line class="dgm-edge" x1="330" y1="90" x2="388" y2="138" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line class="dgm-edge" x1="330" y1="206" x2="388" y2="158" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line class="dgm-edge" x1="542" y1="148" x2="596" y2="148" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- stage labels -->
+  <text class="dgm-muted" x="255" y="270" font-size="11" text-anchor="middle">① 并行检索</text>
+  <text class="dgm-muted" x="467" y="270" font-size="11" text-anchor="middle">② 结果融合</text>
+  <text class="dgm-muted" x="652" y="270" font-size="11" text-anchor="middle">③ 神经重排序</text>
+
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>图3-9 的骨架：并行检索各自召回候选，融合把两路合成一个统一候选池，重排序在候选池上精排。融合负责“该给谁打分”，重排序负责“把分打准”——没有前者，后者甚至不知道该对哪些文档打分。</figcaption>
+</figure>
+
+<p><strong>① 并行检索</strong>：系统同时向稠密和稀疏两个引擎发送查询，各自召回一部分候选文档。</p>
+
+<p><strong>② 结果融合</strong>：把两路结果合成一个统一候选池。难点在于两路得分不可直接比较——稠密的余弦相似度（归一化后通常落在 0 到 1）和 BM25 得分（0 到几十的任意值）尺度、分布完全不同。作者给了两种常用融合法：一是各路得分分别归一化后加权求和；二是<strong>倒数排名融合（RRF）</strong>——完全抛开原始得分、只看排名：</p>
+
+<div class="formula">
+<div class="eq">RRF 得分 <span class="op">=</span> Σ 1 / (k + rank)</div>
+<div class="gloss">k 是平滑常数，常取 60，用于压低排名最靠前几个位置之间的得分差距</div>
+</div>
+
+<p>RRF 简单鲁棒，但只利用排名信息，<strong>丢失了原始得分中蕴含的相关性信号</strong>；改用加权归一化融合则保留得分，代价是两路尺度对齐本身不好调。这是一个真实的工程权衡，没有免费的午餐。</p>
+
+<p><strong>③ 神经重排序</strong>：对融合产生的候选池中排名靠前的 N 个候选（如前 50 个）逐一精细打分，产生最终排序。这一步用的是跨编码器——下一节的主角。</p>
+
+<h2>三、双编码器 vs 跨编码器：换范式，不是补救</h2>
+
+<p>为什么第三阶段值得单独存在？作者给了一个精准的比喻：<strong>求职者把简历交给猎头快速筛选，是双编码器；面试官与每位候选人深谈，是跨编码器。</strong></p>
+
+<ul>
+<li><strong>双编码器（Bi-Encoder）</strong>：为查询和文档<strong>各自独立</strong>生成向量，再靠向量运算算相似度。速度极快，适合从海量数据中初筛——这正是检索阶段（稠密引擎）用的范式。</li>
+<li><strong>跨编码器（Cross-Encoder）</strong>：把查询和候选文档<strong>拼接成一段完整的文字</strong>送入模型，让模型逐词比对、输出一个综合相关性得分。慢得多，但判断更准，能捕捉双编码器无法感知的细微语义关联。常用模型如 BAAI/bge-reranker-v2-m3。</li>
+</ul>
+
+<div class="pitfall">
+<p><strong>常见误区：以为重排序是在“补救 RRF 丢掉的得分”。</strong>初学者看到“RRF 丢失了原始得分信号”，很自然会推断——那第三阶段就是把丢的分再找补回来吧？<strong>错。</strong></p>
+<p>作者专门强调：重排序<strong>不是</strong>为补救融合而存在的。<strong>无论前一步用 RRF 还是加权归一化，重排序都值得加</strong>，因为它换用了一种<strong>更强的匹配范式</strong>——从“各自独立编码再比向量”换成“拼在一起逐词交互”。它的收益来自范式升级，而不是修补上一阶段的损失。把这两件事混为一谈，你就会误以为“融合做好了就能省掉重排序”，从而在生产系统里漏掉最能提升排名质量的一环。</p>
+</div>
+
+<p>还要记住重排序<strong>并不替代融合</strong>：融合负责从两路结果产生统一候选池，重排序负责在这个候选池上精排。两者是串联的分工，不是二选一。作者的结论很直白：<strong>没有哪种单一检索策略在所有场景下都可靠，把稠密、稀疏和重排序组合起来，才是构建生产级 RAG 系统的正确做法。</strong></p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：稠密漏关键词、稀疏漏同义词，两者盲区互补，所以要并行都跑；融合（RRF 或加权归一化）解决“两路得分没法直接比”的尺度问题，产出候选池；重排序用跨编码器逐词精排，是<strong>换范式而非补救融合</strong>——因此无论融合怎么做，它都值得加。三管齐下，才是生产级 RAG。
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>稠密嵌入（Dense Embedding）</dt>
+<dd>用深度学习把文本映射到向量空间，语义相近的内容向量距离也近；用<strong>余弦相似度</strong>（比较向量夹角，越接近 1 越相似）衡量。懂语义，但可能漏掉关键词。<em>避免</em>把它当成唯一检索手段。</dd>
+<dt>BM25</dt>
+<dd>稀疏检索的经典概率排序算法，在 TF-IDF 基础上引入 k1(词频饱和度)和 b(文档长度归一化)两参数，靠倒排索引做精确关键词匹配，至今仍是搜索引擎核心组件。<em>避免</em>说它懂语义——它只按词频和文档频率算分、读不懂同义表达。</dd>
+<dt>倒数排名融合（RRF, Reciprocal Rank Fusion）</dt>
+<dd>抛开原始得分、只看排名的融合法，综合得分 = Σ 1/(k + rank)，k 常取 60。简单鲁棒，代价是丢失原始得分蕴含的相关性信号。<em>避免</em>误以为它需要两路得分尺度对齐——它恰恰绕开了这个问题。</dd>
+<dt>跨编码器 / 双编码器（Cross-Encoder / Bi-Encoder）</dt>
+<dd>双编码器对查询与文档各自独立编码再比向量，快、用于检索初筛；跨编码器把两者拼成一段文字送入模型逐词交互打分，慢但准，用于重排序。<em>避免</em>把重排序理解成“补救融合”——它是更强的匹配范式。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：搜“kitty”时只写了“cat”的文档搜不到，搜“HTTP-403”时返回泛泛的“服务器错误”讨论。这两种失败分别是稠密还是稀疏检索的盲区？混合检索里重排序用的是双编码器还是跨编码器，为什么更准？</summary>
+<div class="answer">
+<p>“kitty→cat”搜不到是<strong>稀疏检索盲区</strong>（只能字面匹配，同义词失效）；“HTTP-403”返回泛泛讨论是<strong>稠密检索盲区</strong>（懂语义但漏掉关键词）。重排序用<strong>跨编码器</strong>——把查询和文档拼成一段文字送入模型逐词比对（对比双编码器各自独立编码再算相似度），能捕捉深层匹配所以更准，代价是慢。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：RRF 公式里的 k 常取多少、作用是什么？RRF 相比“加权归一化求和”的融合法，牺牲了什么？</summary>
+<div class="answer">
+<p>k 是<strong>平滑常数，常取 60</strong>，作用是压低排名最靠前几个位置之间的得分差距。RRF 完全抛开原始得分、只看排名，因此<strong>丢失了原始得分中蕴含的丰富相关性信号</strong>；而加权归一化融合保留了得分，代价是两路尺度对齐本身不好调——两种方法各有取舍。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本节的三条路线都有可跑的教育性项目：稠密向量检索见 <code>chapter3/dense-embedding/</code>（实验 3-4，BGE-M3，可切换 ANNOY 与 HNSW 后端）；从零实现的 BM25 稀疏引擎见 <code>chapter3/sparse-embedding/</code>（实验 3-5，透明展示倒排索引、TF/IDF、每步 BM25 打分）；完整混合流水线见 <code>chapter3/retrieval-pipeline/</code>（实验 3-6，<code>test_client.py</code> 展示各类查询下两路胜负与重排序的排名提升）。强烈建议边读边跑：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课的融合与重排序思路，可延伸阅读 Anthropic 的工程博客 <a href="https://www.anthropic.com/engineering/contextual-retrieval">“Contextual Retrieval”</a>——书中引用其数据：上下文感知检索结合 BM25 可将检索失败率（1 − recall@20）降低 49%，再结合重排序器降幅达 67%，正是“三管齐下”的量化佐证。相关记忆检索评测另可参考 LoCoMo（arXiv:2402.17753）与 Mem0（arXiv:2504.19413）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你手算一遍 RRF 得分、把双编码器与跨编码器的差别再过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0018-four-memory-storage-formats-tradeoff.html"><span class="dir">← 上一课</span>四种记忆存储格式：简单性与表达力的根本张力</a>
+  <a class="next" href="0020-chunking-flaw-and-contextual-retrieval.html"><span class="dir">下一课 →</span>分块的原罪与上下文感知检索：给每块补一段背景</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0048 · 三种语音范式，一根轴：摆脱 VAD 的轮次假设</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0048 课 · 进阶应用 · 多模态与实时交互 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>三种语音范式，一根轴：摆脱 VAD 的轮次假设</h1>
+
+<p class="lede">级联、Omni、全双工——语音 Agent 的三代架构听起来像三种彼此无关的技术。这节课只押一件事：<strong>它们其实是同一条轴上的三个刻度</strong>，那根轴叫「如何摆脱 VAD 对轮次的猜测」。把这根轴握在手里，你就能一眼看穿一件反直觉的事——Omni「把三个模型合成一个」，却<strong>没有</strong>解决用户报电话号码时被抢话的问题。这条主线出自第九章开篇的「语音架构的三种范式」，是整章的坐标系。</p>
+
+<h2>一、三种范式：是什么</h2>
+
+<p>要理清语音 Agent 的技术演进，作者借用了 OpenAI 在 2026 年发布 GPT-Live 时给出的三分法——它恰好对应 ChatGPT 语音自身走过的三代架构：</p>
+
+<ul>
+<li><strong>级联（Cascaded）</strong>：把 VAD、ASR、LLM、TTS 串成一条流水线，一棒接一棒（图9-1）。模块清晰、可独立调优，但延迟逐段累积。</li>
+<li><strong>端到端全模态（Omni）</strong>：用单一模型直接「听音频、想回复、说出来」，把三段合一（图9-4）。延迟更低，韵律与情感等非文字信息得以保留。<strong>但它仍然假设「轮流说话」</strong>——要等用户停顿才开口，切换靠静音判断。OpenAI 称其为「轮次式（turn-based）」，工业界按能力叫「全模态（Omni）」，两个名字指同一类东西（如 Qwen3-Omni）。</li>
+<li><strong>全双工 / 交互式（Full-Duplex）</strong>：模型边听边说，同时处理输入与输出，每秒做许多次「该说、该听、该停、该打断、还是该调用工具」的决策，<strong>彻底取消了「轮流」这个假设</strong>。2024 年 Kyutai 的 Moshi 是研究先声，2026 年 OpenAI 的 GPT-Live 把它带到了 1.5 亿用户的规模。</li>
+</ul>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">VAD</span><span class="n-sub">判断说完没</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">ASR</span><span class="n-sub">音频转文字</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">LLM</span><span class="n-sub">理解并生成</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">TTS</span><span class="n-sub">念出回复</span></div>
+</div>
+<figcaption>图9-1 · 级联流水线：像接力赛，每一棒必须等上一棒跑完才起跑。VAD 是这条链的起点，也是本课那根轴的「零刻度」。</figcaption>
+</figure>
+
+<h2>二、一根轴：摆脱 VAD 的轮次假设</h2>
+
+<p>作者在这里下了一句关键判断——贯穿这三代的其实是同一条主线：<strong>如何摆脱「轮流说话」这个假设，摆脱 VAD（语音活动检测）对轮次的猜测</strong>。理解了这句话，三种范式就从「三种技术」塌缩成「一根轴上的三个点」。</p>
+
+<p>为什么 VAD 是这根轴的原点？因为它的核心设计——结束点检测（End-of-Speech Detection）——只能靠一个笨办法猜「用户说完没有」：设一个 500-800ms 的连续静音阈值，停顿超过这个数就判定说完。这引入了第一层延迟，而且两头不讨好：阈值太短，用户思考时顿一下就被截断句子；太长，说完了还得干等大半秒。<strong>轮次，从一开始就是猜出来的。</strong></p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 250" role="img" aria-label="语音范式演进轴：级联和 Omni 靠静音阈值或语义划分轮次，全双工彻底取消轮次">
+  <!-- axis line -->
+  <line class="dgm-edge" x1="60" y1="70" x2="680" y2="70" stroke-width="1.5" marker-end="url(#axar)"/>
+  <text class="dgm-muted" x="360" y="30" font-size="12.5" text-anchor="middle" font-weight="700">← 越来越摆脱 VAD 的轮次假设 →</text>
+
+  <!-- node 1: 级联 -->
+  <circle class="dgm-node" cx="140" cy="70" r="9"/>
+  <text class="dgm-text" x="140" y="105" font-size="13.5" font-weight="700" text-anchor="middle">级联</text>
+  <text class="dgm-muted" x="140" y="123" font-size="10.5" text-anchor="middle">Cascaded</text>
+  <rect class="dgm-node" x="70" y="140" width="140" height="46" rx="7"/>
+  <text class="dgm-muted" x="140" y="160" font-size="10" text-anchor="middle">轮次判断依据</text>
+  <text class="dgm-text" x="140" y="177" font-size="12" font-weight="700" text-anchor="middle">静音阈值</text>
+
+  <!-- node 2: Omni -->
+  <circle class="dgm-node" cx="360" cy="70" r="9"/>
+  <text class="dgm-text" x="360" y="105" font-size="13.5" font-weight="700" text-anchor="middle">Omni</text>
+  <text class="dgm-muted" x="360" y="123" font-size="10.5" text-anchor="middle">端到端全模态</text>
+  <rect class="dgm-node" x="290" y="140" width="140" height="46" rx="7"/>
+  <text class="dgm-muted" x="360" y="160" font-size="10" text-anchor="middle">轮次判断依据</text>
+  <text class="dgm-text" x="360" y="177" font-size="12" font-weight="700" text-anchor="middle">仍靠 VAD（可升级到语义）</text>
+
+  <!-- node 3: 全双工 -->
+  <circle class="dgm-hub" cx="600" cy="70" r="10"/>
+  <text class="dgm-accent-text" x="600" y="105" font-size="13.5" font-weight="700" text-anchor="middle">全双工</text>
+  <text class="dgm-muted" x="600" y="123" font-size="10.5" text-anchor="middle">Full-Duplex</text>
+  <rect class="dgm-hub" x="530" y="140" width="140" height="46" rx="7"/>
+  <text class="dgm-muted" x="600" y="160" font-size="10" text-anchor="middle">轮次判断依据</text>
+  <text class="dgm-accent-text" x="600" y="177" font-size="12" font-weight="700" text-anchor="middle">无轮次</text>
+
+  <text class="dgm-muted" x="360" y="225" font-size="11" text-anchor="middle">级联与 Omni 都还依赖 VAD 划分轮次；只有全双工彻底消解了轮次本身</text>
+  <defs>
+    <marker id="axar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>一根演进轴，三个刻度。轮次判断的依据从「静音阈值」→「语义」→「无轮次」，一路把 VAD 的话语权交出去。注意 Omni 只是把「怎么判断轮次」升级，并没有取消轮次。</figcaption>
+</figure>
+
+<p>沿这根轴看，级联一节里的<strong>流式语音感知</strong>就是把判断依据从「静音时长」升级到「语义层面」——用一个流式识别模型综合语义和声学判断「这句话是不是已经表达完一个完整的意思」，因为轮内停顿（报电话号码时顿一下）常常比轮间间隔还长，光靠静音阈值必然两头不讨好。但它升级的是「怎么判断轮次」，仍在轮次框架内。只有到了全双工，模型一直在听，「打断」不再是一个需要专门处理的事件，barge-in 处理链在架构上被省去了大部分环节——这才是「替代 VAD」这条叙事线的终点。</p>
+
+<div class="bookquote">
+三种范式并非简单的新旧替代，而是不同延迟与成本约束下的设计取舍，在 2026 年的生产系统里长期并存。
+<span class="src">——《深入理解 AI Agent》第九章 · 语音架构的三种范式</span>
+</div>
+
+<h2>三、为什么「合三为一」没解决抢话</h2>
+
+<p>这是本课最容易想错、也最值得停下来的地方。直觉会说：Omni 把 ASR-LLM-TTS 三个模型合成了一个，中间那些接力交棒的缝隙没了，抢话问题总该解决了吧？</p>
+
+<div class="pitfall">
+<p>错在把「合三为一」当成了「取消轮流」。作者说得很直白：Omni 无论多强，本质上<strong>也只是把三个模型合成了一个，并未取消「轮流说话」这一假设</strong>。它依然依赖 VAD 来划分发言权——一旦检测到用户出声便停下，用户一静音便随即开口。</p>
+<p>于是那个熟悉的问题再度浮现：用户报出一串数字、中途略作停顿，Omni 便判定对方已说完而强行插话。合并的是「听/想/说」这三件事，动的是延迟和韵律；而抢话的病根在「谁有发言权」这个更底层的假设上，合并根本没碰它。前文的流式语音感知能把轮次判断从静音时长升级到语义层面，大幅缓解这类误判——但那终究只是在「轮次」框架内的局部修补，并未取消轮流本身。</p>
+</div>
+
+<p>要<strong>从根本上</strong>跳出这一困境，就不能再在「轮次」框架内修补，而须让模型边听边说、自主决定何时开口，不再存在「该谁说话」的硬性切换。这正是全双工做的事：Thinking Machines Lab 把主张挑明——「要让交互性随智能一同扩展，交互性就必须成为模型本身的一部分」，落到架构上便是<strong>微轮次（micro-turn）</strong>：模型以约 200ms 为一段，持续地「读入 200ms、生成 200ms」，让静音、重叠、打断都作为连续流保留在上下文里，不再有人为的轮次边界需要迁就。</p>
+
+<h2>四、为什么这根轴值得单开一课</h2>
+
+<p>因为它是读懂整章的参考系。作者刻意给语音最多篇幅，理由是：在实时多模态这条演进线上，语音是走得最完整的一个——从「串行流水线延迟太高」这个问题出发，经过端到端、全双工、边想边说，一路走到相对成型的终局，问题→方案→终局全程跑通。后面的 Computer Use 和机器人两个场景，都可以对照语音这条脉络来看：它们各自走到了这条演进线的哪一段、卡在了哪里。</p>
+
+<p>握住「摆脱轮次假设」这根轴，你还能顺手接住第二条主线的开头：GPT-Live 把「实时交互」与「深度思考」<strong>解耦</strong>——遇到需要搜索或复杂推理时，交互模型把任务委派给后台的前沿模型，自己继续维持对话。那条「快慢分工」正是下一课要展开的主题。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：级联、Omni、全双工不是三种并列的技术，而是「摆脱 VAD 轮次假设」这一根轴上的三个刻度——判断依据从静音阈值→语义→无轮次。Omni「合三为一」动的是延迟与韵律，没碰「轮流」这个假设，所以照样会在你停顿时抢话；只有全双工取消了轮次本身。而三者是并存取舍，不是新旧替代。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>级联流水线（Cascaded Pipeline）</dt>
+<dd>把 VAD、ASR、LLM、TTS 四个独立模型串成一条接力式流水线的语音架构，模块清晰可独立调优，但延迟逐段累积。<em>避免</em>与「自级联 self-cascade」混淆——后者是同一模型先转录再推理。</dd>
+<dt>端到端全模态模型（Omni）</dt>
+<dd>用单一模型直接听音频、想回复、说出来，把 ASR-LLM-TTS 三段合一，延迟低且能保留韵律情感，但仍假设轮流说话、依赖 VAD 划分轮次。<em>避免</em>：不等于全双工；OpenAI 称其为 turn-based，与工业界的 Omni 是同一类东西。</dd>
+<dt>全双工 / 交互模型（Full-Duplex / Interaction Model）</dt>
+<dd>模型同时持续地听和说，以约 200ms 微轮次交织多路流、每秒多次决策该说该听该停该打断，彻底取消轮次假设（Moshi、GPT-Live、TML-Interaction）。<em>避免</em>与 Omni 的「支持打断」混为一谈——那仍在 VAD 框架内做优化。</dd>
+<dt>结束点检测（End-of-Speech Detection）</dt>
+<dd>VAD 的关键设计，通常用 500-800ms 连续静音阈值判断用户是否说完，阈值太短截断句子、太长干等，两难。<em>避免</em>简称为「静音检测」而忽略它其实要区分轮内停顿与轮间间隔。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：用户报电话号码时中途停顿了一秒，Omni 模型抢话插嘴了。为什么 Omni「把三个模型合成一个」也没能解决这个问题？哪种范式才能从根本上解决？</summary>
+<div class="answer">
+<p>因为 Omni 只是把听/想/说合一，并未取消「轮流说话」假设，它仍靠 VAD 静音时长划分发言权，停顿就被判定为说完。流式语音感知能把判断升级到语义层缓解误判，但仍在轮次框架内；只有全双工（边听边说、每秒多次决策该说该听该停）才从根本消解「切换」本身。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：作者说「摆脱 VAD」是一条叙事线。流式语音感知和全双工都在「摆脱 VAD」，两者的层次有什么本质区别？</summary>
+<div class="answer">
+<p>流式语音感知是把轮次判断的<strong>依据</strong>从静音时长升级到语义层面（综合语义和声学判断一句话是否表达完整），但它仍在「轮次」框架内做优化——照样要判断「该谁说话」。全双工则取消了「轮次」这个框架本身：模型一直在听，「打断」不再是一个需要专门处理的事件，barge-in 处理链在架构上被省去大部分环节。前者是在轴上前移一格，后者是走到了轴的终点。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套代码见开源仓库的 <code>chapter9/live-audio</code>（对应<strong>实验 9-1：构建传统语音 Agent</strong>）：前端 Next.js 捕获麦克风、后端 Node.js 通过 WebSocket 实时通信，后端跑 Silero VAD 检测约 500ms 连续静音后切分音频，ASR/LLM/TTS 三级均可切换多家提供商（Whisper/SenseVoice、GPT-4o/Gemini/豆包、Fish Audio），并做实时延迟监控。跑一遍，你会亲手感受到本课那根轴的「零刻度」——级联流水线的串行数据流，以及 VAD 静音等待带来的第一层延迟。仓库地址：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课三分法的一手来源是 OpenAI 的 <a href="https://openai.com/index/introducing-gpt-live/">Introducing GPT-Live（2026-07-08）</a>——「级联 / 轮次式 / 全双工」的划分即出自该文对 ChatGPT 语音三代演进的总结，其中「turn-based voice models」对应本课的 Omni。想再深一层看全双工的架构主张，可读 Thinking Machines Lab 的 <a href="https://thinkingmachines.ai/blog/interaction-models/">Interaction Models</a>；轮次判断与「标签的上帝视角」这一诊断，见作者团队待发表论文 <em>The Trade-off Was in the Labels: Causal Supervision for Turn-Aware Streaming ASR</em>（2026）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你沿这根轴把三种范式各自「摆脱了 VAD 多少」再过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0047-voice-latency-waterfall.html"><span class="dir">← 上一课</span>语音 Agent 为什么慢：延迟瀑布与排队论</a>
+  <a class="next" href="0049-fast-slow-thinking.html"><span class="dir">下一课 →</span>快慢思考的三种接法：从并行到军师到边想边说</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

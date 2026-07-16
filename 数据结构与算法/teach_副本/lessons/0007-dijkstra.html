@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 7 课 · 狄克斯特拉算法 Dijkstra · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第一部分《算法图解》⑦ · 对应 ch07</div>
+  <h1>第 7 课:狄克斯特拉算法 Dijkstra —— 从"段数最少"到"总开销最小"</h1>
+  <div class="sub">第6课学了 BFS 用队列做图的层级搜索,能求"步数最少"但不管边的权重。这节课升级到带权重的图:同样是找路径,但比的不再是"经过几条边",而是"总共要花多少代价"。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>从"步数最少"到"总开销最小":</b> 设想一张图——从起点 <code>start</code> 到 <code>a</code> 要 6 分钟,到 <code>b</code> 要 2 分钟;
+  <code>b</code> 到 <code>a</code> 要 3 分钟,<code>b</code> 到终点 <code>fin</code> 要 5 分钟;<code>a</code> 到 <code>fin</code> 只要 1 分钟。
+  BFS 只看"经过几条边",会挑中 <code>start→a→fin</code>(只有2段),但实际耗时是 6+1=7 分钟。而 <code>start→b→a→fin</code>
+  虽然多了一段(3段),耗时却只有 2+3+1=6 分钟,反而更快。<b class="hl">狄克斯特拉算法(Dijkstra's algorithm)</b>
+  解决的正是这个问题:不管段数多少,只贪心地找"总权重最小"的路径——但前提是<b class="hl">所有边的权重必须为正</b>。
+</div>
+
+<h2>一、Dijkstra 维护的两张表:costs 与 parents</h2>
+<p>Dijkstra 用一张 <b>开销表 <code>costs</code></b> 记录"起点到每个节点,目前已知的最小总代价"——刚开始只有起点的
+直接邻居有真实数值,其余节点全部设为<b class="hl">无穷大</b>(表示"还不知道怎么到达它")。另一张
+<b>父节点表 <code>parents</code></b> 记录"到达某节点的最优路径上,紧邻的前一个节点是谁",用来在算法结束后回溯出完整路径——
+<code>costs</code> 只回答"目前最便宜是多少",真正"怎么走"要靠 <code>parents</code> 表反向拼出来。</p>
+
+<p>算法执行步骤(共 4 步,循环重复 2、3 直到所有节点处理完):</p>
+<ol>
+  <li>在所有<b>未处理</b>节点中,找出开销(<code>costs</code> 里的当前值)最低的那一个。</li>
+  <li>检查该节点的每个邻居:如果"经这个节点前往邻居"的开销比邻居当前记录的开销更低,就更新邻居的开销,并把这个节点记为邻居的父节点。</li>
+  <li>把该节点标记为<b>已处理</b>;重复步骤 1、2,直到图中所有节点都处理过。</li>
+  <li>从终点开始,沿 <code>parents</code> 链条反向回溯,还原出最终的最短路径。</li>
+</ol>
+
+<p>这个"贪心地处理完一个节点就再也不回头"的做法,建立在一个假设上:<b>只要所有权重为正,已处理节点就不可能再变得更便宜</b>
+(绕远路只会增加开销,不会减少)。这个假设一旦遇到负权边就会被打破——算法可能已经把某节点标记为"已处理",但后面出现的一条负权边
+却能让抵达它的开销变得更低,而算法根本不会回头检查。遇到负权图,正确工具是<b class="hl">贝尔曼-福特算法(Bellman-Ford algorithm)</b>——
+本课不展开它的实现细节,只需要记住:它是专门为负权图设计的替代方案。</p>
+
+<h2>二、BFS 与 Dijkstra 的适用场景对比</h2>
+<table>
+  <tr><th>算法</th><th>适用图类型</th><th>求解目标</th><th>能否有负权边</th></tr>
+  <tr><td>广度优先搜索(第6课)</td><td>非加权图</td><td>边数最少的路径</td><td>不涉及权重概念</td></tr>
+  <tr><td>狄克斯特拉算法(本课)</td><td>加权图(近似 DAG)</td><td>总权重最小的路径</td><td>不能——负权边会导致错误结果</td></tr>
+  <tr><td>贝尔曼-福特算法(仅提及,不展开)</td><td>含负权边的加权图</td><td>总权重最小的路径</td><td>可以——专门为负权场景设计</td></tr>
+</table>
+<div class="callout big">
+  <b>提醒:</b>"最短路径"是个广义概念,可以指时间、金钱或任何要最小化的度量指标——不要被"路径"这个字面意思限制成
+  "物理距离最短"。书里 Rama 用乐谱换钢琴的例子就是在求"额外要多付多少钱最少",跟距离毫无关系。
+</div>
+
+<h2>三、C 代码:邻接矩阵版 Dijkstra(O(V²) 线性扫描)</h2>
+<p>不写优先队列优化,用最朴素的写法:邻接矩阵 <code>graph[V][V]</code> 存边权重(0 表示两节点间没有边),
+<code>costs[V]</code> 存当前最小开销,<code>processed[V]</code> 标记节点是否已处理过。</p>
+
+<pre>#define V 4                 <span class="c">// start=0, a=1, b=2, fin=3</span>
+#define INF 1000000         <span class="c">// 用足够大的数代表"无穷大",避免用 INT_MAX 相加时溢出</span>
+
+void dijkstra(int graph[V][V], int start) {
+    int costs[V];
+    int processed[V] = {0};      <span class="c">// 全部初始化为 0(false),表示还没有节点被处理过</span>
+
+    for (int i = 0; i < V; i++) {
+        costs[i] = (i == start) ? 0 : INF;   <span class="c">/* ① 起点开销必须是0,其余节点必须是"无穷大" */</span>
+    }
+
+    for (int round = 0; round < V; round++) {
+        int node = -1, lowest = INF;
+        for (int i = 0; i < V; i++) {
+            if (!processed[i] && costs[i] < lowest) {   <span class="c">// 只在"未处理"节点里挑</span>
+                lowest = costs[i];
+                node = i;
+            }
+        }
+        if (node == -1) break;    <span class="c">// 剩下的节点都不可达,直接结束</span>
+
+        for (int n = 0; n < V; n++) {
+            if (graph[node][n] == 0 || n == node) continue;  <span class="c">// 0表示node、n之间没有边</span>
+            int new_cost = costs[node] + graph[node][n];
+            if (new_cost < costs[n]) {          <span class="c">/* ③ 松弛条件:"新路径更便宜"才更新 */</span>
+                costs[n] = new_cost;
+                <span class="c">// parent[n] = node;  // 若要回溯完整路径,在此记录父节点</span>
+            }
+        }
+
+        processed[node] = 1;      <span class="c">/* ② 必须标记已处理,否则下一轮还会重复选中它 */</span>
+    }
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 初始化 <code>costs[]</code> 时,忘记把起点设为 0、其余设为无穷大。</b>
+    如果偷懒把所有节点都初始化成 0,第一轮"找开销最小的未处理节点"会看到全是 0,可能随手选中一个根本还没算出真实距离的节点,
+    后面所有邻居更新都会建立在错误的起点开销上。</li>
+  <li><b>② 忘记在循环末尾写 <code>processed[node] = 1</code>。</b>
+    如果不标记已处理,下一轮"找最小开销节点"还是会选中同一个刚处理过的节点——整个循环永远卡在同一个节点上,
+    <b class="bad">陷入死循环</b>,其他节点永远轮不到被处理。</li>
+  <li><b>③ 松弛条件写反,比如写成 <code>if (costs[n] < new_cost)</code>。</b>
+    这个条件几乎永远不会成立(因为 <code>costs[n]</code> 初始就是 <code>INF</code>,天然比任何有限的 <code>new_cost</code> 大),
+    等价于整个更新逻辑失效——所有非起点节点的开销会一直停留在 <code>INF</code>,程序会把它们全部误判成"不可达"。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱:对含负权边的图使用狄克斯特拉算法。</b> 书中"用黑胶唱片换钢琴"的例子说明了这一点:一旦某个节点
+  (比如"海报")被标记为已处理,算法就认定"不会再有更便宜的路径能到它了",从此不再重新考虑它。但如果图里存在一条负权边,
+  它完全可能在"处理边界"已经向前推进之后,悄悄制造出一条更便宜的路径抵达这个已处理节点——而算法根本不会回头检查,
+  最终选出的就不是真正最优的路径。这不是"运气不好",而是贪心策略的假设本身被负权边戳破了。正确做法:
+  图中一旦出现负权边,换用<b>贝尔曼-福特算法</b>,不要硬用 Dijkstra。
+</div>
+
+<h2>四、手算示范:开销表是怎么一步步刷新的</h2>
+<p>还是用开头那张图:<code>start→a</code>=6,<code>start→b</code>=2,<code>b→a</code>=3,<code>b→fin</code>=5,<code>a→fin</code>=1。
+初始状态:<code>costs = {a:6, b:2, fin:∞}</code>,<code>processed = []</code>。</p>
+
+<h2>五、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 第一轮会选中开销最低的未处理节点 <code>b</code>(开销2)来处理。处理完 <code>b</code> 之后,<code>costs</code> 表应该变成什么?</div>
+  <button class="opt" data-ok="1">costs[a]=5,costs[fin]=7 —— 经 b:2+3=5&lt;6 更新了a;2+5=7&lt;∞ 更新了fin</button>
+  <button class="opt" data-ok="0">costs[a]=6,costs[fin]=5 —— a 保持不变,fin 直接等于 b→fin 的边权重</button>
+  <button class="opt" data-ok="0">costs[a]=3,costs[fin]=5 —— 只看 b 出发这条边本身的权重</button>
+  <button class="opt" data-ok="0">costs[a]=5,costs[fin]=5 —— fin 算错,漏加了 b 自己的开销2</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q1sol').classList.toggle('hidden')">▸ 看逐步计算过程</span>
+  <div id="q1sol" class="hidden" style="margin-top:8px">
+    <table>
+      <tr><th>步骤</th><th>处理的节点</th><th>costs[a]</th><th>costs[b]</th><th>costs[fin]</th><th>说明</th></tr>
+      <tr><td>0(初始)</td><td>—</td><td>6</td><td>2</td><td>∞</td><td>只知道起点直接邻居的开销</td></tr>
+      <tr><td>1</td><td>b(最便宜,2)</td><td>5(经b:2+3&lt;6,父节点改为b)</td><td>2</td><td>7(经b:2+5&lt;∞,父节点设为b)</td><td>b的两个邻居都被刷新</td></tr>
+      <tr><td>2</td><td>a(次便宜,5)</td><td>5</td><td>2</td><td>6(经a:5+1&lt;7,父节点改为a)</td><td>找到更短的到终点路径</td></tr>
+      <tr><td>3</td><td>fin(最便宜,6)</td><td>5</td><td>2</td><td>6</td><td>所有节点处理完毕,算法结束</td></tr>
+    </table>
+    <p style="margin:4px 0">最终沿 <code>parents</code> 回溯:<code>fin</code> 的父节点是 a,a 的父节点是 b,b 的父节点是 start。
+    最短路径是 <code>start→b→a→fin</code>,总耗时6分钟——比 BFS 找到的"段数最少但耗时7分钟"的 <code>start→a→fin</code> 更优。</p>
+  </div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 某图里,除了一条从 C 到 D 的边权重是 -4,其余边全部是正数。可以直接对这张图使用狄克斯特拉算法吗?</div>
+  <button class="opt" data-ok="0">可以,负权边只影响 C 和 D 之间,不会波及其他节点</button>
+  <button class="opt" data-ok="1">不可以——只要存在负权边,"已处理节点不会再变便宜"的假设就会被打破,可能得到错误结果,应该改用贝尔曼-福特算法</button>
+  <button class="opt" data-ok="0">可以,只要把这条负权边当成0来处理就行</button>
+  <button class="opt" data-ok="0">不可以,因为狄克斯特拉算法只能用于树结构,不能用于一般的图</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段松弛(relax)逻辑的某一行有 bug,选出问题所在。</div>
+  <pre>int new_cost = costs[node] + graph[node][n];
+if (costs[n] < new_cost) {         <span class="c">// ← 这一行</span>
+    costs[n] = new_cost;
+}</pre>
+  <button class="opt" data-ok="0">new_cost 的计算公式写错了,应该只用 graph[node][n]</button>
+  <button class="opt" data-ok="1">松弛条件写反了,应该是 new_cost &lt; costs[n];现在这个条件几乎永远不成立,所有非起点节点的开销会一直停在初始的"无穷大"</button>
+  <button class="opt" data-ok="0">应该先标记 processed[node]=1,再计算 new_cost</button>
+  <button class="opt" data-ok="0">这段代码没有问题,可以正常求出最短路径</button>
+  <div class="fb"></div>
+</div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"Dijkstra 每一步在做什么、和 BFS 的本质区别是什么?"<br>
+  ②"为什么负权边会让 Dijkstra 失效,遇到负权图该换用什么算法?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 8 课(贪婪算法)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 8 课):</b> 贪婪算法——没有已知高效解法时,如何找一个"足够好"的近似解。
+  Dijkstra 本身其实就是贪心策略的一个具体例子,第8课会把这套"每一步都选局部最优"的思路讲透。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/bhargava-algorithms/chapters/ch07-dijkstra.md</code>
+  (《算法图解》第7章,原书 Python 代码已改写为 C)。速查表见
+  <code>skill/bhargava-algorithms/cheatsheet.md</code>。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!这就是松弛(relax)的核心动作:经 b 到 a 是 2+3=5,比原来的6更便宜,更新;经 b 到 fin 是 2+5=7,比原来的∞更便宜,也更新。',
+      bad:'开销要从"起点到 b 的已知开销(2)"累加"b 到邻居这条边的权重",不能只看边权重本身,也不能漏加。再对照下方"逐步计算过程"核对一遍。'},
+  q2:{good:'对!负权边会破坏"已处理节点不会再变便宜"这个贪心假设——哪怕只有一条负权边,也可能让算法在其他节点上给出错误答案,必须换贝尔曼-福特算法。',
+      bad:'再想想:狄克斯特拉的贪心策略依赖"节点一旦处理就不会再变便宜"这个假设,而负权边恰恰可能在处理之后制造出更便宜的路径——这不是局部问题,整张图的结果都可能受影响。'},
+  q3:{good:'对!正确的松弛条件应该是"新算出来的开销比当前记录的更便宜才更新",也就是 new_cost < costs[n]。写反之后,由于 costs[n] 初始是"无穷大",这个条件几乎不可能成立,所有节点的开销都不会被真正更新。',
+      bad:'再检查一下松弛条件的方向:我们希望"当新路径 new_cost 比原来记录的 costs[n] 更便宜时才更新",也就是 new_cost < costs[n]。题目里写成了 costs[n] < new_cost,方向反了。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

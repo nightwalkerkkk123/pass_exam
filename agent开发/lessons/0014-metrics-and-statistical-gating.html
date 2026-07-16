@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0014 · 指标体系与统计门禁</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0014 课 · 预计 14 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>指标体系与统计门禁</h1>
+
+<p class="lede">你在 <a href="0013-from-cases-to-eval-system.html">0013</a> 立了两根柱子——类型分层和多层评判，并留下一个悬而未决的追问：既然单跑一次只是一次采样，那到底<strong>跑几次、拿什么当上线门槛、一个通过率的提升是真进步还是随机噪声</strong>？这节课往下走一步，只回答这一个问题：怎么把"感觉好不好"变成"可量化、可比较、可回归"的门禁。它拆成两半——先讲<strong>指标体系怎么分级</strong>，再讲<strong>版本对比为什么必须配统计检验</strong>。</p>
+
+<h2>一、服务端的 SLA 仪表盘，先承认它对的部分</h2>
+
+<p>你在服务端见过监控大盘：P99 延迟、错误率、QPS，每个都挂一条红线（比如"错误率 &gt; 1% 就告警"）。这套直觉搬到 Agent 评测上，方向完全正确——指标体系确实就是"把业务目标拆成一组可观察、可打分、可追踪的检查项，每项配一条阈值线"。0013 那条五步骨架跑完出的通过率，就是这块大盘上的一个读数。</p>
+
+<p>但请先记住指标体系<strong>不止用来打分</strong>。它真正的价值，是让每次评测不只吐一个总分，而是能明确回答三件事：<strong>好在哪、差在哪、下一步该改什么</strong>。一个只会亮红灯的大盘救不了你——它得告诉你该去修哪根管子。这是指标体系区别于"一个分数"的分水岭，也是它能驱动"可落地、可验证的持续优化"的原因。</p>
+
+<div class="leak">
+服务端大盘的每条红线背后，是一个<strong>确定的、可复现的物理量</strong>：错误率 1% 就是 1%，你多测一分钟它不会变成 3%。Agent 指标的读数却是从一个<strong>会漂移的分布</strong>上采来的——同一个通过率，今天跑是 82%，明天同样的代码同样的用例集再跑可能是 78%。所以"读数过线就发布"这个在服务端天经地义的动作，在 Agent 世界里缺了一环：你还得先问"这个读数本身稳不稳、这次的高低是真信号还是采样抖动"。这一课后半段全在补这一环。
+</div>
+
+<h2>二、五大类指标 + 三级门禁</h2>
+
+<p>指标不能拍平成一堆并列的数字，否则你面对二十个分数根本不知道哪个能拦住发布、哪个只是参考。原始方法论把 Agent 评测指标建议分成<strong>五大类</strong>，再用<strong>三个门禁等级</strong>给它们定"话语权"：</p>
+
+<table>
+<thead><tr><th>门禁等级</th><th>作用</th><th>不达标会怎样</th></tr></thead>
+<tbody>
+<tr><td><strong>P0</strong> 上线门禁</td><td>发布的硬约束——安全、合规、资损、关键任务成功率这类底线</td><td><strong>不达标不能发</strong>，一票否决</td></tr>
+<tr><td><strong>P1</strong> 版本比较与工程优化</td><td>用来判断新版本比基线是好了还是坏了，指导工程迭代方向</td><td>不阻断发布，但要解释清楚为什么退步</td></tr>
+<tr><td><strong>P2</strong> 体验改善与长期观察</td><td>体验类、长期趋势类，慢慢磨、长期看</td><td>只观察，不做发布判断</td></tr>
+</tbody>
+</table>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">一个版本要不要发布？</div>
+  <div class="down">↓</div>
+  <div class="step action"><strong>P0 门禁</strong>：安全/合规/资损/关键成功率达标吗？</div>
+  <div class="down">↓ 任一不达标 → 直接拦下，不看后面</div>
+  <div class="step action"><strong>P1 对比</strong>：相对基线，核心指标是升是降？升降是否显著？</div>
+  <div class="down">↓ 显著退步 → 打回；显著提升或持平 → 放行</div>
+  <div class="step terminal">发布 · P2 指标进入长期看板持续观察</div>
+</div>
+<figcaption>三级门禁是一条<strong>有优先级的漏斗</strong>，不是二十个并列分数。P0 是一票否决的闸门，P1 是相对基线的升降判断（后半段会讲它为什么必须配统计检验），P2 只做长期观察。分级的意义：让"哪个指标能拦住发布"这件事本身变得明确。</figcaption>
+</figure>
+
+<p>为什么要分级？因为不分级的指标体系会退化成两种失败：要么<strong>什么都拦</strong>（每个指标都当 P0，一个体验小回退就卡住发布），要么<strong>什么都不拦</strong>（全是参考值，最后还是拍脑袋发）。分级就是把"这个指标到底有没有一票否决权"提前说死。</p>
+
+<h3>Skill 密集系统：五大维度下再挂一组子指标</h3>
+
+<p>如果系统大量依赖 <strong>Skill</strong> 完成工具调用、数据处理、报告生成，那就在上面五大类之下<strong>再补一组 Skill 子指标</strong>——正是 0013 那张表的"该不该触发 → 流程对不对 → 参数对不对 → 产物可不可用 → 异常能不能降级"。它们不是另起炉灶，而是挂在五大维度下面的一层更细的粒度。你在这里又看到那条贯穿全系列的线。</p>
+
+<h2>三、一致性：至少一次成功率 vs 连续成功率</h2>
+
+<p>现在触到这节课真正的新东西。对<strong>任务执行型</strong>和<strong>对话型</strong>（客服、营销、导购、售后）Agent，光有分级指标还不够——因为系统是非确定性的，同一个任务跑一次成功，不代表它稳。方法论的建议是：<strong>同一个任务重复运行多次</strong>，然后盯两个截然不同的率。</p>
+
+<dl class="keydef">
+<dt>至少一次成功率（at-least-once success rate）</dt>
+<dd>同一任务跑 N 次，<strong>只要有一次成功</strong>就算它"行"。度量的是<strong>能力上限</strong>——这个 Agent 到底具不具备完成该任务的可能性。</dd>
+<dt>连续成功率（consecutive / all-pass success rate）</dt>
+<dd>同一任务跑 N 次，<strong>必须每次都成功</strong>才算它"行"。度量的是<strong>稳定可靠</strong>——生产环境能不能把它交给用户。</dd>
+</dl>
+
+<p>这两个率可以差得极大。看一个任务跑 5 次的例子：</p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">Run 1</span><div class="track"><div class="val read" style="width:100%">PASS</div></div></div>
+  <div class="row"><span class="lbl">Run 2</span><div class="track"><div class="val write" style="width:100%">FAIL · 漏调订单查询</div></div></div>
+  <div class="row"><span class="lbl">Run 3</span><div class="track"><div class="val read" style="width:100%">PASS</div></div></div>
+  <div class="row"><span class="lbl">Run 4</span><div class="track"><div class="val read" style="width:100%">PASS</div></div></div>
+  <div class="row"><span class="lbl">Run 5</span><div class="track"><div class="val write" style="width:100%">FAIL · SOP 顺序错</div></div></div>
+  <div class="row"><span class="lbl">↓ 至少一次</span><div class="track"><div class="val read" style="width:100%">成功（有 PASS）→ 能力上限 OK</div></div></div>
+  <div class="row"><span class="lbl">↓ 连续成功</span><div class="track"><div class="val write" style="width:100%">失败（有 FAIL）→ 不可靠</div></div></div>
+</div>
+<figcaption>同一任务 5 次：3 次 PASS、2 次 FAIL。<strong>至少一次成功率 = 满足</strong>（它有能力做对），<strong>连续成功率 = 不满足</strong>（60% 的成功率对生产远远不够）。同一批数据，两个率给出相反结论——这正是为什么必须分开看。</figcaption>
+</figure>
+
+<div class="leak">
+CI 的绿灯是"跑一次绿了就发"——因为确定性代码跑一次绿，就永远绿。把这个习惯搬到 Agent 上是致命的：你看到 Run 1 PASS 就发布，等于用"至少一次成功"的证据去承诺"连续成功"的可靠性。<strong>生产系统关心的几乎总是连续成功率</strong>：用户不接受"多试几次总有一次成功"——退款、支付、合规场景里，第一次错就是一次真实的资损或投诉。CI 那盏"单次绿灯"在这里没有统计效力。
+</div>
+
+<p>什么时候用哪个？<strong>探索能力边界</strong>时看至少一次成功率（"它到底会不会做这件事"）；<strong>决定能不能上生产</strong>时看连续成功率（"它每次都能做对吗"）。把两者混为一谈，是非确定系统里最常见的自欺。</p>
+
+<h2>四、版本对比：为什么单点分数会骗你</h2>
+
+<p>指标分了级、一致性也测了，还剩最后一个坑：<strong>版本对比</strong>。你把新版本 B 和基线 A 各跑一遍，B 的通过率 82%、A 的 80%，于是宣布"B 提升了 2 个点，发布"。这几乎一定是错的——因为你拿两个<strong>单点</strong>在比，而每个单点都是从一个会漂的分布上采来的。A 再跑一次可能是 83%，那这"2 个点提升"就凭空蒸发甚至反转了。</p>
+
+<p>所以版本对比<strong>必须配套统计检验</strong>。方法论建议在报告里同时给出三样东西：</p>
+
+<table>
+<thead><tr><th>统计工具</th><th>它回答什么</th><th>没有它会怎样</th></tr></thead>
+<tbody>
+<tr><td><strong>置信区间</strong><br>(confidence interval)</td><td>这个指标的真实值落在哪个<strong>范围</strong>里，而不是一个点</td><td>你以为 82% 是精确值，其实它是 82%±5%，和基线的区间大面积重叠</td></tr>
+<tr><td><strong>与基线的显著性判断</strong><br>(significance test)</td><td>这次升/降是<strong>真实变化</strong>还是<strong>随机波动</strong></td><td>把噪声当成进步发布，下个版本"提升"又消失，团队反复被骗</td></tr>
+<tr><td><strong>最小可感知变化阈值</strong><br>(minimum detectable effect)</td><td>提前定义：<strong>至少升/降多少</strong>才值得做发布判断</td><td>为 0.3 个点的"提升"疲于发版，或漏掉真正有意义的退步</td></tr>
+</tbody>
+</table>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 820 260" role="img" aria-label="两个版本通过率的置信区间对比：区间重叠时不能判定显著提升">
+  <line class="dgm-edge" x1="60" y1="230" x2="780" y2="230" stroke-width="1.5"/>
+  <text class="dgm-muted" x="60"  y="250" font-size="11" text-anchor="middle">70%</text>
+  <text class="dgm-muted" x="240" y="250" font-size="11" text-anchor="middle">78%</text>
+  <text class="dgm-muted" x="420" y="250" font-size="11" text-anchor="middle">84%</text>
+  <text class="dgm-muted" x="600" y="250" font-size="11" text-anchor="middle">90%</text>
+  <text class="dgm-muted" x="770" y="250" font-size="11" text-anchor="middle">通过率</text>
+  <text class="dgm-text" x="55" y="70" font-size="13" font-weight="700" text-anchor="end">基线 A</text>
+  <line class="dgm-edge" x1="195" y1="65" x2="375" y2="65" stroke-width="6"/>
+  <line class="dgm-edge" x1="195" y1="52" x2="195" y2="78" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="375" y1="52" x2="375" y2="78" stroke-width="1.5"/>
+  <circle class="dgm-accent" cx="285" cy="65" r="6"/>
+  <text class="dgm-muted" x="285" y="42" font-size="11" text-anchor="middle">80% (75–85)</text>
+  <text class="dgm-accent-text" x="55" y="150" font-size="13" font-weight="700" text-anchor="end">版本 B</text>
+  <rect class="dgm-accent-node" x="240" y="145" width="180" height="6" rx="3" stroke-width="0"/>
+  <line class="dgm-edge" x1="240" y1="132" x2="240" y2="158" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="420" y1="132" x2="420" y2="158" stroke-width="1.5"/>
+  <circle class="dgm-accent" cx="330" cy="148" r="6"/>
+  <text class="dgm-muted" x="330" y="125" font-size="11" text-anchor="middle">82% (77–87)</text>
+  <rect class="dgm-accent-node" x="240" y="55" width="135" height="105" rx="4" fill-opacity="0.15" stroke-dasharray="4 3" stroke-width="1"/>
+  <text class="dgm-accent-text" x="307" y="200" font-size="11" text-anchor="middle">区间大面积重叠 → 2 个点差异不显著</text>
+</svg>
+</div>
+<figcaption>单点看：B(82%) &gt; A(80%)，"提升 2 个点"。加上置信区间看：两个区间大面积重叠，这 2 个点<strong>落在噪声范围内</strong>，不能判定为真实提升。只报单点分数，是版本对比里最普遍的自欺。</figcaption>
+</figure>
+
+<div class="good">
+<strong>核心口号（这节课背下来这一句就够）：</strong>
+<p>门禁不只看"<strong>差了多少</strong>"，还要看"<strong>这个差异是否超过统计噪声</strong>"。一个升降只有既<strong>方向对</strong>（超过最小可感知变化阈值）又<strong>统计上站得住</strong>（显著、区间不重叠到失去意义），才值得据它做发布判断。</p>
+</div>
+
+<h2>五、落到你的项目：mino 的门禁处在哪一格</h2>
+
+<div class="good">
+<strong>诚实映射（严格区分"mino 真有"和"方法论层、mino 未实现"）：</strong>
+<p><strong>mino 真有的：</strong>一个<em>最粗糙的 P0 门禁雏形</em>。<code>report.go:60-65</code> 把一批用例聚合成 <code>AvgScore</code> 和 <code>PassRate</code>（单点聚合值），<code>runner.go:92</code> 用一句 <code>if Score &lt; 0.6 { FAIL }</code> 给每条用例切一刀。你完全可以把"通过率过某条线"类比成一个最原始的上线门槛——这部分是真实存在、0007/0008 已逐符号核实的。</p>
+<p><strong>mino 未实现的（方法论层，明写）：</strong>这节课讲的统计能力，mino <strong>一样都没长出来</strong>，而且根因是硬的——<code>runAll</code> 是纯串行 <code>for</code> 循环，<code>config.go</code> 里的 <code>concurrency</code> 字段定义了却从未被使用，<strong>每条用例只跑一次</strong>。既然每条只跑一次：</p>
+<ul>
+<li>没有"同任务跑 N 次"的重复运行，所以<strong>算不出至少一次成功率，也算不出连续成功率</strong>——一致性这一整块无从谈起。</li>
+<li>没有多次采样，就没有分布，所以<strong>没有置信区间</strong>——那个 <code>AvgScore</code> 就是个赤裸的单点数。</li>
+<li>没有分布，就<strong>没有与基线的显著性检验</strong>，也<strong>没有最小可感知变化阈值</strong>——两个版本比通过率，只能比两个单点谁大。</li>
+<li>门禁分级（P0/P1/P2）也没有：<code>0.6</code> 是唯一一条硬编码线，不区分"安全一票否决"和"体验长期观察"。</li>
+</ul>
+<p><strong>可核实的诚实结论：</strong>mino 的门槛是"<strong>单点分数过 0.6</strong>"，而不是"<strong>统计上显著优于基线</strong>"。它有一个门禁的形，还没有统计门禁的实。</p>
+</div>
+
+<div class="leak">
+CI 里"跑一次绿了就发"之所以成立，是因为那盏绿灯背后是确定性事实。搬到 mino 的 <code>Score &gt;= 0.6</code> 上就失效了：<strong>单次通过在非确定系统里没有统计效力</strong>。<code>runAll</code> 每条只跑一次给出的 PASS，本质是"至少一次成功"里最弱的那种证据——一次采样，你却拿它当"连续成功、稳定可发布"来用。要补上这节课的能力，第一步不是换算法，而是<strong>让每条用例跑 N 次</strong>（把那个躺着没用的 <code>concurrency</code> 真正用起来只是并发，重复运行是另一件事），有了分布，置信区间和显著性检验才谈得上。</div>
+
+<h2>六、关键定义</h2>
+
+<dl class="keydef">
+<dt>指标体系（metric system）</dt>
+<dd>把业务目标 + 专家经验，拆成一组<strong>可观察、可打分、可追踪</strong>的检查项。核心价值不止打分，而是让每次评测能回答"好在哪、差在哪、下一步改什么"，驱动可落地、可验证的持续优化。</dd>
+<dt>三级门禁（P0 / P1 / P2）</dt>
+<dd>P0 = 上线门禁（不达标不能发，一票否决）；P1 = 版本比较与工程优化（相对基线的升降判断）；P2 = 体验改善与长期观察（只看趋势，不做发布判断）。分级的意义是把"哪个指标有一票否决权"提前说死。</dd>
+<dt>至少一次成功率 / 连续成功率</dt>
+<dd>同一任务跑 N 次：有一次成功即算成功 = 度量<strong>能力上限</strong>；每次都成功才算成功 = 度量<strong>稳定可靠</strong>。生产系统主要关心连续成功率，因为用户不接受"多试几次总有一次成功"。</dd>
+<dt>版本对比三件套</dt>
+<dd><strong>置信区间</strong>（指标真实值的范围，不是单点）、<strong>与基线的显著性判断</strong>（真实升降 vs 随机波动）、<strong>最小可感知变化阈值</strong>（至少升降多少才值得做发布判断）。三者共同支撑"门禁不只看差多少，还看差异是否超过统计噪声"。</dd>
+</dl>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：一个退款任务，你让它跑 10 次：8 次 PASS、2 次 FAIL（两次都是"漏调订单查询工具就承诺退款"）。有人说"至少一次成功率 100%，能力没问题，可以上生产"。这个结论错在哪？该用哪个率来做上生产的判断？</summary>
+<div class="answer">
+<p><strong>错在用错了率。</strong>"10 次里有成功"给出的是<strong>至少一次成功率</strong>——它只证明 Agent <em>具备</em>完成退款的能力（能力上限 OK），不证明它<em>每次</em>都做对。</p>
+<p>退款是资损/合规场景，用户不接受"多试几次总有一次成功"，所以上生产的判断必须看<strong>连续成功率</strong>：10 次里有 2 次 FAIL，连续成功率不满足，<strong>不能上生产</strong>。更严重的是那 2 次 FAIL 是"漏调订单查询就承诺退款"——这是 0013 讲的<strong>假阳性</strong>类风险，每一次都是一笔真实资损。把至少一次成功率当成上线依据，是非确定系统里最典型的自欺。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：版本 B 相对基线 A，某核心通过率从 80% 涨到 82%。产品经理说"涨了 2 个点，赶紧发"。用这节课的三件套逐条反驳，并说明什么情况下这 2 个点才值得据以发布。</summary>
+<div class="answer">
+<p>三件套逐条问：</p>
+<p>(1) <strong>置信区间</strong>：80% 和 82% 都是从会漂的分布上采的单点。若 A 是 80%(75–85)、B 是 82%(77–87)，两个区间大面积重叠，这 2 个点很可能落在噪声里——单点相减毫无意义。</p>
+<p>(2) <strong>显著性判断</strong>：必须做与基线的显著性检验，判定这 2 个点是"真实提升"还是"随机波动"。没做检验就发，等于赌博。</p>
+<p>(3) <strong>最小可感知变化阈值</strong>：得提前定义"至少升多少才值得发布判断"。若阈值定为 3 个点，那么 2 个点本就在"不值得据以决策"的范围内。</p>
+<p><strong>只有当这 2 个点既超过最小可感知变化阈值、又通过显著性检验（区间分离到有意义）时，才值得据它发布。</strong>核心口号：门禁不只看差了多少，还要看这个差异是否超过统计噪声。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（延伸）：有人看了 mino 的 <code>memory_eval</code> 说："它有 <code>PassRate</code> 聚合、有 <code>Score &gt;= 0.6</code> 阈值，这不就是统计门禁吗？"结合白名单里的真实代码事实反驳，并指出补齐这节课能力的第一步是什么。</summary>
+<div class="answer">
+<p>不是。它只是"<strong>单点分数过 0.6</strong>"的门禁形，不是<strong>统计门禁</strong>。关键在一条硬事实：<code>runAll</code> 是纯串行 <code>for</code> 循环，<code>concurrency</code> 字段定义了却从未使用，<strong>每条用例只跑一次</strong>。</p>
+<p>由此推出它缺的全部：每条只跑一次 → 没有重复运行 → 算不出<strong>至少一次/连续成功率</strong>；没有多次采样 → 没有分布 → <code>report.go:60-65</code> 的 <code>AvgScore/PassRate</code> 只是<strong>赤裸单点</strong>，没有<strong>置信区间</strong>；没有分布 → 没有<strong>显著性检验</strong>和<strong>最小可感知变化阈值</strong>；<code>0.6</code> 是唯一硬编码线，也没有 <strong>P0/P1/P2 分级</strong>。</p>
+<p><strong>补齐的第一步：让每条用例重复跑 N 次</strong>，先把"单次采样"变成"一个分布"。有了分布，置信区间、显著性、连续成功率才谈得上——这是把"门禁的形"填成"门禁的实"的地基。（注意：把 <code>concurrency</code> 用起来只是并发提速，和"重复运行取分布"是两件事，别混。）</p>
+</div>
+</details>
+</div>
+
+<h2>八、承上启下</h2>
+
+<p>这节课把 0013 的"多层评判"往前推到了"<strong>怎么把读数变成一条站得住的门禁线</strong>"：指标要分级（P0/P1/P2），一致性要分至少一次成功率和连续成功率，版本对比要配置信区间、显著性检验和最小可感知变化阈值。一句话——门禁不只看差多少，还看差异是否超过统计噪声。但这一切都建立在一个还没被质疑的前提上：<strong>你手里那套评测集，本身可信吗？</strong>如果用例集是从线上随机抽样来的，它可能被幸存者偏差骗了——正常流程占绝大多数，真正会让 Agent 出错的边缘场景几乎没被覆盖。那样的话，再漂亮的置信区间也是在错误的样本上算出来的。下一课就拆这件事。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让我带你把 mino 的 <code>cmd/memory_eval/eval/runner.go</code> 摊开，指着那个串行 <code>runAll</code> 和没被用的 <code>concurrency</code>，看它为什么<strong>结构上</strong>就长不出统计门禁。下一课：<em><a href="0015-eval-set-as-quality-asset.html">0015 评测集是设计出来的质量资产</a>——为什么不能靠随机抽样、Golden Set 怎么建、四类来源怎么配</em>。</p>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0056 · 管理者模式：为什么最强的模型要给规划者</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0056 课 · 进阶应用 · 多 Agent 协作 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>管理者模式：为什么最强的模型要给规划者</h1>
+
+<p class="lede">这节课只押一件事：管理者模式（Orchestration）靠一个统一抽象立住——<strong>Manager 把每个专门 Agent 当成一个可调用的工具</strong>。理解这句话，你就顺手拿到它的可扩展性与异构性；再叠上 Plan-and-Act 论文的实证结论——<strong>弱规划者是整个系统最关键的瓶颈</strong>——你就知道资源该往哪儿倾斜。这是第十章“不共享上下文”三种拓扑里的第二种（对等协作、管理者、去中心化），承接上一课的提议者-审核者循环。</p>
+
+<h2>一、是什么：Manager 把 Agent 当工具调用</h2>
+
+<p>当任务涉及五个以上子任务、需要动态调度、或者子任务之间存在复杂依赖时，对等协作就力不从心了，需要引入管理者模式。Manager Agent 的职责就像一个项目经理：先理解整体任务，再拆解为可分配的子任务，选择合适的 Agent 去执行，跟踪进度并处理异常（重试、换 Agent、调整计划），最后把各 Agent 的输出整合为最终结果。</p>
+
+<p>关键的设计一招在这里：<strong>从系统设计角度看，管理者模式把每个专门 Agent 建模为 Manager 可调用的工具</strong>。Manager 的工具集中不仅有传统的外部工具（如搜索、文件操作），还包含其他 Agent 的调用接口。从 Manager 的视角看，调用一个 Agent 和调用一个普通工具没有本质区别——<strong>都是发出请求、获得响应</strong>。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 300" role="img" aria-label="中心化辐射拓扑：Manager 在中心，向多个子 Agent 分发子任务，子 Agent 回传结构化摘要">
+  <!-- hub -->
+  <rect class="dgm-hub" x="280" y="120" width="140" height="60" rx="10"/>
+  <text class="dgm-accent-text" x="350" y="146" font-size="14" font-weight="700" text-anchor="middle">🧭 Manager</text>
+  <text class="dgm-muted" x="350" y="164" font-size="11" text-anchor="middle">规划·调度·整合</text>
+  <!-- spokes -->
+  <rect class="dgm-node" x="40" y="30" width="150" height="46" rx="8"/>
+  <text class="dgm-text" x="115" y="52" font-size="12.5" font-weight="700" text-anchor="middle">Glossary Agent</text>
+  <text class="dgm-muted" x="115" y="68" font-size="10.5" text-anchor="middle">术语对照表</text>
+
+  <rect class="dgm-node" x="40" y="224" width="150" height="46" rx="8"/>
+  <text class="dgm-text" x="115" y="246" font-size="12.5" font-weight="700" text-anchor="middle">Translation Agent</text>
+  <text class="dgm-muted" x="115" y="262" font-size="10.5" text-anchor="middle">章节翻译（多实例）</text>
+
+  <rect class="dgm-node" x="510" y="30" width="150" height="46" rx="8"/>
+  <text class="dgm-text" x="585" y="52" font-size="12.5" font-weight="700" text-anchor="middle">Proofreading Agent</text>
+  <text class="dgm-muted" x="585" y="68" font-size="10.5" text-anchor="middle">全文审校</text>
+
+  <rect class="dgm-node" x="510" y="224" width="150" height="46" rx="8"/>
+  <text class="dgm-text" x="585" y="246" font-size="12.5" font-weight="700" text-anchor="middle">外部工具</text>
+  <text class="dgm-muted" x="585" y="262" font-size="10.5" text-anchor="middle">搜索·文件操作</text>
+
+  <!-- edges out: 分发子任务 (solid) -->
+  <line class="dgm-edge" x1="280" y1="135" x2="190" y2="62"  stroke-width="1.5" marker-end="url(#ar56)"/>
+  <line class="dgm-edge" x1="280" y1="165" x2="190" y2="240" stroke-width="1.5" marker-end="url(#ar56)"/>
+  <line class="dgm-edge" x1="420" y1="135" x2="510" y2="62"  stroke-width="1.5" marker-end="url(#ar56)"/>
+  <line class="dgm-edge" x1="420" y1="165" x2="510" y2="240" stroke-width="1.5" marker-end="url(#ar56)"/>
+  <text class="dgm-muted" x="222" y="105" font-size="10.5" text-anchor="middle">分发子任务</text>
+  <text class="dgm-muted" x="478" y="200" font-size="10.5" text-anchor="middle">结构化摘要回收</text>
+  <defs>
+    <marker id="ar56" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>中心化辐射拓扑：Manager 在中心，把每个专门 Agent 当工具去启动、传参、收结果。子 Agent 回传的是<strong>结构化摘要而非全量轨迹</strong>（任务结论、关键发现、产物的文件路径、遇到的问题），完整执行轨迹留在自己日志里——这样 Manager 的上下文才能随子任务数量缓慢线性增长，而非爆炸式膨胀。图示子 Agent 取自实验 10-3 书籍翻译架构（对应图10-6）。</figcaption>
+</figure>
+
+<h2>二、为什么这样设计：统一抽象换来可扩展与异构</h2>
+
+<p>“把 Agent 当工具”不是修辞，它直接兑现两个工程红利：</p>
+
+<ul>
+<li><strong>可扩展性</strong>：新增能力只需开发对应 Agent 并注册为工具，<strong>Manager 的核心逻辑无需修改</strong>。想加一种子任务，就多挂一个工具，编排大脑本身不动。</li>
+<li><strong>异构性</strong>：它天然支持异构——不同 Agent 可以用<strong>不同的模型、提示词、工具集，甚至运行在不同的硬件环境上</strong>。因为 Manager 只关心“发请求、拿响应”，不关心工具内部是谁在跑。</li>
+</ul>
+
+<p>这个抽象并非本章新造。“Agent 互为工具”在第四章“协作工具”一节已经建立（spawn_subagent / send_message / cancel_subagent 的接口设计）。第四章解决“Manager → 子 Agent”方向传什么，本章补上对称的一半：“子 Agent → Manager”方向返回什么——答案就是上文那句<strong>结构化摘要而非全量轨迹</strong>。两章分工是：第四章讲机制（工具接口与上下文传递的实现），本章讲架构（拓扑结构与职责如何划分）。</p>
+
+<h2>三、边界与瓶颈：最强的模型要给规划者</h2>
+
+<p>中心化的好处伴随一个固有代价——<strong>Manager 成为系统的单点瓶颈</strong>：它必须理解所有子任务的性质、选对 Agent、准确传递上下文，任何决策偏差都会影响整体流程。这不是空谈，2025 年的 Plan-and-Act 论文对此做了实证分析。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 210" role="img" aria-label="资源分配轴：规划者一端加粗，标注 Plan-and-Act 在 WebArena-Lite 取得 54% 成功率">
+  <!-- axis -->
+  <line class="dgm-edge" x1="60" y1="120" x2="640" y2="120" stroke-width="1.5"/>
+  <text class="dgm-muted" x="60" y="150" font-size="11" text-anchor="start">执行者（Executor）</text>
+  <text class="dgm-muted" x="640" y="150" font-size="11" text-anchor="end">规划者（Planner / Manager）</text>
+  <!-- weak allocation (even) marker -->
+  <circle class="dgm-node" cx="350" cy="120" r="6"/>
+  <text class="dgm-muted" x="350" y="172" font-size="10.5" text-anchor="middle">平均分配 ✗</text>
+  <!-- tilt arrow toward planner -->
+  <path class="dgm-edge" d="M300 80 L610 80" fill="none" stroke-width="6" marker-end="url(#ar56b)"/>
+  <text class="dgm-accent-text" x="470" y="66" font-size="12.5" font-weight="700" text-anchor="middle">资源向规划者倾斜 →</text>
+  <!-- badge -->
+  <rect class="dgm-hub" x="500" y="95" width="140" height="52" rx="10"/>
+  <text class="dgm-accent-text" x="570" y="118" font-size="15" font-weight="700" text-anchor="middle">54%</text>
+  <text class="dgm-muted" x="570" y="136" font-size="10" text-anchor="middle">WebArena-Lite 成功率</text>
+  <defs>
+    <marker id="ar56b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>Plan-and-Act 的启示：不要把资源平均撒给所有 Agent。该研究在 WebArena-Lite 基准取得 54% 的成功率，核心贡献正是改善 Planner 的<strong>规划能力</strong>，而非 Executor 的执行能力。</figcaption>
+</figure>
+
+<p>在 Planner-Executor 双 Agent 架构中，<strong>弱规划者是整个系统最关键的瓶颈</strong>。当 Planner 的规划质量足够高时，即使 Executor 比较简单也能取得好结果；反之，如果 Planner 的任务分解有误，后续所有 Executor 的工作都建立在错误的前提上。由此得到本课的核心处方：<strong>应当将最强的模型和最精心设计的提示词分配给 Manager（规划者），而不是平均分配给所有 Agent</strong>。</p>
+
+<div class="bookquote">
+在 Planner-Executor 双 Agent 架构中，弱规划者是整个系统最关键的瓶颈。
+<span class="src">——《深入理解 AI Agent》第十章 · 转述 Plan-and-Act (arXiv:2503.09572)</span>
+</div>
+
+<h2>四、一个看似矛盾之处（易错点）</h2>
+
+<div class="pitfall">
+<p>你会立刻想起上一课的论断：提议者与审核者的<strong>能力应当相近</strong>。现在又说“最强模型给规划者”——初学者很容易觉得这两条自相矛盾，于是随手挑一条丢掉。这是误读，它们讨论的是<strong>两件不同的事</strong>。</p>
+<p>前者针对<strong>审查场景</strong>：审查者必须跟得上被审者的推理，才可能发现其中破绽，能力落差太大就根本审不动。后者针对<strong>规划与执行的分工</strong>：规划者一旦把任务分解错，执行者再强也无从补救，所以最强的模型和最精心的提示词应当优先给规划者。至于执行者之间是否需要能力均衡，则取决于子任务的耦合程度——当多个执行者的产物最终要拼装成一个整体时，最弱的一环往往会拖累整体质量。分清“审查”与“分工”两个语境，矛盾就消失了。</p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：管理者模式的全部力量来自一个抽象——<strong>Manager 把每个 Agent 当工具调用</strong>（换来可扩展性与异构性）；而它的全部风险都集中在 Manager 这个单点上——<strong>弱规划者是瓶颈，最强的模型和最精心的提示词要优先给规划者，别平均分</strong>。“审查者能力要相近”与此不矛盾，前者说审查、后者说分工。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>共享 / 不共享上下文（Shared / Non-shared Context）</dt>
+<dd>多 Agent 的第一设计维度。共享指后一 Agent 继承前一 Agent 的完整轨迹（隐式协调、信息零损耗、上下文膨胀）；不共享指各 Agent 维护独立上下文，仅通过工具参数 / 共享文件 / 消息总线三种显式机制通信。<em>避免</em>与“多轮对话历史”混同——这里区分的是 Agent 之间是否继承彼此的完整轨迹。管理者模式属于不共享上下文一族。</dd>
+<dt>移交（Handoff / 移交包）</dt>
+<dd>由上游 Agent 主动决定把哪些信息交接给下游。移交包通常含任务描述、已确认的事实与约束、结构化产物的引用（文件路径而非内容），刻意不传全量轨迹。<em>避免</em>理解成“把完整历史一并交出”——那是共享上下文下的形态。子 Agent 向 Manager 回传的结构化摘要就是这一思想的落地。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：本章说“审查者能力应与被审者相近”，又说“最强模型应给规划者”，这两条不矛盾吗？</summary>
+<div class="answer">
+<p>不矛盾，它们讨论的是两件事。前者针对<strong>审查场景</strong>：审查者要跟得上被审者的推理才能发现破绽，能力落差太大就审不动。后者针对<strong>规划-执行分工</strong>：规划者一旦把任务分解错，执行者再强也无从补救，所以最强模型和最精心的提示词应优先给规划者。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：从系统设计角度，管理者模式如何看待“调用一个子 Agent”？这个抽象带来了哪两个好处？</summary>
+<div class="answer">
+<p>它把每个专门 Agent <strong>建模为 Manager 可调用的工具</strong>——调用一个 Agent 和调用一个普通工具没有本质区别，都是发出请求、获得响应。两个好处：<strong>可扩展性</strong>（新增能力只需开发对应 Agent 并注册为工具，Manager 核心逻辑无需修改）与<strong>异构性</strong>（不同 Agent 可用不同模型、提示词、工具集，甚至跑在不同硬件上）。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本课属架构讲解，规格未绑定独立配套目录；但第十章的<strong>实验 10-3 书籍翻译 Agent</strong>正是管理者模式的标准范例——Manager 顺序调度 Glossary / Translation / Proofreading 三种子 Agent，且“只维护文件索引、不保存完整翻译内容”，亲手演示了 Manager 如何靠结构化摘要把自身上下文压在可管理范围内（对应图10-6）。建议边读边跑，全书实验都在开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课处方的一手依据是 <strong>Plan-and-Act 论文</strong>：Erdogan, L. E., et al. <em>Plan-and-Act: Improving Planning of Agents for Long-Horizon Tasks.</em> <a href="https://arxiv.org/abs/2503.09572">arXiv:2503.09572</a>, 2025——它在 WebArena-Lite 上取得 54% 成功率，核心是改善 Planner 而非 Executor。搭配阅读第十章“管理者模式：中心化协调”一节原文，以及配套仓库 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“Manager 把 Agent 当工具”这一步抽象拆开重走一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0055-proposer-reviewer-loop.html"><span class="dir">← 上一课</span>提议者-审核者循环：为什么不能自己审自己</a>
+  <a class="next" href="0057-cascading-error-amplification.html"><span class="dir">下一课 →</span>错误的级联放大：一致性如何给错误背书</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

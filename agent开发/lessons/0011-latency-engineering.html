@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0011 · 延迟工程：流式 TTFT、事件间隔超时、PTU 配额准入的三个漏水点</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0011 课 · 预计 14 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>延迟工程：流式 TTFT、事件间隔超时、PTU 配额准入的三个漏水点</h1>
+
+<p class="lede">你对"延迟"有一套成熟的服务端直觉：延迟就是请求发出到响应返回的墙钟时间，timeout 就是"超过 X 秒判失败"，rate limit 就是"保护本服务别被打垮"。这三条直觉在 Agent 世界都会漏水。这节课在 <code>mino_server</code> 里各挑一处真实代码，把漏水点戳穿。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 380" role="img" aria-label="延迟工程中心与三处漏水点：流式、分层超时、PTU 准入">
+  <!-- edges -->
+  <line class="dgm-edge" x1="360" y1="185" x2="165" y2="92" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="185" x2="555" y2="92" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="185" x2="360" y2="300" stroke-width="1.5"/>
+  <!-- edge labels -->
+  <text class="dgm-muted" x="250" y="128" font-size="11.5" text-anchor="middle">感知延迟 ≠ 实际延迟</text>
+  <text class="dgm-muted" x="470" y="128" font-size="11.5" text-anchor="middle">超时衡量"心跳间隔"</text>
+  <text class="dgm-muted" x="360" y="252" font-size="11.5" text-anchor="middle">限流为调度共享资源</text>
+  <!-- hub -->
+  <ellipse class="dgm-hub" cx="360" cy="185" rx="96" ry="44" stroke-width="2"/>
+  <text class="dgm-accent-text" x="360" y="181" font-size="17" font-weight="700" text-anchor="middle">延迟工程</text>
+  <text class="dgm-muted" x="360" y="202" font-size="11" text-anchor="middle">三条服务端直觉都要改写</text>
+  <!-- three pillars -->
+  <g>
+    <rect class="dgm-node" x="70" y="56" width="190" height="72" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="165" y="82" font-size="14.5" font-weight="700" text-anchor="middle">流式 / TTFT</text>
+    <text class="dgm-muted" x="165" y="102" font-size="10.5" text-anchor="middle">stream.go</text>
+    <text class="dgm-muted" x="165" y="118" font-size="10.5" text-anchor="middle">首 token 时间与总时长解耦</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="460" y="56" width="190" height="72" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="555" y="82" font-size="14.5" font-weight="700" text-anchor="middle">分层超时</text>
+    <text class="dgm-muted" x="555" y="102" font-size="10.5" text-anchor="middle">toolcall.go</text>
+    <text class="dgm-muted" x="555" y="118" font-size="10.5" text-anchor="middle">事件间隔超时，非总时长</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="265" y="300" width="190" height="72" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="360" y="326" font-size="14.5" font-weight="700" text-anchor="middle">PTU 配额准入</text>
+    <text class="dgm-muted" x="360" y="346" font-size="10.5" text-anchor="middle">ptuquota/</text>
+    <text class="dgm-muted" x="360" y="362" font-size="10.5" text-anchor="middle">放行 / 排队 / 降级 PayGo</text>
+  </g>
+</svg>
+</div>
+<figcaption>一个中心（延迟工程）经三种机制投影出三处漏水点。边上的标签就是本课要逐一戳穿的服务端直觉。</figcaption>
+</figure>
+
+<h2>一、先承认类比对的部分</h2>
+
+<p>把 LLM 调用当成一次远程请求来做延迟治理，是完全正确的起点。请求有 TTFT（首字节时间）和总时长，你会想到缓存、并发、超时、限流——方向没错。三条服务端直觉分别是：</p>
+
+<ul>
+<li><strong>延迟 = 墙钟时间</strong>，优化延迟就是把这个数字压小。</li>
+<li><strong>timeout = 总时长超时</strong>，超过 X 秒还没返回就判失败。</li>
+<li><strong>rate limit = 保护本服务</strong>，超限就 429 拒绝，别让自己被打垮。</li>
+</ul>
+
+<p>接下来是三处这些直觉<strong>不成立</strong>的地方。</p>
+
+<h2>二、漏水点一：感知延迟 ≠ 实际延迟（流式 / TTFT）</h2>
+
+<div class="leak">
+服务端里，一次响应通常<strong>一次性返回</strong>，感知延迟约等于实际延迟，你几乎不区分这两者。LLM 生成慢是硬约束——总时长 ≈ token 数 × 每 token 生成时间，你改不动它。但流式实现能把<strong>首 token 时间（TTFT）</strong>从总时长里拆出来：底层 provider 每吐一个 chunk，后台 goroutine 立刻转发给下游，用户在第一个 token 就看到输出滚动，体感"秒回"。总时长没变，感知延迟塌了。<strong>"感知延迟 ≠ 实际延迟"这个维度，传统后端几乎不存在。</strong>
+</div>
+
+<p>在 <code>biz/infrastructure/llms/stream.go</code> 里，<code>streamWithTracing</code>（72–137 行）先拿到底层 provider 的 <code>originalStream</code>，然后新建一个带 1000 缓冲的中转流：</p>
+
+<pre><code>outputStream := stream.New[*common.LLMMessage](1000)   // stream.go:91</code></pre>
+
+<p>再用 <code>concurrency.SafeGo</code> 起后台 goroutine（stream.go:97）跑转发循环。核心就这几行：</p>
+
+<pre><code>for {
+    msg, err := originalStream.Receive(ctx)
+    if err != nil {
+        outputStream.SendError(ctx, err)
+        ...
+        return
+    }
+    outputStream.Send(ctx, msg)      // 每个 chunk 一到就转发给下游 → TTFT
+    messages = append(messages, msg) // 同时留存，收尾合并 / 计费
+}</code></pre>
+<p class="meta">— <code>biz/infrastructure/llms/stream.go:121-133</code></p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">provider 逐 chunk</span><span class="n-sub">originalStream.Receive</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">后台 goroutine</span><span class="n-sub">SafeGo · stream.go:97</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">outputStream</span><span class="n-sub">buffer=1000 · :91</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">下游 / 前端 SSE</span><span class="n-sub">首 chunk 即渲染 = TTFT</span></div>
+</div>
+<figcaption>绿=解耦发生的地方。chunk 一到就 <code>Send</code>，下游无需等整段生成完；收尾时 <code>messages</code> 才用 <code>ConcatLLMMessages</code> 合并、上报计费。TTFT ≪ 总时长。</figcaption>
+</figure>
+
+<p>顺带一提，同文件的 <code>streamWithContinue</code>（184 行起）还处理 <code>max_tokens</code> 截断的自动续写：默认最多 10 轮（<code>maxRounds := 10</code>，stream.go:195），把已生成内容追加回去再发一轮。这是"总时长"这一侧的工程，与 TTFT 是两码事。</p>
+
+<h2>三、漏水点二：超时不是"总时长"，而是"事件间隔"（心跳）</h2>
+
+<div class="leak">
+服务端 timeout 几乎都是<strong>总时长超时</strong>：一个请求超过 X 秒还没结束就判失败。但 <code>mino_server</code> 的工具超时不是这么算的——它衡量的是<strong>相邻两个 event 之间的间隔</strong>（心跳超时）。只要工具持续吐事件，一个跑 30 分钟的工具也<strong>永远不超时</strong>。"超过 X 秒即失败"的直觉在这里彻底失效。
+</div>
+
+<p>在 <code>biz/domain/dmservice/agents/conductorservice/toolcall.go</code> 里，工具超时先按 <code>taskType</code> 分层选值（535–546 行）：</p>
+
+<table>
+<tr><th>任务类型</th><th>超时常量</th><th>值</th></tr>
+<tr><td>默认工具</td><td><code>defaultToolCallTimeout</code></td><td>5 分 30 秒</td></tr>
+<tr><td>子代理 / subAgent</td><td><code>subAgentToolCallTimeout</code></td><td>30 分钟</td></tr>
+<tr><td>幻灯片生成</td><td><code>slidesGenerateToolCallTimeout</code></td><td>10 分钟</td></tr>
+<tr><td>ACP 执行</td><td><code>acpExecToolCallTimeout</code></td><td>30 分钟</td></tr>
+<tr><td>桌面文件传输</td><td><code>fileTransferToolCallTimeout</code></td><td>30 分钟</td></tr>
+</table>
+<p class="meta">— 常量定义见 <code>toolcall.go:28-37</code>，选值分支见 <code>toolcall.go:535-546</code></p>
+
+<p>关键在 <code>forwardToolEvents</code>（689–718 行）的转发循环——超时 ctx 在<strong>每次 Receive 前重建、收到 event 后立即 cancel</strong>：</p>
+
+<pre><code>for {
+    _ctx, cancel := context.WithTimeoutCause(ctx, timeout, timeoutErr)
+    eventCtxWithMinoCtx := ctx.CopyFromCtx(_ctx)
+
+    event, err := innerEventStream.Receive(eventCtxWithMinoCtx)
+    cancel() // 及时释放资源</code></pre>
+<p class="meta">— <code>biz/domain/dmservice/agents/conductorservice/toolcall.go:692-697</code></p>
+
+<p>因为计时器在每个 event 之后归零，<code>timeout</code> 度量的是"心跳间隔"，不是工具跑了多久。超时触发时返回 <code>ErrToolCallEventIntervalTimeout</code>。下面这条锯齿线就是它的行为：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 250" role="img" aria-label="事件间隔超时：每收到一个 event，计时器归零，总时长可远超单次超时阈值">
+  <!-- ceiling = timeout threshold -->
+  <line class="dgm-edge" x1="55" y1="55" x2="690" y2="55" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text class="dgm-accent-text" x="690" y="48" font-size="11" text-anchor="end">5.5min 超时阈值（每个 event 后重置）</text>
+  <!-- baseline = elapsed 0 -->
+  <line class="dgm-edge" x1="55" y1="195" x2="690" y2="195" stroke-width="1.5"/>
+  <text class="dgm-muted" x="50" y="199" font-size="10.5" text-anchor="end">0</text>
+  <text class="dgm-muted" x="50" y="60" font-size="10.5" text-anchor="end">超时</text>
+  <!-- sawtooth: elapsed-since-last-event rises then resets on each event -->
+  <polyline class="dgm-edge" points="70,195 200,120 200,195 330,110 330,195 500,135 500,195 660,105"
+            stroke-width="2" style="stroke:var(--accent);"/>
+  <!-- event dots -->
+  <circle cx="70"  cy="195" r="5" class="dgm-accent"/>
+  <circle cx="200" cy="195" r="5" class="dgm-accent"/>
+  <circle cx="330" cy="195" r="5" class="dgm-accent"/>
+  <circle cx="500" cy="195" r="5" class="dgm-accent"/>
+  <circle cx="660" cy="195" r="5" class="dgm-accent"/>
+  <!-- event labels -->
+  <text class="dgm-text" x="70"  y="218" font-size="10.5" text-anchor="middle">event₁</text>
+  <text class="dgm-text" x="200" y="218" font-size="10.5" text-anchor="middle">event₂</text>
+  <text class="dgm-text" x="330" y="218" font-size="10.5" text-anchor="middle">event₃</text>
+  <text class="dgm-text" x="500" y="218" font-size="10.5" text-anchor="middle">event₄</text>
+  <text class="dgm-text" x="660" y="218" font-size="10.5" text-anchor="middle">event₅</text>
+  <text class="dgm-muted" x="70"  y="234" font-size="9.5" text-anchor="middle">t=0</text>
+  <text class="dgm-muted" x="660" y="234" font-size="9.5" text-anchor="middle">t=10min</text>
+</svg>
+</div>
+<figcaption>每收到一个 event，"距上次 event 的耗时"归零重新计时。总时长 10min ≫ 5.5min，却不触发超时——因为没有任何一段间隔碰到虚线阈值。</figcaption>
+</figure>
+
+<div class="good">
+<strong>一个反例，恰好印证机制</strong>：<code>desktop_file_transfer</code> 传输期间<strong>不发心跳</strong>，整条链路阻塞在等终态。此时"事件间隔"就等于"工具总时长"，所以它的超时必须放大到 30min，且注释明确写道"事件间隔超时 ≡ 工具总超时"（toolcall.go:34-37）。心跳机制在这里退化成了总时长超时——正因为没有心跳。
+</div>
+
+<h2>四、漏水点三：限流不为保护自己，而为调度共享 PTU + 成本路由</h2>
+
+<div class="leak">
+服务端 rate limit 是为了<strong>保护本服务</strong>：超限就 429 拒绝，宁可少服务也别被打垮。PTU 配额准入反过来——它保护的是<strong>全公司共享的、按预留吞吐量（Provisioned Throughput Unit）付费的昂贵推理资源</strong>。所以令牌桶和等待表都跑在 Redis 里、跨所有 pod 共享；而且超限时<strong>不是拒绝，而是"降级到按量付费 PayGo"继续服务</strong>。限流从"保护自己"变成了"调度稀缺共享资源 + 成本路由"。
+</div>
+
+<p>准入发生在<strong>昂贵推理之前</strong>。在 <code>biz/infrastructure/llms/openainext/client.go</code> 里，遍历 providers 发起流式调用<em>之前</em>先跑准入：</p>
+
+<pre><code>ptuToken, ptuErr = ptuquota.AdvisePTUAdmissionWithWait(ctx, model, input, ptuMaxTokens) // 队列版建议 :216
+...
+providers := ptuquota.Admit(ctx, model, cm.getProviderList(ctx))                        // 等待表版准入 :222
+for pi, provider := range providers {
+    ...
+    s, err := cm.streamWithRetry(ctx, provider, ...)   // 真正昂贵的推理，在准入之后才发生 :239
+}</code></pre>
+<p class="meta">— <code>biz/infrastructure/llms/openainext/client.go:216-239</code>。选中 PTU provider 则 <code>ConfirmPTUAdmitted</code> 写 inflight，否则 <code>RollbackPTUAdmission</code>（228-234 行）。</p>
+
+<p><code>Admit</code>（<code>ptuquota/admission.go:59-122</code>）是一棵决策树。注意它的落点从来不是"拒绝"：</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">未配 PTU / 桶与本调用无关？<br><span class="meta">skipAdmit</span></div>
+  <div class="down">│ 否</div>
+  <div class="step decision">isNearExhaustion：used/cap ≥ SoftRatio(0.8)？<br><span class="meta">admission.go:88 · bucket.go clampSoftRatio 默认 0.8</span></div>
+  <div class="branches">
+    <div class="branch"><div class="label">否（水位线优先）</div><div class="step terminal">decisionPass 直接放行</div></div>
+    <div class="branch"><div class="label">是</div>
+      <div class="step decision">用户受限？<br><span class="meta">evaluateRestriction：注册时长 / 邮箱后缀</span></div>
+      <div class="down">│ 是</div>
+      <div class="step action">waitForAdmission 排队<br><span class="meta">轮询 tryAdmit，最长 MaxQueueWaitMs</span></div>
+      <div class="branches">
+        <div class="branch"><div class="label">出队成功</div><div class="step terminal">decisionQueued → 走 PTU</div></div>
+        <div class="branch"><div class="label">超时</div><div class="step">removeProvider → decisionDowngraded<br><span class="meta">剔除 PTU provider，降级 PayGo</span></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<figcaption>三个终态：放行 / 排队后放行 / 降级 PayGo。另有 <code>ctx.Done → decisionCancelled</code>（admission.go:219-224）。全程无"拒绝"分支——限流的产物是路由，不是 429。</figcaption>
+</figure>
+
+<p>排队的原子判定在 <code>waitlist.go</code> 的 Lua 里。即使排到了 Top-K 队头，还要 qpm/tpm 使用率<strong>都</strong> &lt; <code>soft_ratio</code> 才 <code>ZREM</code> 出队放行——这就是"保护共享资源"的闸门，跨 pod 靠 Redis 共享：</p>
+
+<pre><code>local used_qpm = tonumber(redis.call("GET", bucket_qpm_key)) or 0
+if used_qpm / qpm_cap >= soft_ratio then return 0 end
+local used_tpm = tonumber(redis.call("GET", bucket_tpm_key)) or 0
+if used_tpm / tpm_cap >= soft_ratio then return 0 end
+
+-- 3. 桶健康：原子出队
+redis.call("ZREM", waitlist_key, ticket)
+return 1</code></pre>
+<p class="meta">— <code>biz/infrastructure/llms/ptuquota/waitlist.go:39-46</code>。<code>return 0</code> = 继续等，<code>return 1</code> = 放行。</p>
+
+<p>底层的令牌桶按分钟滚动。<code>bucketKey</code> 内嵌当前分钟、TTL 120s（<code>consume</code> 传入，bucket.go:272），靠 key 天然过期实现分钟窗口，脚本内不做任何重置：</p>
+
+<pre><code>local used = tonumber(redis.call("GET", key)) or 0
+if skip_cap == 0 and used + cost > capacity then
+  return -1
+end
+used = redis.call("INCRBY", key, cost)
+redis.call("EXPIRE", key, ttl)
+return capacity - used</code></pre>
+<p class="meta">— <code>biz/infrastructure/llms/ptuquota/bucket.go:196-202</code>。<code>skip_cap=1</code>（metrics-only 影子模式）时永不返回 -1，只记账不拒绝。</p>
+
+<p>QPM 在发请求前扣 +1（<code>ChargePTUQPM</code>，admission.go:279-285），TPM 在收尾拿到 provider 真实 usage 后一次性扣 input+output tokens（<code>ChargePTUTPM</code>，admission.go:292-300）。而 <code>SoftRatio</code>（默认 0.8）就是那条"近耗尽"软阈值：</p>
+
+<figure class="diagram">
+<div class="axis">
+  <span class="mark" style="left:80%">SoftRatio 0.8 → 近耗尽，进入受限判定 / 排队</span>
+  <span class="fill-label" style="left:2%">0</span>
+  <span class="fill-label" style="right:2%">capacity（满桶 → -1 拒绝）</span>
+</div>
+<figcaption>used/capacity 落在绿区（&lt; 0.8）时 <code>decisionPass</code> 直接放行、连 metric reason 都不打；越过 0.8 才开始区分是哪类用户在消耗 PTU（admission.go:86-96）。真正的硬拒绝（-1）只在桶满时才由令牌桶给出。</figcaption>
+</figure>
+
+<div class="good">
+<strong>诚实说明：这里其实并存两套准入。</strong>本课讲的是任务点名的 <code>Admit</code> 路径——"等待表(ZSet Top-K) + per-minute 令牌桶 + SoftRatio 近耗尽"。<code>bucket.go</code> 里还有一套更新的"队列准入"（<code>ptuQueueAdmitScript</code> / inflight 系列，backward sliding window + headroom），其 Go 入口是 <code>AdvisePTUAdmissionWithWait</code>。<code>client.go</code> 在 216 与 222 行<strong>同时</strong>调了两者。所以像 headroom、output×N、max_tokens×N 这类参数属于队列版 advisor，<strong>不要</strong>把它们套到本课讲的 <code>Admit</code> + 令牌桶这条路径上。</div>
+
+<h2>五、一张表把三处漏水点对齐</h2>
+
+<table>
+<tr><th>维度</th><th>服务端直觉</th><th>Agent 世界的现实（mino_server）</th></tr>
+<tr><td><strong>感知延迟</strong></td><td>响应一次性返回，感知 ≈ 实际，不区分</td><td>流式把 TTFT 与总时长解耦：总时长改不动，但用户第一个 chunk 就见输出（stream.go:121-133）</td></tr>
+<tr><td><strong>超时语义</strong></td><td>总时长超时：超过 X 秒即失败</td><td>事件间隔（心跳）超时：计时器每个 event 归零，持续吐事件就永不超时（toolcall.go:692-697）</td></tr>
+<tr><td><strong>限流目的</strong></td><td>保护本服务，超限 429 拒绝</td><td>调度全公司共享 PTU + 成本路由：超限不拒绝，降级到 PayGo 继续（ptuquota/admission.go）</td></tr>
+</table>
+
+<h2>六、关键定义</h2>
+
+<dl class="keydef">
+<dt>TTFT（首 token 时间，time to first token）</dt>
+<dd>从发起请求到收到第一个输出 token 的时间。流式的价值在于压低 TTFT（感知延迟），而非压低总生成时长（实际延迟）。载体：<code>stream.go</code> 的后台转发 goroutine。</dd>
+<dt>事件间隔超时 / 心跳超时（event-interval timeout）</dt>
+<dd>超时衡量的是"相邻两个 event 之间的间隔"，而非工具总运行时长。计时器在每次 <code>Receive</code> 前用 <code>WithTimeoutCause</code> 重建、收到 event 后 <code>cancel</code> 归零。载体：<code>toolcall.go:forwardToolEvents</code>。</dd>
+<dt>PTU 配额准入（PTU quota / admission）</dt>
+<dd>在发起昂贵推理前，用 Redis 令牌桶 + 等待表决定"放行 / 排队 / 降级 PayGo"，以保护跨 pod 共享的预留吞吐量资源。载体：<code>llms/ptuquota/</code>（<code>admission.go</code> / <code>waitlist.go</code> / <code>bucket.go</code>）。</dd>
+<dt>SoftRatio（近耗尽软阈值）</dt>
+<dd>令牌桶使用率的软阈值，默认 0.8。未越过时直接放行且不打点；越过后才进入受限判定与排队。载体：<code>bucket.go:clampSoftRatio</code>。</dd>
+<dt>降级到 PayGo（downgrade）</dt>
+<dd>排队超时后不报错，而是从 provider 列表里剔除 PTU provider、改走按量付费继续服务（<code>decisionDowngraded</code>）；剔完为空则保留原列表（<code>decisionDowngradeSkipped</code>）。载体：<code>admission.go:waitForAdmission</code>。</dd>
+</dl>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：一个 LLM 请求生成 2000 个 token 要 40 秒。mino_server 的流式实现能把这 40 秒的总时长缩短吗？用户的体感为什么会变快？</summary>
+<div class="answer">
+<p><strong>不能缩短总时长。</strong>40 秒是 token 数 × 每 token 生成时间的硬约束，<code>stream.go</code> 改不动它。变快的是<strong>感知延迟</strong>：<code>streamWithTracing</code> 用后台 <code>SafeGo</code> goroutine 把底层 provider 的每个 chunk 一 <code>Receive</code> 到就 <code>outputStream.Send</code> 给下游（stream.go:131），所以用户在第一个 token（TTFT，可能只需几百 ms）就看到输出开始滚动，而不是干等 40 秒看空白。这就是"感知延迟 ≠ 实际延迟"——服务端世界很少区分这两者，因为传统响应是一次性返回的。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：PTU 令牌桶已接近耗尽、用户又被判定为受限，<code>Admit</code> 会直接拒绝这个请求、返回错误吗？</summary>
+<div class="answer">
+<p><strong>不会拒绝。</strong>它进 <code>waitForAdmission</code> 排队（ZSet 等待表 + Top-K 原子 Lua 判定），最长等 <code>MaxQueueWaitMs</code>；期间桶变健康就 <code>decisionQueued</code> 放行走 PTU。若等到超时，不是报错，而是 <code>removeProvider</code> 把 PTU provider 从列表里剔掉、降级到 PayGo（按量付费）继续服务（<code>decisionDowngraded</code>）；只有剔完 provider 列表为空时才保留原列表（<code>decisionDowngradeSkipped</code>）。这正是漏水点：这里的限流是"调度共享 PTU 资源 + 成本路由（PTU→PayGo）"，而不是服务端那种"保护自己、超限即 429 拒绝"。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（进阶）：一个子代理工具跑了 25 分钟才结束，全程每隔几十秒吐一个进度 event。它的超时上限是 30min，但为什么"25 分钟"这个总时长其实和会不会超时无关？</summary>
+<div class="answer">
+<p>因为 <code>forwardToolEvents</code> 度量的是<strong>相邻 event 的间隔</strong>，不是总时长。<code>WithTimeoutCause(ctx, timeout, ...)</code> 在每次 <code>Receive</code> 前重建、收到 event 后 <code>cancel</code>（toolcall.go:693-697），计时器随每次心跳归零。只要没有任何一段间隔超过 30min，工具跑 25min、甚至跑几小时都不超时。真正会触发超时的是"卡住不吐事件"——比如死锁、或像 <code>desktop_file_transfer</code> 那样传输期不发心跳（此时间隔≡总时长，所以它的阈值被特意放大到 30min）。</p>
+</div>
+</details>
+</div>
+
+<h2>八、主推资源</h2>
+
+<p>本课把三处机制拆开看，但它们服务同一件事：让一个会长时间运行、会调用外部工具、会消耗共享推理资源的 Agent 系统在延迟与成本上可控。配套通读 <a href="https://www.anthropic.com/engineering/building-effective-agents">Building Effective AI Agents — Anthropic Engineering</a>（约 20 分钟）。读的时候带着问题：文中反复强调的"简单、可观测、给模型清晰的工具边界"，如何解释本课这三处设计——为什么流式要留 <code>messages</code> 收尾合并、为什么工具超时选"心跳"而非"总时长"、为什么限流的产物是路由而非拒绝？</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14 或让我打开真实代码逐行读。想进一步追的话：队列版 PTU 准入（<code>AdvisePTUAdmissionWithWait</code> 的 sliding window + headroom）与本课的 <code>Admit</code> 是两条并存路径，值得单开一课对比。</p>
+</footer>
+</main>
+</body>
+</html>

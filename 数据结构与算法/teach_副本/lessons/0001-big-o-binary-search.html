@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 1 课 · 大O表示法与二分查找 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第一部分《算法图解》① · 对应 ch01</div>
+  <h1>第 1 课:大O表示法与二分查找 —— 复习 + 补上边界条件的坑</h1>
+  <div class="sub">目标:5 分钟激活"大O是什么"的旧记忆,把剩下时间都花在二分查找**最容易扣分的边界写法**上。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>为什么从这节课开始?</b> 你已经学过数组、链表、栈、队列,只是不熟练——所以这节课不重讲"什么是数组",
+  而是把<b class="hl">大O表示法</b>当复习一带而过,把主要力气花在<b class="hl">二分查找的 C 代码边界条件</b>上。
+  这是全书最容易的算法,却也是期末最容易因为一个符号写错而丢分的地方。
+</div>
+
+<h2>一、大O表示法 —— 30 秒复习</h2>
+<p>大O表示法回答的问题只有一个:<b>输入规模 n 翻倍时,操作数涨得有多快?</b> 不是"这段代码跑了几毫秒"。
+两个算法在小数据量下测出来很接近,不代表规模变大后依然接近——100 个元素时二分查找只比逐个扫描快 15 倍,
+10 亿个元素时能快 3300 万倍。</p>
+
+<table>
+  <tr><th>大O</th><th>名称</th><th>代表算法</th><th>n=100 万时大约要几步</th></tr>
+  <tr><td><code>O(log n)</code></td><td>对数时间</td><td>二分查找</td><td>~20 步</td></tr>
+  <tr><td><code>O(n)</code></td><td>线性时间</td><td>逐个扫描</td><td>100 万步</td></tr>
+  <tr><td><code>O(n log n)</code></td><td>线性对数</td><td>快速排序(第4课)</td><td>~2000 万步</td></tr>
+  <tr><td><code>O(n²)</code></td><td>平方时间</td><td>选择排序(第2课)</td><td>1 万亿步</td></tr>
+  <tr><td><code>O(n!)</code></td><td>阶乘时间</td><td>旅行商暴力解</td><td>天文数字,城市数超过 20 就没法算</td></tr>
+</table>
+
+<div class="callout big">
+  <b>期末简答题最爱问的角度不是"背这张表",而是:</b> "为什么大O比较的是最坏情况,不是某次实测?"
+  ——因为算法要在<b>规模变大后依然可用</b>,而最坏情况才是可靠的保证;某一次运气好命中不能代表算法本身变快了。
+</div>
+
+<h2>二、二分查找 —— 前提只有一条</h2>
+<p>二分查找(Binary Search)只对<b class="hl">已排序</b>的数组有效。核心动作:每次看中间元素,
+和目标比较,能排除掉剩下一半的可能性——而不是像逐个扫描那样一次只排除一个。</p>
+
+<div class="callout warn">
+  <b>常见陷阱:对无序数组用二分查找。</b> 二分查找"往左还是往右收缩"的判断,完全依赖"中间值大就说明左边、
+  中间值小就说明右边"这个前提。数组一旦无序,这个判断直接失效,算法给出错误答案而不报错——这是最容易被
+  考试选择题当作"找茬"选项的坑。
+</div>
+
+<h3>C 代码(带边界条件详解)</h3>
+<pre>int binary_search(int arr[], int n, int target) {
+    int low = 0;
+    int high = n - 1;              <span class="c">// 覆盖整个数组的初始区间</span>
+
+    while (low <span class="c">/*①*/</span> <= high) {
+        int mid = low + (high - low) / 2;   <span class="c">// ②</span>
+
+        if (arr[mid] == target) {
+            return mid;             <span class="c">// 命中,直接返回下标</span>
+        } else if (arr[mid] > target) {
+            high = mid - 1;         <span class="c">// ③ 目标在左半,收缩右边界</span>
+        } else {
+            low = mid + 1;          <span class="c">// ③ 目标在右半,收缩左边界</span>
+        }
+    }
+    return -1;                      <span class="c">// 区间收缩到空,说明没找到</span>
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 循环条件必须是 <code>low &lt;= high</code>,不是 <code>low &lt; high</code>。</b>
+    当区间只剩一个元素(<code>low == high</code>)时,这个元素还没检查过,写成 <code>&lt;</code> 会漏掉它,
+    导致目标明明存在却返回"没找到"。</li>
+  <li><b>② <code>mid = low + (high - low) / 2</code>,不要写成 <code>(low + high) / 2</code>。</b>
+    两者数学上等价,但 <code>low + high</code> 在 <code>low</code>、<code>high</code> 都很大时可能整数溢出——
+    这是更严谨的写法,老师如果讲过这一点,选择题里会专门考这个细节。</li>
+  <li><b>③ 收缩边界必须是 <code>mid - 1</code> / <code>mid + 1</code>,不能写成 <code>mid</code>。</b>
+    如果收缩成 <code>high = mid</code>(丢了 <code>-1</code>),当 <code>mid</code> 恰好等于 <code>low</code> 又没命中时,
+    区间永远不会缩小——<b class="bad">死循环</b>,这是二分查找最经典的 bug。</li>
+</ol>
+
+<h2>三、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 数组 <code>[1, 3, 5, 7, 9, 11, 13]</code>(下标 0~6)已排序,查找 <code>target=7</code>。第一次 <code>mid</code> 是下标几?比较结果是什么?</div>
+  <button class="opt" data-ok="0">mid=0,7 &gt; arr[0],向右收缩</button>
+  <button class="opt" data-ok="1">mid=3,arr[3]=7 等于 target,直接命中</button>
+  <button class="opt" data-ok="0">mid=6,7 &lt; arr[6],向左收缩</button>
+  <button class="opt" data-ok="0">mid=3,arr[3]=7 大于 target,向左收缩</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 如果把循环条件从 <code>low &lt;= high</code> 改成 <code>low &lt; high</code>,会发生什么?</div>
+  <button class="opt" data-ok="0">没有影响,两种写法完全等价</button>
+  <button class="opt" data-ok="1">当区间收缩到只剩一个元素时,这个元素不会被检查,可能漏判"没找到"</button>
+  <button class="opt" data-ok="0">会导致死循环</button>
+  <button class="opt" data-ok="0">会导致数组越界访问</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段改写过的二分查找,某一行有 bug,选出问题所在。</div>
+  <p class="sub" style="margin-top:-4px">先自己在纸上模拟一遍 <code>arr=[2,4,6,8]</code>、<code>target=99</code>(不存在)再选。</p>
+  <pre>while (low <= high) {
+    int mid = low + (high - low) / 2;
+    if (arr[mid] == target) return mid;
+    else if (arr[mid] > target) high = mid;   <span class="c">// ← 这一行</span>
+    else low = mid + 1;
+}</pre>
+  <button class="opt" data-ok="0">mid 的计算方式错了</button>
+  <button class="opt" data-ok="1"><code>high = mid</code> 应该是 <code>high = mid - 1</code>,否则可能死循环</button>
+  <button class="opt" data-ok="0">循环条件应该是 low &lt; high</button>
+  <button class="opt" data-ok="0">return -1 漏写了,不影响死循环问题</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q3sol').classList.toggle('hidden')">▸ 看模拟过程</span>
+  <div id="q3sol" class="hidden" style="margin-top:8px">
+    <table>
+      <tr><th>轮次</th><th>low</th><th>high</th><th>mid</th><th>arr[mid]</th><th>结果</th></tr>
+      <tr><td>1</td><td>0</td><td>3</td><td>1</td><td>4</td><td>4&lt;99,low=2</td></tr>
+      <tr><td>2</td><td>2</td><td>3</td><td>2</td><td>6</td><td>6&lt;99,low=3</td></tr>
+      <tr><td>3</td><td>3</td><td>3</td><td>3</td><td>8</td><td>8&lt;99,low=4</td></tr>
+      <tr><td>4</td><td>4</td><td>3</td><td>—</td><td>—</td><td>low&gt;high,退出</td></tr>
+    </table>
+    <p style="margin:4px 0">这个例子恰好没死循环(因为一直往右收缩),但把 <code>target</code> 换成一个会让代码走 <code>high=mid</code> 分支、且 <code>mid</code> 会等于 <code>low</code> 的情形(比如 <code>arr=[2,4]</code>、<code>target=1</code>),就会卡在 <code>low=0,high=1,mid=0</code> 反复不动——这就是死循环。</p>
+  </div>
+</div>
+
+<h2>四、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"二分查找每一步在干什么、前提是什么?"<br>
+  ②"为什么 <code>high = mid - 1</code> 里的 <code>-1</code> 不能省?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 2 课(数组、链表与选择排序)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 2 课):</b> 数组和链表在增删查改上的代价对比,以及选择排序 <code>O(n²)</code> 的由来——
+  会直接用到这节课学的大O比较方法。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/bhargava-algorithms/chapters/ch01-intro-to-algorithms.md</code>
+  (《算法图解》第1章,原书 Python 代码已改写为 C)。速查表见
+  <code>skill/bhargava-algorithms/cheatsheet.md</code>。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!mid=(0+6)/2=3,arr[3]=7,正好等于 target,一次命中。',
+      bad:'先算 mid=low+(high-low)/2=(0+6)/2=3,再看 arr[3]。arr 是 [1,3,5,7,9,11,13],下标3是7,正好等于target=7,直接命中,不需要再收缩。'},
+  q2:{good:'对!这正是①号边界条件的意义——漏了 low==high 这一个元素没检查,会误判"没找到"。',
+      bad:'再想想:当区间只剩一个元素时 low==high,这时候还没检查过这个元素。如果条件是 low<high,循环会在检查它之前就退出。'},
+  q3:{good:'对!这是最经典的二分查找 bug:少写了 -1,导致 mid==low 时区间可能不收缩,陷入死循环。',
+      bad:'再模拟一次:当 arr[mid] > target 时应该收缩到 mid 左边一格,也就是 high=mid-1;写成 high=mid 会在某些情况下让区间不再缩小。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0002 · context 组装管线：分层、顺序与位置——为什么"字段放哪"在这里是有语义的</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0002 课 · 预计 12 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>context 组装管线：分层、顺序与位置</h1>
+
+<p class="lede">上一课的结论是：context 组织是主轴，其余支柱是它的投影。这一课把主轴打开——看 <code>conductorservice</code> 里一次 LLM 调用的输入到底是怎么<strong>按固定分层顺序</strong>拼出来的。你会看到一件在服务端世界里荒谬、在这里却是硬约束的事：一个字段<strong>放在哪个位置</strong>，直接决定它被模型读得认不认真、以及这轮请求要不要付全价。</p>
+
+<h2>一、先看骨架：一次调用的 messages 是四段 append 出来的</h2>
+
+<p>在 <code>conductorservice</code> 里，每次 LLM 调用的输入不是随手拼的 payload，而是由 <code>buildConductorMessages</code>（<code>agent.go:1418</code>）按固定顺序组装的 <code>[]*common.LLMMessage</code>。骨架只有四段 <code>append</code>，先后顺序<strong>就是</strong>发给模型的消息顺序：</p>
+
+<pre><code>messages := []*common.LLMMessage{common.NewLLMMessageWithCache1Hour(common.System, systemPrompt)}
+
+// 添加所有激活模式的 developer messages（行为约束、相位规则等）
+modeDeveloperMessages := agent.buildModeDeveloperMessages()
+messages = append(messages, modeDeveloperMessages...)
+
+// 添加 hooks 注入的补充参考文档（animation_patterns、chinese_fonts 等），紧贴对话以提高注意力权重
+developerMessages := agent.hooks.BuildDeveloperMessages(ctx, agent.agentFeatures, &payload)
+messages = append(messages, developerMessages...)
+
+chatMessages = agent.hooks.OverrideReplayChatMessages(ctx, chatMessages)
+messages = append(messages, chatMessages...)</code></pre>
+<p style="font-size:.82em;color:var(--muted);font-family:'PingFang SC',sans-serif;margin-top:-.6rem">— <code>agent.go:1471-1485</code></p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">System Prompt</span><span class="n-sub">NewLLMMessageWithCache1Hour · cache 1h</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">Mode Developer</span><span class="n-sub">buildModeDeveloperMessages · 按名排序</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">Hook Developer</span><span class="n-sub">BuildDeveloperMessages · animation_patterns</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">chatMessages</span><span class="n-sub">newConductorBasicMessages · 内含 cache 断点</span></div>
+</div>
+<figcaption>绿=稳定前缀（跨 step 可缓存），红=易变区入口。四段对应 <code>agent.go:1471-1485</code> 的四次 <code>append</code>。注意 <code>chatMessages</code> 虽然整体归到易变侧，但它自己的前半段（context_info、历史、用户请求）其实还是稳定前缀——真正的缓存边界落在它内部。</figcaption>
+</figure>
+
+<p>三点先记住：</p>
+<ul>
+<li><strong>System Prompt 不是一整块字符串</strong>。它由 <code>populateSystemPrompt</code>（<code>prompts.go:126</code>）把 HITL / Space / Search / Plan / Notebook / Trust / Reply / Research / Preliminary / SuperAgentMemory / Safety 等组件<em>分别渲染</em>（<code>prompts.go:202-255</code>），塞进 <code>SystemPromptData</code>（<code>prompts.go:257-270</code>），再用某个 mode 的模板 <code>tmpl.Execute</code> 合成（<code>prompts.go:272-276</code>）。用哪个模板由 <code>hooks.GetSystemPrompt</code> 分发。</li>
+<li><strong>Hook Developer 是真有其事的注入</strong>。比如 HTML Slides 模式的 <code>BuildDeveloperMessages</code>（<code>htmlslides/state.go:93-98</code>）返回两条 Developer 消息：<code>GetAnimationPatternsSection()</code> 和 <code>GetChineseFontsSection()</code>——正是 <code>agent.go:1477</code> 注释里点名的 <code>animation_patterns</code> / <code>chinese_fonts</code>。</li>
+<li><strong>组装期一次定序，发送期不再重排</strong>。<code>streamCallLLM</code>（<code>agent.go:1545</code>）拿到已排好序的 messages，只算 thinking 预算（<code>agent.go:1547-1558</code>）、拼 options、在 <code>agent.go:1591</code> 把 messages <em>原样</em>交给 <code>agent.llmClient.Stream</code>。顺序在组装期就冻结了。</li>
+</ul>
+
+<h2>二、放大 chatMessages：稳定前缀在哪里断开</h2>
+
+<p><code>chatMessages</code> 的内部顺序由 <code>newConductorBasicMessages</code>（<code>context.go:76</code>）决定。非群聊主线（<code>context.go:139-168</code>）用 <code>gslice.Concat</code> 依次拼：</p>
+
+<pre><code>return gslice.Concat(
+    // 上下文信息 Developer 消息
+    wrapContextMessage(contextMsg),
+
+    // 历史消息（User 消息包裹 &lt;user_request&gt;、…与当前轮格式一致以提升 prefix cache 命中率）
+    agent.convertOriginalMessages(slidesPatchEditEnabled),
+
+    // 用户请求前的Hook消息
+    utils.WrapInSystemHintMessage(preUserMsgs...),
+
+    // 用户请求
+    agent.populateUserRequest(agent.latestUserMessage, /* … */),
+
+    // 当前轮次的消息
+    utils.MarkAsCachePointSpecified(minomessage.MTransferToLLMMessages(
+        agent.newMessages, /* … */
+    ), common.Tool),
+
+    utils.WrapInSystemHintMessage(
+        gslice.Concat(
+            populateRunStepCount(agent.runStepCount, agent.maxStepCount),
+            populateLastErr(agent.lastAgentErr),
+        )...,
+    ),
+)</code></pre>
+<p style="font-size:.82em;color:var(--muted);font-family:'PingFang SC',sans-serif;margin-top:-.6rem">— <code>context.go:139-168</code>（非群聊路径）</p>
+
+<p>关键一行是 <code>MarkAsCachePointSpecified(..., common.Tool)</code>：它从后往前找到最后一条 <code>Tool</code> 消息，在它的最后一个内容块上打一个 <code>NewCacheControl()</code> 缓存断点（<code>utils/prompts.go:24-28</code>）。<code>NewCacheControl()</code> 的默认 TTL 是 5 分钟（<code>common.go:610-613</code>，<code>CacheTTL5Minutes = "5m"</code>，见 <code>common.go:600</code>）。这个断点<strong>就是稳定前缀的尾巴</strong>：断点之前是每步都该 byte-identical 的前缀，断点之后（新消息继续增长、<code>system_hint</code> 里的 <code>runStepCount</code> / <code>lastErr</code> 每步变）是预期会变的区域。</p>
+
+<p>这不是我编的分层——团队把它写成了 CI 卡点。<code>cache_prefix_stability_test.go</code>（文件头 <code>:1-35</code>）直接画出这张布局并断言它稳定：</p>
+
+<div class="keydef" style="font-family:'SF Mono',Menlo,monospace;font-size:.82em">
+<div>[System Prompt] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ← 应 step 间稳定</div>
+<div>[Mode Developer Messages] &nbsp; ← mode 激活后应稳定</div>
+<div>[Hook Developer Messages] &nbsp; ← 应 step 间稳定</div>
+<div>[Context Info] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ← 应 step 间稳定（已知问题：PlanEnabled 会导致变化）</div>
+<div>[History Messages] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ← 应 step 间稳定</div>
+<div>[Pre-User Hooks] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ← 应 step 间稳定</div>
+<div>[User Request] &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ← 应 step 间稳定</div>
+<div style="color:var(--accent)">-------- 以上为 "稳定前缀"，cache 命中的关键 --------</div>
+<div>[New Messages + cache_control] ← 每 step 增长（预期）</div>
+<div>[System Hints (stepCount/err)] ← 每 step 变化（预期）</div>
+</div>
+<p style="font-size:.82em;color:var(--muted);font-family:'PingFang SC',sans-serif;margin-top:-.6rem">— 据 <code>cache_prefix_stability_test.go:12-21</code> 的布局注释转述（非逐字）。这个测试模拟 step 0 → step 1，对比两次"稳定前缀"的 hash，不同就 fail——它守着前缀不许抖。</p>
+
+<h2>三、类比在这里漏水（一）：位置本身是有语义的</h2>
+
+<p>你的服务端直觉是对的一半：拼一次 RPC 请求 = 把需要的数据收集齐塞进 payload。字段放 payload 里哪个位置<em>无所谓</em>，服务端反序列化成结构体后按 key 取值，一个值存哪、读它和它的物理位置无关。KV 存储读 <code>key=X</code> 的开销也与 <code>X</code> 在库里的排布无关。</p>
+
+<div class="leak">
+在 context 里，<strong>同一段信息放开头、中间、结尾，模型的实际利用率不同</strong>——中间最差，这就是 <em>lost in the middle</em>。把 payload 当"无序字典"的直觉在这里失效：位置是一个影响输出质量的变量。代码里那句注释 <code>紧贴对话以提高注意力权重</code>（<code>agent.go:1477</code>）就是在对抗这一点——它故意把 Hook 参考文档往<strong>后</strong>放，靠近对话，因为越靠近末端注意力权重越高。
+</div>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 360" role="img" aria-label="lost in the middle：信息在 prompt 中的位置越靠中间，模型利用率越低，两端高中间低的 U 形曲线">
+  <!-- axes -->
+  <line class="dgm-edge" x1="70" y1="60" x2="70" y2="300" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="70" y1="300" x2="670" y2="300" stroke-width="1.5"/>
+  <!-- U curve: high ends, low middle -->
+  <path class="dgm-edge" d="M 90 112 C 250 300, 490 300, 640 112" stroke-width="2.5" fill="none"/>
+  <!-- y axis labels -->
+  <text class="dgm-muted" x="62" y="52" font-size="12" text-anchor="middle">利用率</text>
+  <text class="dgm-muted" x="60" y="74" font-size="11" text-anchor="end">高</text>
+  <text class="dgm-muted" x="60" y="298" font-size="11" text-anchor="end">低</text>
+  <!-- x axis labels -->
+  <text class="dgm-muted" x="100" y="322" font-size="12" text-anchor="middle">开头</text>
+  <text class="dgm-muted" x="360" y="322" font-size="12" text-anchor="middle">中间</text>
+  <text class="dgm-muted" x="630" y="322" font-size="12" text-anchor="middle">结尾</text>
+  <text class="dgm-muted" x="370" y="346" font-size="12" text-anchor="middle">token 在 prompt 中的位置 →</text>
+  <!-- markers -->
+  <circle class="dgm-accent" cx="90" cy="112" r="5"/>
+  <text class="dgm-accent-text" x="100" y="102" font-size="12" text-anchor="start">System Prompt（位置0，恒定最前）</text>
+  <circle class="dgm-accent" cx="640" cy="112" r="5"/>
+  <text class="dgm-accent-text" x="630" y="102" font-size="12" text-anchor="end">Hook 参考文档「紧贴对话」</text>
+  <text class="dgm-muted" x="370" y="240" font-size="13" text-anchor="middle" font-style="italic">lost in the middle</text>
+</svg>
+</div>
+<figcaption>两端高、中间低。这解释了两个设计决策：System Prompt 永远钉在位置 0（<code>agent.go:1471</code>），而 <code>animation_patterns</code> 等参考文档被<em>故意</em>放到靠近对话的尾部（<code>agent.go:1477-1479</code>）——都是在把高价值内容往注意力权重高的位置摆。</figcaption>
+</figure>
+
+<h2>四、类比在这里漏水（二）：顺序被 prefix cache 绑架</h2>
+
+<p>服务端缓存是为了省<em>你自己</em>的计算，命中规则你说了算。prompt 的 prefix cache 省的是<strong>模型厂商</strong>的计算，命中规则由厂商定：<strong>请求前缀 byte-identical 才命中</strong>，任何一个字节变了，分歧点之后的整段前缀全部 miss、按全价重算。</p>
+
+<div class="leak">
+于是"字段放哪"从质量问题升级成<strong>钱的问题</strong>：稳定内容必须在前并打 <code>cache_control</code>（System Prompt 打 1 小时 <code>NewLLMMessageWithCache1Hour</code>（<code>common.go:403</code>）→ 内部调 <code>NewCacheControl1Hour</code>（<code>common.go:618</code>）→ <code>CacheTTL1Hour = "1h"</code>（<code>common.go:601</code>）），任何每步会变的东西（<code>runStepCount</code>、<code>lastErr</code>、<code>current_plan</code>、秒级时间）必须挪到缓存断点之后，否则整段前缀 cache miss、这轮付全价。在"读值与位置无关"的存储世界里，你永远不会因为"读它会破坏缓存"而去改一个字段的<em>内容</em>。这里会。
+</div>
+
+<h3>证据 1：为了缓存，把时间精度砍到只剩"天"</h3>
+
+<pre><code>// 当前时间（只保留日期粒度 + 时区，避免秒级精度导致跨 session prompt cache miss）
+if !payload.StartTime.IsZero() {
+    sb.WriteString("&lt;current_time&gt;\n")
+    fmt.Fprintf(&amp;sb, "%s (%s)",
+        payload.StartTime.Format("2006-01-02"),
+        payload.StartTime.Location().String(),
+    )
+    sb.WriteString("\n&lt;/current_time&gt;\n")
+}</code></pre>
+<p style="font-size:.82em;color:var(--muted);font-family:'PingFang SC',sans-serif;margin-top:-.6rem">— <code>context.go:252-260</code></p>
+
+<p><code>current_time</code> 位于 <code>&lt;context_info&gt;</code> 里、在缓存断点<em>之前</em>的稳定前缀区。如果保留秒级，每次请求这一字节都不同，会击穿它之后的整段前缀。砍到 <code>2006-01-02</code>（Go 的日期格式串）之后，同一天内这一字段稳定，前缀可复用。这是最锋利的漏水证据：普通存储里一个时间字段精度高低与读取成本无关；在 context 里，精度直接<strong>换缓存命中率</strong>。</p>
+
+<h3>证据 2：一个动态块被点名会击穿缓存，对策是让不需要它的 Agent 主动清空</h3>
+
+<pre><code>// 注意：&lt;current_plan&gt; 在第 1→2 次 LLM 调用间会变化（IsLastMessageFromUser 从 true→false），
+// 导致 context_info 改变、prefix cache miss。不需要 plan 提示的 Agent（如 Slides）
+// 应在 CustomizeContextPayload hook 中清除这些字段。
+if agent.agentFeatures.PlanEnabled {
+    payload.CurrentPlan = agent.currentPlan
+    payload.IsLastMessageFromUser = len(agent.newMessages) == 0
+}</code></pre>
+<p style="font-size:.82em;color:var(--muted);font-family:'PingFang SC',sans-serif;margin-top:-.6rem">— <code>agent.go:1524-1531</code></p>
+
+<p>"位置/内容影响缓存"不是抽象担忧，而是线上已知问题：<code>&lt;current_plan&gt;</code> 放在稳定前缀里的 <code>context_info</code> 块，会在同一 turn 的第 1→2 次调用整体翻转（<code>IsLastMessageFromUser</code> 从 <code>true</code> 变 <code>false</code>），从这里往后全部 cache miss。团队的对策：让不需要它的 Agent（如 Slides）在 <code>CustomizeContextPayload</code> hook 里把这两个字段清掉（<code>htmlslides/state.go:85-88</code> 正是这么做的）。</p>
+
+<figure class="diagram">
+<div class="cacheline">
+  <div class="seg hit">命中前缀<br>System Prompt(1h) + Mode/Hook Developer<br>+ space_info / user_identity</div>
+  <div class="seg diverge">分歧点<br>&lt;current_plan&gt;<br>第 1→2 次翻转</div>
+  <div class="seg recompute">其后全部重算<br>context_info 尾 → 历史 → 本轮</div>
+</div>
+<figcaption>一个前缀里的动态块变一个字节，分歧点之后全按全价重算。这正是 <code>agent.go:1524-1531</code> 注释点名的场景。</figcaption>
+</figure>
+
+<h3>证据 3：连 mode 的输出顺序都被排序钉死</h3>
+
+<pre><code>// 收集并排序激活的 mode，确保输出顺序一致，避免影响缓存命中率
+var activeModes []agenttypes.ConductorMode
+for mode := range agent.modeDeveloperMessages {
+    if agent.activeModes[mode] && agent.modeDeveloperMessages[mode] != "" {
+        activeModes = append(activeModes, mode)
+    }
+}
+sort.Slice(activeModes, func(i, j int) bool {
+    return string(activeModes[i]) &lt; string(activeModes[j])
+})</code></pre>
+<p style="font-size:.82em;color:var(--muted);font-family:'PingFang SC',sans-serif;margin-top:-.6rem">— <code>agent.go:1381-1390</code></p>
+
+<p>Go 的 <code>map</code> 遍历顺序是随机的。如果直接按遍历顺序输出 mode developer 消息，同一组激活 mode 每次可能排出不同的字节序列，前缀就抖了。所以这里显式 <code>sort.Slice</code> 按 mode 名排序——只为让相同激活集合每次产出 <strong>byte-identical</strong> 的前缀。"稳定内容必须放前面且顺序不能抖"这条约束，被直接编译进了代码。</p>
+
+<h2>五、context_info 内部：块的真实顺序</h2>
+
+<p><code>&lt;context_info&gt;</code> 是一条 Developer 消息，由 <code>buildContextPayload</code>（<code>agent.go:1492</code>）先填结构体、<code>CustomizeContextPayload</code> hook 微调、再由 <code>buildDeveloperContextMessage</code>（<code>context.go:230</code>）渲染成一整块。它内部的块顺序是固定的（<code>context.go:236-305</code>）：</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">space_info</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">user_identity</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">current_time</span><span class="n-sub">砍到日期粒度</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">main_language</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">current_plan</span><span class="n-sub">仅 IsLastMessageFromUser</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">user_personalization</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">user_memory</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">mobile_app</span></div>
+</div>
+<figcaption>红=进了稳定前缀却会逐轮变动的"危险块"：<code>current_time</code>（若保留秒级）与 <code>current_plan</code>（随 <code>IsLastMessageFromUser</code> 翻转）。<code>&lt;/context_info&gt;</code> 标签<strong>之外</strong>还会追加 <code>user_instruction</code> → <code>anygen_md</code>（AnyGen.md）→ <code>subagent_mode</code>（<code>context.go:307-348</code>）。若整块只剩空的 <code>&lt;context_info&gt;&lt;/context_info&gt;</code> 则返回 <code>nil</code>（<code>context.go:352-354</code>）。</figcaption>
+</figure>
+
+<div class="good">
+<strong>本课要带走的判断</strong>：设计一个 Agent 的 context 组装，不是"选内容"这一件事，而是"选内容 + 排位置 + 定 TTL"三件事焊在一起。判断一个字段该放哪，问两个问题：（1）它<em>多稳定</em>？越稳定越靠前、TTL 越长（System Prompt 在最前、1h）；越易变越靠后、放到缓存断点之后（<code>runStepCount</code> / <code>lastErr</code> 在最尾）。（2）它<em>多重要</em>？越重要越要避开"中间"这个注意力洼地——所以参考文档宁可"紧贴对话"也不塞进中段。
+</div>
+
+<h2>六、关键定义</h2>
+
+<dl class="keydef">
+<dt>context 组装管线（context assembly pipeline）</dt>
+<dd>把 System Prompt、developer messages、hooks 注入文档、chatMessages 按固定分层顺序拼成一次调用输入的过程。载体：<code>buildConductorMessages</code>（<code>agent.go:1418</code>）的四段 <code>append</code>。</dd>
+<dt>稳定前缀（stable prefix）</dt>
+<dd>一次请求里从开头到缓存断点之间、要求跨 step byte-identical 的那一段。命中 prefix cache 的前提。在本仓库由 <code>cache_prefix_stability_test.go</code> 用 CI 断言守护。</dd>
+<dt>cache break point（缓存断点）</dt>
+<dd>用 <code>cache_control</code> 标记的"缓存到此为止"的位置。本轮新消息尾部由 <code>MarkAsCachePointSpecified</code>（<code>utils/prompts.go:24</code>）在最后一条 <code>Tool</code> 消息上打点，TTL 默认 5 分钟。</dd>
+<dt>context_info</dt>
+<dd>当轮上下文信息块，一条 Developer 消息。内部按 <code>space_info → user_identity → current_time → main_language → current_plan → user_personalization → user_memory → mobile_app</code> 顺序拼装（<code>context.go:236-305</code>）。</dd>
+</dl>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：团队为什么把 <code>&lt;current_time&gt;</code> 的精度从秒级砍到只剩日期（<code>2006-01-02</code>）？如果保留秒级会怎样？</summary>
+<div class="answer">
+<p>因为 prompt prefix cache 命中要求前缀 byte-identical。<code>current_time</code> 位于稳定前缀区（在缓存断点之前）。若保留秒级，每次请求这一字节都不同，会让它之后的整段前缀 cache miss、请求付全价。砍到天级后，同一天内该字段稳定，前缀可复用。</p>
+<p>这正是漏水点：在普通存储里，一个时间字段精度高低与读取成本无关；但在 context 里，精度直接换缓存命中率——你是在拿信息粒度换钱。见 <code>context.go:252-260</code>。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：System Prompt 用 <code>NewLLMMessageWithCache1Hour</code>（TTL 1h），而本轮新消息尾部用 <code>MarkAsCachePointSpecified</code>（默认 <code>NewCacheControl</code>，TTL 5min）。为什么两处 TTL 不同、且分别放在最前和最后？</summary>
+<div class="answer">
+<p>因为它们的稳定性不同、在前缀里的位置也不同。System Prompt 跨多轮甚至跨 session 几乎不变，放在最前（位置 0）且给长 TTL（1h），让复用窗口最大；本轮新消息（tool 结果等）每 step 增长，只在同一 turn 的循环里短时间复用，放在稳定前缀之后作为 cache break point，给短 TTL（5min）即可。</p>
+<p>一句话：<em>越稳定的内容越靠前、TTL 越长；越易变的越靠后、TTL 越短</em>。见 <code>agent.go:1471</code> 与 <code>context.go:153</code>、TTL 常量 <code>common.go:600-601</code>。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3：<code>buildModeDeveloperMessages</code> 在输出 mode developer 消息前做了一次 <code>sort.Slice</code>（<code>agent.go:1388</code>）。如果删掉这次排序，功能上消息内容一模一样，会出什么问题？</summary>
+<div class="answer">
+<p>会周期性地击穿 prefix cache。Go 的 <code>map</code> 遍历顺序是<strong>随机</strong>的，删掉排序后，同一组激活 mode 每次可能排出不同的字节序列。Mode Developer 段位于稳定前缀内（在 System Prompt 之后、chatMessages 之前），它一抖，其后的整段前缀就 miss。</p>
+<p>这就是为什么注释写"<em>确保输出顺序一致，避免影响缓存命中率</em>"——排序不是为了正确性，是为了字节稳定性。这类 bug 在服务端几乎不存在：那里字段顺序变了，反序列化照样按 key 取值，没有代价。见 <code>agent.go:1381-1390</code>。</p>
+</div>
+</details>
+</div>
+
+<h2>八、一个边界：这条主线只讲非群聊路径</h2>
+
+<p>上面 chatMessages 的顺序（context_info → 历史 → 用户请求 → 本轮新消息 → system_hint）严格适用于<strong>非群聊</strong>路径（<code>context.go:139-168</code>）。群聊路径（<code>context.go:95-137</code>）结构不同：它不单独拆"用户请求"，而是把历史与最新消息统一当群聊上下文，再在其后插 pre-user hint 和本轮消息。分层与缓存的<em>原理</em>一致，具体切分不同——碰到群聊场景时回来看这段。</p>
+
+<h2>九、主推资源</h2>
+
+<p>本课的一手来源，值得完整读一遍：<a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Effective context engineering for AI agents — Anthropic Engineering</a>。读的时候带着本课的问题去对照：文中"把 context 当作边际收益递减的有限资源、追求最小高信号 token 集"的原则，落到代码里就是你刚看到的这些取舍——为缓存砍时间精度、为注意力把参考文档往后放、为字节稳定给 mode 排序。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让老师带你打开 <code>agent.go</code> / <code>context.go</code> 对着行号读。上一课：<em>0001 context 是主轴</em>；下一课：<em>context 淘汰与压缩的三种策略</em>。</p>
+</footer>
+</main>
+</body>
+</html>

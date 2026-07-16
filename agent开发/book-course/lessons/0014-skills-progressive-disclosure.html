@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0014 · 别把手册全堆桌上：Agent Skills 的三层渐进式披露</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0014 课 · 支柱一(上下文) · 上下文工程 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>别把手册全堆桌上：Agent Skills 的三层渐进式披露</h1>
+
+<p class="lede">系统提示词不能无限膨胀——客服的退款规则、编程的代码规范、文档的格式要求，全塞进一个 prompt，既<strong>浪费 token</strong>又<strong>稀释注意力</strong>。第 2 章「动态提示词与 Agent Skills」一节给出的答案，就是本课唯一要拿下的东西：<strong>Skills 的三层渐进式披露</strong>——先给目录、按需取书。而这句话真正难的不在「是什么」，在于两个更狠的工程判断：<code>description</code> 为什么要写成路由条件，以及完整内容到底该放进上下文的哪个位置。</p>
+
+<h2>一、三层结构：先给目录，需要哪本再去取</h2>
+
+<p>作者用一个一秒就懂的类比开场：你不会把公司所有部门的操作手册都堆到新员工桌上，而是<strong>先给一份总目录，需要哪本再去取</strong>。这就是渐进式披露（Progressive Disclosure）的设计哲学——不是把所有知识一次性塞给 Agent，而是让它按需加载。落到工程上，一个 Skill 分成三层：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 680 300" role="img" aria-label="Skills 三层渐进式披露金字塔：第一层元数据常驻上下文数百 token，第二层 SKILL.md 由专用工具按需加载，第三层细则子文档按需深入">
+  <!-- layer 1: metadata (top, narrow) -->
+  <polygon class="dgm-accent-node" points="250,30 430,30 470,96 210,96"/>
+  <text class="dgm-accent-text" x="340" y="58" font-size="14" font-weight="700" text-anchor="middle">第一层 · 元数据</text>
+  <text class="dgm-muted" x="340" y="78" font-size="11" text-anchor="middle">name + description，仅数百 token · 常驻</text>
+
+  <!-- layer 2: SKILL.md -->
+  <polygon class="dgm-node" points="210,100 470,100 510,166 170,166"/>
+  <text class="dgm-text" x="340" y="128" font-size="14" font-weight="700" text-anchor="middle">第二层 · SKILL.md（核心流程）</text>
+  <text class="dgm-muted" x="340" y="148" font-size="11" text-anchor="middle">经专用 Skill 工具按需加载 → tool result</text>
+
+  <!-- layer 3: sub-docs -->
+  <polygon class="dgm-node" points="170,170 510,170 555,240 125,240"/>
+  <text class="dgm-text" x="340" y="198" font-size="14" font-weight="700" text-anchor="middle">第三层 · 细则子文档</text>
+  <text class="dgm-muted" x="340" y="218" font-size="11" text-anchor="middle">html2pptx.md / reference.md … 按需深入</text>
+
+  <!-- side arrow: on-demand -->
+  <line class="dgm-edge" x1="600" y1="55" x2="600" y2="235" stroke-width="1.5" marker-end="url(#dn)"/>
+  <text class="dgm-muted" x="618" y="150" font-size="11" text-anchor="middle" transform="rotate(90 618 150)">越往下越详细 · 越晚加载</text>
+  <text class="dgm-muted" x="340" y="272" font-size="11.5" text-anchor="middle">目录常驻，正文按需——这就是「渐进式披露」</text>
+  <defs>
+    <marker id="dn" viewBox="0 0 10 10" refX="5" refY="8" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0 L10 0 L5 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>图2-11「Skills 渐进式披露机制」的三层结构：第一层只把名字与描述常驻上下文，第二、三层等 Agent 判断需要时才逐级加载。</figcaption>
+</figure>
+
+<ul>
+<li><strong>第一层（元数据）</strong>：每个 Skill 必含一个 <code>SKILL.md</code>，开头是 YAML frontmatter，含 <code>name</code> 和 <code>description</code> 两个字段。框架启动时扫描所有已安装 Skill，把这两个字段（<strong>仅占数百个 token</strong>）注入上下文，让 Agent 在不消耗大量上下文的前提下知晓自己有哪些专业能力。</li>
+<li><strong>第二层（核心流程）</strong>：当 Agent 判断某任务需要某个 Skill 时，通过专用 Skill 工具加载完整的 <code>SKILL.md</code>，内容作为 tool result 出现在对话历史中。书里的例子是 PPTX Skill：如何用 markitdown 提取文本、如何解压 PPTX 访问 XML、关键文件路径约定。</li>
+<li><strong>第三层（细则）</strong>：主文件再通过文件引用深入更细的子文档，如 <code>html2pptx.md</code>、<code>reference.md</code>，Agent 按具体需求选择性阅读。Skill 不止是文档，还可捆绑可执行代码工具与模板文件。</li>
+</ul>
+
+<h2>二、为什么 description 要写成「路由条件」而非「功能介绍」</h2>
+
+<p>这是本节第一个反直觉的设计决策。元数据里的 <code>description</code> 常驻上下文，是<strong>路由决策的关键</strong>——它既要足够短（控制常驻 token），写法上却<strong>要像路由条件，而不是功能介绍</strong>。作者给的最直接写法是「Use when / Don't use when」再加上几条<strong>反例</strong>（明确列出「不该触发此 Skill」的场景）。</p>
+
+<p>为什么「何时该用我」比「我能做什么」重要得多？因为描述太宽泛（如 “help with backend”）等于任何后端相关的工作都能触发它，路由就会失准。书里说得很硬：<strong>反例不是可选项，而是 Skill 路由能否准确触发的关键</strong>——缺少反例会让路由准确率明显下降，宽泛描述会在不相关任务上频繁误触发；补上反例后准确率显著回升。</p>
+
+<div class="bookquote">
+真正有效的描述是路由条件——“何时该用我”比“我能做什么”重要得多。
+<span class="src">——《深入理解 AI Agent》第 2 章 · 动态提示词与 Agent Skills</span>
+</div>
+
+<h2>三、放哪里：两种朴素方案都会疼，方式三如何两头回避</h2>
+
+<p>知道了 Skills 是什么，接下来是更具体、也更根本的工程问题：<strong>Skill 内容放在上下文的什么位置？</strong>这直接关系到 KV Cache 效率与模型的指令遵循效果。理论上有两种朴素方案，但都有明显代价；生产实现（如 Claude Code）走的是回避了两者痛点的第三种。</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">方式一</div><div class="head">塞进 system</div><div class="sub">遵循最强，但每加载一个 Skill 就改写 system，KV Cache 前缀反复失效</div></div>
+  <div class="cell"><div class="role">方式二</div><div class="head">当普通文件读</div><div class="sub">不动 system、对缓存友好，但要模型在<strong>上下文中间</strong>准确遵循指令，各模型差异大</div></div>
+  <div class="cell"><div class="role">方式三</div><div class="head">元数据置底 + 专用工具</div><div class="sub">把「路由」与「执行」分离，两头回避——生产实现的选择</div></div>
+</div>
+<figcaption>三种注入方案的位置与痛点。方式三不是折中，而是把一件事拆成两步，各用最合适的通道。</figcaption>
+</figure>
+
+<p><strong>方式一（注入 system 消息）</strong>：把 Skill 内容直接追加进 system prompt。模型对 system 位置的指令遵循能力最强，执行效果最好；但每次加载新 Skill 都改变 system 内容，导致 KV Cache 前缀失效。频繁切换 Skill（先搜索、再文档）时缓存反复失效，延迟与成本显著增加。</p>
+
+<p><strong>方式二（当普通文件读，内容落在上下文中间）</strong>：用通用文件读取工具读 Skill，内容作为 tool result 落在对话历史中间。完全不动 system prompt，对 KV Cache 友好；但对<strong>指令遵循（instruction following）</strong>提出更高要求——模型要在长上下文<strong>中间位置</strong>准确识别并遵循指令，而不是当作普通工具输出「参考」一下。不同模型对此差异很大：Claude 因训练中大量使用中间位置的指令遵循数据，表现最可靠。</p>
+
+<p><strong>方式三（生产实现）</strong>把「路由」和「执行」两步拆开，分别回避前两者的痛点：</p>
+
+<ul>
+<li><strong>元数据列表</strong>（所有 Skill 的 <code>name</code> + <code>description</code>，合计仅数百 token）以一条 <strong>user 角色的 meta 消息</strong>注入上下文<strong>末尾</strong>，外层用 <code>&lt;system-reminder&gt;</code> 标签包裹。它既不改 system（不破坏 KV Cache 前缀），又位于末尾（注意力位置最优）。且采用<strong>增量发送</strong>：每个 skill 只在首次出现时发，已发过的不再重复——稳态下每轮元数据增量为零，对缓存极友好。</li>
+<li><strong>完整内容</strong>通过专用 Skill 工具按需加载。模型从元数据列表识别出合适的 Skill 后，调用形如 <code>Skill(skill: "pdf")</code>，工具内部读 <code>SKILL.md</code> 并返回为 tool result。这绕过了方式二的指令遵循风险——<strong>模型对「自己刚刚主动调用的工具的输出」执行倾向远强于对上下文中间一段普通文件内容的遵循</strong>。</li>
+</ul>
+
+<p>为什么这套设计对缓存这么友好，可以用一条缓存前缀的示意看清：方式一每次更新都让下游整条 trajectory 失效重算，而方式三只在末尾追加、静态前缀纹丝不动。</p>
+
+<figure class="diagram">
+<div class="cacheline">
+  <div class="seg hit">静态前缀（system + 工具定义）· 缓存命中</div>
+  <div class="seg hit">已有轨迹 · 缓存命中</div>
+  <div class="seg diverge">末尾追加元数据</div>
+</div>
+<figcaption>方式三：新增内容只落在末尾，前缀全部命中缓存（图2-13「KV Cache 随 Agent Trajectory 增长的演化」的直觉）。若换成方式一改写 system，则整条绿色区都会变成重算区。</figcaption>
+</figure>
+
+<h2>四、边界与易错：末尾的注意力优势不是永久的</h2>
+
+<div class="pitfall">
+<p>最容易想当然的一点：以为「末尾注入 → 注意力位置最优」这个好处会<strong>永久成立</strong>。作者在原文里紧接着就打了补丁——「末尾」的注意力优势<strong>只在注入的当轮成立</strong>。增量发送的元数据会永久留在轨迹里，随着会话增长，它会<strong>逐渐滞留到上下文中部，位置优势随之衰减</strong>。</p>
+<p>这其实是一对权衡：<strong>「只发一次、节省缓存」</strong> 与 <strong>「每轮置底、保住注意力」</strong> 不可兼得。方式三选了前者。下一课讲 Agent 状态栏的持久追加式更新时，会再一次撞上同一个取舍——记住这对张力，比记住任何单一结论都有用。</p>
+</div>
+
+<div class="pitfall">
+<p>第二个坑：把「对 KV Cache 友好」误读成「零成本」。原文明确澄清——首次 emit 那几百到几千 token 终归要付<strong>一次</strong>写入代价（Prompt Cache 的缓存写入还是加价计费的）。它的准确含义是<strong>「一次性写入、永久受益」</strong>：要让模型知道某个 Skill 存在，至少得让它进缓存一次；Claude Code 做到的是只付这一次。真正「不友好」的是方式一——每次更新让下游整条轨迹进 cache_creation，量级是数万到数十万 token。</p>
+</div>
+
+<div class="experiment">
+<p>想亲眼看「细微改动如何摧毁缓存」，跑<strong>实验2-3</strong>（仓库 <code>chapter2/kv-cache/</code>）：用 Kimi K2 ReAct Agent 系统对比六种实现模式（一种正确 + 五种错误，含<strong>动态系统提示词</strong>、动态用户配置、工具动态排序等），量测 TTFT / 缓存命中 / token 用量——正是方式一「改写 system 让前缀失效」的实测版。想看 Skills 三层加载全过程，则可对照<strong>实验 2-6</strong>（Claude Code + PPTX Skill，从论文 PDF 生成演示文稿）。完整代码见 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>渐进式披露（Progressive Disclosure）</dt>
+<dd>Agent Skills 的设计哲学：先给模型看一份 Skill 名称 + 描述的目录摘要（数百 token），需要时再通过专用工具加载完整 <code>SKILL.md</code> 及细则子文档。<em>避免</em>说成「一次性加载全部知识」或普通的懒加载缓存。</dd>
+<dt>KV Cache</dt>
+<dd>模型内部优化：缓存前文 token 在注意力机制中已算出的键值对（Key-Value pairs），下一轮只算新增 token，前提是<strong>前缀完全不变</strong>。<em>避免</em>与 Prompt Cache 混为一谈——KV Cache 在推理引擎内、单次请求内。</dd>
+<dt>Prompt Cache</dt>
+<dd>构建在 KV Cache 之上的 API 服务层跨请求缓存：服务商对请求前缀匹配，相同则复用已算好的 KV，读取成本约为首次计算的 1/10 到 1/2。<em>避免</em>以为它自动命中——需显式设 <code>cache_control</code> 断点、有写入加价与 TTL。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：把 Skill 完整内容直接追加进 system prompt（方式一），和让 Agent 用通用文件读取工具把它读进上下文中间（方式二），各自的痛点是什么？Claude Code 的方式三如何两头回避？</summary>
+<div class="answer">
+<p><strong>方式一</strong>执行效果最好（system 位置指令遵循最强），但每加载一个 Skill 就改写 system 消息、KV Cache 前缀失效，频繁切换 Skill 时缓存反复失效。<strong>方式二</strong>完全不动 system prompt、对缓存友好，但要求模型在长上下文中间准确遵循指令，不同模型差异大。<strong>方式三</strong>把「路由」和「执行」分离：几百 token 的元数据以 user 角色 meta 消息增量注入上下文末尾（不改前缀、位置最优、稳态增量为零），完整内容通过专用 Skill 工具按需加载（模型对「自己刚调用的工具输出」执行倾向远强于对中间普通文件内容）。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：为什么 Skill 的 description 要写成「Use when / Don't use when + 反例」，而不是介绍功能？缺少反例会怎样？</summary>
+<div class="answer">
+<p>因为 <code>description</code> 是常驻上下文的<strong>路由条件</strong>——决定模型何时触发该 Skill。「何时该用我」比「我能做什么」重要得多。描述太宽泛（如 “help with backend”）会让任何沾边的任务都触发它，路由失准。原文强调：缺少反例会让路由准确率明显下降、在不相关任务上频繁误触发；补上反例后准确率显著回升。反例不是可选项，而是路由能否准确触发的关键。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：Skills = 渐进式披露（目录常驻、正文按需）+ description 写成路由条件（Use when / Don't use when + 反例）+ 生产实现把「路由」和「执行」拆开——元数据以 user meta 消息增量置底（保前缀、稳态零增量），完整内容靠专用工具按需拉取（借「刚调用的工具输出」拿到最强执行倾向）。而末尾的注意力优势只在当轮成立，会随会话增长而衰减。
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是书的第 2 章「动态提示词与 Agent Skills」一节（<code>book/chapter2.md</code>）。Skills 机制的原始出处是 Anthropic 的 <strong>“Equipping Agents for the Real World with Agent Skills”</strong>（2025）；书中举例的 PPTX Skill 见 Anthropic 官方 Skills 仓库 <a href="https://github.com/anthropics/skills/">github.com/anthropics/skills/</a>。本章「上下文蒸馏 / 状态栏」一节的量化依据来自作者本人研究 Li &amp; Shi, <strong>“Distill, Don't Retrieve: Inference-Time Context Distillation for LLM Agent Reasoning”</strong>（2026，<a href="https://01.me/research/context-distillation">01.me/research/context-distillation</a>）。配套代码：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「方式一/二/三」的缓存与注意力权衡再各推一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0013-prompt-as-new-employee-handbook.html"><span class="dir">← 上一课</span>把系统提示词当新员工手册：流程驱动而非规则堆砌</a>
+  <a class="next" href="0015-agent-status-bar-distillation.html"><span class="dir">下一课 →</span>给模型装一个状态栏：把隐式状态提炼成可查的显式知识</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

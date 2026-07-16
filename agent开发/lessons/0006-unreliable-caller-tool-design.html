@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0006 · 不可靠调用方假设：分层超时、JSON 修复回注、并发 context-too-long</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0006 课 · 预计 14 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>不可靠调用方假设：分层超时、JSON 修复回注、并发 context-too-long</h1>
+
+<p class="lede">你已有正确的地图："工具 ≈ RPC 边界"。这节课只做一件事：站在 Conductor 主 Agent 工具调用层的"防线"上，看清 RPC 类比在哪三处漏水——因为这一次，调用方是模型，一个会传坏 JSON、会跑三十分钟、会因为自己上下文太长而调用失败的调用方。</p>
+
+<p>先定位战场。模型每一步推理吐出的 <code>assistant message</code> 带着 <code>ToolCalls</code>，在真正执行前要过一道关卡：先 <code>categorizeToolCalls</code> 按"名字/JSON 合法性/是否可并行"分诊成若干组，再由 <code>executeToolCallGroups</code> 逐组下发；每个工具的执行又用 <code>errgroup</code> 拆成两条 goroutine——一条真跑工具，一条转发事件并计时。这层代码位于 <code>biz/domain/dmservice/agents/conductorservice/toolcall.go</code>，夹在 LLM 推理循环（<code>agent.go</code>）与 40+ 具体工具实现之间。它的职责只有一句话：<strong>把"不可靠的模型输出"翻译成"可控的工具执行"</strong>。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node volatile"><span class="n-title">tool_calls</span><span class="n-sub">模型输出·不可信</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">categorizeToolCalls</span><span class="n-sub">toolcall.go:61 分诊</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">groups</span><span class="n-sub">parallel / serial / invalid</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">executeToolCallGroups</span><span class="n-sub">toolcall.go:162 下发</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">executeToolCall</span><span class="n-sub">toolcall.go:420 双 goroutine</span></div>
+</div>
+<figcaption>红=模型不可信输入，绿=受控执行区。并发上限 <code>maxParallelToolCount=5</code>（含 subAgent 时降到 <code>maxParallelSubAgentsToolCount=3</code>，toolcall.go:305-307）。</figcaption>
+</figure>
+
+<h2>一、先承认类比对的部分</h2>
+
+<p>把工具调用看作一次 <strong>RPC</strong>，是完全正确的起点。工具有名字、有参数 schema、有返回值、有超时——和你写了十年的服务间调用同构。于是你自然会想到那套成熟的老问题：参数校验、超时、重试、幂等、背压、并发上限。方向没错，代码里这些机制一个都不少。</p>
+
+<p>但 RPC 世界有一个你从不需要说出口的前提：<strong>调用方是确定性、可信的</strong>。参数结构由编译期 / IDL（Thrift、protobuf schema）保证合法，一个语法坏掉的请求根本到不了你的 handler。错误处理也简单：把 error code 返回给调用方，调用方按代码里写死的分支处理。</p>
+
+<p>现在把调用方换成一个语言模型。三个前提同时塌陷。下面逐个看。</p>
+
+<h2>二、漏水点一：它会传语法坏掉的 JSON——于是系统"修好了也不执行"</h2>
+
+<p>分诊的第一件事，是拿工具名去 <code>toolMap</code> 里查（查不到就建一个 <code>IsInvalid</code> 组，原因 <code>"invalid tool name"</code>，toolcall.go:84-95）。第二件事，是把参数字符串反序列化。这里出现了 RPC 世界不可能出现的分支——<strong>反序列化会失败</strong>：</p>
+
+<pre><code>// toolcall.go:98-109
+m := map[string]any{}
+if err := codec.UnmarshalFromString(toolCall.Function.Arguments, &amp;m); err != nil {
+    ctx.Log().Warnf("[Conductor] tool call json format error: %v ...")
+    // 修复JSON格式
+    if len(toolCall.Function.Arguments) == 0 {
+        toolCall.Function.Arguments = "{}"
+    } else {
+        repairJson, err := jsonrepair.RepairJSON(toolCall.Function.Arguments) // TODO
+        if err == nil {
+            toolCall.Function.Arguments = repairJson
+        }
+    }
+    ...</code></pre>
+
+<p>空参数补一个 <code>"{}"</code>；否则请出第三方库 <code>jsonrepair.RepairJSON</code> 试着把坏 JSON 修回合法。<strong>这段代码本身就是漏水的产物</strong>——传统 RPC 里没有任何一行是为"调用方传了半个 JSON"准备的。</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">UnmarshalFromString 解析参数<br>（toolcall.go:99）</div>
+  <div class="down">│</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">成功</div>
+      <div class="step action">按 IsParallelTool() 归入<br>parallel / serial 组，正常执行</div>
+    </div>
+    <div class="branch">
+      <div class="label">失败 → 先尝试修复</div>
+      <div class="step">len==0 补 <code>"{}"</code> · 否则 jsonrepair.RepairJSON</div>
+      <div class="down">│</div>
+      <div class="branches">
+        <div class="branch">
+          <div class="label">流式工具<br>NewStreamingState≠nil</div>
+          <div class="step action">照常执行<br>（参数是增量拼接的）</div>
+        </div>
+        <div class="branch">
+          <div class="label">非流式工具<br>NewStreamingState==nil</div>
+          <div class="step terminal">标 IsInvalid · <strong>不执行</strong><br>把 :117 那段提示回注给模型</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<figcaption>JSON 参数损坏的决策树。关键分叉在 <code>toolInfo.NewStreamingState==nil</code>（toolcall.go:112）：只有非流式工具走"修好也不执行"这条路。</figcaption>
+</figure>
+
+<div class="leak">
+真正扎眼的不是"修 JSON"，而是修好之后的选择。对<strong>非流式工具</strong>（<code>toolInfo.NewStreamingState == nil</code>），即使 <code>RepairJSON</code> 成功，系统<strong>仍然拒绝执行</strong>，转而把一整段自然语言错误当作 tool result 回注给模型：
+
+<pre><code>// toolcall.go:117（InvalidReason，节选）
+"Tool call JSON argument format error. Possible causes: previous API call
+ encountered max output tokens truncation ... System successfully repaired JSON
+ format, but to avoid executing incorrect calls, the system did not execute this
+ tool call. Please check and correct the original JSON arguments and retry ...
+ Correction methods: reduce output tokens, split into multiple tool calls ..."</code></pre>
+
+为什么修好了还不执行？因为 <code>jsonrepair</code> 修的是<strong>语法</strong>，救不了<strong>语义</strong>。坏 JSON 的常见成因是上一次 API 调用撞上 <code>max output tokens</code> 截断——被截断处补全出来的值很可能是错的。执行一个"猜出来的调用"，比拒绝执行危险得多。于是系统宁可把错误说明喂回给这个不可靠的调用方，<strong>让它自己改原始参数重发</strong>。<br><br>
+这就是 RPC 世界不存在的东西：<strong>error message 成了下一轮 prompt 的一部分</strong>。这条 <code>InvalidReason</code> 会经 <code>executeInvalidTool</code> 写进 <code>InvalidToolTaskData.Message</code>（toolcall.go:628），再由 <code>AddToolResult</code>（toolcall.go:207）变成模型可见的 tool result。你从没在 RPC 里"把错误塞回调用方让它自我修复"——因为 RPC 的调用方是死代码，不会读你的错误说明改自己。
+</div>
+
+<p>顺带记住那个 <code>NewStreamingState==nil</code> 的判断：<strong>流式工具不走这条拒绝逻辑</strong>。流式工具的参数是随 token 增量拼接的，中途"看起来不合法"是正常状态，用一次快照去否决它没有意义。</p>
+
+<h2>三、漏水点二：超时不是"总时长"，而是"事件间隔"心跳</h2>
+
+<p>看到超时常量表，服务端工程师的第一反应是"每个工具的最长执行时间"。看清楚注释：</p>
+
+<pre><code>// toolcall.go:28-33
+var defaultToolCallTimeout = time.Minute*5 + time.Second*30 // 事件间隔超时时间 5.5min
+
+// TODO: 也许不需要 timeout
+var subAgentToolCallTimeout = time.Minute * 30       // 子代理工具调用超时时间 30min
+var slidesGenerateToolCallTimeout = time.Minute * 10 // 幻灯片生成工具超时时间 10min
+var acpExecToolCallTimeout = time.Minute * 30        // ACP 执行工具超时时间 30min，与 acpTaskTimeout 对齐</code></pre>
+
+<p>注释白纸黑字写着"<strong>事件间隔</strong>超时时间"。这个数字量的不是工具跑多久，而是<strong>两个事件之间的空档</strong>——心跳。证据在 <code>forwardToolEvents</code> 里：</p>
+
+<pre><code>// toolcall.go:692-707（节选）
+for {
+    _ctx, cancel := context.WithTimeoutCause(ctx, timeout, timeoutErr)   // 每轮重置计时
+    ...
+    event, err := innerEventStream.Receive(eventCtxWithMinoCtx)
+    cancel()
+    if err != nil {
+        if errcode.IsErrStreamClosed(err) { return nil }               // 流正常关闭
+        if errcode.IsErrToolCallEventIntervalTimeout(err) { return timeoutErr }
+        return err
+    }
+    outerEventStream.Send(ctx, event)   // 转发事件
+}</code></pre>
+
+<p><code>for</code> 循环里，每收到一个事件就 <code>cancel()</code> 旧计时、下一轮用 <code>context.WithTimeoutCause</code>（toolcall.go:693）重新起表。所以一个工具跑 20 分钟，只要每隔 1 分钟吐一个事件，<code>defaultToolCallTimeout=5.5min</code> 永远不会触发。它测的是"卡住了多久没动静"，不是"一共跑了多久"。</p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">普通工具 default</span><div class="track"><div class="val base" style="width:18%">5.5min</div></div></div>
+  <div class="row"><span class="lbl">slides 生成</span><div class="track"><div class="val out" style="width:33%">10min</div></div></div>
+  <div class="row"><span class="lbl">subAgent 子代理</span><div class="track"><div class="val out" style="width:100%">30min</div></div></div>
+  <div class="row"><span class="lbl">ACP 执行</span><div class="track"><div class="val out" style="width:100%">30min</div></div></div>
+  <div class="row"><span class="lbl">desktop_file_transfer</span><div class="track"><div class="val write" style="width:100%">30min</div></div></div>
+</div>
+<figcaption>分层"事件间隔超时"对比（toolcall.go:28-37）。红色那条是特例——见下方漏水框。超时选择逻辑在 <code>executeToolCall</code> 的第二条 goroutine（toolcall.go:535-546）按 <code>taskType</code> 分派。</figcaption>
+</figure>
+
+<div class="leak">
+"心跳超时"这个设计本身是对的——工具是长流式的、可能真跑 30 分钟但持续吐事件。可它引出了一个隐藏漏水：<strong>如果一个工具在长等待期间根本不发心跳，它的"事件间隔超时"就被迫等于"工具总超时"。</strong> <code>desktop_file_transfer</code> 就是这样的极端例子，代码注释直接点破：
+
+<pre><code>// toolcall.go:34-37
+// desktop_file_transfer 是"一次性长等待"工具：传输期间不发心跳，整条链路阻塞在
+// PopResult 等终态。事件间隔超时 ≡ 工具总超时，必须 ≥ fileTransferDefaultTimeoutSeconds
+// 的客户端总超时（当前 30min）。独立常量与 ACP 解耦，避免后者调时长影响这边。
+var fileTransferToolCallTimeout = time.Minute * 30</code></pre>
+
+RPC 里你设一个超时，含义永远是"总时长"，不会因为"这个工具中途发不发心跳"而语义漂移。这里同一个 <code>timeout</code> 变量，对 subAgent 是"心跳间隔"、对 file_transfer 却退化成"总超时"——同名不同义，全靠工具行为决定。所以给它一个独立常量、必须 ≥ 客户端总超时，否则会在传输中途被误杀。
+</div>
+
+<h2>四、漏水点三：并发 context-too-long 的 FIXME——新问题还没解干净的活证据</h2>
+
+<p>模型调用可能因为一个 RPC 从不会有的理由失败：<strong>调用方自己的上下文太长了</strong>。这个错误由 <code>errcode.IsErrLLMPromptTooLong</code> 判定（对应错误码 <code>ErrLLMPromptTooLong=100007009</code>）。它有两条命运，取决于工具走的是串行还是并行路径。</p>
+
+<p>先看单工具执行的默认策略：<code>toolErr</code> <strong>默认不上抛</strong>，只有一种错误例外——</p>
+
+<pre><code>// toolcall.go:590-593
+// toolErr 不需要上抛，除非是 context 超长错误
+if toolErr != nil &amp;&amp; errcode.IsErrLLMPromptTooLong(toolErr) {
+    return execResult, toolErr
+}</code></pre>
+
+<p><strong>串行路径</strong>把这个错误连同已有的 result 一起上抛（<code>executeSerialTools</code>，toolcall.go:286-291），一路经 <code>executeToolCallGroups</code> 冒到 <code>agent.go</code> 的主循环。在那里它被自愈：</p>
+
+<pre><code>// agent.go:937-949（节选）
+if errcode.IsErrLLMPromptTooLong(err) {
+    // 如果没有 summary，强制生成（跳过条件检查）
+    if agent.lastSummary == nil {
+        if summaryErr := agent.summarizeForce(ctx); summaryErr != nil { return summaryErr }
+    }
+    agent.applySummaryImmediately(ctx)   // 立即应用压缩上下文
+    continue                             // 压缩后重来
+}</code></pre>
+
+<p>强制 <code>summarizeForce</code> 压缩历史、<code>applySummaryImmediately</code> 换上更短的上下文，然后 <code>continue</code> 重跑这一步。上下文太长？那就把它压短再来——串行路径能自愈。</p>
+
+<p>但<strong>并行路径</strong>遇到同一个错误，是这样的：</p>
+
+<pre><code>// toolcall.go:333-336
+if errcode.IsErrLLMPromptTooLong(err) {
+    // FIXME: 并发调用时要处理这种报错非常麻烦，且目前暂时没有并发工具可能出现这种报错，暂不处理
+    return nil, errno.Errorf(errcode.ErrInternalServer, "unexpected context too long error: %+v", err)
+}</code></pre>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">executeToolCall 返回 IsErrLLMPromptTooLong<br>（toolcall.go:591）</div>
+  <div class="down">│</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">串行路径 executeSerialTools:286-291</div>
+      <div class="step">连同 result 一起上抛</div>
+      <div class="down">↓</div>
+      <div class="step">agent.go:1111-1117 → 主循环</div>
+      <div class="down">↓</div>
+      <div class="step terminal">summarizeForce + applySummaryImmediately<br>→ continue <strong>自愈</strong>（agent.go:937-949）</div>
+    </div>
+    <div class="branch">
+      <div class="label">并行路径 executeParallelTools:333-335</div>
+      <div class="step">// FIXME 处理非常麻烦</div>
+      <div class="down">↓</div>
+      <div class="step" style="border-color:var(--accent)">errno.Errorf(ErrInternalServer,<br>"unexpected context too long error")</div>
+      <div class="down">↓</div>
+      <div class="step terminal" style="border-color:var(--accent);background:var(--accent-soft)"><strong>放弃</strong>，包成内部错误抛出</div>
+    </div>
+  </div>
+</div>
+<figcaption>同一个错误，两条命运。左边自愈、右边放弃，分岔只因为工具是串行还是并行。</figcaption>
+</figure>
+
+<div class="leak">
+这条 FIXME 是最诚实的漏水证据。传统 RPC <strong>从不会</strong>因为"调用方自己的上下文太长"而失败——调用方的内部状态与 handler 无关。而在 Agent 世界，模型的上下文就是它的全部状态，长到一定程度调用直接失败，这是 Agent 独有的新失败模式。<br><br>
+更值得咀嚼的是团队对它的态度：串行路径已经有了优雅解（压缩重试），并行路径却"非常麻烦"，于是坦白"<strong>目前暂时没有并发工具可能出现这种报错，暂不处理</strong>"，直接包成 <code>ErrInternalServer</code> 放弃。注意最后半句——这意味着这条放弃路径当前是<strong>理论隐患</strong>，尚未在线上被触发。它不是 bug，是一个被显式标注、被有意推迟的技术债。这正是 Agent 工程的真实质地：新问题冒出来，你先接住能接住的（串行），把接不住的诚实地写进 FIXME，而不是假装它不存在。
+</div>
+
+<h2>五、两条 goroutine：为什么"跑工具"和"计时"要分开</h2>
+
+<p>回到 <code>executeToolCall</code> 的核心结构。它用 <code>errgroup</code> 起了两条 goroutine，一条跑工具、一条转发事件并计时，最后 <code>g.Wait()</code> 等两者。为什么不写成一条？因为工具执行是<strong>阻塞在流上的</strong>——只有独立的第二条 goroutine 在旁边盯着"多久没来事件"，才能在工具卡死时把它掐掉。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 320" role="img" aria-label="executeToolCall 用 errgroup 分出两条 goroutine 再 join">
+  <!-- top node -->
+  <rect class="dgm-link-node" x="240" y="18" width="240" height="52" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="42" font-size="15" font-weight="700" text-anchor="middle">executeToolCall</text>
+  <text class="dgm-muted" x="360" y="60" font-size="11" text-anchor="middle">toolcall.go:420 · errgroup</text>
+  <!-- edges to two goroutines -->
+  <line class="dgm-edge" x1="360" y1="70" x2="170" y2="128" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="360" y1="70" x2="550" y2="128" stroke-width="1.5"/>
+  <!-- goroutine A -->
+  <rect class="dgm-good-node" x="40" y="128" width="260" height="74" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="170" y="152" font-size="14" font-weight="700" text-anchor="middle">goroutine A · 跑工具</text>
+  <text class="dgm-muted" x="170" y="172" font-size="11" text-anchor="middle">toolcall.go:482</text>
+  <text class="dgm-muted" x="170" y="188" font-size="11" text-anchor="middle">CallTool.Unpack() → serial/parallel/streaming</text>
+  <!-- goroutine B -->
+  <rect class="dgm-accent-node" x="420" y="128" width="260" height="74" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="550" y="152" font-size="14" font-weight="700" text-anchor="middle">goroutine B · 计时</text>
+  <text class="dgm-muted" x="550" y="172" font-size="11" text-anchor="middle">toolcall.go:534</text>
+  <text class="dgm-muted" x="550" y="188" font-size="11" text-anchor="middle">选超时 → forwardToolEvents(:689)</text>
+  <!-- edges to join -->
+  <line class="dgm-edge" x1="170" y1="202" x2="360" y2="252" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="550" y1="202" x2="360" y2="252" stroke-width="1.5"/>
+  <!-- join node -->
+  <rect class="dgm-node" x="240" y="252" width="240" height="52" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="276" font-size="15" font-weight="700" text-anchor="middle">g.Wait() (toolcall.go:551)</text>
+  <text class="dgm-muted" x="360" y="294" font-size="11" text-anchor="middle">toolErr 默认不上抛，除非 PromptTooLong</text>
+</svg>
+</div>
+<figcaption>fork / join：A 真跑工具并把结果写进外层变量，B 按 <code>taskType</code> 选超时后盯心跳。两条都结束，<code>g.Wait()</code> 才返回。</figcaption>
+</figure>
+
+<p>并发多个工具时，外面还套了一层有上限的并发：<code>executeParallelTools</code> 用 <code>concurrency.NewGroupTaskRunnerG</code> 建 runner，<code>AddTask</code> 挂任务，<code>StartAndWait</code> 后按 <code>Promises()</code> 顺序收结果——<strong>结果顺序与 <code>toolCalls</code> 顺序严格一致</strong>（toolcall.go:351-352 的 NOTE 特意强调了这点）。上限就是开头那张图里的 5 / 3。</p>
+
+<h2>六、关键定义</h2>
+
+<dl class="keydef">
+<dt>不可靠调用方假设（unreliable-caller assumption）</dt>
+<dd>把模型当成一个会传错参数、会超时、会重复调、会因自身上下文过长而失败的调用方来设计工具边界：参数修复、可读错误回注、分层超时、并发上限，都是这个假设的产物。</dd>
+<dt>错误回注（error feedback into context）</dt>
+<dd>工具（或分诊）失败时，不把错误当异常吞掉，而是写成人话作为 tool result 回注给模型让它自我修复。error message 因此成为下一轮 prompt 的一部分。载体：<code>toolcall.go:117</code> 的 <code>InvalidReason</code> → <code>InvalidToolTaskData.Message</code>（:628）→ <code>AddToolResult</code>（:207）。</dd>
+<dt>分层超时 / 事件间隔超时（tiered / event-interval timeout）</dt>
+<dd>按工具预期行为设不同超时；且这里的超时量的是"两个事件之间的间隔"（心跳），不是工具总时长。<code>forwardToolEvents</code> 每轮用 <code>context.WithTimeoutCause</code> 重置计时（toolcall.go:693）。default 5.5min / slides 10min / subAgent 30min / ACP 30min / desktop_file_transfer 30min。</dd>
+<dt>context-too-long 自愈 vs 放弃</dt>
+<dd>模型上下文过长（<code>ErrLLMPromptTooLong=100007009</code>）时：串行路径上抛到主循环触发 <code>summarizeForce</code> 压缩后 <code>continue</code> 自愈；并行路径因 FIXME 直接包成 <code>ErrInternalServer</code> 放弃。</dd>
+</dl>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：模型发来一个 JSON 参数损坏的<strong>非流式</strong>工具调用，系统调 <code>jsonrepair.RepairJSON</code> 成功修好了。系统会执行这个工具吗？为什么这样设计？</summary>
+<div class="answer">
+<p><strong>不会执行。</strong>toolcall.go:112-120：即使 <code>RepairJSON</code> 成功，只要 <code>toolInfo.NewStreamingState==nil</code>（非流式工具），系统仍把它标为 <code>IsInvalid</code>、不执行，而是把 :117 那段错误说明作为 tool result 回注给模型，让模型自己修正原始 JSON 重试。</p>
+<p><strong>设计动机</strong>：<code>jsonrepair</code> 修的是语法不是语义。坏 JSON 常常来自上一次 <code>max output tokens</code> 截断，被补全处的值可能是错的；执行一个"猜出来的调用"比拒绝执行更危险——宁可让不可靠的调用方自己重发。（流式工具因为参数是增量拼接的，不走这条拒绝逻辑。）</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：<code>defaultToolCallTimeout</code> 是 5.5min。一个工具跑了 20 分钟，但每隔 1 分钟就吐一个事件，会触发超时吗？为什么 <code>desktop_file_transfer</code> 要单独给 30min？</summary>
+<div class="answer">
+<p><strong>不会超时。</strong><code>forwardToolEvents</code>（toolcall.go:692-693）每轮循环都用 <code>context.WithTimeoutCause</code> 重置计时，它测的是"两个事件之间的间隔"（心跳），不是工具总时长——只要 5.5min 内有下一个事件就永远不触发。</p>
+<p><code>desktop_file_transfer</code> 给 30min（toolcall.go:34-37 注释）是因为它是"一次性长等待"工具：传输期间根本不发心跳、整条链路阻塞在 <code>PopResult</code> 等终态，所以它的"事件间隔"实际 ≡ 工具总时长，必须 ≥ 客户端总超时（当前 30min），否则会在传输中途被误杀。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（进阶）：为什么同样是 context-too-long，串行工具能自愈而并行工具直接放弃？如果你要补上并行路径的处理，难点在哪？</summary>
+<div class="answer">
+<p>串行路径一次只跑一个工具，出错时上下文状态是干净、单一的，可以安全地整体压缩后 <code>continue</code> 重跑（agent.go:937-949）。并行路径同时在跑多个工具、各自可能已经产生了部分结果和事件，一旦其中一个报 context-too-long，你没法简单地"压缩上下文重跑"——其它并发任务的状态怎么办？已发出的事件如何回滚？这正是 FIXME 里"非常麻烦"的所在（toolcall.go:334）。团队的务实选择是：既然当前没有并发工具会触发它，就先包成 <code>ErrInternalServer</code> 放弃，把它记为技术债而非假装解决。</p>
+</div>
+</details>
+</div>
+
+<h2>八、主推资源</h2>
+
+<p>本课的一手来源，值得完整读一遍：<a href="https://www.anthropic.com/engineering/writing-tools-for-agents">Writing effective tools for agents — Anthropic Engineering</a>。读的时候带着这节课的三个漏水点去对照：文中关于"错误消息要写给模型看"、"工具要为不可靠调用方设计"的建议，正好是 <code>toolcall.go:117</code> 那段人话错误、以及分层超时背后的同一套工程直觉。把它当作"为什么这么写"的官方注脚。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让老师带你逐行读 <code>toolcall.go</code> 里的 <code>categorizeToolCalls</code> / <code>executeToolCall</code>。下一课：<em>工具返回值治理——当调用方的输出也开始漏水</em>。</p>
+</footer>
+</main>
+</body>
+</html>

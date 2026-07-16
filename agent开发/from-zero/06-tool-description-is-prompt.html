@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>06 · 工具描述就是 Prompt：写不好，Agent 就变笨</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 长出一个 Agent · 第 06 课 · 预计 9 分钟 · <a href="05-tool-calling-basics.html">← 上一课</a> · <a href="07-orchestration-loop-control.html">下一课 →</a> · <a href="index.html">门户</a></p>
+
+<h1>工具描述就是 Prompt：写不好，Agent 就变笨</h1>
+
+<p class="lede">上一课我们给模型装上了"手脚"。但模型看不到工具里面的一行代码——它决定"要不要用、怎么用"，靠的只有你贴在工具上的那张标签：名字、描述、参数说明。这节课只讲清一件事：<strong>那张标签本身，就是写给模型看的 prompt</strong>。写得含糊，再强的模型也会变笨。</p>
+
+<div class="chain in">
+<p>第 05 课结尾我们发现：模型<strong>完全</strong>靠工具的名字、描述、参数说明来判断"该不该用这个工具、该怎么填参数"。它看不到函数体，看不到实现。那这些描述写得好不好，就直接决定了 agent 聪不聪明。今天就来拆：一段好的工具描述长什么样，写砸了会怎样。</p>
+</div>
+
+<h2>一、在模型眼里，工具只是一张"标签"</h2>
+
+<p>先讲个直觉（ELI5）。想象你带一个刚入职、看不到公司代码的实习生（这就是模型）。你不能手把手教他，只能在每件工具上贴一张便利贴：<strong>这叫什么、干什么用、要填哪几个空</strong>。他能不能把活干对，全看这张便利贴写得清不清楚。贴"读图工具：读取一张图片的内容，注意不会把图展示给用户"，他就用得准；只贴"图片"两个字，他就懵了——是读图？画图？还是删图？</p>
+
+<p>这不是比喻凑数，而是机制的字面事实。回忆第 05 课的一个关键点：<strong>工具不写进对话消息里</strong>，而是<em>带外</em>作为 API 参数递给模型的。代码里就一行——把当前所有工具收集好，用 <code>model.WithTools(toolInfos)</code> 挂进这一轮请求。模型收到的每个工具，本质就是一个 <code>schema.ToolInfo</code> 结构，其中<strong>三个字段是模型可见的</strong>：名字（<code>name</code>）、描述（<code>desc</code>）、参数说明（<code>params</code>，即内嵌的 <code>*ParamsOneOf</code>）。这个结构体另外还带一个 <code>Extra map[string]any</code>——那是工具侧自己用的元信息，<strong>不会发给模型</strong>。所以在模型眼里，一个工具就只有 <code>name</code> / <code>desc</code> / <code>params</code> 这三样。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 320" role="img" aria-label="工具在模型眼里就是一张只有名字、描述、参数三格的标签">
+  <!-- title -->
+  <text class="dgm-muted" x="200" y="30" font-size="12" text-anchor="middle">一个工具 = 一张标签（schema.ToolInfo）</text>
+  <!-- card outer -->
+  <rect class="dgm-node" x="40" y="46" width="320" height="248" rx="10" stroke-width="1.5"/>
+  <!-- seg1 name -->
+  <rect class="dgm-accent-node" x="62" y="68" width="276" height="52" rx="7" stroke-width="1.5"/>
+  <text class="dgm-muted" x="78" y="88" font-size="11">name（叫什么）</text>
+  <text class="dgm-accent-text" x="78" y="108" font-size="14" font-weight="700">"view_images"</text>
+  <!-- seg2 desc -->
+  <rect class="dgm-node" x="62" y="132" width="276" height="76" rx="7" stroke-width="1.5"/>
+  <text class="dgm-muted" x="78" y="152" font-size="11">desc（干什么 / 什么时候别用）</text>
+  <text class="dgm-text" x="78" y="172" font-size="12.5">Read the visual content of an</text>
+  <text class="dgm-text" x="78" y="189" font-size="12.5">image. Important: 不会展示给用户…</text>
+  <!-- seg3 params -->
+  <rect class="dgm-good-node" x="62" y="220" width="276" height="56" rx="7" stroke-width="1.5"/>
+  <text class="dgm-muted" x="78" y="240" font-size="11">params（要填哪几个空，OpenAPI v3）</text>
+  <text class="dgm-text" x="78" y="260" font-size="12.5">{ urls: string[], label }  必填两个</text>
+  <!-- arrow -->
+  <line class="dgm-edge" x1="360" y1="170" x2="470" y2="170" stroke-width="2"/>
+  <polygon class="dgm-accent" points="470,163 486,170 470,177"/>
+  <text class="dgm-muted" x="423" y="158" font-size="11" text-anchor="middle">model.WithTools</text>
+  <!-- brain -->
+  <ellipse class="dgm-hub" cx="600" cy="170" rx="90" ry="64" stroke-width="2"/>
+  <text class="dgm-accent-text" x="600" y="162" font-size="15" font-weight="700" text-anchor="middle">大模型</text>
+  <text class="dgm-muted" x="600" y="184" font-size="11" text-anchor="middle">只能读到这三样</text>
+  <text class="dgm-muted" x="600" y="200" font-size="11" text-anchor="middle">看不到函数体</text>
+</svg>
+</div>
+<figcaption>模型对一个工具的全部认知，就是这张三格标签：名字 <code>Name</code>、描述 <code>Desc</code>、参数 <code>ParamsOneOf</code>。参数那格发出去前会被 <code>ParamsOneOf.ToOpenAPIV3()</code> 序列化成一段 OpenAPI v3 的 JSON schema。真实例子来自 <code>viewimageservice/tool.go</code>。</figcaption>
+</figure>
+
+<p>那第三格"参数说明"具体长什么样？在 <code>viewimageservice/tool.go</code> 里，<code>view_images</code> 工具的参数是用 <code>schema.NewParamsOneOfByOpenAPIV3(...)</code> 写出来的，一个字段一个字段地标注类型和含义：</p>
+
+<pre><code>ParamsOneOf: schema.NewParamsOneOfByOpenAPIV3(&openapi3.Schema{
+    Type: openapi3.TypeObject,
+    Properties: map[string]*openapi3.SchemaRef{
+        "urls": { Value: &openapi3.Schema{
+            Type:        openapi3.TypeArray,
+            Description: "The URLs of the images to retrieve, which must start with image/",
+            Items: ...string,
+        }},
+        "label": { Value: agenttypes.LabelToolSchema },
+    },
+    Required: []string{"label", "urls"},
+})</code></pre>
+
+<p>注意那句 <code>Description: "...which must start with image/"</code>——这不是给人看的注释，它会被序列化进发给模型的 schema，是模型填参数时唯一能读到的"填写须知"。约束写在这里，模型才知道 URL 必须以 <code>image/</code> 开头。<strong>参数的 Description，就是参数的 prompt。</strong></p>
+
+<h2>二、坏描述 vs 好描述：同一个工具，两种命运</h2>
+
+<p>既然描述就是 prompt，那"好"和"坏"的差别就很具体了。一段好的工具描述回答三个问题，缺一不可：</p>
+
+<table>
+<tr><th>要素</th><th>❌ 坏描述</th><th>✅ 好描述（<code>view_images</code> 真实文本）</th></tr>
+<tr>
+  <td><strong>做什么</strong></td>
+  <td>"处理图片"<br><span class="meta">是读？画？删？模型只能猜</span></td>
+  <td>"Read the visual content of an image."<br><span class="meta">动词明确：读取</span></td>
+</tr>
+<tr>
+  <td><strong>什么时候用 / 别用</strong></td>
+  <td>（没写）</td>
+  <td>"Important: This does <strong>not</strong> display the image to the user."<br><span class="meta">主动划出边界，防止误用</span></td>
+</tr>
+<tr>
+  <td><strong>参数怎么填</strong></td>
+  <td>"urls: 图片地址"</td>
+  <td>"...which must start with <code>image/</code>" + <code>Required: [label, urls]</code><br><span class="meta">带格式约束 + 哪些必填</span></td>
+</tr>
+</table>
+
+<p>坏描述那一列不是我瞎编的稻草人，而是每个人第一次写工具时的默认样子——名字取个 <code>img</code>，描述写"处理图片"，参数写"地址"。它能编译、能注册，看起来一切正常。可模型读到它时，只会做两件事之一：<strong>要么不敢用</strong>（怕用错，干脆绕开），<strong>要么乱用</strong>（把画图的请求也塞给它）。工具本身没坏，是那张标签让模型变笨了。</p>
+
+<div class="good">
+<strong>好描述的黄金三问</strong>：① 一句话说清<em>动词</em>（读/写/搜/画…）；② 明确<em>什么时候该用、什么时候千万别用</em>（<code>view_images</code> 专门用一段 <code>Important:</code> 说"我不会把图给用户看"）；③ 每个参数标<em>类型 + 约束 + 是否必填</em>。三问答全，模型就"懂事"了。</div>
+
+<h2>三、工具太多会互相干扰，而且每轮都要重发一遍</h2>
+
+<p>写好一个描述还不够。真实的 agent 手里工具很多——<code>tools.go</code> 里的 <code>GetAllToolServices</code> 是一张大注册表，登记了<strong>五十多个</strong>内置工具服务（浏览器、代码执行、搜索、画图、子代理、幻灯片……还有一个 <code>browser_sub_agent</code> 被注释停用了）。如果用户开了 MCP，运行时还会用 <code>NewMCPServiceWithSessions</code> 再往里塞更多。</p>
+
+<p>工具一多，两个新麻烦冒出来。</p>
+
+<p><strong>麻烦一：工具会互相干扰。</strong>如果你有 <code>search</code> 和 <code>web_search</code> 两个名字相近、描述又都含糊的工具，模型会在它俩之间犹豫、选错。所以 mino_server 不是把五十多个工具无脑全给模型，而是过<strong>两道滤网</strong>，只把这次场景真正用得上的那批递过去：</p>
+
+<div class="flow">
+  <div class="step action"><strong>全部工具服务</strong>　<code>GetAllToolServices()</code>　→ 五十多个 + 运行时 MCP</div>
+  <div class="down">▼</div>
+  <div class="step decision"><strong>第 1 道滤网</strong>：<code>hooks.GetToolServices(ctx, features, …)</code><br><span class="meta">按当前子类型 / 功能开关（features）筛出这次要用的那批服务</span></div>
+  <div class="down">▼</div>
+  <div class="step decision"><strong>第 2 道滤网</strong>：每个服务 <code>service.AsTools(...)</code><br><span class="meta">把一个服务展开成 0～多个具体工具，还能按 features 再裁剪</span></div>
+  <div class="down">▼</div>
+  <div class="step terminal"><strong>toolMap</strong>：按工具名建索引，这才是这次 agent 真正能用的"手"</div>
+</div>
+
+<p><strong>麻烦二：每轮都要把工具定义原样重发一遍。</strong>还记得第 03 课的"无状态"吗？模型不记事，每一轮请求都得把它需要的一切重新带上——工具定义也不例外。每一步开口问模型前，<code>getCurrentToolInfos()</code> 会从 <code>toolMap</code> 里把当前所有工具取出来，<strong>按工具名字典序排好</strong>（<code>a.ToolInfo.Name &lt; b.ToolInfo.Name</code>），再用 <code>model.WithTools</code> 一次性挂进这轮请求。</p>
+
+<p>为什么要排字典序？为了<strong>顺序稳定</strong>。顺序每轮都一样，才能命中厂商的前缀缓存（缓存要求"字节级严格前缀匹配"，这是进阶课第 0001 课的核心）。但即便命中缓存，工具定义仍然<strong>每轮都在那儿</strong>——它是这次请求 token 预算里雷打不动的"底盘"。工具越多，底盘越厚，这就是<strong>固定的 context 税</strong>：可增（加工具）不可减（每轮都得带）。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 340" role="img" aria-label="每一步请求里工具定义都是固定底盘，对话历史在其上增长">
+  <!-- baseline -->
+  <line class="dgm-edge" x1="40" y1="300" x2="700" y2="300" stroke-width="1.5"/>
+  <text class="dgm-muted" x="30" y="304" font-size="11" text-anchor="end">0</text>
+  <text class="dgm-muted" x="360" y="332" font-size="12" text-anchor="middle">一次请求的 token 预算 —— 每往下一步，底盘那块工具定义原样再发一遍</text>
+
+  <!-- Step 1 -->
+  <rect class="dgm-accent-node" x="90" y="230" width="120" height="70" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="150" y="270" font-size="12" font-weight="700" text-anchor="middle">工具定义</text>
+  <rect class="dgm-node" x="90" y="180" width="120" height="50" stroke-width="1.5"/>
+  <text class="dgm-text" x="150" y="210" font-size="11.5" text-anchor="middle">对话历史</text>
+  <text class="dgm-muted" x="150" y="316" font-size="11" text-anchor="middle">第 1 步</text>
+
+  <!-- Step 2 -->
+  <rect class="dgm-accent-node" x="300" y="230" width="120" height="70" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="360" y="270" font-size="12" font-weight="700" text-anchor="middle">工具定义</text>
+  <rect class="dgm-node" x="300" y="130" width="120" height="100" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="184" font-size="11.5" text-anchor="middle">对话历史</text>
+  <text class="dgm-muted" x="360" y="316" font-size="11" text-anchor="middle">第 2 步</text>
+
+  <!-- Step 3 -->
+  <rect class="dgm-accent-node" x="510" y="230" width="120" height="70" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="570" y="270" font-size="12" font-weight="700" text-anchor="middle">工具定义</text>
+  <rect class="dgm-node" x="510" y="80" width="120" height="150" stroke-width="1.5"/>
+  <text class="dgm-text" x="570" y="160" font-size="11.5" text-anchor="middle">对话历史</text>
+  <text class="dgm-muted" x="570" y="316" font-size="11" text-anchor="middle">第 3 步</text>
+
+  <!-- fixed base bracket -->
+  <line class="dgm-edge" x1="660" y1="230" x2="680" y2="230" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="680" y1="230" x2="680" y2="300" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="660" y1="300" x2="680" y2="300" stroke-width="1.5"/>
+  <text class="dgm-accent" x="688" y="258" font-size="11">固定</text>
+  <text class="dgm-accent" x="688" y="272" font-size="11">税</text>
+</svg>
+</div>
+<figcaption>橙色"工具定义"块高度<strong>三步不变</strong>——它每轮都被 <code>getCurrentToolInfos()</code> + <code>model.WithTools</code> 原样重发（<code>agent.go</code>）。灰色"对话历史"随步数长高。给 agent 加一个工具，就是给<em>每一轮</em>都加一笔固定开销。</figcaption>
+</figure>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>工具 schema（<code>schema.ToolInfo</code>）</dt>
+<dd>模型对一个工具的全部认知：名字 <code>Name</code>、描述 <code>Desc</code>、参数 <code>ParamsOneOf</code>。它就是"模型面向的 API"——你写的这段 schema，就是模型能读到的 API 文档。</dd>
+<dt>OpenAPI v3 序列化（<code>ToOpenAPIV3</code>）</dt>
+<dd>工具参数用 <code>NewParamsOneOfByOpenAPIV3</code> 描述，发给模型前调 <code>ParamsOneOf.ToOpenAPIV3()</code> 变成一段标准 OpenAPI v3 JSON schema。参数里的每个 <code>Description</code> 字段都会进这段 schema——所以参数说明也是 prompt。</dd>
+<dt>两道滤网（<code>GetToolServices</code> → <code>AsTools</code>）</dt>
+<dd>第一道按 features 从五十多个服务里选出要用的服务；第二道把每个服务展开成一个个具体工具。目的：只给模型<em>这次用得上</em>的工具，减少相似工具互相干扰。</dd>
+<dt>固定 context 税</dt>
+<dd>因为模型无状态，工具定义每一轮都要用 <code>WithTools</code> 原样重发，构成每次请求里不可省的 token 底盘。工具越多，底盘越厚——加工具是有"每轮复利"成本的。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：你给 agent 新加了一个工具，名字叫 <code>search</code>，描述写"搜索"。可它手里已经有一个 <code>web_search</code>（描述：搜索公开网页）。上线后模型的行为可能出什么问题？根因是什么？</summary>
+<div class="answer">
+<p><strong>可能的问题</strong>：模型在 <code>search</code> 和 <code>web_search</code> 之间反复犹豫、或干脆选错——该搜网页时调了那个语义模糊的 <code>search</code>，拿回一堆无关结果。</p>
+<p><strong>根因（两层）</strong>：① 描述"搜索"没回答"黄金三问"——搜什么？和 <code>web_search</code> 有何区别？什么时候用哪个？模型只能读这段标签，读不出区别就只能猜（本课第二节）。② 两个功能相近的工具同时挂在请求里，本身就构成"互相干扰"——这正是 <code>GetToolServices</code> 那道滤网要按场景裁掉冗余工具的原因（第三节）。<strong>正确做法</strong>：要么删掉重复工具，要么把描述改到能一眼分清（"search: 只搜内部知识库；web_search: 只搜公开网页"）。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：同事说"工具定义在第一轮发一次就行了，后面几轮模型自己记得住，别浪费 token 重发"。这个说法对吗？为什么？</summary>
+<div class="answer">
+<p><strong>不对。</strong>模型是<strong>无状态</strong>的（第 03 课），它不会"记住"上一轮发过什么——每一轮都是从零读入全部输入。所以代码里每一步开口问模型前，都会重新 <code>getCurrentToolInfos()</code> 取出全部工具、按字典序排好、再 <code>model.WithTools</code> 挂上去（<code>agent.go</code>）。<strong>不重发的后果</strong>：这一轮模型就"看不见"任何工具，会退化成纯聊天，无法调用工具。</p>
+<p>那字典序排序是干嘛的？不是为了省钱本身，而是让工具顺序<strong>每轮完全一致</strong>，好命中厂商的前缀缓存——重发的 token 大部分能按缓存价（约一折）计。但"重发"这个动作省不掉，它就是无状态架构下的固定成本。</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>好，现在我们会写清工具描述、也知道工具是怎么被筛选和重发的了。可你有没有注意到第三节埋的一根线——每轮请求都显式打开了 <code>WithEnableParallelToolCalls(true)</code>：模型<strong>一次可以要求调好几个工具</strong>，甚至这一步的结果会引出下一步的连环调用。那问题来了：工具越加越多、模型一口气吐出五个工具调用、还想接着往下走——<strong>谁来决定"还要不要再走一步"？"这几个能不能并行、还是必须排队"？"什么时候该收手停下"？</strong>这就是<em>编排</em>。下一课见。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>一句话收束：<strong>工具描述不是文档，是 prompt——模型只认标签，标签写多清楚，agent 就有多聪明。</strong>下一课【07 编排：什么时候再走一步、什么时候停、能不能并行】，我们回到那个 for 循环，看它如何在"多步、并行、连环"里保持不失控。读到卡壳，回会话里问你的 AI 老师，可要求 ELI5 或看真实代码。<a href="index.html">← 返回门户</a></p>
+</footer>
+</main>
+</body>
+</html>

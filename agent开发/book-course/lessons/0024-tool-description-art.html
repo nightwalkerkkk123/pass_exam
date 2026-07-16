@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0024 · 工具描述的艺术：先讲清"不能做什么"</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0024 课 · 支柱二(工具) · 工具设计 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>工具描述的艺术：先讲清"不能做什么"</h1>
+
+<p class="lede">这节课只押一句判断：<strong>多数工具调用失败，不是模型不知道工具"能做什么"，而是不知道它"不能做什么"、参数长什么样。</strong>所以当 Agent 频繁选错工具时，第一反应应该是<strong>去改工具描述</strong>，而不是怀疑模型、换一个更强的模型。这一课出自第 4 章"工具描述的艺术"一节——它是 ACI（Agent-Computer Interface）原则里最便宜、投产比最高的一环。</p>
+
+<h2>一、工具描述到底在描述什么？</h2>
+
+<p>作者开门见山："<strong>工具描述的质量直接决定了 Agent 使用工具的准确性。</strong>"但初学者写描述时，脑子里想的往往是"这个工具是干嘛的"——于是写出"搜索相关内容"这种句子。书里说得很直白：这远不如写"<strong>当需要获取实时信息或查找未知事实时使用</strong>"。</p>
+
+<p>差别在哪？前者只描述<strong>功能</strong>（能做什么），后者帮 LLM 做<strong>调用决策</strong>（什么时候该用它）。工具描述的核心，是让模型知道"什么时候用"，而不只是"能做什么"。这是本节的第一个转向：描述的读者不是人类文档读者，是一个正在多个工具之间做选择的模型。</p>
+
+<h2>二、为什么"讲边界"比"讲能力"更重要</h2>
+
+<p>这是全课的分量所在。书里的例子：一个文件搜索工具，如果不写清楚它<strong>只能按文件名匹配、不能搜索文件内容</strong>，LLM 就会去<strong>猜</strong>——然后拿它去搜文件内容，失败。</p>
+
+<div class="bookquote">
+清晰列出工具的边界条件——做不到什么、不接受什么输入——往往比描述能力本身更重要，因为大多数工具调用失败的根因不是模型不知道工具能做什么，而是不知道工具不能做什么。
+<span class="src">——《深入理解 AI Agent》第 4 章·工具描述的艺术</span>
+</div>
+
+<p>为什么"反例"比"正面能力"更值钱？因为模型的正面能力覆盖面本来就很宽——它见过无数搜索工具，大致猜得到能干嘛；真正让它翻车的，是它<strong>猜不到的那条隐形红线</strong>。你不写边界，模型就会用它对"搜索"二字的通用理解去脑补，脑补错了就反复失败。写清"不能做什么"，等于提前把它会踩的坑标出来。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 250" role="img" aria-label="工具描述前后对照：左边空洞描述缺少边界与参数示例，右边补上何时用、边界反例、参数实例、返回值与代价，准确率显著提升">
+  <!-- 左：空洞描述 -->
+  <rect class="dgm-node" x="20" y="30" width="280" height="190" rx="10"/>
+  <text class="dgm-text" x="160" y="56" font-size="13" font-weight="700" text-anchor="middle">空洞描述</text>
+  <text class="dgm-muted" x="40" y="86" font-size="11.5">· "搜索相关内容"</text>
+  <text class="dgm-muted" x="40" y="110" font-size="11.5">· timestamp：RFC3339 格式</text>
+  <text class="dgm-muted" x="40" y="134" font-size="11.5">· phone：使用 E.164 格式</text>
+  <text class="dgm-muted" x="40" y="158" font-size="11.5">· （没写不能做什么）</text>
+  <text class="dgm-muted" x="40" y="182" font-size="11.5">· （没有返回值/代价）</text>
+  <text class="dgm-muted" x="40" y="206" font-size="11.5">→ 模型只能靠猜</text>
+
+  <!-- 箭头 -->
+  <line class="dgm-edge" x1="308" y1="125" x2="408" y2="125" stroke-width="1.8" marker-end="url(#ar24)"/>
+  <text class="dgm-accent-text" x="358" y="114" font-size="11.5" font-weight="700" text-anchor="middle">补描述</text>
+  <text class="dgm-muted" x="358" y="146" font-size="10.5" text-anchor="middle">准确率↑</text>
+
+  <!-- 右：富描述 -->
+  <rect class="dgm-good-node" x="418" y="30" width="282" height="190" rx="10"/>
+  <text class="dgm-accent-text" x="559" y="56" font-size="13" font-weight="700" text-anchor="middle">富描述</text>
+  <text class="dgm-text" x="436" y="86" font-size="11">· 何时用：需实时信息/查未知事实</text>
+  <text class="dgm-text" x="436" y="110" font-size="11">· 边界反例：只按文件名，不搜内容</text>
+  <text class="dgm-text" x="436" y="134" font-size="11">· 参数实例：+861388888888(中国)</text>
+  <text class="dgm-text" x="436" y="158" font-size="11">· 返回值：JSON数组 title/url/snippet</text>
+  <text class="dgm-text" x="436" y="182" font-size="11">· 代价：下载全网页需 5-10 秒</text>
+  <text class="dgm-text" x="436" y="206" font-size="11">· 附 1-5 个真实调用示例</text>
+
+  <defs>
+    <marker id="ar24" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>同一个工具，左边是"人看得懂就行"的描述，右边把"何时用 + 边界反例 + 参数实例 + 返回值 + 代价 + 示例"六件事都写给了模型。右边的每一行，都是在替模型消掉一次"猜"。</figcaption>
+</figure>
+
+<h2>三、参数：用"例子"代替"规范"</h2>
+
+<p>第二个反直觉点在参数描述上。写规范术语（"RFC3339 格式""E.164 格式"）看起来专业，但作者说：<strong>用具体的例子代替抽象的规范</strong>。</p>
+
+<ul>
+<li>不写"<code>timestamp</code>：RFC3339 格式"，而写"<code>timestamp</code>：RFC3339 格式，例如 <code>2024-03-15T14:30:00Z</code>"。</li>
+<li>不写"<code>phone</code>：使用 E.164 格式"，而写"<code>phone</code>：电话号码，使用 E.164 格式（国家代码+号码，无空格或特殊字符），例如 <code>+861388888888</code>（中国）或 <code>+12025551234</code>（美国）"。</li>
+</ul>
+
+<p>为什么例子更有效？书里给了一个很精准的解释：LLM 在<strong>专注处理一个问题</strong>时确实能理解这些术语；但在执行复杂任务时——要同时处理多个工具、从历史轨迹里提取信息、权衡多个决策——"确认参数格式"只占它注意力的一小部分，就容易出错。具体的例子让 Agent <strong>直接套用，无需额外的思考步骤</strong>。这也是为什么书里进一步建议：给每个工具附 <strong>1-5 个真实调用示例</strong>。JSON Schema 只能描述参数<em>类型</em>，却表达不了调用方式和典型参数组合（时间戳到底是秒还是毫秒、过滤条件如何嵌套），这些隐式约定靠例子最好传达。</p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">无示例描述</span><div class="track"><div class="val base" style="width:72%">约 72%</div></div></div>
+  <div class="row"><span class="lbl">+1–5 个调用示例</span><div class="track"><div class="val read" style="width:90%">约 90%</div></div></div>
+</div>
+<figcaption>书中给出的量级：加入调用示例后，工具调用准确率"在一些基准上可从约 72% 提升到 90%"。注意作者的限定语——"具体数值因任务而异"，这是一个量级参照，不是保证值。</figcaption>
+</figure>
+
+<p>别忘了返回值和代价也要写。"返回 JSON 数组，每个元素包含 <code>title</code>、<code>url</code>、<code>snippet</code> 三个字段"能减少后续解析出错；对耗时工具注明代价（"下载完整网页，大型网站可能需要 5-10 秒；如果只需元信息，请考虑用 <code>get_page_metadata</code>"）能帮模型合理规划调用顺序。</p>
+
+<h2>四、一条调试铁律：先改描述，别怪模型</h2>
+
+<p>把前三节收成一条可操作的原则——这是本课要带走的东西：</p>
+
+<div class="bookquote">
+当 Agent 频繁选错工具时，应优先检查工具描述而不是怀疑模型能力……修正工具描述的投入产出比，通常远高于更换一个更强的模型。
+<span class="src">——《深入理解 AI Agent》第 4 章·工具描述的艺术</span>
+</div>
+
+<p>大多数工具选择错误的根因，是描述不准确：边界不清、缺少反例、参数含义模糊。这一整套做法，在书的"工具设计的演进"里被归为<strong>第二代</strong>——ACI（Agent-Computer Interface）原则：工具应对应 Agent 的目标，而非底层 API 操作；核心是让工具<strong>对 Agent 而非对人友好</strong>。你写描述时要时刻记得，读者是那个正在多任务里分心的模型。</p>
+
+<div class="pitfall">
+<p><strong>初学者会怎么想错？</strong>看到 Agent 老是拿"文件搜索"去搜文件内容、老是选错工具，第一反应是"这模型不行，换个更强的"或"再多写几句 prompt 哄一哄"。</p>
+<p><strong>为什么错？</strong>因为问题根本不在模型的能力，而在<strong>它拿到的描述里没有那条红线</strong>。工具描述没写"只能按文件名匹配、不能搜索文件内容"，模型就只能靠对"搜索"二字的通用理解去猜。换更强的模型，它照样猜；真正该做的是回到工具定义，把"不能做什么"和参数示例补上。修描述的投产比，远高于换模型。</p>
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>ACI（Agent-Computer Interface）</dt>
+<dd>对标 HCI（人机交互）提出的概念：研究 Agent 如何与计算机交互，核心是让工具<strong>对 Agent 而非对人友好</strong>——工具应对应 Agent 的目标，而非底层 API 操作。粒度权衡、通用性设计、描述规范都属于这一层。<em>避免</em>把它等同为"API"或"函数调用规范"，它是设计理念层面的，不是某种具体协议。</dd>
+<dt>边界条件（做不到什么 / 不接受什么输入）</dt>
+<dd>工具描述中显式写出的反例说明，例如"只能按文件名匹配，不能搜索文件内容"。书中判断：清晰列出边界条件，<strong>往往比描述能力本身更重要</strong>，因为多数调用失败源于模型不知道工具"不能做什么"。</dd>
+<dt>参数传递的保真性（Parameter fidelity）</dt>
+<dd>模型感知到的世界与工具操作的世界之间，不得存在系统性偏差；工具不得在模型不知情时静默转换输入（如弯引号→直引号）或静默注入参数。<em>避免</em>窄化为"参数校验"——它强调的是<strong>透明性</strong>：即使做规范化，也必须在描述与返回中告知模型。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：文件搜索工具老被 Agent 误用来搜文件内容。按本章原则，你会先改什么？再举一个"参数用例子代替规范"的改法。</summary>
+<div class="answer">
+<p><strong>先改工具描述，而不是怀疑模型。</strong>显式写出边界反例——"只能按文件名匹配，不能搜索文件内容"——把这条隐形红线标出来，模型就不会去猜。</p>
+<p>"参数用例子代替规范"的改法：不写"<code>timestamp</code>：RFC3339 格式"，而写"例如 <code>2024-03-15T14:30:00Z</code>"；不写"<code>phone</code>：E.164 格式"，而给出 <code>+861388888888</code>（中国）/ <code>+12025551234</code>（美国）的具体样例。再附 1-5 个真实调用示例，能把准确率从约 72% 提到 90%（因任务而异）。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：书里说，为什么"给具体例子"比"写术语规范"对 LLM 更有效？</summary>
+<div class="answer">
+<p>因为 LLM 在<strong>专注处理单个问题</strong>时确实能理解 RFC3339、E.164 这类术语；但执行复杂任务时，它要同时处理多个工具、从历史轨迹提取信息、权衡多个决策，"确认参数格式"只占注意力的一小部分，就容易出错。具体的例子让它<strong>直接套用、无需额外的思考步骤</strong>。同理，JSON Schema 只能表达参数类型，表达不了"时间戳是秒还是毫秒""过滤条件如何嵌套"这类隐式约定——这些靠例子最好传达。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套实验 4-1 的感知工具 MCP 服务器里就有搜索与文件系统工具（<code>chapter4/perception-tools/</code>），正是本课"文件搜索只能按文件名"这个例子的落地场景。建议对着仓库里这些工具的 description 逐个读：看它们怎么写"何时用"、怎么标边界、参数里给没给示例。整本书实验都在开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：工具描述的读者是那个正在多任务里分心的模型。写描述时，"讲清不能做什么"（边界反例）和"用例子代替规范"（参数样例 + 1-5 个调用示例），比堆砌功能说明更管用。所以 Agent 选错工具时，<strong>先改描述，别急着换模型</strong>——这是投产比最高的一步。
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源是《深入理解 AI Agent》第 4 章"工具描述的艺术"及紧邻的"参数传递的保真性""工具设计的演进"三小节（<code>book/chapter4.md</code>），建议连读——它们共同构成 ACI 原则的完整图景。配套代码见开源仓库 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a> 的 <code>chapter4/perception-tools/</code>（实验 4-1）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把一个真实工具的 description 逐行改写一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0023-dedicated-tool-vs-skill.html"><span class="dir">← 上一课</span>专用工具还是 Skill+通用执行器？三维决策</a>
+  <a class="next" href="0025-proposer-reviewer-sidecar.html"><span class="dir">下一课 →</span>两种第二视角：提议者-审核者 与 Sidecar</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

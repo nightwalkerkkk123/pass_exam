@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 19 课 · 面试收尾:从暴力到最优解 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第二部分《啊哈！算法》⑨ · 对应 ch09 · 全课程收官</div>
+  <h1>第 19 课:面试收尾——从暴力到最优解(全课程最后一课)</h1>
+  <div class="sub">上一课(第18课)学了 Kruskal/Prim 求最小生成树,以及割点割边、二分图匹配。这一课是全书收尾章,只讲一道题——但示范了"同一个问题怎么一步步逼近最优解"。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>直觉类比:选举计票。</b> 假如某个候选人的得票<b class="hl">超过总票数的 50%</b>,你其实不需要把所有选票一张张点清楚、排好队数出每个人的票数——
+  你可以一边数一边"抵消":每遇到一张投给别人的票,就从这个领先候选人的票堆里划掉一张。
+  只要这个候选人真的过半,他的票"扛得住"所有抵消,最后剩下的候选人就是他。这正是本章最终答案——<b class="hl">摩尔投票法</b>——的直觉来源。
+</div>
+
+<h2>一、问题:找出出现次数超过 50% 的数</h2>
+<p>本章不引入新的数据结构,而是用一道真实的微软亚洲研究院(MSRA)面试题,示范"思路如何一步步逼近最优解":
+给定一个序列,找出其中<b>出现次数超过总数一半</b>的那个数(如果存在的话)。全章的教学重点不是某个孤立算法,
+而是<b class="hl">"能不能更好"这条不断追问的思考链</b>。</p>
+
+<h2>二、从暴力到最优:六次优化的关键一句话</h2>
+<p>下面每一步只说清楚"为什么比上一步快",不逐行展开代码——重点是记住这条追问链本身。</p>
+
+<ol>
+  <li><b>暴力计数法 O(n²):</b> 对每个数,用双重循环和其余所有数逐一比较、统计出现次数,取次数最多的那个。这是面试第一版答案,也是后面所有优化的参照系。</li>
+  <li><b>排序法 O(n log n):</b> 先把序列排序,相同的数就会彼此相邻;再线性扫一遍,用一个 <code>count</code> 统计当前数连续出现的次数即可——排序把"东一个西一个"的计数问题变成了"挨着数"的简单问题。</li>
+  <li><b>位置 n/2 定位法:</b> 关键洞察——<b>如果某个数出现次数一定超过 50%,排序后它必然站在第 n/2 位</b>。于是不必扫描整个数组,只需对第 n/2 位的数再做一次计数确认即可,把工作量从"扫一遍排序结果"收窄到"验证一个候选"。</li>
+  <li><b>计数数组(类桶排序) O(n+m):</b> 开一个下标对应数值的数组,直接累加每个值出现的次数,数组里最大值所在的下标就是答案。缺点是数值跨度很大(比如 1、10000、100000000)时会浪费大量空间,甚至开不出这么大的数组。</li>
+  <li><b>离散化 + 计数数组:</b> 针对上面的空间浪费,先把原始数值按出现顺序或排序去重重新编号(比如 1→1,10000→2,100000000→3),再用小得多的数组计数——把"值域大小"的问题转化成"元素个数"的问题。</li>
+  <li><b>快速选择法(Quickselect):</b> 借用快速排序"一次划分"的思路,划分完成后只递归进入包含第 n/2 位的那一侧,不需要把整个数组排完序——期望时间接近 O(n),比排序法更快。</li>
+</ol>
+
+<div class="callout warn">
+  <b>知识补充说明(务必注意):</b> 原书在这一章结尾只揭示了一条性质作为留白式的启发——"任意去掉两个互不相同的数,
+  若某数原本出现次数超过 50%,在剩余序列中它的占比依然超过 50%"——并<b>没有给出完整的摩尔投票法代码</b>。
+  下面关于摩尔投票法的具体步骤讲解和 C 代码,<b class="hl">是知识补充,不是原书原文的逐字复现</b>,但它是这条性质在教学上最自然的落地方式,也是这道题公认的最优解。
+</div>
+
+<h2>三、摩尔投票法:candidate + count 的计数抵消</h2>
+<p>摩尔投票法(Boyer-Moore Voting Algorithm)只维护两个变量:一个<b>候选数 <code>candidate</code></b>,一个<b>计数器 <code>count</code></b>。
+扫描过程就是不断地"选票 vs 抵消":</p>
+<ol>
+  <li>初始 <code>count = 0</code>。</li>
+  <li>依次扫描序列中的每个数 <code>x</code>:
+    <ul>
+      <li>若 <code>count == 0</code>,令 <code>candidate = x</code>,<code>count = 1</code>;</li>
+      <li>否则若 <code>x == candidate</code>,<code>count++</code>;</li>
+      <li>否则(<code>x != candidate</code>),<code>count--</code>——这一步等价于"同时去掉一个 <code>candidate</code> 和一个不同的数"。</li>
+    </ul>
+  </li>
+  <li>扫描结束后,<code>candidate</code> 即为多数元素(前提是题目保证多数元素一定存在)。</li>
+</ol>
+
+<p>用书中例子 <code>3, 3, 1, 1, 3, 2, 3</code>(n=7,超过 50% 需要出现次数 ≥4)手动演算一遍:</p>
+<table>
+  <tr><th>读入的数</th><th>判断</th><th>candidate</th><th>count</th></tr>
+  <tr><td>3</td><td>count==0 → 立候选</td><td>3</td><td>1</td></tr>
+  <tr><td>3</td><td>与 candidate 相同</td><td>3</td><td>2</td></tr>
+  <tr><td>1</td><td>不同 → 抵消</td><td>3</td><td>1</td></tr>
+  <tr><td>1</td><td>不同 → 抵消</td><td>3</td><td>0</td></tr>
+  <tr><td>3</td><td>count==0 → 立候选</td><td>3</td><td>1</td></tr>
+  <tr><td>2</td><td>不同 → 抵消</td><td>3</td><td>0</td></tr>
+  <tr><td>3</td><td>count==0 → 立候选</td><td>3</td><td>1</td></tr>
+</table>
+<p>扫描结束,<code>candidate = 3</code>,正是出现次数超过 50% 的数(3 一共出现了 4 次)。</p>
+
+<h2>四、七种方法总对比</h2>
+<table>
+  <tr><th>方法</th><th>时间复杂度</th><th>空间复杂度</th><th>备注</th></tr>
+  <tr><td>暴力双重循环计数</td><td>O(n²)</td><td>O(1)</td><td>面试第一版答案,最直观也最慢</td></tr>
+  <tr><td>排序后线性扫描</td><td>O(n log n)</td><td>O(1)~O(log n)</td><td>排序算法自身的空间开销</td></tr>
+  <tr><td>位置 n/2 定位法</td><td>O(n log n)</td><td>O(1)~O(log n)</td><td>依赖排序,但只需验证一个候选位置</td></tr>
+  <tr><td>计数数组(类桶排序)</td><td>O(n+m)</td><td>O(m)</td><td>m 为数值范围,跨度大时空间浪费严重</td></tr>
+  <tr><td>离散化 + 计数数组</td><td>O(n log n)(离散化排序)</td><td>O(n)</td><td>用排序/映射把值域压缩到 n</td></tr>
+  <tr><td>快速选择(Quickselect)</td><td>期望 O(n),最坏 O(n²)</td><td>O(1)</td><td>只找位置 n/2,无需完整排序</td></tr>
+  <tr><td>摩尔投票法</td><td>O(n)</td><td>O(1)</td><td>本章最终答案,一次遍历即可</td></tr>
+</table>
+
+<h3>C 代码(摩尔投票法,带边界条件详解)</h3>
+<p class="sub" style="margin-top:-4px">再次提醒:以下代码是知识补充讲解,不是原书原文复现。</p>
+<pre>int majorityElement(int a[], int n) {
+    int candidate = a[0];          <span class="c">// ① 初始值随便设,不影响正确性</span>
+    int count = 0;
+
+    for (int i = 0; i < n; i++) {
+        if (count == 0) {           <span class="c">// ② 必须先判断 count==0,再更新 candidate</span>
+            candidate = a[i];
+            count = 1;
+        } else if (a[i] == candidate) {
+            count++;
+        } else {
+            count--;                <span class="c">// 抵消:同时去掉一个 candidate 和一个不同的数</span>
+        }
+    }
+
+    <span class="c">// ③ 若题目未保证多数元素一定存在,此处必须再扫一遍统计</span>
+    <span class="c">// candidate 的真实出现次数,并与 n/2 比较,否则可能返回错误答案</span>
+    return candidate;
+}</pre>
+
+<p>三处最容易在考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 初始 <code>candidate</code> 怎么设都不影响最终正确性,但要理解为什么。</b>
+    因为第一次循环时只要 <code>count == 0</code>(初始就是 0),第一个数一定会立刻把 <code>candidate</code> 覆盖成 <code>a[0]</code> 自己——
+    所以初始值只是一个"占位",真正起作用的是后面的抵消逻辑,不是这个初始值本身。</li>
+  <li><b>② <code>count == 0</code> 时才更新 <code>candidate</code>,这个判断顺序不能颠倒。</b>
+    如果写成先比较 <code>a[i] == candidate</code> 再看 <code>count</code>,或者把"立候选"和"抵消"两个分支顺序搞反,
+    会导致 <code>count</code> 已经归零却仍然在跟旧的 <code>candidate</code> 做无意义的比较,整个抵消逻辑就错了。</li>
+  <li><b>③ 如果题目不保证多数元素一定存在,扫描结束后必须再做一次计数校验,不能省略。</b>
+    摩尔投票法只保证"如果多数元素存在,<code>candidate</code> 一定是它",但不保证"<code>candidate</code> 一定是多数元素"——
+    序列里没有任何数超过 50% 时,算法照样会跑出一个 <code>candidate</code>,这个候选此时是错误答案,只有二次计数才能揪出来。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱:以为找到候选就万事大吉。</b> 这是本章最容易失分的一点——不管是"位置 n/2 法"还是"摩尔投票法",
+  它们扫描/定位出来的都只是一个<b class="hl">候选</b>,不是"证明"。只有在题目明确保证多数元素一定存在时,才能省略最后的二次计数确认;
+  否则必须再扫一遍数出 <code>candidate</code> 的真实出现次数,和 <code>n/2</code> 比较后才能下结论。默认题目"保证存在"就直接返回 <code>candidate</code>,
+  是考试里最常见的丢分点。
+</div>
+
+<h2>五、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 序列 <code>2, 2, 1, 2, 3, 2, 2</code>(n=7)用摩尔投票法扫描。读完前 4 个数 <code>2, 2, 1, 2</code> 后,<code>candidate</code> 和 <code>count</code> 分别是多少?</div>
+  <button class="opt" data-ok="0">candidate=2, count=1</button>
+  <button class="opt" data-ok="0">candidate=2, count=3</button>
+  <button class="opt" data-ok="0">candidate=1, count=1</button>
+  <button class="opt" data-ok="1">candidate=2, count=2</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 序列 <code>1, 2, 3, 4</code>(每个数都只出现一次,不存在任何出现次数超过 50% 的数)用摩尔投票法扫描完,得到某个 <code>candidate</code>。下一步该怎么做?</div>
+  <button class="opt" data-ok="0">直接返回这个 candidate,它一定正确</button>
+  <button class="opt" data-ok="1">必须再扫一遍统计 candidate 的真实出现次数,与 n/2 比较后才能判断——这里它其实不是多数元素</button>
+  <button class="opt" data-ok="0">重新扫描并把 count 初始值改大一点即可解决</button>
+  <button class="opt" data-ok="0">摩尔投票法在这种情况下会报错退出,不用额外处理</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段改写过的摩尔投票法,某一处有 bug,选出问题所在。</div>
+  <p class="sub" style="margin-top:-4px">先想想:一个数刚被立为新 <code>candidate</code> 之后,还应不应该再被下面的逻辑处理一次?</p>
+  <pre>for (int i = 0; i < n; i++) {
+    if (count == 0) {
+        candidate = a[i];
+        count = 1;
+    }
+    if (a[i] == candidate) {     <span class="c">// ← 这里少了 else</span>
+        count++;
+    } else {
+        count--;
+    }
+}</pre>
+  <button class="opt" data-ok="1">两个 <code>if</code> 之间少了 <code>else</code>:刚建立新 candidate 那一轮,会被第二个 <code>if</code> 又多加一次 count,导致 count 偏大</button>
+  <button class="opt" data-ok="0">count-- 那一行应该改成 count = 0</button>
+  <button class="opt" data-ok="0">candidate 的初始值必须设为 a[0],否则出错</button>
+  <button class="opt" data-ok="0">这段代码完全正确,没有 bug</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q3sol').classList.toggle('hidden')">▸ 看模拟过程</span>
+  <div id="q3sol" class="hidden" style="margin-top:8px">
+    <p style="margin:4px 0">用 <code>1, 2, 2</code> 模拟(正确答案应该是 2,因为 2 出现 2 次,占 2/3 超过 50%):</p>
+    <table>
+      <tr><th>读入</th><th>第一个 if(count==0)</th><th>第二个 if(a[i]==candidate)</th><th>candidate</th><th>count</th></tr>
+      <tr><td>1</td><td>count==0,成立 → candidate=1,count=1</td><td>1==1,成立(又执行一次!)→ count++</td><td>1</td><td><b class="bad">2(本该是1)</b></td></tr>
+      <tr><td>2</td><td>count!=0,跳过</td><td>2==1,不成立 → count--</td><td>1</td><td>1</td></tr>
+      <tr><td>2</td><td>count!=0,跳过</td><td>2==1,不成立 → count--</td><td>1</td><td>0</td></tr>
+    </table>
+    <p style="margin:4px 0">扫描结束 <code>candidate=1</code>,但真正的多数元素是 <code>2</code>——完全错误。根源在于少了 <code>else</code>:
+    第一轮把 <code>candidate</code> 刚设成 <code>a[i]</code> 后,第二个 <code>if</code> 又拿同一个 <code>a[i]</code> 去和刚设好的 <code>candidate</code> 比较,
+    结果必然相等,于是 <code>count</code> 被多加了一次(变成 2 而不是 1),后面两次抵消都追不平这个虚高的起点,最终给出错误答案。
+    这提醒我们:<b>"立新候选"和"计数抵消"必须是互斥的一步,只能二选一执行,不能顺着往下再判一次。</b></p>
+  </div>
+</div>
+
+<h2>六、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"摩尔投票法里,<code>count == 0</code> 时更新 <code>candidate</code> 这一步,到底在'抵消'什么?为什么这样能保证最后剩下的就是多数元素?"<br>
+  ②"如果题目不保证多数元素一定存在,为什么扫描结束后不能直接返回 <code>candidate</code>,必须再做什么?"<br>
+  说清楚这两点,全书 19 课就算真正通关。
+</div>
+
+<footer>
+  <p>🎓 <b>全课程完结。</b> 建议你把这节课"通关条件"里的两句话重新自己过一遍,确认没有遗漏——这也是检验前面 18 课有没有真正吃透的最后一道关。
+  如果想系统检验整本书的掌握程度,可以直接在对话里让老师(也就是我)安排一次<b class="hl">跨章节的综合模拟测验</b>,把大O、排序、图算法、本章的多数元素问题混在一起考。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/aha-algorithms/chapters/ch09-interview-questions.md</code>
+  (《啊哈！算法》第9章,面试收尾章)。其中摩尔投票法的具体步骤和 C 代码部分为<b>知识补充</b>,并非原书原文复现——原书结尾只给出了一条性质作为留白式启发。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!逐步演算:第1个2→count==0,candidate=2,count=1;第2个2→与candidate相同,count=2;第3个数是1→不同,count减到1;第4个数是2→与candidate相同,count加到2。最终candidate=2,count=2。',
+      bad:'逐个数一遍:第1个2→count==0,candidate=2,count=1;第2个2→与candidate相同,count=2;第3个数是1→不同(抵消),count减到1;第4个数是2→与candidate相同,count加到2。最终应该是candidate=2,count=2——每一步都严格按"count==0→立候选;相同→+1;不同→-1"更新,不要跳步或漏算某一步。'},
+  q2:{good:'对!摩尔投票法只保证"如果多数元素存在,candidate一定是它",不保证反过来。序列1,2,3,4里没有任何数出现次数超过50%,扫描出的candidate只是"扛到最后"的候选,必须二次计数校验才能发现它其实不合格。',
+      bad:'再想想:摩尔投票法的正确性建立在"多数元素存在"这个前提上。如果前提不成立,算法照样会跑出一个candidate,但这个candidate此时未必是真正的多数元素——必须再扫一遍数出它的真实出现次数,和n/2比较,才能确认。'},
+  q3:{good:'对!两个if之间少了else,导致"立新候选"和"计数抵消"变成了两个独立执行的判断,而不是互斥的一个分支。candidate刚被设成a[i]那一轮,第二个if又拿a[i]去和刚设好的candidate比较,必然相等,于是count被多加了一次,后面的抵消追不平这个虚高的起点,最终candidate算错。',
+      bad:'再看一遍这段代码:第一个if负责"count==0时立新候选",第二个if负责"计数或抵消",但它们之间没有用else连接,导致candidate刚被设成a[i]的那一轮,第二个if会再执行一次比较(a[i]==candidate必然成立),让count多加了1。用1,2,2模拟就会发现最终candidate算成了1,但真正的多数元素是2——正确写法必须让"立候选"和"计数抵消"互斥,只能二选一执行。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

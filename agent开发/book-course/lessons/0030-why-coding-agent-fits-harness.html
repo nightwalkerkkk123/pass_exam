@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0030 · 任务四象限：为什么 Coding Agent 是最成熟的 Agent 类型</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0030 课 · 支柱二(工具) · Coding Agent · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>任务四象限：为什么 Coding Agent 是最成熟的 Agent 类型</h1>
+
+<p class="lede">这节课只押一张表——第 5 章「Harness 工程在 Coding Agent 中的实践」一节里的<strong>表5-1</strong>。它用<strong>任务清晰度 × 验证自动化程度</strong>两个维度，把所有 Agent 任务切成四格。你要拿下的唯一判断是：<strong>Harness 的全部目标，就是把尽可能多的任务推向「目标明确 + 验证自动化」那一格</strong>；而代码之所以是当前最成熟的 Agent 领域，正是因为它<strong>天生就坐在这一格的核心</strong>——不是模型特别强，而是软件工程几十年积累的基础设施，恰好构成了一套现成的强 Harness。</p>
+
+<h2>一、两个维度，切出四种任务状态</h2>
+
+<p>作者没有按「行业」或「难度」给任务分类，而是挑了两个更本质的维度——它们直接决定 Agent 干不干得动：</p>
+
+<ul>
+<li><strong>任务清晰度</strong>：目标是<strong>明确</strong>的，还是<strong>模糊</strong>的？（Agent 知不知道该往哪走）</li>
+<li><strong>验证自动化程度</strong>：结果能<strong>自动验证</strong>，还是<strong>需人工验证</strong>？（Agent 能不能自己判断对错）</li>
+</ul>
+
+<p>两个维度一交叉，就是四格。原文把每一格都配了一个一句话能记住的名字和例子：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 470" role="img" aria-label="任务清晰度与验证自动化的四象限矩阵：横轴为结果可自动验证与结果需人工验证，纵轴为目标明确与目标模糊，四格分别是最佳区域、吞吐量受限、高效地跑偏、难以启动">
+  <!-- 列标题 -->
+  <text class="dgm-text" x="290" y="42" font-size="13.5" font-weight="700" text-anchor="middle">结果可自动验证</text>
+  <text class="dgm-text" x="535" y="42" font-size="13.5" font-weight="700" text-anchor="middle">结果需人工验证</text>
+
+  <!-- 行标题（左侧竖排位置，横排文字） -->
+  <text class="dgm-text" x="72" y="150" font-size="13.5" font-weight="700" text-anchor="middle">目标</text>
+  <text class="dgm-text" x="72" y="168" font-size="13.5" font-weight="700" text-anchor="middle">明确</text>
+  <text class="dgm-text" x="72" y="325" font-size="13.5" font-weight="700" text-anchor="middle">目标</text>
+  <text class="dgm-text" x="72" y="343" font-size="13.5" font-weight="700" text-anchor="middle">模糊</text>
+
+  <!-- 左上：最佳区域 -->
+  <rect class="dgm-good-node" x="140" y="62" width="300" height="170" rx="10"/>
+  <text class="dgm-accent-text" x="290" y="108" font-size="15" font-weight="700" text-anchor="middle">✅ 最佳区域</text>
+  <text class="dgm-text" x="290" y="140" font-size="12.5" text-anchor="middle">修复有测试用例的 bug</text>
+  <text class="dgm-muted" x="290" y="166" font-size="11" text-anchor="middle">目标清楚，测试自动判对错，</text>
+  <text class="dgm-muted" x="290" y="184" font-size="11" text-anchor="middle">Agent 能自己闭环</text>
+
+  <!-- 右上：吞吐量受限 -->
+  <rect class="dgm-node" x="450" y="62" width="200" height="170" rx="10"/>
+  <text class="dgm-text" x="550" y="108" font-size="14" font-weight="700" text-anchor="middle">⏳ 吞吐量受限</text>
+  <text class="dgm-text" x="550" y="138" font-size="12" text-anchor="middle">代码重构</text>
+  <text class="dgm-text" x="550" y="156" font-size="12" text-anchor="middle">需人工审查</text>
+  <text class="dgm-muted" x="550" y="184" font-size="11" text-anchor="middle">天花板 = 人的审查速度</text>
+
+  <!-- 左下：高效地跑偏 -->
+  <rect class="dgm-node" x="140" y="252" width="300" height="170" rx="10"/>
+  <text class="dgm-text" x="290" y="298" font-size="14" font-weight="700" text-anchor="middle">🏃 高效地跑偏</text>
+  <text class="dgm-text" x="290" y="330" font-size="12.5" text-anchor="middle">用 linter 优化「代码质量」</text>
+  <text class="dgm-muted" x="290" y="358" font-size="11" text-anchor="middle">有自动反馈但目标模糊，</text>
+  <text class="dgm-muted" x="290" y="376" font-size="11" text-anchor="middle">会高效地往错方向跑</text>
+
+  <!-- 右下：难以启动 -->
+  <rect class="dgm-node" x="450" y="252" width="200" height="170" rx="10"/>
+  <text class="dgm-text" x="550" y="298" font-size="14" font-weight="700" text-anchor="middle">🚧 难以启动</text>
+  <text class="dgm-text" x="550" y="330" font-size="12.5" text-anchor="middle">「让 UI 更好看」</text>
+  <text class="dgm-muted" x="550" y="358" font-size="11" text-anchor="middle">目标模糊、又靠人判，</text>
+  <text class="dgm-muted" x="550" y="376" font-size="11" text-anchor="middle">Agent 基本派不上用场</text>
+
+  <!-- Harness 目标：推向左上角 -->
+  <path class="dgm-edge" d="M600 400 C420 440, 200 430, 150 245" fill="none" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arQ)"/>
+  <text class="dgm-accent-text" x="360" y="458" font-size="12.5" font-weight="700" text-anchor="middle">Harness 的目标：把任务尽量推向 ✅ 这一格</text>
+  <defs>
+    <marker id="arQ" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>表5-1 · 任务清晰度 × 验证自动化程度的四象限。左上是 Agent 最能发挥的「最佳区域」，右下是几乎干不动的「难以启动」。虚线箭头是这节课的题眼：Harness 存在的意义，就是把任务从别的格子往左上角搬。</figcaption>
+</figure>
+
+<h2>二、为什么这两个维度决定一切（深挖「为什么」）</h2>
+
+<p>为什么偏偏是「清晰度」和「验证自动化」这两个维度，而不是别的？把四格逐个读一遍，你会发现它们各自卡在了 Agent 工作循环的<strong>不同关节</strong>上：</p>
+
+<ul>
+<li><strong>目标明确 + 可自动验证（最佳区域）</strong>：目标清楚，Agent 知道往哪走；结果能自动判对错，Agent 能<strong>自我校验、自己闭环</strong>。这正是「修复有测试用例的 bug」——写完跑测试，绿了就是对。</li>
+<li><strong>目标明确 + 需人工验证（吞吐量受限）</strong>：方向不缺，缺的是自动的对错信号。原文一句话点破——「吞吐量的天花板就是人的审查速度」。代码重构就是典型：Agent 能大批量产出，但每一版都得人来盯。</li>
+<li><strong>目标模糊 + 可自动验证（高效地跑偏）</strong>：这一格最阴险。有自动反馈，Agent 跑得飞快，可目标是模糊的——于是它会<strong>「高效地往错误方向跑」</strong>。拿 linter 分数去优化「代码质量」就是这样：分数一路涨，代码未必更好。</li>
+<li><strong>目标模糊 + 需人工验证（难以启动）</strong>：两样都缺。既没有明确的成功标准，也没有自动的对错判断，Agent <strong>无从知道该往哪走、也无法自我校验</strong>，基本派不上用场。「让 UI 更好看」就落在这里。</li>
+</ul>
+
+<p>所以 Harness 工程的着力点非常清晰：<strong>要么把模糊的目标钉成明确的（往左搬），要么把人工验证换成自动验证（往上搬）</strong>。原文原话——「Harness 的目标就是把尽可能多的任务推向『目标明确 + 验证自动化』这个象限」。</p>
+
+<h2>三、为什么代码天然坐在核心象限</h2>
+
+<p>这才是全书这一节最反直觉、也最重要的一句话。Coding Agent 是当前所有 Agent 类型里成熟度最高的——但作者特意强调：<strong>「不是因为代码生成模型特别强，而是因为软件工程几十年积累的基础设施天然构成了一套强大的 Harness」</strong>。</p>
+
+<p>换句话说，别的领域要费力去搭的东西，写代码这件事<strong>本来就自带</strong>：</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">明确的验收标准</div><div class="head">🧪 测试套件</div><div class="sub">绿了就是做完 → 目标明确</div></div>
+  <div class="cell"><div class="role">即时的自动化验证</div><div class="head">📏 Linter / 类型检查</div><div class="sub">写完立刻判对错 → 验证自动化</div></div>
+  <div class="cell"><div class="role">可靠的回退能力</div><div class="head">🌿 Git 版本控制</div><div class="sub">错了能回滚 → 敢大胆试错</div></div>
+</div>
+<figcaption>代码天生带着这三样基础设施，正好把任务牢牢按在「目标明确 + 验证自动化」这一格里。这就是 Coding Agent 成熟度最高的真正原因——赢在 Harness，不是赢在模型。</figcaption>
+</figure>
+
+<p>把这三样对照第一章 <strong>Agent = Model + Harness</strong> 的公式看会更透：这里的 Harness 落地成四类具体工程组件——<strong>验收基线</strong>（什么算做完：测试、CI、审查标准）、<strong>执行边界</strong>（能碰什么：模块边界、依赖规则、权限）、<strong>反馈信号</strong>（自动的对错判断：Linter 输出、测试结果、类型错误）、<strong>回退手段</strong>（出错怎么恢复：Git、沙盒、快照回滚）。软件工程早就把这四件事做成了标准件，Coding Agent 直接拿来就用。</p>
+
+<div class="bookquote">
+代码编写是所有 Agent 任务中可验证性最高的一类，约束、验证和纠正都有现成的基础设施可以依托。
+<span class="src">——《深入理解 AI Agent》第 5 章「Harness 工程在 Coding Agent 中的实践」</span>
+</div>
+
+<h2>四、最容易读错的一格</h2>
+
+<div class="pitfall">
+<p>初学者最容易把「有自动化验证」直接等同于「适合交给 Agent」——于是掉进左下角那格：<strong>「高效地跑偏」</strong>。典型场景是拿一个<strong>能自动打分、但并不真正代表目标</strong>的指标去驱动 Agent，比如用 linter 规则数、代码行数、某个覆盖率数字去优化「代码质量」。反馈很快、Agent 很勤快，指标一路上涨——可目标本身是模糊的，于是它只是<strong>又快又稳地朝着错误的方向狂奔</strong>。</p>
+<p>教训：<strong>自动化验证只有在目标明确时才是加分项</strong>。目标还没钉死就先接上一个自动指标，等于给跑偏装了个加速器。四象限里「往上搬（接自动验证）」和「往左搬（钉死目标）」是两件独立的功课，顺序反了会更糟。</p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：任何 Agent 任务，先用两个维度定位它落在哪一格——<strong>目标明确吗？结果能自动验证吗？</strong> Harness 工程的全部意义，就是把任务往「目标明确 + 验证自动化」的左上角搬。Coding Agent 最成熟，不是模型的功劳，而是<strong>测试、Linter、Git 这套软件工程老基建，天生就把代码任务钉死在了那一格</strong>。下次评估「这件事该不该交给 Agent」，先把它丢进这四格里。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>任务四象限（清晰度 × 验证自动化）</dt>
+<dd>用「任务清晰度（目标明确／模糊）」和「验证自动化程度（结果可自动验证／需人工验证）」两个维度把任务切成四格：最佳区域、吞吐量受限、高效地跑偏、难以启动。对应表5-1。<em>避免</em>只看「有没有自动验证」就下结论——目标模糊时自动验证反而助长跑偏。</dd>
+<dt>Harness（Agent = Model + Harness）</dt>
+<dd>围绕模型搭建的基础设施，包含核心公式里的上下文和工具，外加约束、验证与纠正机制。在 Coding Agent 场景落地为验收基线、执行边界、反馈信号、回退手段四类组件。它的目标就是把任务推向四象限的左上角。<em>避免</em>把「能不能稳定跑」全归因于模型强弱——很多时候取决于 Harness 扎不扎实。</dd>
+<dt>元能力（meta-capability）</dt>
+<dd>一种「能创造其他能力」的能力：Agent 用它当场写出新工具、新约束、新表达形式来完成任务，而不必事先把所有能力都预制好。代码生成正是这样的元能力。<em>避免</em>把它等同于「一个很强的能力」或「万能工具」；关键在「创造能力的能力」而非能力本身强弱。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：「让 UI 更好看」这个任务落在四象限的哪一格？为什么它对 Agent 最难？</summary>
+<div class="answer">
+<p>落在<strong>「目标模糊 + 需人工验证」</strong>那一格——原文命名为<strong>「难以启动」</strong>。因为它<strong>既没有明确的成功标准，也没有自动化的对错判断</strong>：Agent 无从知道该往哪走，也无法自我校验，所以基本派不上用场。这一格与「最佳区域」正好在对角线两端。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：作者说 Coding Agent 是当前成熟度最高的 Agent 类型。真正的原因是「代码生成模型特别强」吗？</summary>
+<div class="answer">
+<p><strong>不是。</strong>原文明确否定了这个解释：成熟度高「不是因为代码生成模型特别强，而是因为软件工程几十年积累的基础设施天然构成了一套强大的 Harness」——<strong>测试套件</strong>提供明确的验收标准（目标明确），<strong>Linter 和类型检查器</strong>提供即时的自动化验证（验证自动化），<strong>Git</strong> 提供完美的版本控制和回退。这三样正好把代码任务钉在四象限的核心「最佳区域」里。赢在 Harness，不在模型。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>把这套 Harness 组件看成活的，最好的办法是读一个真跑起来的 Coding Agent。配套仓库里的 <code>chapter5/coding-agent/</code> 是一个纯 Python 实现的生产级 Coding Agent，把 tools.json 里全部 17 个工具落地（Read/Write/Edit、纯 Python 的 Grep、Glob、持久 Bash 会话、TodoWrite 等），并集中演示了本课提到的反馈信号与纠正机制——工具调用计数（3 次以上告警防死循环）、详细错误信息、Write/Edit 后<strong>自动 lint 检测</strong>。边读边对照四象限：看它是如何用这些基建把任务往「最佳区域」按的。仓库入口：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是书的<strong>第 5 章「Harness 工程在 Coding Agent 中的实践」</strong>一节及其中的表5-1，建议连着第一章 <strong>Agent = Model + Harness</strong> 的定义一起读。第 5 章还牵出两个偏安全、可选读的延伸话题，它们的完整评测收在作者自己的两篇论文里：Li, Bojie and Noah Shi. <em>Whose Side Is Your Agent On? Multi-Party Principal Loyalty in LLM Agents.</em> arXiv:2606.30383, 2026；以及 Li, Bojie. <em>The Application Layer Is No Longer Trusted: Enforcing Data Invariants Below AI-Written Code and AI Agents.</em> 2026（待发表）。安全威胁模型部分则以 Simon Willison 的「致命三要素」（lethal trifecta）为一手概念来源。研究项目主页：<a href="https://01.me/research/">01.me/research</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把手头某个真实任务丢进这四格里定位一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0029-three-layer-business-rule-enforcement.html"><span class="dir">← 上一课</span>业务规则代码化：为什么最后守门员不能信模型自报的参数</a>
+  <a class="next" href="0031-proposer-reviewer-for-media.html"><span class="dir">下一课 →</span>提议者-审核者机制：让 Agent 看见自己生成的效果</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

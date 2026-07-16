@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0042 · 为什么无限上下文也不会让 Agent 自动学习</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0042 课 · 进阶应用 · 自我进化 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>无限上下文，也换不来自动学习</h1>
+
+<p class="lede">第八章开篇抛出一个诱人的假设：<strong>如果上下文窗口可以无限长，把 Agent 经历过的所有对话和工具调用结果全塞进去，它是不是就能自动学会一切？</strong>本课只押一个判断——答案是<strong>否定的</strong>。原因藏在注意力机制里：注意力<strong>像检索，而非归纳</strong>。理解了这道鸿沟，你才会接受整章的理论出发点：<strong>学习不会自动发生，必须被显式设计出来</strong>。这句话就是第八章存在的理由。</p>
+
+<h2>一、先看这个诱人的假设错在哪</h2>
+
+<p>前面几章分别搭起了 Agent 的能力体系：第二章的上下文工程、第三章的知识库与用户记忆、第五章用文件系统沉淀经验、第七章把策略固化进模型参数。它们都指向同一个问题——<strong>Agent 如何持续变强？</strong>一个最省事的想法是：既然上下文越来越长，那干脆把一切都记进去，让模型自己悟。</p>
+
+<p>作者把这个想法直接否掉了，理由要回到第二章反复强调的一句话：<strong>上下文学习的内部机制更像检索，而非推理</strong>。注意力擅长的是“查找”，不擅长在一次前向传播里“归纳统计”。书里用一组笼子的例子把这道分界画得很清楚：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 260" role="img" aria-label="对比轴：左侧检索是一步命中，右侧归纳需要遍历全部记录并维护计数，中间隔着一道压缩鸿沟需要人工填补">
+  <!-- 左：检索 -->
+  <rect class="dgm-good-node" x="30" y="40" width="250" height="150" rx="10"/>
+  <text class="dgm-text" x="155" y="70" font-size="15" font-weight="700" text-anchor="middle">检索 / 查找</text>
+  <text class="dgm-muted" x="155" y="94" font-size="12" text-anchor="middle">“第 37 个笼子里是什么猫？”</text>
+  <text class="dgm-accent-text" x="155" y="132" font-size="20" font-weight="700" text-anchor="middle">一步命中 ✓</text>
+  <text class="dgm-muted" x="155" y="160" font-size="11.5" text-anchor="middle">定位一条记录即可</text>
+
+  <!-- 右：归纳 -->
+  <rect class="dgm-node" x="440" y="40" width="250" height="150" rx="10"/>
+  <text class="dgm-text" x="565" y="70" font-size="15" font-weight="700" text-anchor="middle">归纳 / 统计</text>
+  <text class="dgm-muted" x="565" y="94" font-size="12" text-anchor="middle">“100 个笼子里共有几只黑猫？”</text>
+  <text class="dgm-text" x="565" y="128" font-size="14" font-weight="700" text-anchor="middle">遍历全部 + 维护计数</text>
+  <text class="dgm-muted" x="565" y="152" font-size="11.5" text-anchor="middle">本质是思考，不是检索</text>
+
+  <!-- 中间：压缩鸿沟 -->
+  <path class="dgm-edge" d="M285 115 L435 115" fill="none" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <rect class="dgm-accent-node" x="322" y="92" width="76" height="46" rx="8"/>
+  <text class="dgm-accent-text" x="360" y="112" font-size="12" font-weight="700" text-anchor="middle">压缩</text>
+  <text class="dgm-accent-text" x="360" y="128" font-size="12" font-weight="700" text-anchor="middle">鸿沟</text>
+  <text class="dgm-muted" x="360" y="168" font-size="11" text-anchor="middle">从“具体记录”到“一般模式”</text>
+  <text class="dgm-muted" x="360" y="184" font-size="11" text-anchor="middle">这一步没人替模型完成</text>
+
+  <text class="dgm-muted" x="360" y="228" font-size="12.5" text-anchor="middle">信息就在那里，却不会自己变成规律 —— 哪怕上下文无限大</text>
+</svg>
+</div>
+<figcaption>左边是注意力的强项（一步定位一条记录），右边是它的弱项（要在一次前向传播里遍历并计数）。真正的学习发生在中间那道“压缩鸿沟”——把具体记录提炼成一般模式，而这一步模型不会自动帮你做。</figcaption>
+</figure>
+
+<p>所以把原始经验一股脑堆进上下文，模型能“<strong>记得</strong>”，却不会自动把它“<strong>提炼</strong>”成可复用的规律。哪怕上下文真的无限大，这道鸿沟依然存在：信息就在那里，却没人替模型完成从“具体记录”到“一般模式”的那步压缩。</p>
+
+<h2>二、为什么“越长越好”反而是幻觉</h2>
+
+<p>假设还有一个更隐蔽的漏洞。你可能觉得：就算不能自动归纳，至少信息越多、检索越准吧？<strong>恰恰相反。</strong>第二章讲过“上下文腐化”：<strong>上下文越长、噪声越多，注意力被稀释得越厉害，关键信息反而越难被检索到</strong>。</p>
+
+<figure class="diagram">
+<div class="axis">
+  <div class="mark" style="left:8%"><span class="fill-label">短上下文 · 检索精准</span></div>
+  <div class="mark" style="left:92%"><span class="fill-label">无限上下文 · 检索劣化</span></div>
+</div>
+<figcaption>不是“信息越多能力越强”的单调上升，而是随长度增加、检索质量持续下滑。无限上下文非但不带来自动学习，还会让它赖以运转的检索本身越来越不可靠。</figcaption>
+</figure>
+
+<p>把两点合起来看：一头是<strong>归纳做不到</strong>（缺压缩），另一头是<strong>连检索都在退化</strong>（上下文腐化）。作者顺势把 Karpathy 的洞察反过来读——模型“<strong>记性差是特性而非缺陷</strong>”，它逼着我们主动、显式地去做知识提炼，而不是指望模型自己从冗长历史里悟出规律。结论只有一句：</p>
+
+<div class="bookquote">
+学习不会自动发生，必须被显式设计出来——这正是本章存在的理由。
+<span class="src">——《深入理解 AI Agent》第八章</span>
+</div>
+
+<p>而“显式设计的学习”并非到第八章才登场。前几章已埋下雏形，只是它们大多服务于<strong>单次会话之内</strong>或<strong>紧邻会话</strong>的即时需求：第二章的<strong>上下文压缩</strong>，用一次额外的 LLM 调用把臃肿的原始记录“换”成算好的结论，替注意力补上欠缺的那半截“提炼”；第二章的 <strong>Agent 状态栏</strong>，由代码把关键结论确定性地维护进上下文；第三章的<strong>用户记忆</strong>，则已把“学习”推向跨会话。第八章要补的是更长期的另一半——把解题策略、操作流程、失败教训乃至全新工具，沉淀为可持久、可检索、可复用的<strong>能力</strong>。</p>
+
+<h2>三、把它放进三种学习范式的坐标里</h2>
+
+<p>第一章的三种范式（图1-4）在这里只作定位性对照。理解它们的分工，你就知道本章讲的“自我进化”到底站在哪个格子里。</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">后训练（RL）</div><div class="head">改权重</div><div class="sub">把经验固化为“肌肉记忆”；成功率高、延迟低，但更新成本高、周期长</div></div>
+  <div class="cell"><div class="role">上下文学习（ICL）</div><div class="head">临时适应</div><div class="sub">提示里给示范样例；成本低、见效快，但随会话结束而消失</div></div>
+  <div class="cell"><div class="role">外部化学习</div><div class="head">存到模型之外</div><div class="sub">沉淀进文件、知识库、工具；持久、可解释、可随时修正——本章主角</div></div>
+</div>
+<figcaption>三者协同而非竞争：稳定的行为与格式交给后训练固化，当下的临时信息交给上下文学习，而“不改权重却要持续变能干”的那部分，只能靠外部化学习。本课论证的正是它为什么<strong>必须</strong>存在。</figcaption>
+</figure>
+
+<p>为什么值得单独强调“不会自动学习”这件事？因为它决定了整章的姿态：既然模型不会自己提炼，那就得<strong>在任务完成后用额外算力把经验总结、压缩、结构化，再存入可持久化、可检索的外部系统</strong>——就像一位客服老手把散落的退款规则整理成一本随时翻阅、并根据新情况自主更新的手册。这正是作者反复用的比喻：与其期待模型记住一切，不如给它一个“记录本”。</p>
+
+<div class="pitfall">
+<p><strong>误区一：“上下文够长就能自动学会。”</strong> 这是初学者最难放下的直觉。错因在于把“记得”当成了“学会”——注意力能把第 37 条记录一步取回，却无法在一次前向传播里遍历 100 条并维护计数。缺的不是容量，是那步<strong>压缩</strong>（从具体到一般）。而且长上下文还会因“上下文腐化”让检索本身变差，越堆越糊。</p>
+<p><strong>误区二：把“外部化学习”与第五章的“Agent 自举”混为一谈。</strong> 前者是<strong>不改权重</strong>的能力增长（把经验/能力外部化为知识、Skill、工具）；后者（第五章“代码创造代码”）讲的是 Agent 创建与自身<strong>同类的系统</strong>。两回事。</p>
+<p><strong>误区三：把第三章的“用户记忆”当成本章要沉淀的“能力”。</strong> 用户记忆沉淀的是“用户是谁”的<strong>信息</strong>（偏好、事实、习惯）；本章要沉淀的是“越来越能干”的<strong>能力</strong>（策略、流程、工具）。别把“记得更多”误当“更能干”。</p>
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>外部化学习（Externalized Learning）</dt>
+<dd>把知识沉淀到模型之外的文件、知识库和工具中的学习范式，持久、可解释、可随时修正；含“经验外部化为知识 / Skill”与“能力外部化为工具”两个维度。<em>避免</em>把它等同于“记忆”或泛泛的“持久化”——它特指<strong>不改权重</strong>的第三条学习路径。</dd>
+<dt>上下文腐化（Context Rot）</dt>
+<dd>上下文越长、噪声越多，注意力被稀释得越厉害，关键信息反而越难被检索到。它是“无限上下文不能带来自动学习”的第二重原因：连检索质量都会随长度持续下滑。</dd>
+<dt>系统提示学习（System Prompt Learning）</dt>
+<dd>Karpathy 提出的学习方式，直接修改系统提示词文本、从边界案例快速学习明文规则，不改模型参数。<em>避免</em>与微调 / RL 混为一谈——它不做梯度下降，学习算法是“改文本”。</dd>
+</dl>
+
+<h2>五、本课要带走的一句话</h2>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：注意力像<strong>检索</strong>不像<strong>归纳</strong>——它能取回第 37 条记录，却不会自己把 100 条记录数成一条规律。所以无论上下文多长，从“具体记录”到“一般模式”那步<strong>压缩</strong>永远得由人显式设计（何况长上下文还会腐化检索）。记住这条，你就懂了第八章为什么整章都在讲“怎么替模型把学习做出来”。</div>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：如果把 Agent 经历的所有对话都塞进一个无限长的上下文，它能自动学会规律吗？为什么？</summary>
+<div class="answer">
+<p><strong>不能。</strong>注意力擅长“查找”（第 37 个笼子里是什么猫，一步命中），却不擅长在一次前向传播里“归纳统计”（100 个笼子里共多少黑猫，需遍历 + 维护计数）。信息在那里但没人替模型完成“从具体记录到一般模式”的压缩；而且上下文越长噪声越多（“上下文腐化”），检索质量还会下降。所以学习不会自动发生，必须显式设计。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：本章的“外部化学习”和第五章“代码创造代码：Agent 自举”有什么本质区别？和第三章的“用户记忆”又怎么划清界限？</summary>
+<div class="answer">
+<p>与第五章的区别：<strong>外部化学习不改模型权重</strong>，靠把经验和能力沉淀到模型之外（知识库、Skill、工具）来变能干；第五章的自举讲的是 Agent 创建与自身<strong>同类的系统</strong>，是另一件事。与第三章的界限：用户记忆沉淀的是“用户是谁”的<strong>信息</strong>（偏好、事实、习惯），本章要补的是“越来越能干”的<strong>能力</strong>（解题策略、操作流程、失败教训乃至新工具）——一个让 Agent “记得更多”，一个让它“更能干”。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本章从“记录并复用成功经验”开始把“显式设计的学习”落地。第一站是<strong>实验 8-1 ★★（从成功经验中学习：策略摘要）</strong>，对应开源仓库 <code>chapter8/gaia-experience/</code>：基于 AWorld + GAIA 搭一个完整的“学习—应用”闭环——成功轨迹被 LLM 反思、总结成结构化经验，向量化存入知识库；新任务先做语义检索，把最相似的成功案例注入系统提示词。它正是本课那句“必须显式设计”的第一个工程答案。配套仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是<strong>第八章开篇“为什么 Agent 不会自动学习”一节</strong>（<code>book/chapter8.md</code>），建议连着“三种学习范式与自我进化的定位”一起读，把坐标系立住。章末的设计原则来自 Alita 论文——<strong>“最小预定义，最大自我进化”</strong>（Qiu, J., et al. <em>Alita: Generalist Agent Enabling Scalable Agentic Reasoning with Minimal Predefinition and Maximal Self-Evolution.</em> <a href="https://arxiv.org/abs/2505.20286">arXiv:2505.20286</a>, 2025）。延伸阅读：Reflexion（<a href="https://arxiv.org/abs/2303.11366">arXiv:2303.11366</a>）、GEPA（<a href="https://arxiv.org/abs/2507.19457">arXiv:2507.19457</a>）、MCP-Zero（<a href="https://arxiv.org/abs/2506.01056">arXiv:2506.01056</a>），以及 Anthropic 的 <a href="https://github.com/anthropics/skills/blob/main/skill-creator/SKILL.md">Skill Creator</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“检索 vs 归纳”这道鸿沟用别的例子再走一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0041-dense-signal-frontier.html"><span class="dir">← 上一课</span>稀疏奖励的困境与两种破局：RLVP 与 On-Policy Distillation</a>
+  <a class="next" href="0043-three-deliverables-of-experience.html"><span class="dir">下一课 →</span>经验该存成什么：知识库、代码工具、还是 Skill</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

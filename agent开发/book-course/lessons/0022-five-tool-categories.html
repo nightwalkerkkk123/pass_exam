@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0022 · 五类工具：用「谁发起 × 作用于什么」钉死定位</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0022 课 · 支柱二(工具) · 工具设计 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>五类工具：用「谁发起 × 作用于什么」两个坐标钉死定位</h1>
+
+<p class="lede">第 4 章一上来不讲任何一个具体工具，而是先摊开一张<strong>地图</strong>——表4-1。这节课唯一要拿下的东西，就是这张地图的两根坐标轴：<strong>调用方向</strong>（这次交互由谁发起）和<strong>作用对象</strong>（这次交互作用于什么）。用这两个特征，感知 / 执行 / 协作 / 事件触发 / 用户沟通五类工具的定位被一次性钉死。把这张图记牢，后面整章逐类深入时你都不会迷路。</p>
+
+<h2>一、先给意象：Samantha 的「手脚和感官」</h2>
+
+<p>作者借科幻电影《Her》里的 AI 助手 Samantha 开场：她能主动整理邮件、识别情感复杂的信件并提议润色回复，能代表主角处理出版事宜，还能在不同沟通渠道间无缝切换。她的智能之所以动人，是因为她拥有强大的<strong>工具</strong>——连接语言「大脑」与真实数字世界的<strong>「手脚和感官」</strong>。</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">感官</div><div class="head">🔍 感知</div><div class="sub">获取信息</div></div>
+  <div class="cell"><div class="role">手脚</div><div class="head">🌍 执行 / 协作</div><div class="sub">改变世界·驱动他人</div></div>
+  <div class="cell"><div class="role">被唤醒·会说话</div><div class="head">⏰💬 事件触发 / 用户沟通</div><div class="sub">世界能叫醒她·她能异步回话</div></div>
+</div>
+<figcaption>工具让「大脑」长出手脚和感官。五类工具，本质上就是回答四件事：她能看到什么、能改变什么、能叫谁帮忙、以及世界怎么叫醒她、她又怎么向你回话。</figcaption>
+</figure>
+
+<h2>二、两根坐标轴，一张表</h2>
+
+<p>要理解这五类工具的设计差异，作者建议从两个特征去审视它们：</p>
+
+<ul>
+<li><strong>调用方向</strong>——这次交互<strong>由谁发起</strong>。是 Agent 自己主动去调，还是外部世界把它叫醒？</li>
+<li><strong>作用对象</strong>——这次交互<strong>作用于什么</strong>。是拿信息、改世界、驱动别人，还是唤醒自己、告知用户？</li>
+</ul>
+
+<p>这就是表4-1 的两列。下面这张信息图把表4-1 逐行画开——左看「谁发起」，右看「作用于什么」：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 410" role="img" aria-label="表4-1 五类工具信息图：每行一类工具，左列调用方向用箭头表示由谁发起，右列作用对象用图标表示作用于什么">
+  <!-- header -->
+  <text class="dgm-muted" x="120" y="30" font-size="12" font-weight="700" text-anchor="middle">工具类型</text>
+  <text class="dgm-muted" x="360" y="30" font-size="12" font-weight="700" text-anchor="middle">调用方向（谁发起）</text>
+  <text class="dgm-muted" x="610" y="30" font-size="12" font-weight="700" text-anchor="middle">作用对象（作用于什么）</text>
+  <line class="dgm-edge" x1="20" y1="42" x2="700" y2="42" stroke-width="1"/>
+
+  <!-- row 1 感知 -->
+  <rect class="dgm-node" x="20" y="56" width="200" height="46" rx="8"/>
+  <text class="dgm-text" x="120" y="84" font-size="14" font-weight="700" text-anchor="middle">感知工具</text>
+  <text class="dgm-muted" x="300" y="76" font-size="11" text-anchor="middle">Agent</text>
+  <line class="dgm-edge" x1="330" y1="80" x2="418" y2="80" stroke-width="1.5" marker-end="url(#out)"/>
+  <text class="dgm-muted" x="430" y="76" font-size="11" text-anchor="start">外部</text>
+  <text class="dgm-muted" x="360" y="96" font-size="10.5" text-anchor="middle">Agent 主动调用</text>
+  <text class="dgm-text" x="610" y="85" font-size="12.5" text-anchor="middle">🔍 获取信息</text>
+
+  <!-- row 2 执行 -->
+  <rect class="dgm-node" x="20" y="116" width="200" height="46" rx="8"/>
+  <text class="dgm-text" x="120" y="144" font-size="14" font-weight="700" text-anchor="middle">执行工具</text>
+  <text class="dgm-muted" x="300" y="136" font-size="11" text-anchor="middle">Agent</text>
+  <line class="dgm-edge" x1="330" y1="140" x2="418" y2="140" stroke-width="1.5" marker-end="url(#out)"/>
+  <text class="dgm-muted" x="430" y="136" font-size="11" text-anchor="start">外部</text>
+  <text class="dgm-muted" x="360" y="156" font-size="10.5" text-anchor="middle">Agent 主动调用</text>
+  <text class="dgm-text" x="610" y="145" font-size="12.5" text-anchor="middle">🌍 改变世界</text>
+
+  <!-- row 3 协作 -->
+  <rect class="dgm-node" x="20" y="176" width="200" height="46" rx="8"/>
+  <text class="dgm-text" x="120" y="204" font-size="14" font-weight="700" text-anchor="middle">协作工具</text>
+  <text class="dgm-muted" x="300" y="196" font-size="11" text-anchor="middle">Agent</text>
+  <line class="dgm-edge" x1="330" y1="200" x2="418" y2="200" stroke-width="1.5" marker-end="url(#out)"/>
+  <text class="dgm-muted" x="430" y="196" font-size="11" text-anchor="start">外部</text>
+  <text class="dgm-muted" x="360" y="216" font-size="10.5" text-anchor="middle">Agent 主动调用</text>
+  <text class="dgm-text" x="610" y="205" font-size="12.5" text-anchor="middle">🤝 驱动其他 Agent 或人类</text>
+
+  <!-- row 4 事件触发 (highlighted, reversed arrow) -->
+  <rect class="dgm-hub" x="20" y="236" width="200" height="46" rx="8"/>
+  <text class="dgm-accent-text" x="120" y="264" font-size="14" font-weight="700" text-anchor="middle">事件触发工具</text>
+  <text class="dgm-muted" x="300" y="256" font-size="11" text-anchor="middle">Agent</text>
+  <line class="dgm-edge" x1="418" y1="260" x2="330" y2="260" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#in)"/>
+  <text class="dgm-muted" x="430" y="256" font-size="11" text-anchor="start">外部</text>
+  <text class="dgm-muted" x="360" y="276" font-size="10.5" text-anchor="middle">Agent 注册、外部触发</text>
+  <text class="dgm-text" x="610" y="265" font-size="12.5" text-anchor="middle">⏰ 驱动 Agent 开始执行</text>
+
+  <!-- row 5 用户沟通 -->
+  <rect class="dgm-node" x="20" y="296" width="200" height="46" rx="8"/>
+  <text class="dgm-text" x="120" y="324" font-size="14" font-weight="700" text-anchor="middle">用户沟通工具</text>
+  <text class="dgm-muted" x="300" y="316" font-size="11" text-anchor="middle">Agent</text>
+  <line class="dgm-edge" x1="330" y1="320" x2="418" y2="320" stroke-width="1.5" marker-end="url(#out)"/>
+  <text class="dgm-muted" x="430" y="316" font-size="11" text-anchor="start">用户</text>
+  <text class="dgm-muted" x="360" y="336" font-size="10.5" text-anchor="middle">Agent 主动调用</text>
+  <text class="dgm-text" x="610" y="325" font-size="12.5" text-anchor="middle">💬 向用户传递信息</text>
+
+  <text class="dgm-muted" x="360" y="372" font-size="11" text-anchor="middle">四类由 Agent 主动发起（实线向外）；唯有事件触发是外部把 Agent 叫醒（虚线回箭头）</text>
+
+  <defs>
+    <marker id="out" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+    <marker id="in" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>表4-1 · 五类工具的调用方向与作用对象。左列的箭头是记忆抓手：四类都是 Agent 主动伸手（实线向外），只有事件触发工具是「注册在先、外部叫醒在后」（虚线回箭头）。</figcaption>
+</figure>
+
+<p>逐类对号入座，各给几个书里的例子：</p>
+
+<ul>
+<li><strong>感知工具</strong>（主动 / 获取信息）：<code>web_search</code>、<code>knowledge_base_search</code>、<code>fetch_url</code>、<code>find_file</code>、<code>grep_file</code>、<code>read_file</code>。设计关键在<strong>粒度权衡与输出信息量的控制</strong>。</li>
+<li><strong>执行工具</strong>（主动 / 改变世界）：<code>shell_exec</code>、<code>code_interpreter</code>、<code>write_file</code>、<code>edit_file</code>、<code>send_email</code>。与感知不同，它的错误代价可能极高，<strong>安全约束是设计核心</strong>。</li>
+<li><strong>协作工具</strong>（主动 / 驱动其他 Agent 或人类）：<code>spawn_subagent</code>、<code>send_message_to_subagent</code>、<code>cancel_subagent</code>。最简单的动机是并行执行互不相关的多个任务。</li>
+<li><strong>事件触发工具</strong>（注册+外部触发 / 驱动 Agent 开始执行）：<code>set_timer</code>、<code>monitor_shell</code>、<code>connect_channel</code>。</li>
+<li><strong>用户沟通工具</strong>（主动 / 向用户传递信息）：<code>reply_to_user</code>、<code>send_card_to_user</code>、<code>send_user_notification</code>。</li>
+</ul>
+
+<h2>三、为什么「事件触发」这一行长得不一样（深挖）</h2>
+
+<p>盯着上图，会发现只有事件触发工具的箭头是反的。这不是画着好看，而是它内在的<strong>双时刻</strong>结构：</p>
+
+<ul>
+<li><strong>注册</strong>时——由 <strong>Agent 主动调用</strong>工具，声明「我关心什么事件」（比如设一个定时器、连上一个邮件通道）。</li>
+<li><strong>触发</strong>时——由<strong>外部事件异步回调</strong>，把 Agent 从「没在运行」的状态里唤醒，让它开始处理。</li>
+</ul>
+
+<p>这正是表4-1 里那句「Agent 注册、外部触发」的全部含义。它为什么值得单独成一类？因为<strong>没有它，Agent 就只能等用户开口才能动</strong>——无法在指定时间自主行动，也无法对新邮件、系统告警这类外部事件做出反应。Samantha 之所以能「主动」整理邮件，靠的就是这一类。也正因为它和用户沟通工具都依赖「Agent 在没有会话保持时被唤醒 / 主动说话」，这两类工具的设计离不开本章后半部分的<strong>事件驱动异步架构</strong>——而前三类由 Agent 主动调用的工具，则会先逐类展开。</p>
+
+<div class="pitfall">
+<p><strong>误区一：把这两列当成一张交叉分类矩阵去填。</strong>初学者一看「两个特征」，本能地想画一个「调用方向 × 作用对象」的九宫格，然后去每个格子里塞工具。作者在原文里专门打了预防针：<strong>这两列并不构成一个交叉分类框架</strong>——每类工具在「作用对象」上各有专属取值。它们只是帮你快速把握每类工具的定位，不是让你去做笛卡尔积。</p>
+<p><strong>误区二：靠「用什么渠道发」来归类。</strong>「发通知」这个动作，用邮件还是 Slack 发，跟它属于哪一类无关。<strong>归类看的是作用对象，不是渠道</strong>：通知一个协作者 / 审批者去推进任务，是<strong>协作工具</strong>（驱动其他 Agent 或人类）；通知<strong>最终用户本人</strong>，才是<strong>用户沟通工具</strong>（向用户传递信息）。同一个「发通知」，对象不同，归类就不同。</p>
+</div>
+
+<h2>四、这张地图为什么重要（宏观背景）</h2>
+
+<p>第 4 章的野心是把「工具」讲透——通用设计原则、MCP 生态、执行工具的多层安全、支撑主动服务的事件驱动架构，内容很密。作者不先给这张地图，你读到后面就会被一堆工具名淹没。这两根坐标轴的价值，是让你随时能回答一个定位问题：<strong>我现在读的这个设计，是在解决「Agent 怎么伸手」还是「世界怎么叫醒它」的问题？</strong>调用方向一分，全章的结构就立起来了——前三类主动工具讲「怎么把手伸得准、伸得安全」，后两类被动 / 异步工具讲「怎么让 Agent 活在一个随时会打断它的真实世界里」。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：拿到任何一个工具，先问两句——<strong>这次交互谁发起（调用方向）、作用在什么上（作用对象）</strong>。四类是 Agent 主动伸手，只有事件触发是「注册在先、外部叫醒」。归类永远看作用对象，不看用什么渠道。这两列不是矩阵，别去填九宫格。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>调用方向（Invocation direction）</dt>
+<dd>审视一类工具的第一个特征：这次交互<strong>由谁发起</strong>。取值只有两种——Agent 主动调用，或 Agent 注册后由外部异步触发。<em>避免</em>把它和「作用对象」拼成一张交叉分类矩阵。</dd>
+<dt>作用对象（Target of action）</dt>
+<dd>审视一类工具的第二个特征：这次交互<strong>作用于什么</strong>。五类各有专属取值：获取信息 / 改变世界 / 驱动其他 Agent 或人类 / 驱动 Agent 开始执行 / 向用户传递信息。归类以此为准，不看使用的渠道。</dd>
+<dt>事件触发工具（Event-trigger tool）</dt>
+<dd>外部世界驱动 Agent 行动的方式，涉及两个时刻：<strong>注册</strong>时 Agent 主动声明关心的事件，<strong>触发</strong>时外部异步回调唤醒 Agent。<em>避免</em>把它和 Agent 主动调用的工具混为一谈——它的箭头是反的。</dd>
+<dt>ACI（Agent-Computer Interface）</dt>
+<dd>对标 HCI（人机交互）提出的概念：研究 Agent 如何与计算机交互，核心是让工具对 Agent 而非对人友好——工具应对应 Agent 的目标而非底层 API 操作。这是分类之后逐类设计工具时的通用透镜。<em>避免</em>把它等同于「API」或「函数调用规范」；ACI 是设计理念层面的，不是某种具体协议。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：「新邮件到达时唤醒 Agent」和「Agent 回复用户消息」分别属于哪类工具？为什么发通知这个动作可能既属协作又属用户沟通？</summary>
+<div class="answer">
+<p>前者是<strong>事件触发工具</strong>（Agent 注册、外部触发）；后者是<strong>用户沟通工具</strong>（Agent 主动调用、向用户传递信息）。发通知的归类<strong>不看渠道而看对象</strong>：通知审批者 / 协作 Agent 去推进任务，归<strong>协作工具</strong>；通知<strong>最终用户本人</strong>，才归<strong>用户沟通工具</strong>。同一个动作，作用对象不同，归类就不同。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：感知工具和执行工具都是「Agent 主动调用」，那它们靠哪一列区分？各自的设计核心又是什么？</summary>
+<div class="answer">
+<p>它们的<strong>调用方向相同</strong>，区别全在<strong>作用对象</strong>：感知是「获取信息」，执行是「改变世界」。设计核心也随之不同——感知工具的关键在<strong>粒度权衡与输出信息量的控制</strong>；执行工具因为错误代价可能极高，<strong>安全约束才是它的设计核心</strong>。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本章的五类工具各有可跑的 MCP 服务器实现，正好一类一验：感知工具见<strong>实验4-1</strong>（<code>chapter4/perception-tools</code>，搜索 / 多模态理解 / 文件系统 / 公开与私有数据源）；执行工具见<strong>实验4-2</strong>（<code>chapter4/execution-tools</code>，带自动 linter 验证的写入、沙盒 <code>code_interpreter</code>、危险命令检测、LLM 事前审批）；协作工具见<strong>实验4-3</strong>（<code>chapter4/collaboration-tools</code>，浏览器自动化、HITL 审批、多渠道通知、定时器管理）；事件触发与用户沟通两类则在<strong>实验4-4 / 4-5</strong>（<code>chapter4/agent-with-event-trigger</code>，FastAPI 原生 async，自动加载 3 个 MCP 服务器共 42 个工具，响应 web 消息 / 邮件 / GitHub / 定时器等事件）里合并演示。建议边读边跑：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是《深入理解 AI Agent》第 4 章开篇「工具的分类」一节与<strong>表4-1</strong>。想再往前看一步，本章脚注特别引用了作者自己的论文——<strong>Li, Bojie and Noah Shi. <em>Never Stop Thinking: Continuous-Time Language Agents</em>（2026，待发表）</strong>：它论证约两百行编排即可把现成的思考模型改造成持续思考的 Agent，且训练信号决定这种持续思考是否有用。这篇正是支撑「事件触发 / 用户沟通」两类工具所依赖的<strong>异步架构</strong>的理论底子，读完本课的地图后再读它，会更知道它在整章里的位置。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「调用方向 × 作用对象」这两根轴各自的取值再过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0021-agentic-rag-react-loop.html"><span class="dir">← 上一课</span>智能体化 RAG：从被动检索管道到主动探索的研究员</a>
+  <a class="next" href="0023-dedicated-tool-vs-skill.html"><span class="dir">下一课 →</span>专用工具还是 Skill+通用执行器？三维决策</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0003 · 从聊天到 messages：喂给大脑的到底是什么</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server · 第 03 课 · 预计 9 分钟 · 上一课 <a href="02-the-agent-loop.html">02 最小内核：心跳循环</a> · 下一课 <a href="04-system-prompt-persona.html">04 System Prompt：人格与规矩</a></p>
+
+<h1>从聊天到 messages：喂给大脑的到底是什么</h1>
+
+<p class="lede">上一课我们说，循环每转一圈都要"组装一份东西发给大脑"。这一课就把这份东西彻底摊开：它不是一句话，而是一摞贴了"谁在说话"标签的消息。看懂这一摞，你就看懂了 agent 的记忆是怎么装进去的。</p>
+
+<div class="chain in">
+<p>上一课留了个悬念：心跳循环里那句"组装一份东西发给大脑"（<code>buildConductorMessages</code>），到底组装的是什么？我们只知道它<strong>不是一句话</strong>，而是一个"有结构的数组"。可这数组长什么样？里面装了几种东西？为什么每转一圈都要重新拼一遍？这一课全部讲清。</p>
+</div>
+
+<h2>一、先打个比方：这不是聊天，是一份带署名的剧本</h2>
+
+<p>ELI5 时间。你可能以为，跟大模型说话就像发微信：你发一句，它回一句。但真相是——<strong>大模型没有记忆</strong>。它不像微信那样有个聊天记录存在服务器上。每次你问它，它都像<em>第一次醒来、什么都不记得</em>的人。</p>
+
+<p>那它怎么"记得"刚才聊过什么？答案很朴素：<strong>你每次都把从头到尾的完整对话再抄一遍递给它。</strong>就像你去看一个失忆的老中医，每次进门都要把"上次你说我该怎样、我吃了药之后怎样"从头复述一遍，他才能接着看。</p>
+
+<p>而这份"从头复述"的稿子，不是一段大白话，而是一份<strong>带署名的剧本</strong>：每一句话前面都标着"这句是谁说的"。这个"谁"，在代码里叫 <strong>role（角色）</strong>。</p>
+
+<dl class="keydef">
+<dt>message（消息）</dt>
+<dd>剧本里的一句话。它至少包含两样东西：<code>role</code>（谁说的）和内容（说了什么）。一条消息就是数组里的一个元素。</dd>
+<dt>role（角色 / 署名）</dt>
+<dd>标明这句话出自谁之口。它不是装饰——模型会根据 role 用完全不同的态度去读这句话：<code>system</code> 的话它当"最高指令"，<code>user</code> 的话它当"要满足的需求"，<code>tool</code> 的话它当"客观事实"。</dd>
+</dl>
+
+<h2>二、四种署名（外加一个彩蛋）</h2>
+
+<p>经典的 agent 剧本里有四种署名，各司其职。用一场"帮我查今天汇率"的对话来认一遍：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 470" role="img" aria-label="一条 messages 数组：从上到下依次是 system、developer、user、assistant、tool、assistant 六条消息">
+  <!-- 右侧竖轴：从旧到新 -->
+  <line class="dgm-edge" x1="34" y1="40" x2="34" y2="430" stroke-width="1.5"/>
+  <text class="dgm-muted" x="20" y="46" font-size="11" text-anchor="middle">旧</text>
+  <text class="dgm-muted" x="20" y="428" font-size="11" text-anchor="middle">新</text>
+  <text class="dgm-muted" x="20" y="235" font-size="11" text-anchor="middle" transform="rotate(-90 20 235)">数组顺序（发给模型时从上往下读）</text>
+
+  <!-- 1. system -->
+  <rect class="dgm-hub" x="70" y="34" width="470" height="58" rx="8" stroke-width="2"/>
+  <text class="dgm-accent-text" x="86" y="56" font-size="13" font-weight="700">system</text>
+  <text class="dgm-text" x="86" y="78" font-size="12.5">你是 AnyGen，一个能查资料、写代码、做幻灯片的 AI 助手，规矩是……</text>
+  <text class="dgm-muted" x="628" y="66" font-size="11" text-anchor="middle">人格 + 规矩</text>
+
+  <!-- 2. developer -->
+  <rect class="dgm-node" x="70" y="100" width="470" height="58" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="86" y="122" font-size="13" font-weight="700">developer</text>
+  <text class="dgm-text" x="86" y="144" font-size="12.5">&lt;context_info&gt; 今天是 2026-07-15，用户昵称小明…… &lt;/context_info&gt;</text>
+  <text class="dgm-muted" x="628" y="132" font-size="11" text-anchor="middle">彩蛋·第 5 种</text>
+
+  <!-- 3. user -->
+  <rect class="dgm-node" x="120" y="166" width="420" height="50" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="136" y="188" font-size="13" font-weight="700">user</text>
+  <text class="dgm-text" x="136" y="208" font-size="12.5">帮我查一下今天美元对人民币的汇率</text>
+  <text class="dgm-muted" x="628" y="192" font-size="11" text-anchor="middle">她的需求</text>
+
+  <!-- 4. assistant (要调工具) -->
+  <rect class="dgm-node" x="70" y="224" width="470" height="58" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="86" y="246" font-size="13" font-weight="700">assistant</text>
+  <text class="dgm-text" x="86" y="268" font-size="12.5">好的，我去查一下。（并要求调用 search 工具：关键词=USD CNY 汇率）</text>
+  <text class="dgm-muted" x="628" y="256" font-size="11" text-anchor="middle">模型的回复</text>
+
+  <!-- 5. tool -->
+  <rect class="dgm-good-node" x="120" y="290" width="420" height="58" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="136" y="312" font-size="13" font-weight="700">tool</text>
+  <text class="dgm-text" x="136" y="334" font-size="12.5">搜索结果：2026-07-15，1 USD ≈ 7.12 CNY（来源 …）</text>
+  <text class="dgm-muted" x="628" y="322" font-size="11" text-anchor="middle">工具吐回的事实</text>
+
+  <!-- 6. assistant (最终回答) -->
+  <rect class="dgm-node" x="70" y="356" width="470" height="58" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="86" y="378" font-size="13" font-weight="700">assistant</text>
+  <text class="dgm-text" x="86" y="400" font-size="12.5">今天 1 美元大约等于 7.12 元人民币。（这一步没再要工具→收工）</text>
+  <text class="dgm-muted" x="628" y="388" font-size="11" text-anchor="middle">最终回答</text>
+</svg>
+</div>
+<figcaption>一整摞 message 就是一次请求的全部输入。整摞由 <code>buildConductorMessages</code>（agent.go）拼出；第一条 <code>system</code> 由 <code>common.NewLLMMessageWithCache1Hour(common.System, …)</code> 建成；<code>tool</code> 那条由 <code>AddToolResult</code>（message.go）打成 <code>Role=common.Tool</code> 后追加进 <code>newMessages</code>。</figcaption>
+</figure>
+
+<p>逐个认清它们：</p>
+
+<ul>
+<li><strong><code>system</code>（系统）</strong>——整场戏的"导演须知"，写在最前面：你是谁、能干什么、守什么规矩。模型把它当最高优先级。这是下一课的主角。</li>
+<li><strong><code>user</code>（用户）</strong>——真人（她）提出的需求。</li>
+<li><strong><code>assistant</code>（助手）</strong>——模型自己上一次的回复。注意：模型说过的话，下一轮要<em>作为剧本的一部分再喂回给它</em>，它才知道"我刚才说过要去查汇率"。</li>
+<li><strong><code>tool</code>（工具）</strong>——工具跑完把结果写回来的那句话。它让模型"看见"上一步动手的成果——这正是上一课说的"工具结果变成下一轮输入"的闭环。</li>
+</ul>
+
+<div class="good">
+<strong>彩蛋·真实代码里其实有 5 种 role。</strong>mino_server 在 <code>common.go</code> 里定义了 <code>assistant / user / system / tool / developer</code> 五个常量。多出来的 <code>developer</code>（开发者）专门装"开发者悄悄塞给模型的背景资料"：比如今天几号、用户是谁、当前项目信息——就是图里第二条那个 <code>&lt;context_info&gt;</code> 块。你可以把它理解成导演在剧本边上贴的便签，观众（user）看不见，但演员（模型）能看到。下一课细讲它怎么来。</div>
+
+<h2>二·五、为什么"无状态"逼你每轮重发全部历史</h2>
+
+<p>这是最反直觉、也最重要的一点，慢慢来。</p>
+
+<p><strong>无状态（stateless）</strong>的意思是：模型服务器<em>不替你保存</em>任何对话记录。它没有一个叫"会话"的东西挂在那里。在 mino_server 里也一样——没有独立的会话对象，<strong>轮次（谁先说、谁后说）完全靠 messages 数组的先后顺序来表达</strong>。</p>
+
+<p>后果就是：想让模型记得第 1 轮说过什么，第 3 轮请求时你必须把第 1、2 轮<em>原封不动再抄进数组</em>。对话越长，每次递过去的稿子越厚。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="三轮对话，每一轮发给模型的数组都比上一轮更长，因为要把全部历史重发">
+  <!-- 第1轮 -->
+  <text class="dgm-muted" x="120" y="30" font-size="12" text-anchor="middle" font-weight="700">第 1 轮请求</text>
+  <rect class="dgm-hub" x="40" y="42" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="120" y="60" font-size="11" text-anchor="middle">system</text>
+  <rect class="dgm-node" x="40" y="72" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="120" y="90" font-size="11" text-anchor="middle">user：查汇率</text>
+
+  <!-- 第2轮 -->
+  <text class="dgm-muted" x="360" y="30" font-size="12" text-anchor="middle" font-weight="700">第 2 轮请求</text>
+  <rect class="dgm-hub" x="280" y="42" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="360" y="60" font-size="11" text-anchor="middle">system</text>
+  <rect class="dgm-node" x="280" y="72" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="90" font-size="11" text-anchor="middle">user：查汇率</text>
+  <rect class="dgm-node" x="280" y="102" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="120" font-size="11" text-anchor="middle">assistant：7.12</text>
+  <rect class="dgm-node" x="280" y="132" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="150" font-size="11" text-anchor="middle">user：换成欧元呢</text>
+
+  <!-- 第3轮 -->
+  <text class="dgm-muted" x="600" y="30" font-size="12" text-anchor="middle" font-weight="700">第 3 轮请求</text>
+  <rect class="dgm-hub" x="520" y="42" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="600" y="60" font-size="11" text-anchor="middle">system</text>
+  <rect class="dgm-node" x="520" y="72" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="600" y="90" font-size="11" text-anchor="middle">user：查汇率</text>
+  <rect class="dgm-node" x="520" y="102" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="600" y="120" font-size="11" text-anchor="middle">assistant：7.12</text>
+  <rect class="dgm-node" x="520" y="132" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="600" y="150" font-size="11" text-anchor="middle">user：换成欧元呢</text>
+  <rect class="dgm-node" x="520" y="162" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="600" y="180" font-size="11" text-anchor="middle">assistant：6.55</text>
+  <rect class="dgm-node" x="520" y="192" width="160" height="26" rx="4" stroke-width="1.5"/>
+  <text class="dgm-text" x="600" y="210" font-size="11" text-anchor="middle">user：那日元</text>
+
+  <!-- 箭头 -->
+  <text class="dgm-muted" x="240" y="88" font-size="18" text-anchor="middle">→</text>
+  <text class="dgm-muted" x="480" y="128" font-size="18" text-anchor="middle">→</text>
+
+  <text class="dgm-muted" x="360" y="255" font-size="12" text-anchor="middle">每一轮都把整摞历史重发一遍——数组只会越长，绝不会"接着上次"。</text>
+  <text class="dgm-muted" x="360" y="278" font-size="11.5" text-anchor="middle">这也解释了第 09 课的痛：聊久了这摞会撑爆窗口，必须"压缩"。</text>
+</svg>
+</div>
+<figcaption>无状态 = 没有会话对象，靠数组顺序表达轮次。历史（<code>originalMessages</code>）+ 本轮新产生的消息（<code>newMessages</code>）在 <code>newConductorBasicMessages</code>（context.go）里按时间顺序拼成完整数组，每一步 <code>buildConductorMessages</code> 都<strong>重拼一次</strong>。</figcaption>
+</figure>
+
+<p>那"本轮新产生的消息"是怎么攒起来的？就是上一课见过的两个动作：模型每回一次话，<code>AddMessage</code> 把它存成一条 <code>Role=common.Assistant</code>；每跑完一个工具，<code>AddToolResult</code> 把结果存成一条 <code>Role=common.Tool</code>——都追加进 <code>agent.newMessages</code>。下一圈重拼数组时，它们就自动被读回来当上下文。<strong>这就是循环能滚下去的物理原因。</strong></p>
+
+<h2>三、真实组装顺序：一摞是分段拼出来的</h2>
+
+<p>现在看真代码。<code>buildConductorMessages</code> 拼这摞消息不是随手一塞，而是<strong>写死的四段、每步都一样的顺序</strong>：</p>
+
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">① system</span><span class="n-sub">人格+规矩<br>挂 1 小时缓存</span></div>
+  <div class="arrow">→</div>
+  <div class="node stable"><span class="n-title">② 模式 developer 段</span><span class="n-sub">当前激活模式的<br>行为约束</span></div>
+  <div class="arrow">→</div>
+  <div class="node stable"><span class="n-title">③ hook developer 段</span><span class="n-sub">hook 注入的<br>参考文档</span></div>
+  <div class="arrow">→</div>
+  <div class="node volatile"><span class="n-title">④ chatMessages</span><span class="n-sub">上下文+历史+<br>本轮（会增长）</span></div>
+</div>
+<p style="text-align:center;font-size:.8rem;color:var(--muted);margin-top:-.6rem">
+顺序来自 <code>buildConductorMessages</code>（agent.go）：<code>system → buildModeDeveloperMessages() → hooks.BuildDeveloperMessages() → chatMessages</code>。前三段稳定、放前面（绿=能命中缓存）；第四段每步增长、放后面（橙）。
+</p>
+
+<p>为什么是这个死顺序？还记得第 01 课的"前缀缓存"吗——<strong>稳定的放前面，易变的放后面</strong>。前三段几乎每步都一模一样，正好命中缓存省钱；对话历史每轮变长，只能垫底。所以这不是随意的排版，是被计费规则逼出来的纪律。</p>
+
+<p>那第四段 <code>chatMessages</code> 里面又是什么？它自己也有一套细分顺序（在 <code>newConductorBasicMessages</code> 里，context.go）：</p>
+
+<div class="pipeline" style="font-size:.76rem">
+  <div class="node"><span class="n-title">context_info</span><span class="n-sub">developer 块</span></div>
+  <div class="arrow">→</div>
+  <div class="node"><span class="n-title">历史消息</span><span class="n-sub">含旧轮 user/assistant/tool</span></div>
+  <div class="arrow">→</div>
+  <div class="node"><span class="n-title">本轮用户请求</span><span class="n-sub">user</span></div>
+  <div class="arrow">→</div>
+  <div class="node volatile"><span class="n-title">本轮新消息</span><span class="n-sub">assistant+tool<br>末尾打缓存点</span></div>
+  <div class="arrow">→</div>
+  <div class="node volatile"><span class="n-title">结尾提示</span><span class="n-sub">还剩几步/上轮报错</span></div>
+</div>
+<p style="text-align:center;font-size:.8rem;color:var(--muted);margin-top:-.6rem">
+（历史消息与本轮用户请求之间，还可能插入 hook 的 <code>&lt;system_hint&gt;</code>，默认为空。）
+</p>
+
+<p>两个细节值得记住，都是真代码：</p>
+<ul>
+<li>那条 <code>context_info</code>（今天几号、用户是谁）由 <code>buildDeveloperContextMessage</code>（context.go）拼成一条 <code>Role=common.Developer</code> 消息，内部块严格按 <code>space_info → user_identity → current_time → main_language → current_plan → user_personalization → user_memory → mobile_app</code> 排列。顺序固定，同样是为了缓存稳定。</li>
+<li>连历史里<em>真人说的话</em>也会被 <code>convertOriginalMessages</code> 用 <code>&lt;user_request&gt;</code> 标签重新包一层——目的是让新旧消息格式完全一致，别让格式的小差异击穿缓存。</li>
+</ul>
+
+<div class="good">
+<strong>一个容易踩的误解，顺手澄清：</strong>你可能以为"能用哪些工具"也写在 messages 里。<em>不是。</em>在 mino_server 里，工具清单是通过 <code>model.WithTools(toolInfos)</code> 作为 API 的<strong>带外参数</strong>单独传给模型的，不进 messages 数组。messages 里的 <code>system</code> 只写工具的"使用规则"文字，真正的工具"说明书"走另一条道。这正是 chat 和 agent 的一处关键差异——第 05 课细讲。</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>messages 数组</dt>
+<dd>一次请求喂给模型的<strong>全部输入</strong>，一个按时间排好的消息列表。它同时承载了：规矩（system）、背景（developer）、需求（user）、模型自己的话（assistant）、工具结果（tool）。</dd>
+<dt>无状态（stateless）</dt>
+<dd>模型服务端不保存对话；轮次靠数组顺序表达。代价：每轮都要把完整历史重发一遍，数组只增不"续"。</dd>
+<dt>稳定前缀（stable prefix）</dt>
+<dd>数组里每步都不变的前几段（system + 两段 developer + 上下文 + 历史 + 用户请求）。刻意排在前面以命中前缀缓存；易变的（本轮新消息、步数提醒）垫在后面。</dd>
+<dt>developer role</dt>
+<dd>mino_server 的第 5 种角色，专门承载"开发者注入的背景资料"：上下文块、模式约束、结尾的 <code>&lt;system_hint&gt;</code> 提醒。user 看不见，模型看得见。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：多轮对话里，为什么每次请求都要把之前所有轮次重发一遍？只发最新那句不行吗？</summary>
+<div class="answer">
+<p><strong>不行。</strong>因为模型是<strong>无状态</strong>的——服务端不替你存对话，mino_server 里也没有独立的"会话对象"。模型只能看到<em>这一次请求 messages 数组里的东西</em>。如果只发最新一句"那日元呢"，模型根本不知道你前面在聊汇率、更不知道刚查过美元和欧元，它会一脸茫然。轮次（谁先说谁后说）完全靠数组顺序表达，所以历史必须原样带上。代价就是数组只会越来越长——这也埋下了第 09 课"上下文爆炸"的雷。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：工具跑完得到的结果，会以什么 role 出现在下一轮的 messages 里？由哪个函数放进去？</summary>
+<div class="answer">
+<p><strong><code>Role=common.Tool</code></strong>，由 <code>AddToolResult</code>（message.go）把结果包成一条 tool 消息、<code>append</code> 进 <code>agent.newMessages</code>。这一步是循环闭环的关键：工具结果变成下一轮 <code>buildConductorMessages</code> 的输入，模型才"看得见"自己上一步动手的成果，从而决定下一步做什么。对照一下：模型自己的回复则由 <code>AddMessage</code> 存成 <code>Role=common.Assistant</code>。两者都追加到同一个 <code>newMessages</code> 里。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3：为什么 <code>system</code> 必须放在数组最前面、而"还剩几步 / 上轮报错"这种提示要垫在最后面？</summary>
+<div class="answer">
+<p>因为<strong>前缀缓存</strong>（第 01 课）：厂商按"从头开始的严格前缀"缓存已算过的部分，改动任何一段，它<em>之后</em>的缓存全部失效。<code>system</code> 几乎每步都一模一样，放最前面能被稳稳缓存、反复命中；而步数提醒、上轮报错这类东西<strong>每步都在变</strong>，一旦放前面就会把后面全部缓存击穿。所以 mino_server 把它们用 <code>&lt;system_hint&gt;</code> 包好、故意垫在整摞的最末尾（<code>populateRunStepCount</code> / <code>populateLastErr</code>，在 <code>newConductorBasicMessages</code> 收尾处）。一句话：<em>稳定在前，易变在后</em>，是刻进组装顺序里的纪律。</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>我们已经会拼这摞消息了。但整摞里最靠前、也最要命的那一条——<code>system</code>——我们一直只说它是"人格 + 规矩"，还没打开看过。它到底怎么写？为什么它几乎决定了这个 agent 是聪明还是笨、听话还是乱来？而且它还不是死的：里面塞着"今天几号、用户是谁"这些<em>动态</em>信息，这又是从哪来、怎么保证不击穿缓存的？下一课把 <code>system</code> 掀开。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>这一课你带走的一句话：<strong>喂给大脑的是一摞带署名的消息，模型没有记忆，全靠这摞数组的顺序假装"记得"。</strong>下一课 <a href="04-system-prompt-persona.html">04 System Prompt：给 Agent 一个人格与规矩</a>——打开那条最关键的 system。读到卡壳，回会话里问你的 AI 老师，可要求 ELI5 或看真实代码。返回 <a href="index.html">课程门户</a>。</p>
+</footer>
+</main>
+</body>
+</html>

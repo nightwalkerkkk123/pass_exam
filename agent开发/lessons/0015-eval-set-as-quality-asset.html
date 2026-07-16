@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0015 · 评测集是设计出来的质量资产</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0015 课 · 预计 13 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>评测集是设计出来的质量资产</h1>
+
+<p class="lede">你在 <a href="0014-metrics-and-statistical-gating.html">0014（统计门禁：多次运行才有效力）</a> 学过——单跑一次只是采样，得跑 N 次、看统计量、拿通过率当门槛，才有说服力。但那一整套统计机器都架在一个默认前提上：<strong>你手里那批用例，本身值得跑。</strong>这节课往下走一步，去质疑那个前提：如果评测集是"随手从线上捞一批"来的，那么你跑得再多次、统计得再严谨，量出来的也只是一个漂亮的幻觉。评测集不是采样得来的，是<strong>设计</strong>出来的。</p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">线上真实流量</span><div class="track" style="display:flex">
+    <div class="val read" style="width:92%">正常流程 · 约 92%</div>
+    <div class="val write" style="width:8%">出错边缘 · 8%</div>
+  </div></div>
+  <div class="row"><span class="lbl">随机采样 200 条</span><div class="track" style="display:flex">
+    <div class="val read" style="width:92%">照搬正常流程 92%</div>
+    <div class="val write" style="width:8%">边缘 8%</div>
+  </div></div>
+  <div class="row"><span class="lbl">设计出来的 golden set</span><div class="track" style="display:flex">
+    <div class="val read" style="width:45%">核心路径 45%</div>
+    <div class="val write" style="width:55%">高风险边界 / 失败模式 55%</div>
+  </div></div>
+</div>
+<figcaption>同样 200 条用例，随机采样忠实复刻了线上"正常流程占绝大多数"的分布，把真正会让 Agent 出错的边缘场景稀释到几乎测不到；设计出来的集合<strong>主动过采样</strong>高风险路径与失败模式。数值为示意，用来说明分布形状的差异。</figcaption>
+</figure>
+
+<h2>一、服务端直觉：抓一批线上流量当测试样本</h2>
+
+<p>做服务端的人有个根深蒂固的好习惯：<strong>用真实流量回放来测。</strong>把线上请求录下来，重放到新版本上，看响应有没有变。这套"流量回放（traffic replay）"在确定性系统里近乎无敌——因为对确定性代码来说，<em>每一条请求都同等有信息量</em>：一条 <code>GET /order/123</code> 走的代码路径，和另一条 <code>GET /order/456</code> 几乎完全一样，多录一万条正常请求，覆盖率并不会掉，顶多是浪费机器。所以"多采样、随机采、按线上分布采"是免费的、甚至是美德。</p>
+
+<div class="leak">
+一旦被测对象是 Agent，"按线上分布随机采样"这个美德会<strong>系统性地骗你</strong>。线上流量有强烈的<strong>幸存者偏差（survivorship bias）</strong>：正常流程占了绝大多数，真正能把 Agent 逼出错的边缘场景——罕见的订单状态组合、带情绪的刁难表达、诱导 Agent 越权承诺的问法——在真实分布里占比极低。你按这个分布随机采 200 条，边缘场景可能就摊到个位数，甚至一条不落。跑出来的报告"看起来很不错"，通过率漂亮，而<strong>那些真正会让你线上事故的场景，压根没进评测集</strong>。服务端里"多采点总没坏处"，在这里变成了"采得越随机，越把关键问题稀释没了"。
+</div>
+
+<p>差别的根子在于：确定性系统里每条样本信息量均等，Agent 里<strong>信息量极度不均</strong>——一条精心构造的"已发货订单硬要退款"的对抗样本，抵得过一千条"你好/在吗/谢谢"的寒暄。评测集的价值不由条数决定，由<strong>它覆盖了多少高风险路径、关键逻辑和失败模式</strong>决定。所以这节课的第一句话就是原文的划重点：</p>
+
+<blockquote style="border-left:4px solid var(--accent);margin:1.2rem 0;padding:.4em 1em;color:var(--ink)">
+评测集并非线上数据的随机抽样，而是<strong>围绕高风险路径、关键逻辑和失败模式设计出来的质量资产</strong>。
+</blockquote>
+
+<h2>二、把评测集当"资产"意味着什么</h2>
+
+<p>"质量资产"这四个字不是修辞。资产有三个特征，评测集都得有：<strong>长期复用、持续增值、需要治理</strong>。对应到评测里，最核心的载体就是 <strong>Golden Set（黄金评测集）</strong>。</p>
+
+<dl class="keydef">
+<dt>Golden Set（黄金评测集）</dt>
+<dd>本文中默认作为<strong>基线评测集</strong>使用——一组相对<strong>稳定、长期复用</strong>的核心样本，主要用于<strong>版本对比</strong>与<strong>发布门禁</strong>。它是你每次改模型 / 改 Prompt / 改工具后都拿来回归的那把"不动的尺子"：正因为它稳定，两个版本在它上面的通过率才可比；正因为它覆盖核心路径与高风险边界，它红了你才敢拦住发布。</dd>
+<dt>幸存者偏差（survivorship bias）</dt>
+<dd>只统计"活下来 / 走完正常流程"的样本，导致失败样本被系统性忽略。线上流量天然带这种偏差：出错的会话往往被用户放弃、转人工或投诉，在"正常完成"的分布里占比极低，随机采样会把它们采没。</dd>
+<dt>质量资产（quality asset）</dt>
+<dd>把评测集当作需要长期建设、版本治理、持续回流增值的工程资产，而非一次性抓取的临时样本。判断标准：它能不能<strong>跨版本复用</strong>、能不能<strong>随 badcase 增长</strong>、有没有<strong>明确的期望行为与口径</strong>。</dd>
+</dl>
+
+<p>Golden Set 和 0014 的统计门禁是一对搭档：0014 解决"跑几次、怎么统计才算数"，这节解决"跑<em>哪些</em>才算数"。统计再严谨，样本选错了照样是精确地测量了一个无关的东西。</p>
+
+<h2>三、评测集的四类来源：定标准 + 扩覆盖 + 接真实 + 回流失败</h2>
+
+<p>一个成熟的评测集<strong>至少</strong>包含四类来源，各司其职、互相补位：</p>
+
+<table>
+<thead><tr><th>来源</th><th>职责</th><th>退款场景的例子</th></tr></thead>
+<tbody>
+<tr><td><strong>专家设计用例</strong></td><td><strong>定标准</strong>：由业务/专家写出"正确行为长什么样"，钉死高风险路径的期望动作</td><td>"用户要求退款但订单<strong>已发货</strong>，Agent 必须<strong>先查订单状态、再解释规则</strong>"</td></tr>
+<tr><td><strong>扩展用例</strong></td><td><strong>扩覆盖</strong>：在专家用例的骨架上，扩出同一场景的不同说法/状态/情绪</td><td>同一退款场景下，换不同用户措辞、不同订单状态、不同情绪强度</td></tr>
+<tr><td><strong>线上真实数据</strong></td><td><strong>接真实</strong>：引入真实用户的自然表达与长尾情况，避免闭门造车</td><td>来自真实客服会话记录、工单记录</td></tr>
+<tr><td><strong>badcase 回流</strong></td><td><strong>回流失败</strong>：把线上翻过的车固化成用例，保证同一个坑不踩第二次</td><td>"Agent 直接承诺一定退款成功"这类线上 badcase 被收编成一条必测样本</td></tr>
+</tbody>
+</table>
+
+<p>这四类不是并列平权的堆料，它们有明确的<strong>生成顺序与约束关系</strong>——尤其"专家用例"和"扩展用例"之间：</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">专家用例定标准</span><span class="n-sub">写死期望行为 / SOP</span></div>
+  <span class="arrow">→抽结构→</span>
+  <div class="node"><span class="n-title">规则定结构字段</span><span class="n-sub">场景类型·订单状态·用户诉求·期望动作</span></div>
+  <span class="arrow">→填表达→</span>
+  <div class="node volatile"><span class="n-title">LLM 生成自然表达</span><span class="n-sub">不同说法/情绪，更像真实用户</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">扩展用例</span><span class="n-sub">同标准、多覆盖</span></div>
+</div>
+<figcaption>扩展用例的正确长法：<strong>不是</strong>把场景丢给 LLM"自由发挥生成一批"。而是先用<strong>规则</strong>确定结构字段（场景类型、订单状态、用户诉求、期望动作），锁死"这条用例考什么、正确行为是什么"，<strong>再</strong>用 LLM 只负责把这套结构翻译成更接近真实用户的自然语言表达。规则管"标准不漂移"，LLM 管"表达更真实"。</figcaption>
+</figure>
+
+<div class="leak">
+很容易顺手滑向一个偷懒版本："把退款场景描述一句话丢给 GPT，让它生成 100 条测试用例。"这在服务端"造测试数据"的直觉里似乎没问题——数据越多越好。但对评测集是<strong>灾难</strong>：LLM 自由生成会<strong>连期望行为一起编</strong>，它可能生成一条"已发货订单，Agent 应爽快退款"——把错误行为写成了正确答案。评测集一旦标准漂移，你就是在用一把<strong>被污染的尺子</strong>量东西，量得越勤越有害。所以扩展用例的铁律是：<strong>专家用例和业务规则先钉死"标准"，LLM 只许动"表达"，不许动"对错"。</strong>
+</div>
+
+<h2>四、建设路径：先 50–200 条 golden，再向外长</h2>
+
+<p>资产是<strong>攒</strong>出来的，不是一次买齐的。推荐的建设顺序很朴素：</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step terminal">第一步 · 先做 50–200 条高质量 golden set<br>覆盖核心业务路径 + 高风险边界</div>
+  <div class="down">↓ 成熟后再向外扩</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">扩覆盖</div>
+      <div class="step action">分类采样集<br>长尾集</div>
+    </div>
+    <div class="branch">
+      <div class="label">扩对抗</div>
+      <div class="step action">对抗集<br>（该拒绝 / 不许幻觉）</div>
+    </div>
+    <div class="branch">
+      <div class="label">接线上</div>
+      <div class="step action">线上回流集<br>（badcase 固化）</div>
+    </div>
+  </div>
+</div>
+<figcaption>不要一上来就追求几千条。<strong>50–200 条设计精良的 golden set</strong> 的回归价值，远大于几千条随机采样的噪声——因为前者每一条都锚定一个高风险路径或失败模式。等 golden set 稳了、口径清了，再向分类采样集 / 长尾集 / 对抗集 / 线上回流集扩张。</figcaption>
+</figure>
+
+<p>为什么是这个顺序？因为 golden set 是<strong>标准的地基</strong>：它定义了"什么叫对"。后面所有扩展集——不管是 LLM 扩的、线上捞的、badcase 回流的——都得对齐到 golden set 立下的口径上，否则就是四、里那个"标准漂移"的坑。地基没打好就摊大饼，摊得越大越乱。</p>
+
+<h2>五、含 Skill 的 Agent：用例按"触发 → 核心逻辑 → 产物 → 异常"四类组织</h2>
+
+<p>还记得 <a href="0013-from-cases-to-eval-system.html">0013</a> 那张 Skill 评测维度表吗？它在这一节以"数据集怎么组织"的形态复现。对包含 Skill 的 Agent，用例设计沿一条固定的诊断顺序铺开：</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">① 触发</span><span class="n-sub">该不该被调起</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">② 核心逻辑</span><span class="n-sub">触发后流程/分支对不对</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">③ 产物质量</span><span class="n-sub">最终报告/文件/动作可用吗</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">④ 异常容错</span><span class="n-sub">异常输入/工具失败/边界稳得住吗</span></div>
+</div>
+<figcaption>先确认该不该触发 → 再确认触发后过程对不对 → 再检查最终产物好不好 → 最后验证异常输入、工具失败、边界条件下能不能稳住。<strong>核心逻辑（②）类的用例通常最多</strong>，因为它要覆盖主要分支路径和高风险分支——这也是过程正确性、抓假阳性的主战场（呼应 0013 的 Trace 层）。</figcaption>
+</figure>
+
+<table>
+<thead><tr><th>用例类别</th><th>问的问题</th><th>数量占比倾向</th></tr></thead>
+<tbody>
+<tr><td>① 触发</td><td>这个 Skill 在这个场景该被调起吗？（漏触发 / 误触发）</td><td>适量</td></tr>
+<tr><td>② 核心逻辑</td><td>调起后步骤顺序、分支走对了吗？高风险分支覆盖了吗？</td><td><strong>通常最多</strong></td></tr>
+<tr><td>③ 产物质量</td><td>生成的报告/文件/动作，业务能直接用吗？</td><td>适量</td></tr>
+<tr><td>④ 异常容错</td><td>异常输入、工具失败、边界条件下稳得住、退得回吗？</td><td>适量但不可省</td></tr>
+</tbody>
+</table>
+
+<h2>六、落到你的项目：mino 有一批用例，还没有"资产"</h2>
+
+<div class="good">
+<strong>诚实映射（严格区分"mino 真有"和"方法论层、mino 未实现"）：</strong>
+<p><strong>mino 真有的（有代码符号锚）：</strong>默认数据集 <code>memory_eval_cases.json</code> <strong>28 条手写用例</strong>，分 4 类（<code>recall</code> 12 / <code>store</code> 8 / <code>update</code> 4 / <code>rejection</code> 4），其中 20 条 <code>requires_vector</code>；另有两套替代集 <code>locomo_recall_cases.json</code>（57 条）与 <code>locomo_store_cases.json</code>（15 条）。特别值得点出：<code>rejection</code> 类考的正是"<strong>该拒绝 / 不许幻觉</strong>"——这本质就是本节说的<strong>对抗样本</strong>思路（正确行为是拒绝或不作答），和 Python 侧 <code>scorer.py:86-92</code> 那条"无高分即通过"的机械判据（<a href="0008-scorers-and-judge-trust.html">见 0008</a>）是同一个直觉：把"该沉默"做成可判的用例。也就是说，mino 已经无意识地实践了"设计对抗类用例"这一条。</p>
+<p><strong>方法论层、mino 未实现的（明写，不虚构）：</strong></p>
+<ul>
+<li><strong>Golden Set 的版本治理</strong>——那 28 条只是一批固定文件，没有"基线集 / 版本对比 / 发布门禁"的治理机制。</li>
+<li><strong>幸存者偏差感知的采样策略</strong>——用例是手写的，谈不上"从线上按分布采、并主动过采样高风险边缘"。</li>
+<li><strong>"专家定标准 + LLM 扩覆盖"的建设流程</strong>——没有"规则先定结构字段、LLM 只填自然表达"的扩展管线。</li>
+<li><strong>badcase 回流入库</strong>——没有把线上翻车样本自动固化回评测集的闭环。</li>
+</ul>
+<p>诚实结论：<strong>mino 有一批质量不错的手写用例（含对抗类），但还没有把"数据集作为可治理质量资产"的建设与治理机制建起来。</strong>这不是缺陷指控，是"从一批 case 长成一份资产"还差的那几步。</p>
+</div>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：团队说"我们直接把上周线上 5000 条客服会话随机抽 200 条当评测集，最真实"。用这节课的逻辑指出这套做法的根本问题，以及正确姿势。</summary>
+<div class="answer">
+<p><strong>根本问题是幸存者偏差。</strong>线上 5000 条里绝大多数是走完正常流程的会话（问候、查物流、常规咨询），真正会让 Agent 出错的边缘场景——罕见订单状态、带情绪的刁难、诱导越权承诺——占比极低。随机抽 200 条，几乎忠实复刻这个"正常流程占绝大多数"的分布，边缘场景可能只剩个位数甚至一条不落。结果：报告通过率很漂亮，<strong>但真正会导致线上事故的场景根本没进集合</strong>。这是"精确地测量了一个无关的东西"。</p>
+<p><strong>正确姿势：</strong>评测集是<strong>设计</strong>出来的，不是采样出来的。先由专家围绕高风险路径、关键逻辑、失败模式写 50–200 条 golden set（<strong>主动过采样</strong>高风险边界），线上真实数据只作为四类来源之一用来接真实表达和长尾，再叠 badcase 回流。线上流量该用，但用来<strong>补充</strong>覆盖、而非<strong>定义</strong>分布。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：为快速扩量，同事把"退款场景"一句话丢给 LLM，让它"自由生成 100 条退款测试用例，包含输入和期望输出"。这批用例能直接进 golden set 吗？问题出在哪一步？正确的扩展流程是怎样的？</summary>
+<div class="answer">
+<p><strong>不能直接进。</strong>问题出在<strong>让 LLM 连"期望行为（对错标准）"一起生成</strong>。LLM 自由发挥时可能编出"已发货订单应爽快退款"这种把<strong>错误行为写成正确答案</strong>的用例，一旦入库，你就是在用一把被污染的尺子做回归——量得越勤越有害，且这种污染很隐蔽。</p>
+<p><strong>正确流程（两段分工）：</strong>① 先用<strong>规则</strong>（对齐专家用例与业务 SOP）确定结构字段——场景类型、订单状态、用户诉求、<strong>期望动作</strong>——把"考什么、正确行为是什么"钉死；② 再让 <strong>LLM 只负责</strong>把这套结构翻译成更接近真实用户的自然语言表达（不同说法/情绪/措辞）。规则管"标准不漂移"，LLM 管"表达更真实"，LLM 绝不许动"对错"。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（延伸）：mino 的 <code>memory_eval_cases.json</code> 里有 4 条 <code>rejection</code> 类用例，考"该拒绝 / 不许幻觉"。这算不算这节课说的"设计出来的评测集"？它离一份真正的"质量资产"还差哪几步？</summary>
+<div class="answer">
+<p><strong>算是一个正确的雏形。</strong><code>rejection</code> 类考"正确行为是拒绝/不作答"，这正是本节的<strong>对抗样本</strong>思路——主动构造"最容易让 Agent 幻觉/越权"的失败模式，而不是随机采样得来的。这说明 mino 的用例是围绕失败模式<strong>手工设计</strong>的，方向对。</p>
+<p><strong>但它离"资产"还差几步（都属方法论层、mino 未实现）：</strong>(1) 没有 <strong>Golden Set 的版本治理</strong>——它只是一批固定文件，缺"基线集 / 跨版本对比 / 发布门禁"的定位；(2) 没有<strong>幸存者偏差感知的采样与过采样策略</strong>；(3) 没有"<strong>专家定标准 + LLM 扩覆盖</strong>"的扩展管线；(4) 没有 <strong>badcase 回流入库</strong>的闭环。一句话：有对抗类用例这颗好种子，还没长成能跨版本复用、持续增值、有口径治理的那棵资产树。</p>
+</div>
+</details>
+</div>
+
+<h2>八、承上启下</h2>
+
+<p>这节课立的柱子是：评测集是<strong>设计</strong>出来的<strong>质量资产</strong>，不是线上流量的随机快照——警惕幸存者偏差，以 Golden Set 为基线，按"专家定标准 / LLM 扩覆盖 / 线上接真实 / badcase 回流"四类来源建设，先做好 50–200 条再向外长，含 Skill 的用例按"触发→核心逻辑→产物→异常"四类组织。但一个新问题冒出来了：<strong>有了这批设计精良的用例，到底该用规则判、用 LLM Judge 判、还是交给人？什么样的样本必须捞出来给人看？</strong>——不同判据成本天差地别，全上 LLM 太贵、全靠人不现实、全靠规则又判不了语义。这就是下一课的主题。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让我带你打开 <code>cmd/memory_eval/eval/</code> 下的 <code>memory_eval_cases.json</code>，对照这节的"四类来源 / 对抗样本"看那 28 条到底设计了什么、还缺什么。下一课：<em>0016 评分的分层与人工路由——规则主判、LLM Judge 补语义、以及"什么样本必须进人工终判"的分层筛查与路由</em>。</p>
+</footer>
+</main>
+</body>
+</html>

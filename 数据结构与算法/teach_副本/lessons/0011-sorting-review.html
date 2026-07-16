@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 11 课 · 排序基础回顾 · 数据结构与算法期末复习</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  pre{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#1e1e1e; color:#e8e8e8;
+    padding:16px 18px; border-radius:8px; overflow-x:auto; line-height:1.6}
+  pre .c{color:#8a8a8a}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  b.bad{background:#fdf0ef; padding:0 3px; border-radius:3px; color:var(--bad)}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  tr:nth-child(even) td{background:#f7fafc}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">数据结构与算法期末复习 · 第二部分《啊哈!算法》① · 对应 ch01</div>
+  <h1>第 11 课:排序基础回顾 —— 切换到《啊哈!算法》,重新认识桶排序、冒泡排序与快速排序</h1>
+  <div class="sub">目标:用"给每个数分配专属格子"的直觉唤醒桶排序,顺手复习冒泡排序,再对照第4课学过的快速排序,
+  看看同一个算法在两本书里的实现细节差在哪——重点是三种排序各自的适用边界和最容易翻车的地方。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>为什么从这节课开始换了一本书?</b> 第10课刚完成《算法图解》全书10课的复习,现在切换到第二本书《啊哈!算法》,
+  接下来会带你做图论进阶和面试思维训练。但地基仍然是排序——所以这本书的第一课,先回炉三种最基础的排序方法,
+  顺便对照一下:<b class="hl">同一个"快速排序",两本书讲法是不是一回事?</b>
+</div>
+
+<h2>一、直觉开场:给每个数分配一个专属格子</h2>
+<p>桶排序(Bucket Sort,本章简化版)的直觉,书里是这样打比方的:想象有 11 个(或者 1001 个)按编号排好的桶,
+每出现一个数,就往对应编号的桶里插一面小旗子;等所有数都插完,只要<b class="hl">按编号从小到大数一遍旗子</b>,
+数出来的顺序天然就是排好序的结果——不需要比较任何两个数的大小,直接"数格子"就完成了排序。</p>
+<p>这就是桶排序最核心的思路:<b>把"排序"变成"计数"</b>。只要数值范围提前已知、又不太大,这个方法几乎不需要比较,
+接近线性时间就能出结果。</p>
+
+<h2>二、桶排序的原理与局限</h2>
+<p>具体做法只有三步:</p>
+<ol>
+  <li>申请一个大小为"数据范围+1"的数组 <code>book[]</code>(书里最初叫 <code>a[]</code>,后改名 <code>book</code> 表示"记录/标记"),全部初始化为 0。</li>
+  <li>依次读入每个数 <code>t</code>,执行 <code>book[t]++</code>,把 <code>t</code> 出现的次数记在下标为 <code>t</code> 的"桶"里。</li>
+  <li>按下标从小到大遍历 <code>book[]</code>,每个下标 <code>i</code> 出现 <code>book[i]</code> 次就打印 <code>book[i]</code> 遍 <code>i</code>。</li>
+</ol>
+<p>但这其实是"计数排序"的雏形,而不是真正意义上的桶排序,它有两条<b class="hl">硬前提</b>:
+数值范围必须提前已知,而且不能太大——一旦数据范围极大(比如 0~21 亿),需要申请一个同样大的数组,现实中根本开不出这么大的内存;
+如果数据里有小数,也无法直接分配整数下标。此外,这个简化版本只能对<b>数值本身</b>排序,没法携带"这个数原本对应谁"这类关联信息
+(比如姓名对应的分数)——排完序,身份信息就丢了。</p>
+
+<h2>三、冒泡排序:相邻交换,一趟归位一个数</h2>
+<p>冒泡排序(Bubble Sort)的思路更朴素,靠"相邻比较+交换"完成排序:</p>
+<ol>
+  <li>一共进行 <code>n-1</code> "趟"。</li>
+  <li>每一趟从第 1 位开始,依次比较相邻两个数 <code>a[j]</code> 与 <code>a[j+1]</code>,顺序错了就交换。</li>
+  <li>每一趟结束后,会有一个数"归位"(滚到当前未归位区间的末尾,形似气泡上浮/下沉),所以第 <code>i</code> 趟只需要比较到 <code>n-i</code> 位,已经归位的数不再参与比较。</li>
+</ol>
+<p>冒泡排序有一个桶排序做不到的优点:<b class="hl">可以携带附加信息</b>。只要把数组元素换成结构体
+(比如 <code>struct student{ name, score }</code>),比较时只看 <code>score</code> 字段、交换时把整个结构体一起换,
+就解决了桶排序"排完序丢身份"的问题——这是考试里"排序+保留对应信息"这类题目的标准套路。</p>
+
+<h2>四、快速排序:这本书里的双哨兵原地实现</h2>
+<p>快速排序(Quick Sort)在这本书里的讲法,核心是"选基准数 + 双哨兵探测 + 原地交换":</p>
+<ol>
+  <li>从序列中选一个基准数(书中取最左边的数,比如序列 <code>6 1 2 7 9 3 4 5 10 8</code> 中的 6)。</li>
+  <li>设两个哨兵:<code>i</code> 指向最左,<code>j</code> 指向最右。<b class="hl">必须先移动哨兵 j</b>:从右往左找第一个小于基准数的数,停下。</li>
+  <li>再移动哨兵 <code>i</code>:从左往右找第一个大于基准数的数,停下。</li>
+  <li>若 <code>i&lt;j</code>,交换 <code>a[i]</code> 与 <code>a[j]</code>,然后重复步骤 2、3。</li>
+  <li>若 <code>i</code> 与 <code>j</code> 相遇,把基准数与相遇位置的数交换——基准数正式"归位",左边全部 ≤ 基准数,右边全部 ≥ 基准数。</li>
+  <li>对左右两个子序列递归执行同样的过程,直到子序列长度为 1。</li>
+</ol>
+<p>这套流程的本质仍然是"二分"思想——每一轮都把问题规模大致折半处理,这一点和第4课的说法完全一致。</p>
+
+<div class="callout big">
+  <b>和第4课对照一下:同一个快速排序,两本书讲法一致吗?</b> 核心思想(选基准数 + 分治 + 二分)完全一样,
+  但<b>具体实现方式不同</b>:第4课《算法图解》的版本是"新建 <code>less</code>/<code>greater</code> 两个数组,
+  把基准值以外的元素分装进去,不是原地操作";这一课《啊哈!算法》的版本是"不新建数组,靠 <code>i</code>、<code>j</code>
+  两个哨兵在原数组内部直接交换元素,原地完成分区"。两者不是互相矛盾,而是同一个思想的两种工程实现——
+  一个更直观易懂(适合第一次学),一个更省内存(适合工程实践),复杂度结论(平均 <code>O(n log n)</code>、
+  最坏 <code>O(n²)</code>)是一致的。
+</div>
+
+<h2>五、三种排序对比,并和前面学过的算法对照</h2>
+<table>
+  <tr><th>算法</th><th>时间复杂度</th><th>额外空间</th><th>能否携带附加信息</th><th>适用条件</th></tr>
+  <tr><td>桶排序(简化版)</td><td>O(N+M),M 为数据范围</td><td>O(M)</td><td>不能(本章简化版)</td><td>数据范围小且确定的整数</td></tr>
+  <tr><td>冒泡排序</td><td>O(N²)</td><td>O(1)</td><td>能(配合结构体)</td><td>数据规模小、要求实现简单</td></tr>
+  <tr><td>快速排序</td><td>平均 O(NlogN),最坏 O(N²)</td><td>递归栈 O(logN)~O(N)</td><td>能(配合结构体)</td><td>通用场景、数据规模较大</td></tr>
+</table>
+
+<p>再和前两本书学过的排序对照一下:</p>
+<table>
+  <tr><th>算法</th><th>出处</th><th>复杂度</th><th>实现要点</th></tr>
+  <tr><td>选择排序</td><td>第2课《算法图解》</td><td>恒为 O(n²),没有更好的最好情况</td><td>每轮扫描未排序部分找最小值下标,轮末统一交换一次</td></tr>
+  <tr><td>冒泡排序</td><td>第11课《啊哈!算法》</td><td>O(n²)</td><td>相邻反复比较交换,每趟归位一个数,操作次数比选择排序多得多</td></tr>
+  <tr><td>快速排序</td><td>第4课《算法图解》</td><td>平均 O(nlogn),最坏 O(n²)</td><td>pivot 固定选第一个元素,新建 less/greater 数组分区,不是原地</td></tr>
+  <tr><td>快速排序</td><td>第11课《啊哈!算法》</td><td>平均 O(nlogn),最坏 O(n²)</td><td>pivot 取最左元素,双哨兵(先 j 后 i)原地交换,不新建数组</td></tr>
+</table>
+<p class="sub" style="margin-top:-6px">选择排序和冒泡排序虽然都是 O(n²) 家族,但操作方式不同:选择排序"整轮只换一次",冒泡排序"边比边换很多次"——
+复杂度量级一样,但谁在期末计算题里"比较次数"更多,取决于具体写法。快速排序则是两本书唯一都讲到的算法,
+思想一致、实现风格不同,这是简答题里"辨析两种写法关系"的常考角度。</p>
+
+<h3>C 代码:桶排序(计数版),带边界条件详解</h3>
+<pre>#include &lt;stdio.h&gt;
+#define MAX_VALUE 1000          <span class="c">// 数据范围上限,必须提前已知——这是桶排序最大的前提</span>
+
+int book[MAX_VALUE + 1];       <span class="c">// ① 大小 = 数据范围+1,全局数组默认初始化为0</span>
+
+int main(void) {
+    int n, t, i, cnt;
+    scanf("%d", &n);
+    for (i = 0; i < n; i++) {
+        scanf("%d", &t);
+        book[t]++;              <span class="c">// ② 计数:t 出现一次就 ++,不是标记为1</span>
+    }
+    for (i = 0; i <= MAX_VALUE; i++) {   <span class="c">// ③ 从小到大遍历,顺序不能跳着来</span>
+        for (cnt = 0; cnt < book[i]; cnt++) {
+            printf("%d ", i);
+        }
+    }
+    return 0;
+}</pre>
+
+<p>三处最容易在期末考试里写错、丢分的地方:</p>
+<ol>
+  <li><b>① 数组大小必须是"数据范围+1",而且这个范围要提前确定、不能开得比实际数据范围小。</b>
+    如果测试数据里出现了超过 <code>MAX_VALUE</code> 的数,<code>book[t]++</code> 直接<b class="bad">数组越界写</b>——
+    这正是"数值范围必须已知且不能太大"这条前提在代码层面的体现,范围没估对,程序不报错也可能悄悄写坏内存。</li>
+  <li><b>② <code>book[t]++</code> 是"计数",如果题目要求"去重",必须改成 <code>book[t] = 1</code>。</b>
+    这是"小哼买书"这道题的关键区别:计数(<code>++</code>)会告诉你某个数出现了几次,但不会自动去重;
+    只有把出现过的位置<b>标记为 1</b>(而不是累加),最后按下标遍历时每个下标最多输出一次,才能得到去重效果。
+    这两种写法看起来只差一个符号,考试里经常拿来"找茬"。</li>
+  <li><b>③ 遍历 <code>book[]</code> 必须严格按下标从小到大(或从大到小)走一遍,不能跳跃。</b>
+    桶排序"自动排好序"的效果,完全来自"下标本身就是有序的"这个事实——如果遍历顺序乱了,或者漏掉了某个下标区间,
+    排序结果直接错误,而且原因很隐蔽(代码逻辑本身没有"崩溃",只是遍历范围不对)。</li>
+</ol>
+
+<div class="callout warn">
+  <b>常见陷阱:桶排序在数值范围很大时的空间浪费问题。</b>
+  如果把桶排序直接搬去处理 0~21 亿这样的范围(比如身份证号、大范围收入数据),需要申请一个同样大小的数组——
+  现实中根本开不出这么大的连续内存,程序会直接失败。这和第5课散列表里"填装因子"讨论的其实是<b class="hl">同一笔账</b>:
+  桶排序默认"数组下标 = 数值本身"这种最朴素的空间换时间方式,而散列表通过散列函数多做了一层"离散化"映射,
+  让值域可以远大于实际占用的桶数、只要控制好填装因子就行——本质上都是在权衡"愿意花多少额外空间,换多少速度"。
+  <ul style="margin:8px 0 0">
+    <li>桶排序无法处理小数(下标必须是合法整数),这一点和范围过大是同一类"数据类型不匹配"的问题。</li>
+    <li>快速排序哨兵顺序颠倒:必须先移动哨兵 <code>j</code>(从右向左找小于基准数的数),若先移动哨兵 <code>i</code> 会导致基准数归位错误——书中反复强调"顺序很重要"。</li>
+    <li>混淆"趟数"与"比较次数":冒泡排序每趟需要比较到 <code>n-i</code> 位,不是 <code>n-1</code> 位;照抄成每趟都比较到底不影响结果正确性,但会做大量无意义的比较,拉低效率。</li>
+    <li>误以为快速排序最坏情况也是 <code>O(NlogN)</code>:实际最坏情况会退化到 <code>O(N²)</code>(比如基准数每次都恰好选到最大或最小值),只有平均复杂度才是 <code>O(NlogN)</code>。</li>
+  </ul>
+</div>
+
+<h2>六、通关前先自测</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 手算题:数组 <code>[4, 2, 2, 5, 1]</code> 用计数版桶排序(不去重),<code>book[2]</code> 的值是多少?排序后完整输出依次是什么?</div>
+  <button class="opt" data-ok="0">book[2]=1,输出 1 2 4 5</button>
+  <button class="opt" data-ok="1">book[2]=2,输出 1 2 2 4 5</button>
+  <button class="opt" data-ok="0">book[2]=2,输出 1 4 2 2 5</button>
+  <button class="opt" data-ok="0">book[2]=0,输出 1 2 4 5 2</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q1sol').classList.toggle('hidden')">▸ 看 book[] 怎么填</span>
+  <div id="q1sol" class="hidden" style="margin-top:8px">
+    <table>
+      <tr><th>下标 i</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+      <tr><td>book[i]</td><td>0</td><td>1</td><td>2</td><td>0</td><td>1</td><td>1</td></tr>
+    </table>
+    <p style="margin:4px 0">2 在原数组里出现了两次,所以 <code>book[2]++</code> 执行两次,<code>book[2]=2</code>。遍历时严格按下标 0→5 走一遍,
+    <code>book[i]</code> 是几就打印几遍 <code>i</code>:下标1打印1次"1",下标2打印2次"2",下标4打印1次"4",下标5打印1次"5"——
+    最终输出 <code>1 2 2 4 5</code>。</p>
+  </div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. 下面哪个场景最适合直接用这节课讲的"简化版桶排序"?</div>
+  <button class="opt" data-ok="1">给全校 500 名学生的语文成绩(0~100 的整数)排序</button>
+  <button class="opt" data-ok="0">给全国所有人的年收入(从几千元到几千万元,且带小数点)排序</button>
+  <button class="opt" data-ok="0">给 10 个人的体重(如 65.5kg、70.2kg 这样带小数)排序</button>
+  <button class="opt" data-ok="0">给一批 18 位身份证号排序</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. 找茬题:下面这段快速排序的双哨兵探测代码被改了顺序,请找出问题。</div>
+  <pre>while (i != j) {
+    while (a[i] <= temp && i < j) i++;   <span class="c">// ← 先移动哨兵 i</span>
+    while (a[j] >= temp && i < j) j--;   <span class="c">// 再移动哨兵 j</span>
+    if (i < j) { t = a[i]; a[i] = a[j]; a[j] = t; }
+}</pre>
+  <button class="opt" data-ok="0">while(i != j) 应该改成 while(i < j)</button>
+  <button class="opt" data-ok="1">先移动哨兵 i、再移动哨兵 j,顺序颠倒了——必须先从右往左移动哨兵 j,再移动哨兵 i,否则基准数归位会出错</button>
+  <button class="opt" data-ok="0">交换条件 i&lt;j 写错了,应该无条件交换</button>
+  <button class="opt" data-ok="0">最后"基准数归位"那两行代码漏写了,和这段代码的顺序问题无关</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('q3sol').classList.toggle('hidden')">▸ 为什么顺序不能颠倒</span>
+  <div id="q3sol" class="hidden" style="margin-top:8px">
+    <p style="margin:4px 0">书里反复强调"顺序很重要":正确写法必须<b>先移动哨兵 j</b>(从右往左找一个小于基准数的数停下),
+    <b>再移动哨兵 i</b>(从左往右找一个大于基准数的数停下)。这样才能保证:当 <code>i</code>、<code>j</code> 相遇时,
+    相遇位置上的数一定是"小于等于基准数"的,基准数换到这个位置才是正确归位。如果颠倒顺序、先移动 <code>i</code>,
+    相遇位置的数性质就反了,基准数归位到错误的地方,导致"左边全部 ≤ 基准数、右边全部 ≥ 基准数"这个不变量被破坏。</p>
+  </div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq">Q4. "小哼买书"例子,原始输入是 10 个 ISBN 号:<code>20 40 32 67 40 20 89 300 400 15</code>。下面哪个说法正确?</div>
+  <button class="opt" data-ok="1">去重排序后的正确输出是 15 20 32 40 67 89 300 400,一共 8 个数</button>
+  <button class="opt" data-ok="0">去重排序后应该是 15 20 32 40 67 89 300 400 400,还剩 9 个数</button>
+  <button class="opt" data-ok="0">用桶排序解决这道题时,应该用 book[t]++ 计数,而不是标记为 1,因为要统计每个数出现几次</button>
+  <button class="opt" data-ok="0">用冒泡排序或快速排序解决这道题时,排序完就自动去重了,不需要额外处理</button>
+  <div class="fb"></div>
+</div>
+
+<h2>七、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话,回到对话里告诉我这两句:</b><br>
+  ①"桶排序为什么能做到接近线性的速度?它的适用前提有哪两条,分别对应了什么局限?"<br>
+  ②"快速排序的双哨兵探测里,为什么必须先移动哨兵 j、再移动哨兵 i?顺序颠倒会造成什么后果?"<br>
+  说清楚这两点,这一课才算过——然后我们进第 12 课(栈、队列、链表建模)。
+</div>
+
+<footer>
+  <p>📌 <b>下一课预告(第 12 课):</b> 栈、队列、链表建模——用"小猫钓鱼"这类问题训练抽象建模能力,
+  学会把生活场景翻译成数据结构操作。</p>
+  <p>📖 <b>知识库来源:</b> <code>skill/aha-algorithms/chapters/ch01-sorting-basics.md</code>
+  (《啊哈!算法》第1章:一大波数正在靠近——排序)。</p>
+  <p>🙋 <b>有任何不懂,直接在对话里问我</b>——我是你的老师,这节课的每一步都可以追问。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{good:'对!2 在原数组里出现了两次,所以 book[2]=2;遍历时按下标从小到大依次把 book[i] 次的 i 打印出来:1 2 2 4 5。',
+      bad:'先把每个数出现的次数记到 book[] 里:book[1]=1、book[2]=2(出现两次)、book[4]=1、book[5]=1。再从下标0开始严格往后遍历,book[i]是几就连续打印几次i——这一步不能跳着打印。正确结果是 book[2]=2,输出 1 2 2 4 5。'},
+  q2:{good:'对!成绩范围0~100,是"提前已知、范围很小"的整数区间,完全符合桶排序的两个前提——直接申请 book[101] 就能搞定,是这三种排序里最快、最简单的选择。',
+      bad:'桶排序的前提是"数值范围必须提前已知、且不能太大"的整数。年收入范围太大还带小数,体重带小数(桶排序不能处理小数,下标必须是整数),身份证号范围高达10^18(数组根本开不出来)——这三个都不满足前提,只有"0~100分的成绩"这种小范围整数才适合直接用简化版桶排序。'},
+  q3:{good:'对!书里反复强调"顺序很重要":必须先移动哨兵j(从右往左找小于基准数的数),再移动哨兵i。这段代码把顺序颠倒了,会导致基准数最终归位到错误的位置,排序结果出错。',
+      bad:'再看一遍两个内层while循环出现的先后顺序。原书代码要求"必须先移动哨兵j",这里却先写了移动哨兵i的循环——顺序一旦颠倒,基准数归位的位置就会算错,这是书里反复强调的"顺序很重要"的地方,不是交换条件或循环条件本身写错了。'},
+  q4:{good:'对!10个数里40出现了两次、20也出现了两次,其余都只出现一次,去重后剩8个不同的数,从小到大正好是 15 20 32 40 67 89 300 400。',
+      bad:'逐个数一遍:20 40 32 67 40 20 89 300 400 15 里,40和20各出现两次,其余只出现一次,去重后应该是8个不同的数,从小到大是 15 20 32 40 67 89 300 400。(这道题要"去重",桶排序应该把book[t]标记为1而不是累加计数——累加计数只会告诉你出现了几次、并不会自动去重;冒泡/快速排序也只能把相同的数排到相邻位置,真正去重还需要在输出时额外比较a[i]和a[i-1]、跳过相同的数。)'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

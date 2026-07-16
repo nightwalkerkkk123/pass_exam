@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0012 · 四支柱耦合总复盘 + 项目改进清单</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0012 课 · 预计 16 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>四支柱耦合总复盘 + 项目改进清单</h1>
+
+<p class="lede">前面几课我们分别拆过质量（注意力/位置）、成本（prefix cache 排列）、评估（context 可复现性）、工具（返回值占预算）。这节课收网：证明这四条线不是四个并列的问题，而是<strong>同一个中心</strong>——<code>conductorAgent</code> 的 context 组装——投影出的四张脸。然后把 <code>mino_server</code> 里那几处代码亲手写下的 FIXME / TODO 收成一张改进清单。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 760 440" role="img" aria-label="context 组装（streamChat 主循环）为中心，质量、成本、评估、工具四支柱是它的投影">
+  <!-- edges -->
+  <line class="dgm-edge" x1="380" y1="220" x2="190" y2="100" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="380" y1="220" x2="570" y2="100" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="380" y1="220" x2="190" y2="345" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="380" y1="220" x2="570" y2="345" stroke-width="1.5"/>
+  <!-- edge labels -->
+  <text class="dgm-muted" x="262" y="146" font-size="12" text-anchor="middle">注意力 / 降智成本</text>
+  <text class="dgm-muted" x="498" y="146" font-size="12" text-anchor="middle">current_plan 漂移</text>
+  <text class="dgm-muted" x="258" y="300" font-size="12" text-anchor="middle">跨厂商 judge 复现</text>
+  <text class="dgm-muted" x="502" y="300" font-size="12" text-anchor="middle">PromptTooLong 压缩链</text>
+  <!-- hub -->
+  <ellipse class="dgm-hub" cx="380" cy="220" rx="104" ry="50" stroke-width="2"/>
+  <text class="dgm-accent-text" x="380" y="210" font-size="17" font-weight="700" text-anchor="middle">context 组装</text>
+  <text class="dgm-muted" x="380" y="230" font-size="10.5" text-anchor="middle">buildContextPayload (agent.go:1492)</text>
+  <text class="dgm-muted" x="380" y="246" font-size="10.5" text-anchor="middle">streamChat 主循环 (agent.go:900)</text>
+  <!-- four pillars -->
+  <g>
+    <rect class="dgm-good-node" x="95" y="66" width="190" height="70" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="190" y="94" font-size="15" font-weight="700" text-anchor="middle">质量</text>
+    <text class="dgm-muted" x="190" y="114" font-size="10.5" text-anchor="middle">summarize 80% 线</text>
+    <text class="dgm-muted" x="190" y="128" font-size="10.5" text-anchor="middle">summary.go:92</text>
+  </g>
+  <g>
+    <rect class="dgm-accent-node" x="475" y="66" width="190" height="70" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="570" y="94" font-size="15" font-weight="700" text-anchor="middle">成本与延迟</text>
+    <text class="dgm-muted" x="570" y="114" font-size="10.5" text-anchor="middle">prefix cache 稳定性</text>
+    <text class="dgm-muted" x="570" y="128" font-size="10.5" text-anchor="middle">cache_prefix_stability_test.go</text>
+  </g>
+  <g>
+    <rect class="dgm-link-node" x="95" y="311" width="190" height="70" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="190" y="339" font-size="15" font-weight="700" text-anchor="middle">评估</text>
+    <text class="dgm-muted" x="190" y="359" font-size="10.5" text-anchor="middle">memory_eval judge</text>
+    <text class="dgm-muted" x="190" y="373" font-size="10.5" text-anchor="middle">config.go:41–42</text>
+  </g>
+  <g>
+    <rect class="dgm-accent-node" x="475" y="311" width="190" height="70" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="570" y="339" font-size="15" font-weight="700" text-anchor="middle">工具调用</text>
+    <text class="dgm-muted" x="570" y="359" font-size="10.5" text-anchor="middle">返回值占预算 + 压缩链</text>
+    <text class="dgm-muted" x="570" y="373" font-size="10.5" text-anchor="middle">toolcall.go:285 ✔ / 334 ✗</text>
+  </g>
+</svg>
+</div>
+<figcaption>中心是 <code>buildContextPayload</code> 组装出的那一份 context，被 <code>streamChat</code> 主循环反复消费与压缩。四支柱是它经四种机制投影出的四张脸，边上的标签就是本课要逐一坐实的耦合点。</figcaption>
+</figure>
+
+<h2>一、中心装置：streamChat 主循环的一个 step</h2>
+
+<p>先把中心机制看清楚。整个 Conductor 的运行就是 <code>streamChat</code>（<code>agent.go:900</code>）里的一个 for 循环（<code>agent.go:916</code>），每一步固定三拍：先<strong>主动压缩</strong>，再<strong>跑一步</strong>，出错就<strong>紧急压缩后重跑</strong>。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">① summarize</span><span class="n-sub">agent.go:925 主动压缩</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">② runConductorStep</span><span class="n-sub">agent.go:929 拿 LLM 回复</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">③ executeToolCallGroups</span><span class="n-sub">toolcall.go:162 分派工具</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">④ 紧急压缩重跑</span><span class="n-sub">agent.go:937–949 continue</span></div>
+</div>
+<figcaption>一个 step 的流水线。绿=进步前的主动压缩闸门；红=命中 <code>PromptTooLong</code> 后的紧急回收。两者压的是同一份 context。</figcaption>
+</figure>
+
+<p>拍③执行完工具后，工具返回值会被塞回 <code>newMessages</code>，成为下一次 LLM 调用输入的一部分。<strong>如果这一塞把 context 撑爆</strong>，就会抛出 <code>PromptTooLong</code>，主循环在拍④接住它：若还没有可用摘要就 <code>summarizeForce</code>（强制压缩，跳过条件检查），再 <code>applySummaryImmediately</code> 把 <code>originalMessages</code> 清空、用摘要替换历史（<code>summary.go:406</code>），然后 <code>continue</code> 用瘦身后的 context 重跑这一步。</p>
+
+<p>注意一个刻意的设计：<code>requestAgentMessage</code> 的 retry 策略遇到 <code>PromptTooLong</code> 特意 <code>return false</code> <em>不</em>重试（<code>agent.go:1038–1041</code>），把它让给主循环去压缩。这条注释写得很直白：</p>
+
+<pre><code>retry.RetryIf(func(err error) bool {
+    agent.lastAgentErr = err
+    if errcode.IsErrLLMPromptTooLong(err) {
+        // context too long: return error immediately,
+        // the main loop will handle summary compression
+        return false
+    }</code></pre>
+<p class="meta">↑ <code>agent.go:1036–1041</code>：重试对 <code>PromptTooLong</code> 主动放行，交给主循环压缩。</p>
+
+<h2>二、四支柱都是这张图的投影</h2>
+
+<h3>质量：压缩线不是"窗口满"，而是 80% 且封顶</h3>
+
+<p>质量支柱的量化锚点在 <code>summary.go:86–92</code>。压缩触发线不是等窗口填满，而是取"窗口 80%"和"品类上限"的较小值——注释明说是为了防"降智"：</p>
+
+<pre><code>// 取上下文窗口 80% 和上限的较小值，避免超大上下文窗口的模型使用了太大的上下文窗口导致降智
+// IM 品类上限 100K，其他品类上限 200K
+summaryContextCap := 200_000
+if subType == enums.SubType_AXON_IM {
+    summaryContextCap = 100_000
+}
+summaryContextLine := min(int(float64(agent.llmClient.GetModelContextWindow())*0.8), summaryContextCap)</code></pre>
+<p class="meta">↑ <code>summary.go:86–92</code>。触发判断在 <code>summary.go:105</code>：<code>TotalTokens &lt; summaryContextLine</code> 才放行不压。</p>
+
+<figure class="diagram">
+<div class="axis">
+  <span class="mark" style="left:80%">min(0.8×窗口, cap) → 压缩</span>
+  <span class="fill-label" style="left:2%">0</span>
+  <span class="fill-label" style="right:2%">满窗口</span>
+</div>
+<figcaption>压缩线 = <code>min(0.8×模型窗口, cap)</code>，其他品类 cap=200K、IM 品类 cap=100K（<code>summary.go:88–92</code>）；且 <code>summaryReuseStepThreshold=2</code>（<code>agent.go:55</code>）两步内不重复压。质量成本直接来自 context <em>长度本身</em>——这就是 attention/位置效应的代价，写死在了触发线里。</figcaption>
+</figure>
+
+<h3>成本：一个动态字段就打破 prefix cache</h3>
+
+<p>成本支柱的锚点是 prefix cache 的严格前缀匹配。<code>buildContextPayload</code> 里有一段自白式注释，亲口承认 context 组装里一个动态字段 <code>&lt;current_plan&gt;</code> 会毁掉缓存命中：</p>
+
+<pre><code>// 计划相关信息（仅在启用了计划工具时才注入）
+// 注意：&lt;current_plan&gt; 在第 1→2 次 LLM 调用间会变化（IsLastMessageFromUser 从 true→false），
+// 导致 context_info 改变、prefix cache miss。不需要 plan 提示的 Agent（如 Slides）
+// 应在 CustomizeContextPayload hook 中清除这些字段。</code></pre>
+<p class="meta">↑ <code>agent.go:1524–1527</code>。赋值在 <code>agent.go:1530</code>：<code>IsLastMessageFromUser = len(agent.newMessages) == 0</code>；渲染在 <code>context.go:270</code>：只有它为 <code>true</code> 才写 <code>&lt;current_plan&gt;</code>。</p>
+
+<figure class="diagram">
+<div class="cacheline">
+  <div class="seg hit">命中前缀<br>System + tools + context_info</div>
+  <div class="seg diverge">分歧点<br>&lt;current_plan&gt; 消失</div>
+  <div class="seg recompute">其后全部重算<br>历史 + 本轮</div>
+</div>
+<figcaption>step 0：<code>newMessages</code> 为空 → <code>IsLastMessageFromUser=true</code> → 前缀里有 <code>&lt;current_plan&gt;</code>；step 1：工具跑完 <code>newMessages</code> 非空 → 翻成 <code>false</code> → 这段消失，稳定前缀不再 byte-identical，缓存 miss。这条隐患由 <code>cache_prefix_stability_test.go</code> 做成 CI 卡点：把"稳定前缀"hash（<code>hashMessages</code>:86 / <code>extractStablePrefix</code>:99），模拟 step0→step1 比对 hash。</figcaption>
+</figure>
+
+<div class="leak">
+从 Redis 读一个 key，命中与否只由 key 决定，值放在哪不影响命中。这里的 prompt cache 命中与否，由 context 里一个 <code>&lt;current_plan&gt;</code> <strong>动态字段</strong>决定——而这个字段的值取决于 step 状态（<code>len(newMessages)</code>）。所以缓存问题的<strong>根因在组装逻辑，不在缓存层</strong>。修法不是去调缓存，而是把 plan 提示挪到 cache break 之后、或在 <code>CustomizeContextPayload</code> hook 里清掉它（代码注释 <code>agent.go:1526–1527</code> 自己也是这么建议的）。
+</div>
+
+<h3>评估：裁判是另一个厂商的非确定性模型</h3>
+
+<p>评估支柱的锚点是离线 harness <code>cmd/memory_eval</code>。它的判分器三维打分：<code>ContainsScore</code>（关键词）+ <code>ToolCallScore</code> + <code>LLMJudgeScore</code>（<code>scorer.go:14–18</code>）。关键在配置：被测模型和裁判模型来自<strong>不同厂商</strong>。</p>
+
+<pre><code>fs.StringVar(&amp;cfg.model, "model", "claude-sonnet-4-5", "model to evaluate")
+fs.StringVar(&amp;cfg.judgeModel, "judge-model", "google/gemini-2.5-flash", "model for LLM judge (OpenRouter model ID)")</code></pre>
+<p class="meta">↑ <code>config.go:41–42</code>：被测方 <code>claude-sonnet-4-5</code>（Anthropic），裁判 <code>google/gemini-2.5-flash</code>（Google，走 OpenRouter）。<code>report.go:89–90</code> 也只有在 <code>r.Model != r.JudgeModel</code> 时才多打一行 Judge——代码本身就承认"被测方与裁判方常常不是同一家"。</p>
+
+<p>裁判用 OpenAI 兼容格式打到 OpenRouter，system prompt 强制要求只返回 <code>{"score", "reasoning"}</code> 的 JSON（<code>scorer.go:151–159</code>）。跨厂商是刻意的：避免自家模型给自家输出打分的自评偏袒（见 GLOSSARY 的 LLM-as-judge 条）。代价是——eval 的可复现性同时依赖<strong>钉死 context</strong> 和<strong>钉死 judge model</strong>，任何一个动了，通过率就会漂。</p>
+
+<h3>工具：返回值占预算，压缩链是唯一的回收阀</h3>
+
+<p>工具支柱的锚点在 <code>toolcall.go</code>。这里藏着本课最锋利的一处证据：<strong>串行和并发两条路径对 <code>PromptTooLong</code> 的处理不一致</strong>。串行路径把它当一等公民——保留已产出的 partial 结果，把原始 <code>PromptTooLong</code> 原样上抛：</p>
+
+<pre><code>result, err := agent.executeToolCall(ctx, toolCall, agent.eventStream)
+if errcode.IsErrLLMPromptTooLong(err) {
+    if result != nil {
+        toolResults = append(toolResults, result)
+    }
+    return toolResults, err
+}</code></pre>
+<p class="meta">↑ <code>toolcall.go:285–291</code>（<code>executeSerialTools</code>）。原样上抛 <code>PromptTooLong</code>，让主循环的紧急压缩接住。这是"正确姿势"。</p>
+
+<p>并发路径做不到。goroutine 里遇到同样的错误，只能转成 <code>ErrInternalServer</code>——这就是那条 FIXME：</p>
+
+<pre><code>if errcode.IsErrLLMPromptTooLong(err) {
+    // FIXME: 并发调用时要处理这种报错非常麻烦，且目前暂时没有并发工具可能出现这种报错，暂不处理
+    return nil, errno.Errorf(errcode.ErrInternalServer, "unexpected context too long error: %+v", err)
+}</code></pre>
+<p class="meta">↑ <code>toolcall.go:333–335</code>（<code>executeParallelTools</code>）。<code>PromptTooLong</code> 被掩埋成 <code>ErrInternalServer</code>，压缩链再也识别不出它。并发度常量：<code>maxParallelToolCount=5</code>、<code>maxParallelSubAgentsToolCount=3</code>（<code>toolcall.go:305–306</code>）。</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">工具执行遇到 PromptTooLong</div>
+  <div class="down">│</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">串行 executeSerialTools</div>
+      <div class="step terminal">返回 partial + 原始 PromptTooLong<br>(toolcall.go:285–291) → 主循环压缩重跑 ✔</div>
+    </div>
+    <div class="branch">
+      <div class="label">并发 executeParallelTools</div>
+      <div class="step action">掩埋成 ErrInternalServer<br>(toolcall.go:333–335 FIXME) → 压缩链够不到 ✗</div>
+    </div>
+  </div>
+</div>
+<figcaption>同一个错误、两条路径、两种命运。串行路径能接进 <code>agent.go:937–949</code> 的紧急压缩；并发路径把错误类型改了，恢复链识别不出，用户直接吃到 500。</figcaption>
+</figure>
+
+<div class="leak">
+在 RPC 世界里，工具 ≈ 一次远程调用。子调用的返回值再大，也只是一个响应体，它<strong>不会反过来撑爆调用方的输入预算</strong>——调用方读完就丢。可 Agent 里工具返回值要塞回 context，参与下一次 LLM 调用；撑爆时唯一的回收办法是压缩整段 context。整个错误恢复系统的本质就是"context 溢出 → 压缩 context → 重试"，而这条中心机制靠识别 <code>PromptTooLong</code> 这一个错误类型来触发。并发路径把错误类型改成了 <code>ErrInternalServer</code>——于是它成了整张压缩图<strong>唯一够不到的角落</strong>。这就是为什么它是 FIXME，而不是随便一个 TODO。
+</div>
+
+<h2>三、类比漏水点总账</h2>
+
+<p>把四个漏水点并排放。你会发现它们不是四个独立缺陷，而是同一张 context 组装图上的四个投影点——每一处都能从"context 怎么组装/怎么压缩"推导出来。这正是这门手艺叫 <em>context engineering</em> 的原因。</p>
+
+<table>
+<tr><th>支柱（你的服务端类比）</th><th>类比对的部分</th><th>漏水点（真实锚点）</th></tr>
+<tr>
+  <td><strong>工具 ≈ RPC</strong></td>
+  <td>幂等、超时、参数校验、错误回注——都成立</td>
+  <td>子调用返回值会反噬调用方的<em>输入</em>预算，撑爆只能压整段 context；并发路径接不进压缩链（<code>toolcall.go:334</code> FIXME）</td>
+</tr>
+<tr>
+  <td><strong>context ≈ 缓存</strong></td>
+  <td>无状态、随请求带全量、可淘汰——都成立</td>
+  <td>命中与否由 context 里一个动态字段决定，根因在组装逻辑不在缓存层（<code>agent.go:1524–1527</code>）</td>
+</tr>
+<tr>
+  <td><strong>token ≈ 计费单位</strong></td>
+  <td>按量计费、缓存读写有折扣——都成立</td>
+  <td>价目表自认"不准确""分段计费未处理"，成本地基可疑（<code>model.go:501</code> TODO、<code>model.go:530</code> FIXME）</td>
+</tr>
+<tr>
+  <td><strong>eval ≈ CI</strong></td>
+  <td>固定输入 + 判分 + 回归信号——都成立</td>
+  <td>裁判是另一厂商的非确定性 LLM，可复现性同时依赖钉死 context 和 judge model（<code>config.go:41–42</code>）</td>
+</tr>
+</table>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：遇到 Agent 系统的任何一类问题——质量抖、账单涨、eval 飘、工具炸——先回到那张 context 组装图问一句"这份 context 是怎么拼的、怎么压的"。四个支柱的大部分决策都会从这张图上自动推导出来。
+</div>
+
+<h2>四、项目改进清单（据实盘点）</h2>
+
+<p>grep 全 <code>conductorservice/</code> 与 <code>llms/</code>，没有 HACK/XXX 标记；FIXME 恰好 2 处，其余是 TODO。按此据实排优先级：</p>
+
+<table>
+<tr><th>优先级</th><th>位置</th><th>问题</th><th>建议方向</th></tr>
+<tr>
+  <td><strong>P0</strong></td>
+  <td><code>toolcall.go:333–335</code> (FIXME)</td>
+  <td>并发工具把 <code>PromptTooLong</code> 掩埋成 <code>ErrInternalServer</code>，切断压缩链。结构性隐患——注释自述"目前暂时没有并发工具可能出现"，即<em>尚未爆但迟早爆</em></td>
+  <td>让并发路径像串行 <code>285–291</code> 那样返回 partial + 原始 <code>PromptTooLong</code>，接回主循环压缩</td>
+</tr>
+<tr>
+  <td><strong>P0</strong></td>
+  <td><code>model.go:530</code> (FIXME)</td>
+  <td>Seed 是分段计费（Prompt ≤ 128K 才是表里价），当前按单一价算，成本核算的地基不准</td>
+  <td>按 prompt 长度分段取价</td>
+</tr>
+<tr>
+  <td><strong>P1</strong></td>
+  <td><code>model.go:501</code> (TODO)</td>
+  <td>Kimi K2.5 缓存创建价 <code>0.009</code> 标注"不准确"</td>
+  <td>核对官方价目并修正</td>
+</tr>
+<tr>
+  <td><strong>P1</strong></td>
+  <td><code>agent.go:1524–1527</code></td>
+  <td>不需要 plan 提示的 Agent（如 Slides）仍注入 <code>&lt;current_plan&gt;</code>，白白打破 prefix cache</td>
+  <td>在 <code>CustomizeContextPayload</code> hook 里清除该字段，把分歧点推后</td>
+</tr>
+<tr>
+  <td><strong>P2</strong></td>
+  <td><code>cache_prefix_stability_test.go:405</code></td>
+  <td>注释里引用的行号 <code>agent.go:1426</code> 已过期（实际赋值在 <code>agent.go:1530</code>）——文档漂移</td>
+  <td>顺手修正注释行号（活生生的"行号会漂移"教材）</td>
+</tr>
+</table>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>紧急压缩重试（emergency compaction retry）</dt>
+<dd>主循环捕获 <code>PromptTooLong</code> 后 <code>summarizeForce</code> + <code>applySummaryImmediately</code> 压缩 context 再 <code>continue</code> 重跑该 step 的恢复机制（<code>agent.go:937–949</code>）。它靠识别错误类型触发——所以任何把 <code>PromptTooLong</code> 改写成别的错误类型的路径，都会绕过它。</dd>
+<dt>主动压缩线（proactive compaction line）</dt>
+<dd><code>min(0.8×模型窗口, cap)</code>，cap 其他品类 200K、IM 品类 100K（<code>summary.go:88–92</code>）。不等窗口满，提前压，目的是防"降智"。</dd>
+<dt>前缀漂移（prefix drift）</dt>
+<dd>step 间"稳定前缀"因动态内容而 byte 不一致，导致 prompt cache miss。典型源头是依赖 step 状态的字段（如 <code>&lt;current_plan&gt;</code>）进了缓存区（<code>cache_prefix_stability_test.go</code> 头注）。</dd>
+<dt>跨厂商裁判（cross-vendor judge）</dt>
+<dd>LLM-as-judge 里刻意让裁判模型与被测模型来自不同厂商，规避自评偏袒（<code>config.go:41–42</code>：Claude 被测 / Gemini 裁判）。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：串行 <code>executeSerialTools</code> 遇到 <code>PromptTooLong</code> 会返回"已产出的 partial 结果 + 原始错误"（<code>toolcall.go:285–291</code>），并发 <code>executeParallelTools</code> 遇到同样错误却返回 <code>ErrInternalServer</code>（<code>toolcall.go:333–335</code>）。为什么这个差异恰好证明了"context 组织是中心"？</summary>
+<div class="answer">
+<p>因为主循环的紧急压缩恢复（<code>agent.go:937–949</code>）是靠<strong>识别 <code>PromptTooLong</code> 这个错误类型</strong>触发的——捕获到它就 <code>summarizeForce</code> + <code>applySummaryImmediately</code> 压缩 context 后重跑。串行路径原样上抛，恢复链能接住；并发路径把错误类型改成了 <code>ErrInternalServer</code>，恢复链识别不出，压缩不会发生，用户直接吃到 500。</p>
+<p>整个错误恢复系统本质上就是"context 溢出 → 压缩 context → 重试"这一条中心机制，它<strong>唯一够不到的角落</strong>正是并发工具——所以那里才是 FIXME。这个差异证明四支柱的行为全从 context 组装/压缩这张图推导出来。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：<code>buildContextPayload</code> 里 <code>IsLastMessageFromUser = len(agent.newMessages) == 0</code>（<code>agent.go:1530</code>），只有它为 <code>true</code> 时 <code>context.go:270</code> 才渲染 <code>&lt;current_plan&gt;</code>。为什么这一行会伤害"成本"支柱，而这又说明缓存问题的根不在缓存层？</summary>
+<div class="answer">
+<p>step 0 时 <code>newMessages</code> 为空 → <code>IsLastMessageFromUser=true</code> → context_info 里有 <code>&lt;current_plan&gt;</code>；step 1 工具跑完后 <code>newMessages</code> 非空 → 翻成 <code>false</code> → <code>&lt;current_plan&gt;</code> 消失。这段文本处在 cache break point 之前的"稳定前缀"里，前缀一变 byte 就不再 identical，prompt cache miss，成本和延迟双升。</p>
+<p>根因是 context 组装逻辑往稳定前缀里塞了<strong>依赖 step 状态</strong>的动态内容，而不是缓存本身失效——所以修法是把 plan 提示挪到 cache break 之后、或在 <code>CustomizeContextPayload</code> hook 里清掉（代码注释 <code>agent.go:1526–1527</code> 也是这么建议的）。这就是"缓存问题的根在组装层"的活例。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（综合）：产品同学反馈某个新上线的 Agent"账单比预期贵一截、偶发 500、eval 通过率还比测试时低"。用本课的中心图，你会先查哪三处代码，各对应哪个支柱？</summary>
+<div class="answer">
+<p><strong>账单贵</strong> → 成本支柱 → 查 <code>buildContextPayload</code> 是否往稳定前缀塞了动态字段（<code>agent.go:1524–1530</code>），以及价目表是否踩中 <code>model.go:501/530</code> 的不准价。</p>
+<p><strong>偶发 500</strong> → 工具支柱 → 查是否触发了并发工具的 <code>PromptTooLong</code> 掩埋（<code>toolcall.go:333–335</code>），恢复链没接住。</p>
+<p><strong>eval 通过率低于测试时</strong> → 评估支柱 → 查 eval 的 context 与 judge model 是否被钉死（<code>config.go:41–42</code>）；judge 换了或 context 组装变了，通过率就会漂。三处根子都在同一张 context 组装图上——这正是本课的中心判断。</p>
+</div>
+</details>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源，值得再读一遍：<a href="https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents">Effective context engineering for AI agents — Anthropic Engineering</a>。带着这次的中心图去读：文中把 context 当"边际收益递减的有限资源"，与本课 <code>summary.go:86</code> 那句"避免超大上下文窗口导致降智"是同一件事的两种说法。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让老师带你现场 <code>grep</code> 这些真实符号。这是"四支柱"系列的收网课；下一步可以挑清单里任意一条 FIXME，练习把它接回中心压缩链。</p>
+</footer>
+</main>
+</body>
+</html>

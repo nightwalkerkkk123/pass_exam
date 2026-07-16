@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0008 · 想→做→看：ReAct 循环与轨迹的累积</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0008 课 · 基础 · 概念地图 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>想→做→看：ReAct 循环与轨迹的累积</h1>
+
+<p class="lede">前面几课把 Agent 拆成了大脑、眼睛、手脚。这一课回答那个自然的追问：<strong>它们如何协同转起来？</strong>答案就是本章「ReAct 循环」一节的核心——<strong>思考 → 行动 → 观察</strong>的三环节循环，加上一条随迭代不断变长的<strong>轨迹（trajectory）</strong>。唯一要拿下的判断是一句等式：<strong>上下文 = 静态前缀 + 轨迹</strong>，以及这条轨迹如何在「多币种收入汇总」那个 3 次迭代、4 次工具调用的例子里一层层累积起来，驱动一个多步任务走到终点。</p>
+
+<h2>一、ReAct 是什么：名字只有两个词，循环却有三环</h2>
+
+<p>作者把话说得很明确：Agent 执行任务的核心模式叫 <strong>ReAct</strong>（Reasoning + Acting）。名字里只有「思考」和「行动」两个词，但<strong>实际循环包含三个环节</strong>——这是初学者第一个容易漏掉的地方：</p>
+
+<ul>
+<li><strong>思考（Reasoning）</strong>：模型先想清楚当前应该做什么；</li>
+<li><strong>行动（Acting）</strong>：调用工具去做（发出 tool_calls）；</li>
+<li><strong>观察（Observation）</strong>：看工具返回的结果，再据此继续思考下一步。</li>
+</ul>
+
+<p>这个「想→做→看→想→做→看」的圈不断重复，<strong>直到任务完成</strong>。它不是凭空设计出来的循环，而是第 0006 课里工具调用四步流程的自然延伸——「结果被追加到上下文中，模型据此决定下一步行动」这一步，接回开头，就闭成了环。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 640 300" role="img" aria-label="ReAct 三环循环：思考 Reasoning 决定做什么，行动 Acting 发出工具调用，观察 Observation 读取工具结果，再回到思考，循环直到任务完成">
+  <!-- 思考 node (top) -->
+  <rect class="dgm-hub" x="240" y="20" width="160" height="60" rx="10"/>
+  <text class="dgm-accent-text" x="320" y="46" font-size="14" font-weight="700" text-anchor="middle">🧠 思考 Reasoning</text>
+  <text class="dgm-muted" x="320" y="66" font-size="11" text-anchor="middle">这一步该做什么</text>
+
+  <!-- 行动 node (bottom right) -->
+  <rect class="dgm-node" x="420" y="180" width="170" height="60" rx="10"/>
+  <text class="dgm-text" x="505" y="206" font-size="14" font-weight="700" text-anchor="middle">🖐 行动 Acting</text>
+  <text class="dgm-muted" x="505" y="226" font-size="11" text-anchor="middle">发出 tool_calls</text>
+
+  <!-- 观察 node (bottom left) -->
+  <rect class="dgm-node" x="50" y="180" width="170" height="60" rx="10"/>
+  <text class="dgm-text" x="135" y="206" font-size="14" font-weight="700" text-anchor="middle">👁 观察 Observation</text>
+  <text class="dgm-muted" x="135" y="226" font-size="11" text-anchor="middle">读取工具结果</text>
+
+  <!-- arrows: 思考 -> 行动 -> 观察 -> 思考 -->
+  <path class="dgm-edge" d="M400 66 C470 100, 505 135, 505 176" fill="none" stroke-width="1.6" marker-end="url(#ar8)"/>
+  <path class="dgm-edge" d="M420 224 C320 268, 220 268, 220 224" fill="none" stroke-width="1.6" marker-end="url(#ar8)"/>
+  <path class="dgm-edge" d="M135 176 C135 135, 170 100, 240 66" fill="none" stroke-width="1.6" marker-end="url(#ar8)"/>
+
+  <text class="dgm-muted" x="470" y="128" font-size="11" text-anchor="middle" transform="rotate(52 470 128)">做</text>
+  <text class="dgm-muted" x="320" y="282" font-size="11" text-anchor="middle">结果追加进轨迹</text>
+  <text class="dgm-muted" x="170" y="128" font-size="11" text-anchor="middle" transform="rotate(-52 170 128)">看→再想</text>
+
+  <defs>
+    <marker id="ar8" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>ReAct 三环：想（Reasoning）→ 做（Acting，发出工具调用）→ 看（Observation，读工具结果），再回到想。名字只写了前两环，但「看」这一环缺了，Agent 就成了盲人——第 0007 课的消融实验已经坐实：拿掉工具执行结果，Agent 会反复调用同一个工具、陷入无限循环。对应书中「ReAct 循环」一节。</figcaption>
+</figure>
+
+<h2>二、轨迹：循环转起来后，上下文在长大</h2>
+
+<p>循环转一圈，会往哪里留下痕迹？留在<strong>轨迹（trajectory）</strong>里。作者的定义很干脆：轨迹是「Agent 在执行任务过程中不断积累的<strong>消息历史</strong>」——用户消息、模型回复（思考过程 + 工具调用）、工具执行结果。</p>
+
+<p>关键的一步在这里：每次调用 LLM 时，它接收的完整上下文由两部分拼成——<strong>静态前缀</strong>（系统提示词 + 工具定义，对话中不变）和<strong>轨迹</strong>（动态消息历史，随交互不断增长）。这就揭示了本课要刻进肌肉记忆的等式：</p>
+
+<div class="formula">
+<div class="eq"><b>上下文</b> <span class="op">=</span> 静态前缀 <span class="op">+</span> 轨迹</div>
+<div class="gloss">静态前缀 = 系统提示词 + 工具定义（前两个组件，不变）；轨迹 = 用户消息 + 模型回复 + 工具执行结果（后三个组件，只增不减）</div>
+</div>
+
+<p>注意作者特意提醒的一点：伪代码里的轨迹<strong>不显示系统提示词和工具定义</strong>——它们作为静态前缀，在每次 LLM 调用时都会被<strong>自动拼接在轨迹前面</strong>。所以你看到的轨迹只是「长大的那半截」，前缀那半截一直安静地贴在最前面。</p>
+
+<h2>三、把循环走一遍：多币种汇总的 3 次迭代</h2>
+
+<p>光有定义还是抽象。作者用一个「多币种收入汇总」的任务把循环走了一遍，这是本课最值得盯着看的例子。任务是：Q1 2.5M 美元、Q2 2.1M 欧元、Q3 1.8M 英镑、Q4 380M 日元，求年度总收入与季度平均。看它怎么用 <strong>3 次迭代、4 次工具调用</strong>完成：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 330" role="img" aria-label="多币种汇总任务的轨迹随三次迭代累积：静态前缀恒定，轨迹每轮追加 assistant 消息与 tool 结果，长度线性增长">
+  <!-- static prefix column -->
+  <rect class="dgm-accent-node" x="24" y="30" width="120" height="270" rx="8"/>
+  <text class="dgm-accent-text" x="84" y="60" font-size="12" font-weight="700" text-anchor="middle">静态前缀</text>
+  <text class="dgm-muted" x="84" y="80" font-size="10" text-anchor="middle">系统提示词</text>
+  <text class="dgm-muted" x="84" y="96" font-size="10" text-anchor="middle">+ 工具定义</text>
+  <text class="dgm-muted" x="84" y="150" font-size="10" text-anchor="middle">每轮调用</text>
+  <text class="dgm-muted" x="84" y="166" font-size="10" text-anchor="middle">都自动拼在</text>
+  <text class="dgm-muted" x="84" y="182" font-size="10" text-anchor="middle">最前面</text>
+  <text class="dgm-muted" x="84" y="236" font-size="10" text-anchor="middle">恒定不变</text>
+
+  <!-- iteration 1 -->
+  <text class="dgm-muted" x="168" y="24" font-size="11">迭代 1</text>
+  <rect class="dgm-node" x="168" y="30" width="150" height="26" rx="5"/>
+  <text class="dgm-text" x="176" y="47" font-size="10.5">user：季度收入…</text>
+  <rect class="dgm-hub" x="168" y="62" width="150" height="26" rx="5"/>
+  <text class="dgm-accent-text" x="176" y="79" font-size="10.5">assistant：并行调 3 个</text>
+
+  <!-- tool results 1 -->
+  <rect class="dgm-node" x="168" y="94" width="150" height="26" rx="5"/>
+  <text class="dgm-text" x="176" y="111" font-size="10.5">tool×3：→USD 结果</text>
+
+  <!-- iteration 2 -->
+  <text class="dgm-muted" x="360" y="128" font-size="11">迭代 2</text>
+  <rect class="dgm-hub" x="360" y="134" width="150" height="26" rx="5"/>
+  <text class="dgm-accent-text" x="368" y="151" font-size="10.5">assistant：调代码解释器</text>
+  <rect class="dgm-node" x="360" y="166" width="150" height="26" rx="5"/>
+  <text class="dgm-text" x="368" y="183" font-size="10.5">tool：Total/Average</text>
+
+  <!-- iteration 3 -->
+  <text class="dgm-muted" x="530" y="216" font-size="11">迭代 3</text>
+  <rect class="dgm-good-node" x="530" y="222" width="150" height="26" rx="5"/>
+  <text class="dgm-text" x="538" y="239" font-size="10.5">assistant：FINAL ANSWER</text>
+
+  <!-- growth arrows -->
+  <path class="dgm-edge" d="M318 107 C340 118, 350 122, 358 132" fill="none" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ar8b)"/>
+  <path class="dgm-edge" d="M510 179 C525 195, 522 205, 528 220" fill="none" stroke-width="1.4" stroke-dasharray="4 3" marker-end="url(#ar8b)"/>
+
+  <text class="dgm-muted" x="350" y="300" font-size="11" text-anchor="middle">→ 每往下一轮，轨迹只增不减：LLM 每次都看到从头到此刻的全部</text>
+  <defs>
+    <marker id="ar8b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>对应书中「多币种汇总任务的 ReAct 循环」（图 1-3）。迭代 1：分析任务后<strong>并行</strong>调三个货币转换工具；迭代 2：拿到转换结果后调代码解释器算总和与平均；迭代 3：确认计算完成，生成最终答案。全程 3 次迭代、4 次工具调用。静态前缀恒定，轨迹阶梯式加长。</figcaption>
+</figure>
+
+<p>这里的「精妙之处」，作者点得很清楚，叫<strong>上下文的累积性</strong>：每次 LLM 调用都能看到<strong>完整的轨迹</strong>，于是它知道自己处在任务的哪个阶段、之前试了什么、拿到了什么结果——就像人解题时不断回顾。轨迹的结构化还带来两个附赠品：<strong>可解释、可调试</strong>，因为用户消息、模型回复、工具结果被清清楚楚地分开了。</p>
+
+<div class="pitfall">
+<p><strong>最常见的想错</strong>：把「上下文」当成只是用户输入的那段文本。按书里的定义，这是把眼睛蒙掉了一大半。上下文有<strong>五个组件</strong>——系统提示词、工具定义、用户消息、模型回复、工具执行结果；而且它们分属两类：<strong>静态前缀</strong>（前两项，不变）和<strong>动态轨迹</strong>（后三项，只增不减）。</p>
+<p>为什么这个区分不是学究气？因为它直接决定你怎么想成本和缓存：静态前缀每轮原样重发（这正是后面 KV Cache / prompt caching 能省钱的根基），而轨迹是那个越滚越大的雪球。把上下文窄化成「用户那句话」，你就既看不懂 Agent 为什么越跑越贵，也看不懂它为什么能记住三步之前干过什么。</p>
+</div>
+
+<h2>四、为什么这条循环值得单独讲：它是全书的运行引擎</h2>
+
+<p>因为几乎所有后面的东西，都挂在这条循环上。作者在「自主 Agent」一节里把话挑明：自主 Agent「本质上就是在一个循环中使用工具的 LLM」——<strong>这正是前面介绍的 ReAct 循环</strong>。工作流是把这条循环的路径用代码写死，自主 Agent 是让循环自己决定下一步走哪。轨迹数据还能「总结到知识库中，或者通过强化学习来训练更好的 Agent 模型」——这是第八章自我进化和第七章后训练的伏笔。</p>
+
+<p>更狠的一层在思考题里：既然每次 LLM 调用都要看到<strong>完整</strong>轨迹，而轨迹随迭代线性变长，那么处理的 token 总量就会<strong>二次方增长</strong>。这不是危言耸听，而是 ReAct 这种「累积式上下文」设计与生俱来的代价，也是后面上下文压缩、Sidecar 旁路等一切工程手段要对付的那个敌人。先记住这条循环长什么样，才能理解它们在省什么。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：Agent 干活 = ReAct 循环（想→做→看）不停转，每转一圈就往<strong>轨迹</strong>里追加消息；而 LLM 每次看到的<strong>上下文 = 静态前缀（系统提示词+工具定义，不变）+ 轨迹（用户消息+模型回复+工具结果，只增不减）</strong>。理解了这条「累积式上下文」，你就同时理解了 Agent 为什么能多步推进、为什么可调试、以及为什么会越跑越贵。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>轨迹（trajectory）</dt>
+<dd>Agent 执行任务过程中不断积累的消息历史——用户消息、模型回复（思考过程 + 工具调用）、工具执行结果；对应上下文的<strong>动态</strong>部分。<em>避免</em>与「上下文」整体混用：上下文 = 静态前缀 + 轨迹，轨迹只是其中动态增长的那部分。</dd>
+<dt>静态前缀（static prefix）</dt>
+<dd>每次 LLM 调用都自动拼接在轨迹前、且对话中保持不变的部分，即<strong>系统提示词 + 工具定义</strong>。<em>避免</em>把用户消息或工具结果算进静态前缀，它们属于动态轨迹。</dd>
+<dt>ReAct（Reasoning + Acting）</dt>
+<dd>Agent 执行任务的核心模式。名字只体现思考与行动两词，但实际循环有三环节：先<strong>思考</strong>该做什么，再调用工具<strong>行动</strong>，再<strong>观察</strong>结果并继续思考，「想→做→看」循环往复直到任务完成。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：为什么说 ReAct 循环的成本随轨迹增长是二次方的？（提示：每次 LLM 调用看到什么）</summary>
+<div class="answer">
+<p>因为每一次 LLM 调用都要看到<strong>完整的历史轨迹</strong>，轨迹长度随迭代<strong>线性</strong>增长，而每次调用处理的 token 量正比于当前轨迹长度，累加 N 轮就是 1+2+…+N ≈ N²，故总成本<strong>二次方</strong>增长。这正是本章思考题 2 的出发点，也是后续上下文压缩等 Harness 手段要打破的瓶颈。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：在多币种汇总的例子里，Agent 一共用了几次迭代、几次工具调用？第一轮为什么能一次发出多个工具调用？</summary>
+<div class="answer">
+<p><strong>3 次迭代、4 次工具调用</strong>。第一轮 Agent 分析任务后<strong>并行</strong>调用三个 <code>convert_currency</code> 工具（欧元/英镑/日元各转 USD），第二轮基于转换结果调用代码解释器算总和与平均，第三轮确认完成后生成最终答案。第一轮能一次发多个工具调用，是因为这三笔货币转换<strong>互不依赖</strong>，可以并行——模型在一条 assistant 消息的 <code>tool_calls</code> 里同时列出三个调用即可。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套实验：<strong>实验 1.1 上下文消融</strong>（仓库目录 <code>chapter1/context/</code>）。它正是用本课这套「多工具 + ReAct 循环」的 Agent（PDF 解析 / 货币转换 / 计算器 / Python 代码解释器）跑多币种这类任务，并提供 <code>full / no_history / no_reasoning / no_tool_calls / no_tool_results</code> 五种上下文模式做批量对照，输出成功率、耗时、迭代次数、工具调用数——你可以亲手把「轨迹」里的某一层抽掉，看循环怎么当场崩坏。强烈建议边读边跑：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是本书<strong>第 1 章「ReAct 循环」一节</strong>（含多币种汇总轨迹伪代码与图 1-3），值得把那段伪代码逐行读一遍。ReAct 这一模式的学术原始出处是 Shunyu Yao 等人的 ReAct 论文（<a href="https://arxiv.org/abs/2210.03629">arxiv.org/abs/2210.03629</a>）；关于「先验与推理泛化」的更宏观视角，可读 Shunyu Yao 的《The Second Half》（<a href="https://ysymyth.github.io/The-Second-Half/">ysymyth.github.io/The-Second-Half</a>），配套实验 <code>chapter1/learning-from-experience</code> 正是对它的复现。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「上下文 = 静态前缀 + 轨迹」这条等式在多币种例子上再走一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0007-context-five-components-ablation.html"><span class="dir">← 上一课</span>拆掉一个组件会怎样：上下文消融实验</a>
+  <a class="next" href="0009-model-plus-harness.html"><span class="dir">下一课 →</span>能跑的 Demo 到可靠的产品：Harness 工程</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0052 · 共享 vs 不共享上下文：多 Agent 的第一个岔路口</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0052 课 · 进阶应用 · 多 Agent 协作 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>共享 vs 不共享上下文：多 Agent 的第一个岔路口</h1>
+
+<p class="lede">动手搭多 Agent 系统，第一个必须拍板的问题不是"用几个 Agent"，而是<strong>它们之间要不要共享上下文</strong>。第十章一开头就把这条定为"最基础的架构决策"。本课的唯一目标：让你拿到一个新场景，能从<strong>子任务数、窗口占用、并行度、信息隔离、成本</strong>五个角度当场判断该走哪条路，并记住那条"<strong>50% 窗口</strong>"经验法则和"阶段切换式"折中方案。这是理解后面所有协作拓扑的地基。</p>
+
+<h2>一、是什么：两种传信息的方式</h2>
+
+<p>作者把多 Agent 系统拆成两个正交的设计维度，第一维就是"<strong>上下文是否共享</strong>"——它决定了多个 Agent 之间<strong>如何传递信息</strong>。</p>
+
+<ul>
+<li><strong>共享上下文</strong>：后一个 Agent 接收前一个 Agent 的<strong>完整对话历史和轨迹</strong>（第一章定义的 trajectory）。每个阶段切换系统提示词和工具集后就变成了一个新的 Agent（身份、职责、能力都变了），但它<strong>保留了前任的全部记忆</strong>。优势是信息不丢失；挑战是上下文可能快速膨胀。</li>
+<li><strong>不共享上下文</strong>：每个 Agent 维护<strong>完全独立</strong>的上下文和对话历史，彼此无法直接访问对方的"思考过程"。模块化和隔离性更好，也更易扩展维护——增加新 Agent 不必改动现有 Agent 的内部逻辑，只需定义好接口和数据格式。</li>
+</ul>
+
+<p>正因为不共享上下文的 Agent 看不到彼此的内心活动，它们必须靠<strong>显式的通信机制</strong>传信息。书里列了三种：<strong>工具调用的参数</strong>（结构化数据当参数传）、<strong>共享文件系统</strong>（读写共享目录里的中间产物）、<strong>消息总线</strong>（Message Bus，一个专门在 Agent 间中转消息的站点，发送方不直接调用接收方）。消息总线天然支持<strong>异步通信</strong>——像公司内部邮件，发送方和接收方不需要同时在线。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 320" role="img" aria-label="左侧共享上下文：多个角色围坐一张桌子共享一条不断膨胀的轨迹；右侧不共享上下文：多个独立工位通过共享文件与消息总线交换信息">
+  <!-- divider -->
+  <line class="dgm-edge" x1="360" y1="20" x2="360" y2="300" stroke-width="1" stroke-dasharray="4 5"/>
+
+  <!-- LEFT: shared, round table -->
+  <text class="dgm-text" x="170" y="34" font-size="14" font-weight="700" text-anchor="middle">共享上下文</text>
+  <text class="dgm-muted" x="170" y="52" font-size="11" text-anchor="middle">隐式协调 · 一张桌子 · 都听得到</text>
+  <!-- the shared trajectory: one growing bar in the middle -->
+  <rect class="dgm-hub" x="70" y="150" width="200" height="46" rx="8"/>
+  <text class="dgm-accent-text" x="170" y="171" font-size="12" font-weight="700" text-anchor="middle">同一条轨迹 trajectory</text>
+  <text class="dgm-muted" x="170" y="188" font-size="10.5" text-anchor="middle">随阶段接力，越滚越长 →</text>
+  <!-- roles seated around it -->
+  <circle class="dgm-node" cx="90" cy="95" r="22"/>
+  <text class="dgm-text" x="90" y="99" font-size="11" text-anchor="middle">角色1</text>
+  <circle class="dgm-node" cx="170" cy="82" r="22"/>
+  <text class="dgm-text" x="170" y="86" font-size="11" text-anchor="middle">角色2</text>
+  <circle class="dgm-node" cx="250" cy="95" r="22"/>
+  <text class="dgm-text" x="250" y="99" font-size="11" text-anchor="middle">角色3</text>
+  <line class="dgm-edge" x1="90" y1="117" x2="120" y2="150" stroke-width="1.3"/>
+  <line class="dgm-edge" x1="170" y1="104" x2="170" y2="150" stroke-width="1.3"/>
+  <line class="dgm-edge" x1="250" y1="117" x2="220" y2="150" stroke-width="1.3"/>
+  <text class="dgm-muted" x="170" y="240" font-size="10.5" text-anchor="middle">信息零损耗</text>
+  <text class="dgm-muted" x="170" y="256" font-size="10.5" text-anchor="middle">但上下文膨胀</text>
+
+  <!-- RIGHT: non-shared, separate stations + bus -->
+  <text class="dgm-text" x="540" y="34" font-size="14" font-weight="700" text-anchor="middle">不共享上下文</text>
+  <text class="dgm-muted" x="540" y="52" font-size="11" text-anchor="middle">显式协调 · 各自工位 · 只交接必要信息</text>
+  <!-- three independent workstations -->
+  <rect class="dgm-node" x="410" y="76" width="80" height="42" rx="7"/>
+  <text class="dgm-text" x="450" y="101" font-size="11" text-anchor="middle">Agent A</text>
+  <rect class="dgm-node" x="590" y="76" width="80" height="42" rx="7"/>
+  <text class="dgm-text" x="630" y="101" font-size="11" text-anchor="middle">Agent B</text>
+  <rect class="dgm-node" x="500" y="240" width="80" height="42" rx="7"/>
+  <text class="dgm-text" x="540" y="265" font-size="11" text-anchor="middle">Agent C</text>
+  <!-- message bus in the middle -->
+  <rect class="dgm-accent-node" x="440" y="158" width="200" height="40" rx="8"/>
+  <text class="dgm-accent-text" x="540" y="176" font-size="11.5" font-weight="700" text-anchor="middle">共享文件 / 消息总线</text>
+  <text class="dgm-muted" x="540" y="191" font-size="10" text-anchor="middle">工具参数 · 文件 · 发布订阅</text>
+  <line class="dgm-edge" x1="450" y1="118" x2="480" y2="158" stroke-width="1.3" marker-end="url(#ar2)"/>
+  <line class="dgm-edge" x1="630" y1="118" x2="600" y2="158" stroke-width="1.3" marker-end="url(#ar2)"/>
+  <line class="dgm-edge" x1="540" y1="240" x2="540" y2="198" stroke-width="1.3" marker-end="url(#ar2)"/>
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>图10-1 的直觉版：左边像一个团队围坐一张桌子讨论、所有人听到所有话；右边像不同部门通过邮件和共享文档协作，各自有独立工作空间。两边都是"真正的多 Agent 系统"，区别只在<strong>协调方式</strong>——隐式 vs 显式。</figcaption>
+</figure>
+
+<h2>二、为什么这样设计：五个角度的取舍</h2>
+
+<p>为什么不能"永远共享"图省事，也不能"永远不共享"求隔离？因为两者各有硬约束。作者在表10-1 里从五个角度把选择依据摆成了一张检查表，用作早期架构选型：</p>
+
+<figure class="diagram">
+<div style="overflow-x:auto">
+<table>
+<thead>
+<tr><th>选择依据</th><th>共享上下文</th><th>不共享上下文</th></tr>
+</thead>
+<tbody>
+<tr><td>子任务数量</td><td>少（2–3 个角色）</td><td>多（需要并行处理）</td></tr>
+<tr><td>上下文窗口</td><td>足以容纳所有角色的信息</td><td>单窗口装不下</td></tr>
+<tr><td>并行度</td><td>串行为主（角色沿同一段轨迹依次接棒）</td><td>可大规模并行（上下文互相独立，互不阻塞）</td></tr>
+<tr><td>信息隔离</td><td>不需要（所有角色共享信息）</td><td>需要（如安全审查不应看到原始思考过程）</td></tr>
+<tr><td>成本预算</td><td>单条轨迹接力，token 随阶段累积</td><td>多 Agent 各自展开，总 token 通常高出数倍到一个数量级</td></tr>
+</tbody>
+</table>
+</div>
+<figcaption>表10-1 · 共享 vs 不共享上下文的选择依据。读法：越往"子任务多、装不下窗口、要并行、要隔离"这一侧靠，越应该选不共享；只要"信息零损耗"是硬约束，就往共享靠。</figcaption>
+</figure>
+
+<p>把这五行读透，你会发现它们其实指向同一组底层矛盾：<strong>共享上下文用"信息零损耗"换来了"上下文膨胀 + 只能串行"</strong>；<strong>不共享上下文用"隔离与并行"换来了"信息要显式传、总 token 更贵、调试更难"</strong>。作者也把这条代价说得很直白——不共享上下文下出了问题，"需要翻看多个 Agent 的日志，才能拼出完整的执行过程"。没有免费的隔离。</p>
+
+<p>那到底怎么快速拍板？书给了一条极简判断，也是本课最该背下来的一句：</p>
+
+<div class="bookquote">
+若预期累计上下文会超过窗口的 50%（这是一条经验法则，而非精确阈值），应不共享；若信息零损耗对任务正确性是硬约束，应共享。
+<span class="src">——《深入理解 AI Agent》第 10 章</span>
+</div>
+
+<h2>三、折中：多数真实系统走"阶段切换式"</h2>
+
+<p>现实里很少非黑即白。作者点明：<strong>多数实际系统采用"阶段切换式"方案</strong>——前几个 Agent 先共享上下文（信息零损耗、隐式协调最省事），到<strong>信息饱和点</strong>后再切换为"不共享上下文 + 显式 handoff（移交）"。所谓 handoff，就是由上游 Agent 主动决定<strong>把哪些信息交接给下游</strong>，而不是把整条轨迹一股脑倒过去。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">角色1</span><span class="n-sub">共享上下文</span></div>
+  <div class="arrow">→</div>
+  <div class="node stable"><span class="n-title">角色2</span><span class="n-sub">继承完整轨迹</span></div>
+  <div class="arrow">→</div>
+  <div class="node volatile"><span class="n-title">信息饱和点</span><span class="n-sub">窗口快装不下</span></div>
+  <div class="arrow">→</div>
+  <div class="node"><span class="n-title">handoff 移交</span><span class="n-sub">只交接必要信息</span></div>
+  <div class="arrow">→</div>
+  <div class="node"><span class="n-title">下游 Agent</span><span class="n-sub">不共享 · 可并行</span></div>
+</div>
+<figcaption>阶段切换式：前段吃"共享"的信息零损耗红利，一旦逼近窗口上限，就在饱和点切成"不共享 + 显式 handoff"。这条折中路线在后面的管理者模式、书籍翻译实验里会反复出现。</figcaption>
+</figure>
+
+<p>补一层"为什么"：共享上下文里，每个阶段其实都是一个<strong>独立的 Agent</strong>（有自己的系统提示词和工具集），只是它继承了前序 Agent 的完整轨迹——"就像接班的同事能翻阅前任留下的所有工作日志"。这种继承式协作的红利是信息零损耗，代价则是——如何让当前 Agent 专注自己的核心职责，<strong>而不被继承来的大量历史信息干扰</strong>。饱和点的存在，正是这份代价累积到临界的信号。</p>
+
+<div class="pitfall">
+<p><strong>误区一：以为"多 Agent = 必须不共享上下文"。</strong> 不是。书里强调两种架构<strong>都是真正的多 Agent 系统</strong>——只要每个阶段的系统提示词和工具集不同，它就是不同的 Agent。共享上下文只是让它们靠"隐式协调"（继承轨迹）通信而已。</p>
+<p><strong>误区二：把"上下文是否共享"和"协作拓扑"当成一回事。</strong> 二者<strong>概念上独立、实践中相关</strong>：共享上下文的系统一样有拓扑，只不过拓扑往往退化成一条角色切换序列、没多少架构决策可做；一旦选择不共享，"信息如何流动、由谁协调"才成为必须显式设计的问题。别把这一维直接读成"要不要拆多个 Agent"。</p>
+</div>
+
+<h2>四、宏观背景：为什么这一刀值得单开一课</h2>
+
+<p>因为它是<strong>整章的分叉总闸</strong>。第十章后面讲的对等协作、管理者、去中心化三种拓扑，作者明说"只详细展开<strong>不共享上下文</strong>的三格"——也就是说，你先在这一维上做对了选择，后面的拓扑设计才有意义。选错了这一刀（该隔离时硬共享、该共享时强行拆开），后面无论怎么调拓扑都是在错误的地基上加盖。</p>
+
+<p>它也直接连着成本这条硬约束。表10-1 里"不共享总 token 高出数倍到一个数量级"不是随口一说——这与后文"多 Agent token 消耗约为普通对话 15 倍"的数据是同一件事的两个侧面。<strong>隔离和并行都要花钱</strong>，所以这一刀本质上是在替整个系统的账单做第一次预算。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：拿到多 Agent 场景，先做一件事——沿五个角度（子任务数、窗口占用、并行度、信息隔离、成本）扫一遍，用"预期累计上下文超窗口 <strong>50%</strong> 就不共享、信息零损耗是硬约束就共享"当默认判据；拿不准就走<strong>阶段切换式</strong>：先共享吃零损耗红利，到饱和点切成"不共享 + 显式 handoff"。这一刀切在前，拓扑设计才在后。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>共享上下文 / 不共享上下文（Shared / Non-shared Context）</dt>
+<dd>多 Agent 的第一设计维度：共享指后一 Agent 继承前一 Agent 的完整轨迹（隐式协调、信息零损耗、上下文膨胀）；不共享指各 Agent 维护独立上下文，仅通过工具参数 / 共享文件 / 消息总线三种显式机制通信。<em>避免</em>与"多轮对话历史"混同——这里区分的是 Agent 之间是否继承彼此的完整轨迹。</dd>
+<dt>移交（handoff / 移交包）</dt>
+<dd>由上游 Agent 主动决定把哪些信息交接给下游。不共享上下文下的"移交包"通常含任务描述、已确认的事实与约束、结构化产物的引用（文件路径而非内容），刻意不传全量轨迹。<em>避免</em>理解成"把完整历史一并交出"——那是共享上下文下的形态。</dd>
+<dt>消息总线（Message Bus）</dt>
+<dd>专门在 Agent 间中转消息的基础设施，Agent 发布 / 订阅消息而不直接调用彼此，天然支持异步、多方并行；常见实现有 Redis Pub/Sub（不持久化）与 RabbitMQ（持久化）。<em>避免</em>与点对点通信混用——总线的意义正是解耦收发双方、避免连接数平方增长。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：一个翻译几百页技术书的多 Agent 系统，为什么不适合让所有 Agent 共享上下文？用本章的判据说明。</summary>
+<div class="answer">
+<p>因为全书术语表 + 已译章节 + 翻译思考 + 工具结果会累积到远超上下文窗口（预期超窗口 50% 就应不共享），且过长上下文会让 Agent"迷失"——忘记术语约定、重复检查、甚至幻觉出不存在的术语规则。这类任务子任务多、需并行、单窗口装不下，应选不共享上下文 + 显式 handoff。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：不共享上下文下的三种显式通信机制分别是什么？其中哪一种天然支持"发送方和接收方不必同时在线"，为什么？</summary>
+<div class="answer">
+<p>三种是：<strong>工具调用的参数</strong>（把结构化数据当参数传给下游 Agent 的工具）、<strong>共享文件系统</strong>（读写共享目录里的中间产物）、<strong>消息总线</strong>（Agent 把消息发到总线、由它转发）。其中<strong>消息总线</strong>天然支持异步——像公司内部邮件系统，你发邮件不要求对方此刻在电脑前，消息先存在服务器上，等对方上线再处理，因此收发双方无需同时在线，特别适合多个 Agent 并行工作、彼此需要协调的场景。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本节侧重架构判据，配套代码在后面的实验里落地（如管理者模式下的"实验 10-3 书籍翻译 Agent"就是"共享装不下 → 改不共享"的活样本）。建议边读边跑开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>——先把这一维的取舍看懂，再去看拓扑怎么在"不共享"这一格里展开。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是《深入理解 AI Agent》(李博杰) 第 10 章"多 Agent 协作"的开篇——"多 Agent 协作的分类框架 · 维度一：上下文是否共享"一节，以及紧随其后的<strong>表10-1</strong>（选择依据）和"共享上下文的多 Agent 协作"一节，值得连着读，因为它是后面所有拓扑的分叉总闸。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师拿你手头的一个真实多 Agent 场景，带你把表10-1 的五个角度逐条过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0051-slow-fast-decoupling-across-scenes.html"><span class="dir">← 上一课</span>藏起「慢」：快慢解耦如何跨越语音/电脑/机器人</a>
+  <a class="next" href="0053-new-information-criterion.html"><span class="dir">下一课 →</span>多 Agent 何时真的赢过单 Agent：只看一条判据</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

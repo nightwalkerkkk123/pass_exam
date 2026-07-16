@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>《深入理解 AI Agent》· 精读课（李博杰 · 57 节以书为源）</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+<link rel="stylesheet" href="assets/book.css">
+<style>
+  .course-grid { display: grid; gap: 1.2rem; margin: 1.5rem 0; }
+  .pillar { border: 1px solid var(--border); border-radius: 10px; padding: 1.1em 1.3em; }
+  .pillar h3 { margin-top: 0; display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+  .pillar h3 .tag { font-size: .66em; font-weight: 600; padding: .15em .6em; border-radius: 20px; background: var(--accent-soft); color: var(--accent); font-family: "PingFang SC", sans-serif; }
+  .pillar.spine { border-color: var(--link); border-width: 1.5px; }
+  ul.lessons { list-style: none; padding: 0; margin: .5rem 0 0; }
+  ul.lessons li { padding: .45em 0; border-bottom: 1px dashed var(--border); display: flex; gap: .7rem; align-items: baseline; flex-wrap: wrap; }
+  ul.lessons li:last-child { border-bottom: none; }
+  ul.lessons .num { font-family: "SF Mono", monospace; font-size: .82em; color: var(--muted); flex: 0 0 2.8rem; }
+  ul.lessons a { text-decoration: none; font-weight: 600; }
+  ul.lessons .desc { color: var(--muted); font-size: .82em; flex: 1 1 12rem; }
+  .toplinks { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.2rem 0; font-family: "PingFang SC", sans-serif; font-size: .9rem; }
+  .toplinks a { padding: .4em .9em; border: 1px solid var(--border); border-radius: 6px; text-decoration: none; }
+  .track-banner { border: 1px solid var(--link); background: var(--code-bg); border-radius: 8px; padding: .7em 1em; margin: 1.4rem 0; font-family: "PingFang SC", sans-serif; font-size: .9rem; }
+  .track-banner a { font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发教学工作区 · 第三条 track · 真实源＝《深入理解 AI Agent：设计原理与工程实践》(李博杰)</p>
+
+<h1>《深入理解 AI Agent》· 精读课</h1>
+
+<p class="lede">57 节微课，句句落到书里的概念、图号、实验与开源代码。整门课只押一条主线——核心公式 <strong>Agent = LLM + 上下文 + 工具</strong>（大脑 + 眼睛 + 手脚）：第 1 章立公式，第 2–7 章把三大支柱（上下文 / 工具 / 模型）一根根立起来，第 8–10 章把三根支柱组合起来投向更复杂的应用。目标不是读完一本书，而是拿到一套能穿越模型迭代周期的架构判断力。</p>
+
+<div class="formula">
+<div class="eq"><b>Agent</b> <span class="op">=</span> LLM <span class="op">+</span> 上下文 <span class="op">+</span> 工具</div>
+<div class="gloss">大脑（思考决策） + 眼睛（能看到什么） + 手脚（能做什么）· 图0-1</div>
+</div>
+
+<div class="track-banner">
+🧭 这是<strong>以「书」为源的精读课</strong>。想看这些原则如何落到一个真实生产项目的代码里，去另两门以 <code>mino_server</code> 代码为源的课：<a href="../from-zero/index.html">《从零看 Agent 如何长出来》(入门)</a> 与 <a href="../index.html">《四支柱工程课》(进阶)</a>。三门互补。
+</div>
+
+<div class="toplinks">
+  <a href="MISSION.md">🎯 Mission</a>
+  <a href="GLOSSARY.md">📖 术语表（86 条）</a>
+  <a href="RESOURCES.md">🔗 资源</a>
+  <a href="SKILL.md">🗂 课程索引</a>
+</div>
+
+<div class="course-grid">
+
+  <div class="pillar spine">
+    <h3>引言 · 公式与全局 <span class="tag">公式</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0001</span><a href="lessons/0001-agent-core-formula.html">Agent 核心公式:大脑+眼睛+手脚</a><span class="desc">用一句公式和一个身体隐喻记住 Agent 的三大不可缺组件,并知道…</span></li>
+      <li><span class="num">0002</span><a href="lessons/0002-three-layer-rl-mapping.html">从直觉到学术:Agent 三层映射</a><span class="desc">把 LLM+上下文+工具映射到强化学习的 Policy/Obser…</span></li>
+      <li><span class="num">0003</span><a href="lessons/0003-practice-before-naming.html">实践在前,命名在后</a><span class="desc">理解 Skill/harness/loop engineering…</span></li>
+      <li><span class="num">0004</span><a href="lessons/0004-pine-reverse-engineered-principles.html">Pine 倒逼出的三条早期实践</a><span class="desc">通过 Pine 的三个实战例子,理解架构原则不是凭空设计,而是被高…</span></li>
+      <li><span class="num">0005</span><a href="lessons/0005-reasoning-vs-inference-glossary.html">思考 vs 推理:一个贯穿全书的术语约定</a><span class="desc">分清 reasoning(思考)和 inference(推理)两个…</span></li>
+    </ul>
+  </div>
+  <div class="pillar spine">
+    <h3>基础 · 概念地图 <span class="tag">地基</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0006</span><a href="lessons/0006-agent-equals-brain-eyes-hands.html">一个公式看懂 Agent：大脑+眼睛+手脚</a><span class="desc">用「Agent = LLM + 上下文 + 工具」这一公式建立全书…</span></li>
+      <li><span class="num">0007</span><a href="lessons/0007-context-five-components-ablation.html">拆掉一个组件会怎样：上下文消融实验</a><span class="desc">理解上下文五组件（系统提示词/工具定义/用户消息/模型回复/工具结…</span></li>
+      <li><span class="num">0008</span><a href="lessons/0008-react-loop-trajectory.html">想→做→看：ReAct 循环与轨迹如何累积</a><span class="desc">理解 ReAct 的思考-行动-观察三环节，以及『上下文=静态前缀…</span></li>
+      <li><span class="num">0009</span><a href="lessons/0009-model-plus-harness.html">能跑的 Demo 到可靠的产品：Harness 工程</a><span class="desc">掌握生产公式 Agent = Model + Harness，能区…</span></li>
+      <li><span class="num">0010</span><a href="lessons/0010-workflow-vs-autonomous.html">工作流还是自主 Agent：编排模式怎么选</a><span class="desc">理解确定性工作流与动态自主 Agent 的本质区别、各自优势与局限…</span></li>
+    </ul>
+  </div>
+  <div class="pillar">
+    <h3>支柱一(上下文) · 上下文工程 <span class="tag">支柱一 · 上下文</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0011</span><a href="lessons/0011-agent-loop-and-message-roles.html">一个 while 循环看懂 Agent：四种消息角色与无状态调用</a><span class="desc">读者能亲手推演 messages 列表在'温哥华时间+天气'两轮工…</span></li>
+      <li><span class="num">0012</span><a href="lessons/0012-kv-cache-prefix-invariance.html">改一个空格，账单翻倍：KV Cache 为何只认稳定前缀</a><span class="desc">读者能解释那个'系统提示词加一行时间戳导致 TTFT 从 0.5 …</span></li>
+      <li><span class="num">0013</span><a href="lessons/0013-prompt-as-new-employee-handbook.html">把系统提示词当新员工手册：流程驱动而非规则堆砌</a><span class="desc">读者能用'账单谈判 Agent 三种计费模式'的例子说明模糊规则如…</span></li>
+      <li><span class="num">0014</span><a href="lessons/0014-skills-progressive-disclosure.html">别把手册全堆桌上：Agent Skills 的三层渐进式披露</a><span class="desc">读者能讲清 Skills 三层结构（元数据/SKILL.md/细则…</span></li>
+      <li><span class="num">0015</span><a href="lessons/0015-agent-status-bar-distillation.html">给模型装一个状态栏：把隐式状态提炼成可查的显式知识</a><span class="desc">读者能用'打电话最多 3 次却数不清又打第 4 次'的例子说明'上…</span></li>
+      <li><span class="num">0016</span><a href="lessons/0016-context-compression-vs-rot.html">装得下却找不到：上下文压缩的两个动机与四条原则</a><span class="desc">读者能区分上下文溢出（装不下）与上下文腐化（装得下但找不到）、理解…</span></li>
+    </ul>
+  </div>
+  <div class="pillar">
+    <h3>支柱一(上下文) · 记忆与知识库 <span class="tag">支柱一 · 记忆</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0017</span><a href="lessons/0017-memory-vs-context-and-selective-extraction.html">记忆不是流水账：会话结束后 Agent 该记住什么</a><span class="desc">理解用户记忆是'投入额外算力把对话压缩成用户预测模型'的主动学习过…</span></li>
+      <li><span class="num">0018</span><a href="lessons/0018-four-memory-storage-formats-tradeoff.html">四种记忆存储格式：简单性与表达力的根本张力</a><span class="desc">沿 Simple Notes→Enhanced Notes→JSO…</span></li>
+      <li><span class="num">0019</span><a href="lessons/0019-dense-vs-sparse-hybrid-retrieval.html">稠密 vs 稀疏 vs 重排序：为什么生产级 RAG 要三管齐下</a><span class="desc">理解稠密嵌入（余弦相似度、懂语义但漏关键词）与稀疏 BM25（倒排…</span></li>
+      <li><span class="num">0020</span><a href="lessons/0020-chunking-flaw-and-contextual-retrieval.html">分块的原罪与上下文感知检索：给每块补一段背景</a><span class="desc">理解分块必然切断片段与原文上下文的联系（'该公司'指代谁丢在块外）…</span></li>
+      <li><span class="num">0021</span><a href="lessons/0021-agentic-rag-react-loop.html">智能体化 RAG：从被动检索管道到主动探索的研究员</a><span class="desc">理解非智能体化 RAG（单向管道，能力上限低）与智能体化 RAG（…</span></li>
+    </ul>
+  </div>
+  <div class="pillar">
+    <h3>支柱二(工具) · 工具设计 <span class="tag">支柱二 · 工具</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0022</span><a href="lessons/0022-five-tool-categories.html">Agent 的五类工具：调用方向×作用对象</a><span class="desc">用'谁发起'和'作用于什么'两个特征，一次性把感知/执行/协作/事…</span></li>
+      <li><span class="num">0023</span><a href="lessons/0023-dedicated-tool-vs-skill.html">专用工具还是 Skill+通用执行器？三维决策</a><span class="desc">把'能力该做成什么形态'当成先于粒度/描述的第一性问题，用参数复杂…</span></li>
+      <li><span class="num">0024</span><a href="lessons/0024-tool-description-art.html">工具描述的艺术：讲清'不能做什么'比'能做什么'更重要</a><span class="desc">多数工具调用失败的根因不是模型不知道工具能干嘛，而是不知道边界和参…</span></li>
+      <li><span class="num">0025</span><a href="lessons/0025-proposer-reviewer-sidecar.html">两种第二视角:提议者-审核者 与 Sidecar</a><span class="desc">给危险操作加'第二双眼睛'的两种范式——异构模型互审(开放式思考)…</span></li>
+      <li><span class="num">0026</span><a href="lessons/0026-async-event-strategies.html">异步Agent:训练同步/部署异步的矛盾与三种处理策略</a><span class="desc">理解为什么'工具调用后必须紧跟结果'的同步训练范式会与真实世界的随…</span></li>
+    </ul>
+  </div>
+  <div class="pillar">
+    <h3>支柱二(工具) · Coding Agent <span class="tag">支柱二 · Coding</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0027</span><a href="lessons/0027-seven-core-tools-of-coding-agent.html">Coding Agent 的七个核心工具：极简却完整的工具箱</a><span class="desc">理解一个能干活的 Coding Agent 底层只需七个工具,以及…</span></li>
+      <li><span class="num">0028</span><a href="lessons/0028-code-as-meta-capability.html">代码为什么是 Agent 的'元能力'</a><span class="desc">分清'普通能力'与'元能力'——代码不是工具箱里的一件工具,而是能…</span></li>
+      <li><span class="num">0029</span><a href="lessons/0029-three-layer-business-rule-enforcement.html">业务规则代码化：为什么最后守门员不能信模型自报的参数</a><span class="desc">用 τ-bench 取消航班的例子讲清三重保障,核心洞察是:exp…</span></li>
+      <li><span class="num">0030</span><a href="lessons/0030-why-coding-agent-fits-harness.html">任务四象限：为什么 Coding Agent 是最成熟的 Agent 类型</a><span class="desc">用'任务清晰度×验证自动化'四象限理解 Harness 的目标——…</span></li>
+      <li><span class="num">0031</span><a href="lessons/0031-proposer-reviewer-for-media.html">提议者-审核者机制：让 Agent 看见自己生成的效果</a><span class="desc">Agent 写完代码不知道渲染效果,于是用 Proposer 生成…</span></li>
+    </ul>
+  </div>
+  <div class="pillar">
+    <h3>支柱三(模型) · Agent 评估 <span class="tag">支柱三 · 评估</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0032</span><a href="lessons/0032-model-plus-harness-swap-vs-ablation.html">评估到底在评什么：模型替换实验 vs 消融实验</a><span class="desc">学会把评估对象理解成「模型+Harness」组合体，并用两种正交实…</span></li>
+      <li><span class="num">0033</span><a href="lessons/0033-progressive-disclosure-user-simulation.html">为什么不能把答案一次性告诉 Agent：渐进式信息透露</a><span class="desc">理解人机交互型评估与传统benchmark的根本区别——用另一个L…</span></li>
+      <li><span class="num">0034</span><a href="lessons/0034-rubric-four-principles-and-veto.html">用 Rubric 给开放式任务打分：四准则与一票否决</a><span class="desc">掌握 Scale AI 的 Rubric 四准则，尤其是把幻觉/安…</span></li>
+      <li><span class="num">0035</span><a href="lessons/0035-passk-vs-passhatk.html">Pass@k 和 Pass^k 差一个符号，结论天差地别</a><span class="desc">分清衡量「能力上限」的Pass@k与衡量「稳定可靠」的Pass^k…</span></li>
+      <li><span class="num">0036</span><a href="lessons/0036-benchmark-report-to-hypothesis-tiers.html">读懂 Benchmark 报告：从能力标签矩阵到三层假设</a><span class="desc">学会交叉分析逐任务表格与能力标签矩阵定位结构性短板，再按表层/中层…</span></li>
+    </ul>
+  </div>
+  <div class="pillar">
+    <h3>支柱三(模型) · 模型后训练 <span class="tag">支柱三 · 后训练</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0037</span><a href="lessons/0037-three-stage-training-map.html">三阶段炼成：预训练、SFT、RL 各在做什么</a><span class="desc">建立一张能让后面所有技术对号入座的地图——一个模型的能力是分三步、…</span></li>
+      <li><span class="num">0038</span><a href="lessons/0038-sft-memorizes-rl-generalizes.html">SFT 记忆、RL 泛化：一张卡牌游戏讲透</a><span class="desc">用 GeneralPoints 的 J/Q/K 例子让人一眼看懂两…</span></li>
+      <li><span class="num">0039</span><a href="lessons/0039-sft-then-rl-decision.html">先形后神：什么时候该做 SFT、什么时候才轮到 RL</a><span class="desc">给工程师一套可落地的决策顺序，避免一上来就上又贵又不稳的 RL——…</span></li>
+      <li><span class="num">0040</span><a href="lessons/0040-data-env-over-algorithm.html">数据和环境比算法更重要:后训练最值钱的一条判断</a><span class="desc">扭转'调哪个算法'的执念，把注意力拉回仿真环境保真度和数据质量这两…</span></li>
+      <li><span class="num">0041</span><a href="lessons/0041-dense-signal-frontier.html">稀疏奖励的困境与两种破局:RLVP 与 On-Policy Distillation</a><span class="desc">讲清 RL 样本效率低的根子(只从最终成败学、浪费环境丰富反馈),…</span></li>
+    </ul>
+  </div>
+  <div class="pillar">
+    <h3>进阶应用 · 自我进化 <span class="tag">进阶 · 进化</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0042</span><a href="lessons/0042-why-agents-dont-auto-learn.html">为什么无限上下文也不会让 Agent 自动学习</a><span class="desc">理解注意力'像检索而非归纳'的本质，从而明白'学习必须被显式设计'…</span></li>
+      <li><span class="num">0043</span><a href="lessons/0043-three-deliverables-of-experience.html">经验该存成什么：知识库、代码工具、还是 Skill</a><span class="desc">掌握一条可落地的判别法则，决定每条学到的经验用哪种外部载体沉淀</span></li>
+      <li><span class="num">0044</span><a href="lessons/0044-record-and-replay-with-verification.html">录制-回放:重复任务提速数倍，但必须装上验证闸门</a><span class="desc">理解工作流录制如何省掉重复的多模态思考，以及为什么'存前验证+每步…</span></li>
+      <li><span class="num">0045</span><a href="lessons/0045-system-prompt-learning.html">系统提示学习:从一个边界案例就改一条明文规则</a><span class="desc">理解为什么直接改系统提示词的学习比结果奖励型RL数据效率高得多，以…</span></li>
+      <li><span class="num">0046</span><a href="lessons/0046-active-tool-discovery-and-skills.html">工具爆炸怎么办:主动发现 vs Skills 按需查阅</a><span class="desc">理解上千工具全量注入为何失效，以及'主动声明-语义匹配-动态注入'…</span></li>
+    </ul>
+  </div>
+  <div class="pillar">
+    <h3>进阶应用 · 多模态与实时交互 <span class="tag">进阶 · 多模态</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0047</span><a href="lessons/0047-voice-latency-waterfall.html">语音 Agent 为什么慢：延迟瀑布与排队论</a><span class="desc">看懂级联流水线 VAD+ASR+LLM+TTS 的延迟如何逐段累积…</span></li>
+      <li><span class="num">0048</span><a href="lessons/0048-escaping-vad-three-paradigms.html">一条主线看懂三种语音范式：如何摆脱 VAD 的轮次假设</a><span class="desc">用「摆脱轮次假设」这一根轴串起级联→Omni→全双工：级联和 Om…</span></li>
+      <li><span class="num">0049</span><a href="lessons/0049-fast-slow-thinking.html">快慢思考的三种接法：从并行到军师到边想边说</a><span class="desc">掌握调和实时响应与深度思考的三方案及其递进的协调机制：方案一并行（…</span></li>
+      <li><span class="num">0050</span><a href="lessons/0050-computer-use-grounding.html">Computer Use 怎么找到按钮：视觉定位三条路线</a><span class="desc">理解 Grounding 的三条路线及选择逻辑——DOM/Acce…</span></li>
+      <li><span class="num">0051</span><a href="lessons/0051-slow-fast-decoupling-across-scenes.html">藏起「慢」：快慢解耦这一招如何跨越语音/电脑/机器人</a><span class="desc">看清「快慢解耦+纯文本契约」是贯穿全章的同一招：当一个环节天生慢，…</span></li>
+    </ul>
+  </div>
+  <div class="pillar">
+    <h3>进阶应用 · 多 Agent 协作 <span class="tag">进阶 · 多 Agent</span></h3>
+    <ul class="lessons">
+      <li><span class="num">0052</span><a href="lessons/0052-shared-vs-nonshared-context.html">共享 vs 不共享上下文：多 Agent 的第一个岔路口</a><span class="desc">能凭子任务数、窗口占用、并行度、信息隔离、成本五个角度，判断一个多…</span></li>
+      <li><span class="num">0053</span><a href="lessons/0053-new-information-criterion.html">多 Agent 何时真的赢过单 Agent：只看一条判据</a><span class="desc">掌握「协作是否引入生成时不存在的新信息」这条唯一判据，能一眼识破无…</span></li>
+      <li><span class="num">0054</span><a href="lessons/0054-agent-virtual-filesystem.html">Agent 眼中的文件系统：一棵挂载四类区域的目录树</a><span class="desc">能画出并区分 Scratchpad、共享空间、外部挂载资源、系统内…</span></li>
+      <li><span class="num">0055</span><a href="lessons/0055-proposer-reviewer-loop.html">提议者-审核者循环：为什么不能自己审自己</a><span class="desc">理解对等协作最经典的 Proposer-Reviewer 范式，知…</span></li>
+      <li><span class="num">0056</span><a href="lessons/0056-orchestration-planner-bottleneck.html">管理者模式：为什么最强的模型要给规划者</a><span class="desc">理解 Manager「把 Agent 当工具调用」的统一抽象带来的…</span></li>
+      <li><span class="num">0057</span><a href="lessons/0057-cascading-error-amplification.html">错误的级联放大：一致性如何给错误背书</a><span class="desc">识别多 Agent 特有的语义级失败——一个术语误译被后续 Age…</span></li>
+    </ul>
+  </div>
+
+</div>
+
+<footer class="lesson-footer">
+<p>教学法：每节课一个窄主题、图文并茂、带自测题、句句以原书为准（不靠记忆补充或“纠正”原文）。术语严格区分「思考(reasoning)」与「推理(inference)」。有任何不清楚的，回到会话里问你的 AI 老师——可要求 ELI5 / ELI14，或让老师带你把某章的配套实验跑一遍。</p>
+</footer>
+</main>
+</body>
+</html>

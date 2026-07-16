@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0037 · 三阶段炼成：预训练、SFT、RL 各在做什么</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0037 课 · 支柱三(模型) · 模型后训练 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>三阶段炼成：预训练、SFT、RL 各在做什么</h1>
+
+<p class="lede">这节课只带你拿下一张<strong>地图</strong>：一个现代模型的能力，是分<strong>预训练 → SFT → RL</strong> 三步、按流水线炼成的，每一步用的<strong>数据、优化目标、代价</strong>各不相同。这张图在第 7 章开篇的“预训练、SFT、RL：三阶段全景”一节（对应表7-1），是读懂整章后训练技术的钥匙——后面所有花哨的算法，都能往这三个格子里对号入座。先把地基这张图刻进脑子。</p>
+
+<h2>一、是什么：三步流水线，不是三选一</h2>
+
+<p>作者在本章开篇把话说得很直白：一个现代模型的能力，是分三个阶段炼成的，“这三个阶段环环相扣，缺一不可”。</p>
+
+<ul>
+<li><strong>预训练（Pre-training）</strong>：在海量互联网文本上做“预测下一个词”，学会语言规律、世界知识和基本推理。像“读完了图书馆里所有书”——博学，但还不会好好回答问题。<strong>最贵的一步</strong>（数百万～数千万美元），是能力的地基。</li>
+<li><strong>SFT（监督微调）</strong>：用几千到几万条“问题—标准回答”示范对，教会模型“该用什么格式、风格、流程来回答”。把博学的模型变成听得懂指令、输出规整的助手。<strong>便宜、快、稳</strong>，几乎所有部署模型都要经过这一步。</li>
+<li><strong>RL（强化学习）</strong>：不再给标准答案，让模型自己去试，把做得好的行为概率调高、做得差的调低。让它在<strong>没见过的情况</strong>下也能做出合理决策。篇幅最大、最需要工程功力，<strong>常是 SFT 的几十～上百倍代价</strong>。</li>
+</ul>
+
+<p>关键：三者的关系<strong>不是三选一，而是流水线</strong>——先读书，再看示范，最后实战。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 250" role="img" aria-label="预训练、SFT、RL 三阶段流水线，每阶段标注数据、优化目标、学到什么、代价四项">
+  <!-- headers -->
+  <rect class="dgm-node" x="40" y="16" width="180" height="46" rx="9"/>
+  <text class="dgm-text" x="130" y="38" font-size="15" font-weight="700" text-anchor="middle">预训练</text>
+  <text class="dgm-muted" x="130" y="55" font-size="10.5" text-anchor="middle">读万卷书</text>
+
+  <rect class="dgm-hub" x="270" y="16" width="180" height="46" rx="9"/>
+  <text class="dgm-accent-text" x="360" y="38" font-size="15" font-weight="700" text-anchor="middle">SFT</text>
+  <text class="dgm-muted" x="360" y="55" font-size="10.5" text-anchor="middle">看老师示范</text>
+
+  <rect class="dgm-node" x="500" y="16" width="180" height="46" rx="9"/>
+  <text class="dgm-text" x="590" y="38" font-size="15" font-weight="700" text-anchor="middle">RL</text>
+  <text class="dgm-muted" x="590" y="55" font-size="10.5" text-anchor="middle">下场做题</text>
+
+  <!-- arrows between stages -->
+  <line class="dgm-edge" x1="224" y1="39" x2="266" y2="39" stroke-width="1.6" marker-end="url(#ar)"/>
+  <line class="dgm-edge" x1="454" y1="39" x2="496" y2="39" stroke-width="1.6" marker-end="url(#ar)"/>
+
+  <!-- row labels -->
+  <text class="dgm-muted" x="130" y="100" font-size="11.5" text-anchor="middle">数据：互联网文本</text>
+  <text class="dgm-muted" x="360" y="100" font-size="11.5" text-anchor="middle">数据：示范问答对</text>
+  <text class="dgm-muted" x="590" y="100" font-size="11.5" text-anchor="middle">数据：任务+奖励</text>
+
+  <text class="dgm-text" x="130" y="132" font-size="11.5" text-anchor="middle">目标：预测下一词</text>
+  <text class="dgm-text" x="360" y="132" font-size="11.5" text-anchor="middle">目标：预测下一词*</text>
+  <text class="dgm-text" x="590" y="132" font-size="11.5" text-anchor="middle">目标：最大化奖励</text>
+
+  <text class="dgm-muted" x="130" y="164" font-size="11.5" text-anchor="middle">学到：知识与推理</text>
+  <text class="dgm-muted" x="360" y="164" font-size="11.5" text-anchor="middle">学到：格式与协议</text>
+  <text class="dgm-muted" x="590" y="164" font-size="11.5" text-anchor="middle">学到：可迁移策略</text>
+
+  <text class="dgm-text" x="130" y="196" font-size="11.5" text-anchor="middle">代价：极高</text>
+  <text class="dgm-text" x="360" y="196" font-size="11.5" text-anchor="middle">代价：低</text>
+  <text class="dgm-text" x="590" y="196" font-size="11.5" text-anchor="middle">代价：高</text>
+
+  <text class="dgm-muted" x="360" y="232" font-size="10.5" text-anchor="middle">* SFT 的“预测下一词”只在回答部分的 token 上算损失（loss masking）</text>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>表7-1 的可视化：三个阶段的数据、优化目标、学到什么、代价各不相同。三者是流水线，不是并列选项。</figcaption>
+</figure>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">预训练</div><div class="head">📚 读万卷书</div><div class="sub">积累语言与世界知识</div></div>
+  <div class="cell"><div class="role">SFT</div><div class="head">🧑‍🏫 看示范</div><div class="sub">模仿老师的标准解法</div></div>
+  <div class="cell"><div class="role">RL</div><div class="head">✍️ 下场做题</div><div class="sub">按对错反复打磨策略</div></div>
+</div>
+<figcaption>作者给的一秒就懂的类比：读万卷书（知识）→ 老师手把手教标准解法（模仿）→ 自己下场做题、根据对错反复打磨（试错）。</figcaption>
+</figure>
+
+<h2>二、为什么：SFT 其实是“换了数据的预训练”</h2>
+
+<p>这是本章第一个要打通的认知，也解释了为什么 SFT 那么便宜：<strong>SFT 在数学上和预训练是同一个任务</strong>——都是“预测下一个词”、最小化同一个损失函数。很多初学者以为 SFT 是一种全新方法，其实不是。它和预训练只差<strong>两点</strong>：</p>
+
+<ul>
+<li><strong>数据不同。</strong> 预训练用原始互联网文本（无结构、什么都有）；SFT 用人工精心准备的“输入—输出”对，格式统一为“用户提问 → 理想回答”。</li>
+<li><strong>损失只算在“回答”上（loss masking，损失屏蔽）。</strong> 一条 SFT 样本含问题和回答两部分；我们不希望模型学“怎么提问”，只想它学“怎么回答”，所以算损失时把问题部分的 token 屏蔽掉，只对回答部分回传梯度。这是 SFT 在工程上与预训练<strong>唯一实质性的区别</strong>。</li>
+</ul>
+
+<p>理解了这一点，“SFT 记忆”就顺理成章：它的优化目标是<strong>让标注回答里每个 token 的概率尽可能高</strong>——说白了就是“把这条标准答案背下来”。所以 SFT 固化的是“格式、风格、流程”这类<strong>协议性知识</strong>（该怎么说、怎么做），而不是大量<strong>事实性知识</strong>（知道什么）。</p>
+
+<h2>三、为什么必须先 SFT 后 RL，而不是反过来</h2>
+
+<p>预训练排最前没争议——没有语言和知识的地基，后面无从谈起。真正要解释的是：<strong>为什么 SFT 要在 RL 之前？</strong></p>
+
+<p>答案藏在 RL 的工作方式里。RL 不看标准答案，而是让模型<strong>自己生成</strong>回答，再按好坏给奖惩。可要判断好坏，首先得能把输出<strong>解析出来</strong>：如果任务要一段 JSON 或一次工具调用，模型却吐出一团格式混乱的文本，奖励函数根本无从算起（连“成功还是失败”都判断不了），RL 也就无从学起。</p>
+
+<p>所以 SFT 扮演“<strong>先把话说利索</strong>”的角色：用少量示范让输出格式稳定、能被可靠解析，RL 才有一个能打分的起点。借用中国画的说法——SFT 先把“<strong>形</strong>”（格式、结构）立起来，RL 再追求“<strong>神</strong>”（策略、泛化），即<strong>先形后神</strong>。</p>
+
+<div class="bookquote">
+反过来先 RL 后 SFT 行不通——没有稳定的输出，奖励信号就是一片噪声。
+<span class="src">——《深入理解 AI Agent》第 7 章</span>
+</div>
+
+<h2>四、边界与最容易想错的地方</h2>
+
+<div class="pitfall">
+<p><strong>误区一：把 SFT 当成一种和预训练完全不同的新方法。</strong> 初学者常觉得“微调”是另起炉灶的新技术。其实 SFT 在数学上就是预训练那个“预测下一个词”，<strong>只差数据和 loss masking 两点</strong>。想不清这一点，就理解不了“SFT 为什么倾向记忆”——因为它的目标本来就是“把标准答案背下来”。</p>
+<p><strong>误区二：把“必须先 SFT 后 RL”当成普适铁律。</strong> 这个顺序只在<strong>“较小基础模型 + 严格结构化输出”</strong>的设定下成立（实验 7-11 里 Llama-3.2-Vision-11B 这个量级不经 SFT 直接 RL 会完全失败）。但若基础模型足够强，它一上来就能产出够格的输出，从而<strong>跳过 SFT</strong>——DeepSeek-R1-Zero 就证明了强基模可以直接 RL 成功，自行涌现出反思与长链思考。代价是输出可读性差、中英文混杂，所以 DeepSeek 最终仍在 R1 里加回“冷启动 SFT”，把“形”重新立稳。R1 从 Zero 到冷启动的往返，正是“先形后神”的最好注脚。</p>
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>监督微调（SFT, Supervised Fine-Tuning）</dt>
+<dd>用几千到几万条“问题—标准回答”示范对继续做“预测下一个词”、且只在回答 token 上算损失的后训练方法，把指令遵循、格式、风格、流程等协议性知识固化进参数。<em>避免</em>泛称为“微调”或等同于“训练”；它特指有标注输入-输出对、带 loss masking 的方法。</dd>
+<dt>损失屏蔽（loss masking）</dt>
+<dd>计算 SFT/工具 RL 损失时，把不希望模型学习的 token（问题部分、环境返回的反馈 token）屏蔽掉，只对模型自己生成的回答 token 回传梯度。<em>避免</em>与注意力掩码（attention mask）混为一谈，两者作用位置不同。</dd>
+<dt>寻峰与覆盖式（mode-seeking vs mass-covering）</dt>
+<dd>两种概率分布拟合性格：极大似然（SFT）是 mass-covering，努力覆盖示范里所有模式、雨露均沾；反向 KL 的策略优化（RL）是 mode-seeking，只集中到少数几个高奖励峰、赢者通吃。这解释了为什么经过 RL 的模型回答更“笃定”。<em>避免</em>把 mode-seeking 简单等同于“过拟合”，它是分布拟合方向的固有性质。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：为什么说 SFT 在数学上和预训练“是同一个任务”？它俩到底只差哪两点？</summary>
+<div class="answer">
+<p>因为两者都是“预测下一个词”、最小化同一个损失函数。只差两点：(1) <strong>数据不同</strong>——预训练用原始互联网文本，SFT 用人工准备的“输入—输出”示范对；(2) <strong>损失屏蔽</strong>——SFT 计算损失时屏蔽掉问题部分的 token，只对回答部分回传梯度。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：“必须先 SFT 后 RL”这个顺序，成立的前提是什么？什么情况下可以跳过 SFT 直接 RL？</summary>
+<div class="answer">
+<p>它在“<strong>较小基础模型 + 严格结构化输出</strong>”的设定下成立——因为 RL 要靠奖励函数打分，得先有能被可靠解析的稳定输出，SFT 负责把“形”（格式）立起来，否则奖励信号是一片噪声。但当基础模型<strong>足够强</strong>时，它一上来就能产出够格的输出，可以跳过 SFT 直接 RL——<strong>DeepSeek-R1-Zero</strong> 即是证明，自行涌现出反思与长链思考；代价是输出可读性差、中英文混杂，所以 R1 又加回了“冷启动 SFT”。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p><strong>配套实验 7-3</strong>（对应仓库 <code>chapter7/MiniMind-pretrain/</code>）：在消费级 GPU 上从头训一个 100M 的 MiniMind 2，<strong>走完 tokenizer → 预训练 → SFT → RLHF(DPO) 全流程</strong>——正好把这张三阶段地图亲手跑一遍（约 14 小时 / 34 美元）；顺带演示 QK Norm + Muon 优化器带来的算法改进威力。开源仓库总入口：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：模型能力分三步炼成——预训练读万卷书（贵、给知识地基）、SFT 看示范（便宜、固化格式与协议、倾向记忆）、RL 下场做题（贵、学可迁移策略、倾向泛化）。SFT 本质就是“换了数据、只在回答上算损失”的预训练；“先形后神、先 SFT 后 RL”是稳健配方，但对强基模并非铁律。以后读任何后训练技术，先问它落在这三格的哪一格。
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的直接一手来源是书的第 7 章“预训练、SFT、RL：三阶段全景”一节（表7-1、表7-2）。想把“SFT 记忆、RL 泛化”这条主线读到量化证据，去看它的原始出处：Chu 等人（2025）《SFT Memorizes, RL Generalizes》，<a href="https://arxiv.org/abs/2501.17161">arXiv:2501.17161</a>——GeneralPoints 与 V-IRL 两组对照实验就出自这里，下一课（0038）会用一张卡牌游戏把它讲透。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“预训练 / SFT / RL 各自的数据与目标”再逐格过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0036-benchmark-report-to-hypothesis-tiers.html"><span class="dir">← 上一课</span>读懂 Benchmark 报告：从能力标签矩阵到三层假设</a>
+  <a class="next" href="0038-sft-memorizes-rl-generalizes.html"><span class="dir">下一课 →</span>SFT 记忆、RL 泛化：一张卡牌游戏讲透</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>
