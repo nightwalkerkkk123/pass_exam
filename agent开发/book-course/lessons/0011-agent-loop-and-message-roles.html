@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0011 · 一个 while 循环，就是 Agent 的全部</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0011 课 · 支柱一(上下文) · 上下文工程 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>一个 while 循环，就是 Agent 的全部</h1>
+
+<p class="lede">本课只押一件事：<strong>亲手推演 <code>messages</code> 列表怎么一条条长起来</strong>。用书里那个“温哥华现在几点、天气如何”的例子，走两轮工具调用，你要能说清三件事——<strong>四种消息角色各是谁写的、模型只决策而框架才执行、以及每次调用为什么必须把完整历史原样送回去</strong>。这是第 2 章《上下文工程》一上来就讲的“Agent 如何调用大模型”，是后面 KV Cache、压缩、状态栏所有技术的地基。地基不牢，上面全塌。</p>
+
+<h2>一、四种角色：一张消息列表，四个来源</h2>
+
+<p>大模型 API 的核心是一个<strong>消息列表</strong>（messages），每条消息带一个 <strong>role</strong> 标识，模型靠它判断这条话是谁说的、算什么。书里点名了四种角色：</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">system</div><div class="head">开发者写</div><div class="sub">身份·规则·约束</div></div>
+  <div class="cell"><div class="role">user</div><div class="head">用户写</div><div class="sub">要响应的请求</div></div>
+  <div class="cell"><div class="role">assistant</div><div class="head">模型生成</div><div class="sub">文本回复 / 工具调用请求</div></div>
+</div>
+<figcaption>还有第四种 <strong>tool</strong>：Agent 框架执行完工具后，把结果以 tool 角色送回，靠 <code>tool_call_id</code> 认领它对应哪次调用。此外「工具定义（tools）」是请求里一个<strong>独立字段</strong>，不是一条消息。</figcaption>
+</figure>
+
+<ul>
+<li><strong>system</strong>：系统提示词，开发者写，定义身份与规则，模型视为最高优先级。通常只有一条，放最前面。</li>
+<li><strong>user</strong>：终端用户的输入，是 Agent 要响应的请求。</li>
+<li><strong>assistant</strong>：模型之前的回复——可能是文本，也可能是一组工具调用请求（<code>tool_calls</code>）。多轮里它会被放回列表，让模型“记住”自己说过什么。</li>
+<li><strong>tool</strong>：工具结果，由 Agent 框架执行后生成，每条用 <code>tool_call_id</code> 与对应的调用请求关联。</li>
+</ul>
+
+<p>记住这四个来源，你就能给 messages 列表里任意一行“认领作者”——这正是下面那张增长图要考你的。</p>
+
+<h2>二、核心循环：模型只决策，框架才执行</h2>
+
+<p>单轮问答（system + user → assistant 文本）太简单。真正的 Agent 场景是：用户问“温哥华现在几点、天气如何”，模型答不了（它不知道“现在”），于是不直接回答，而是返回两个<strong>工具调用请求</strong>（<code>content: null</code>，带 <code>tool_calls</code>）。书里把最关键的一句话加粗了：<strong>模型只是发出调用请求，真正执行工具的是 Agent 框架</strong>。模型负责决策（调哪个工具、传什么参数），框架负责执行（真的去调 API、跑代码）。对应<strong>图2-3</strong>那条完整交互序列。</p>
+
+<p>把这套交互用代码串起来，核心就是一个 <code>while</code> 循环加一个判断——<strong>返回了 tool_calls 就执行、追加、继续循环；没返回就输出文本、退出</strong>：</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step action">把整个 <code>messages</code>（+tools）送给模型，拿到 <code>assistant_message</code></div>
+  <div class="down">↓ 先把这条回复 append 进 messages</div>
+  <div class="step decision">这条 assistant 里有 <code>tool_calls</code> 吗？</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">有</div>
+      <div class="step action">逐个执行工具，把每个结果以 <code>tool</code> 角色（带 tool_call_id）append 进 messages</div>
+      <div class="down">↺ 回到顶部，带着更长的 messages 再调一次</div>
+    </div>
+    <div class="branch">
+      <div class="label">没有</div>
+      <div class="step terminal">这就是最终回复：print(content)，break</div>
+    </div>
+  </div>
+</div>
+<figcaption>书里最简 Agent 的全貌：一个 while 循环 + 一个 if。整个过程 messages 只增不减，每轮都追加“模型的回复”和“工具的结果”。生产代码还需加一个 max_iterations 上限，否则 Agent 可能卡在无限重复同一个调用。</figcaption>
+</figure>
+
+<h2>三、逐条推演：messages 列表怎么长起来</h2>
+
+<p>这是本课要你能闭卷复现的核心画面。跟着两轮调用，看列表从 2 行长到 6 行——注意<strong>每一行的作者</strong>（颜色区分）：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="messages 列表在三个快照中逐行增长：初始 2 行，第一次调用后 5 行，第二次调用后 6 行，按 system/user/assistant/tool 四种角色分色">
+  <!-- Column titles -->
+  <text class="dgm-text" x="18" y="16" font-size="12" font-weight="700">① 初始（第1次调用前）</text>
+  <text class="dgm-text" x="256" y="16" font-size="12" font-weight="700">② 第1次调用后</text>
+  <text class="dgm-text" x="494" y="16" font-size="12" font-weight="700">③ 第2次调用后（循环结束）</text>
+
+  <!-- Column 1: 2 rows -->
+  <rect class="dgm-node" x="18" y="28" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="28" y="45" font-size="11">system · 开发者写</text>
+  <rect class="dgm-link-node" x="18" y="58" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="28" y="75" font-size="11">user · 用户输入</text>
+
+  <!-- Column 2: 5 rows -->
+  <rect class="dgm-node" x="256" y="28" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="266" y="45" font-size="11">system</text>
+  <rect class="dgm-link-node" x="256" y="58" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="266" y="75" font-size="11">user</text>
+  <rect class="dgm-hub" x="256" y="88" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="266" y="105" font-size="11">assistant · tool_calls×2 ← 模型生成</text>
+  <rect class="dgm-good-node" x="256" y="118" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="266" y="135" font-size="11">tool · call_abc（时间）← 框架执行</text>
+  <rect class="dgm-good-node" x="256" y="148" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="266" y="165" font-size="11">tool · call_def（天气）← 框架执行</text>
+
+  <!-- Column 3: 6 rows -->
+  <rect class="dgm-node" x="494" y="28" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="504" y="45" font-size="11">system</text>
+  <rect class="dgm-link-node" x="494" y="58" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="504" y="75" font-size="11">user</text>
+  <rect class="dgm-hub" x="494" y="88" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="504" y="105" font-size="11">assistant · tool_calls×2</text>
+  <rect class="dgm-good-node" x="494" y="118" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="504" y="135" font-size="11">tool · call_abc（时间）</text>
+  <rect class="dgm-good-node" x="494" y="148" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="504" y="165" font-size="11">tool · call_def（天气）</text>
+  <rect class="dgm-hub" x="494" y="178" width="210" height="26" rx="5"/>
+  <text class="dgm-text" x="504" y="195" font-size="11">assistant · 最终文本回复 ← 模型生成</text>
+
+  <!-- growth arrows -->
+  <line class="dgm-edge" x1="230" y1="56" x2="254" y2="56" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <line class="dgm-edge" x1="468" y1="86" x2="492" y2="86" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+  <!-- legend -->
+  <rect class="dgm-node" x="18" y="230" width="16" height="14" rx="3"/><text class="dgm-muted" x="40" y="242" font-size="11">system · 开发者</text>
+  <rect class="dgm-link-node" x="150" y="230" width="16" height="14" rx="3"/><text class="dgm-muted" x="172" y="242" font-size="11">user · 用户</text>
+  <rect class="dgm-hub" x="270" y="230" width="16" height="14" rx="3"/><text class="dgm-muted" x="292" y="242" font-size="11">assistant · 模型生成</text>
+  <rect class="dgm-good-node" x="430" y="230" width="16" height="14" rx="3"/><text class="dgm-muted" x="452" y="242" font-size="11">tool · 框架执行</text>
+
+  <text class="dgm-muted" x="18" y="272" font-size="11">每一轮只往列表尾部追加：先 append 模型的 assistant 回复，若有 tool_calls 再 append 每个 tool 结果。前面的行永不改动。</text>
+
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>三个快照。① 只有 system+user。② 模型返回 tool_calls（1 行 assistant），框架执行两个工具，追加 2 行 tool。③ 模型看到工具结果后给出最终文本（再加 1 行 assistant），循环结束。这正是<strong>图2-4</strong>说的“静态前缀（system+tools）不变、轨迹在下面不断增长”。</figcaption>
+</figure>
+
+<h2>四、为什么第二次调用要把整段历史原样送回（深挖“为什么”）</h2>
+
+<p>这是本课最反直觉、也最容易栽的一处。书里那句加粗结论是理解一切的钥匙：<strong>每次调用都是无状态的</strong>。模型不会在服务端“记住”你上一次说过什么——它没有记忆，只有“这一次请求里你给我看的这些消息”。</p>
+
+<p>所以第二次请求必须包含第一次的全部历史：system、user、第一次那条 <code>content: null</code> 只带 tool_calls 的 assistant 消息，再加上新的 tool 结果。书里点出三个关键细节：完整历史都要回传；<strong>第一次的 assistant 消息要原样放回</strong>（让模型看到自己之前做了什么决策）；<strong>tool 消息靠 tool_call_id 认领</strong>它对应哪次调用。</p>
+
+<div class="pitfall">
+<p>初学者最常犯的错：觉得“工具结果我送回去不就行了吗，那条 <code>content: null</code>、看起来什么内容都没有的 assistant 消息，省掉呗”。错。</p>
+<p>那条 assistant 消息虽然文本是 null，但它承载着<strong>“模型做了 get_current_time 和 get_weather 两个调用”这个决策本身</strong>，而且它带着 <code>call_abc123</code>、<code>call_def456</code> 这两个 id。把它删掉，后面两条 tool 结果就成了<strong>无主的孤儿</strong>——tool_call_id 指向一个列表里根本不存在的调用，模型无从知道这些数字对应谁，也就没法把“决策→观察”串成一条连贯的 ReAct 轨迹。无状态意味着：你不主动放回，历史就真的不存在。</p>
+</div>
+
+<p>把这三条内化，你就理解了全书的底层设定：<strong>Agent 框架的核心工作，就是管理这个 messages 列表</strong>——在对的时机往里追加对的消息，再把整个列表送出去。后面所有上下文工程技术（KV Cache 复用、压缩、状态栏），本质上都是在优化这一个列表的内容与结构。而“前缀不变、轨迹追加”的形状，正是下一课 KV Cache 能省钱的前提。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：Agent 的运行 = 一个 while 循环反复给模型送<strong>整段</strong> messages；模型只决策（返回 tool_calls 或文本），框架只执行（跑工具、往列表尾部追加结果）；因为调用无状态，每一轮都必须把完整历史（含那条只带 tool_calls 的 assistant）原样回传，tool 结果靠 tool_call_id 认领归属。看到任何 Agent，先问：它的 messages 列表这一刻长什么样、下一条会由谁追加。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>上下文工程（Context Engineering）</dt>
+<dd>系统性设计、组织并向模型提供完成任务所需全部背景信息的工程实践。管理 messages 列表只是它最基础的一层。<em>避免</em>把它等同于“提示工程”或“往 prompt 里塞更多内容”——它是更上位的系统性信息供给设计。</dd>
+<dt>无状态调用（stateless）</dt>
+<dd>大模型 API 每次调用彼此独立，模型不在服务端保留上一次的对话；所有它需要的信息，必须在本次请求的 messages 列表里完整提供。这是“每次都要回传完整历史”的根本原因。</dd>
+<dt>tool_call_id</dt>
+<dd>模型在一条 assistant 消息里发出工具调用请求时给每个调用分配的 id（如 <code>call_abc123</code>）；框架执行后，把结果放进一条 tool 消息并用同一个 id 标注，模型据此知道哪个结果对应哪次调用。<em>避免</em>省略那条带 tool_calls 的 assistant 消息，否则 id 无处对应。</dd>
+<dt>Chat Template</dt>
+<dd>把结构化的 role-content 消息，转换成模型训练时见过的线性 token 流的模板（用 <code>&lt;|im_start|&gt;</code>、<code>&lt;|im_end|&gt;</code> 等特殊标记划分角色边界），由 API 服务端自动完成。<em>避免</em>理解为开发者要手写、或与 system prompt 混淆。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：Agent 第二次调用大模型时，为什么要把第一次那条 content 为 null、只带 tool_calls 的 assistant 消息原样放回消息列表？如果省略它会怎样？</summary>
+<div class="answer">
+<p>因为 API 调用是无状态的——模型不会“记住”上一次说过什么。原样放回第一次的 assistant 消息，是让模型看到自己之前做了哪个工具调用决策，而随后的 tool 消息通过 tool_call_id 与之关联。省略它，tool 结果就成了无主的孤儿，模型无法知道这些结果对应哪次调用，也无法把决策与观察串成连贯的 ReAct 轨迹。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：在带工具调用的交互里，一条 tool 角色的消息是谁生成的？它凭什么和某一次具体的工具调用请求对应上？</summary>
+<div class="answer">
+<p>由 <strong>Agent 框架</strong>生成——框架实际执行了工具（如调时间/天气 API）后，把返回结果包成一条 <code>role: "tool"</code> 的消息。它靠 <strong>tool_call_id</strong> 与对应的调用请求关联：模型在 assistant 消息里发出调用时给了每个调用一个 id，框架回填结果时带上同一个 id，模型据此对号入座。（注意：模型只发决策，执行始终是框架的活。）</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套实验 2-1（对应仓库 <code>chapter2/local_llm_serving/</code>）：用标准 OpenAI 兼容 API 在本地（vLLM/Ollama）跑一个 0.6B 小模型的工具调用，亲眼看到 API 层看不见的原始 token 流——<code>&lt;think&gt;</code> 思维链、特殊标记、工具调用格式，以及流式响应。它正好把本课的“请求→工具调用→执行→送回→再请求”循环跑给你看，还能顺带观察 KV Cache 对首 token 延迟（TTFT）的影响，为下一课埋线。完整代码见 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源是第 2 章《上下文工程》原文里“Agent 如何调用大模型：理解 API 的上下文结构”一节（<code>book/chapter2.md</code>）——尤其是四种角色、两轮工具调用的完整 JSON、以及那段最简 while 循环代码，值得对着敲一遍。本章上下文相关技术的量化依据可延伸阅读作者本人的研究：Li, Bojie &amp; Noah Shi, <em>“Distill, Don't Retrieve: Inference-Time Context Distillation for LLM Agent Reasoning.”</em> 2026，<a href="https://01.me/research/context-distillation">01.me/research/context-distillation</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师随手给你出一道“说出这一行 messages 是谁写的”的抽查。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0010-workflow-vs-autonomous.html"><span class="dir">← 上一课</span>工作流还是自主 Agent：编排模式怎么选</a>
+  <a class="next" href="0012-kv-cache-prefix-invariance.html"><span class="dir">下一课 →</span>改一个空格，账单翻倍：KV Cache 为何只认稳定前缀</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

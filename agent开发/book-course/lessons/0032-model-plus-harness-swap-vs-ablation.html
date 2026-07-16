@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0032 · 评估到底在评什么：模型替换 vs 消融</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0032 课 · 支柱三(模型) · Agent 评估 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>评估到底在评什么：模型替换实验 vs 消融实验</h1>
+
+<p class="lede">这一课只带你拿下一件事：<strong>评估的对象不是模型，而是「模型 + Harness」这个组合体</strong>。想清楚这一点，你就会用两种<strong>正交</strong>的实验去定位瓶颈——<strong>模型替换</strong>（固定 Harness、只换模型）判断瓶颈在模型还是在 Harness，<strong>消融</strong>（关掉某个组件）判断 Harness 里哪个部件在拖后腿。这是第 6 章「Agent 评估」把评估结果转化为改进行动的第一把钥匙，对应本章开篇（<code>chapter6.md</code>）那句关键论断。</p>
+
+<h2>一、评估的对象是一个组合体，不是模型</h2>
+
+<p>作者在本章一上来就点了一句很重的话：<strong>「评估的对象不应只是模型，而应是模型与 Harness 的组合体。」</strong>为什么？因为同一个模型放进不同的 Harness，表现能差到天上地下——书里明确说，「一些团队仅通过优化 Harness 就显著提升了同一模型在终端类任务上的表现」。</p>
+
+<p>这句话的直接后果是：当你的 Agent 分数不好看时，<strong>「换个更强的模型」往往不是正确答案</strong>。真正的问题可能出在提示词、工具设计、反馈循环——也就是 Harness 的某个组件上。所以一套合格的评估体系，必须能把两类本质不同的问题分开：</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">问题 A</div><div class="head">🧠 模型能力不足</div><div class="sub">换更强的模型才有救</div></div>
+  <div class="cell"><div class="role">问题 B</div><div class="head">🔧 Harness 设计缺陷</div><div class="sub">改提示词/工具/反馈循环</div></div>
+  <div class="cell"><div class="role">分辨手段</div><div class="head">两种正交实验</div><div class="sub">模型替换 + 消融</div></div>
+</div>
+<figcaption>「模型能力不足」和「Harness 设计缺陷」是两类需要完全不同药方的病。分不清，就会拿治 A 的药去治 B——换了最贵的模型，分数纹丝不动。</figcaption>
+</figure>
+
+<h2>二、两个动作，不要张冠李戴</h2>
+
+<p>书里把两种方法讲得刀切一样清楚，它们操作的对象<strong>不同</strong>，回答的问题也<strong>不同</strong>：</p>
+
+<ul>
+<li><strong>消融实验（Ablation）</strong>：<strong>关闭 Harness 的某个组件</strong>（思考模式、上下文压缩、自动记忆……），看整体性能掉多少 → 回答「Harness 内部<strong>哪个部件</strong>最重要」。</li>
+<li><strong>模型替换实验（Model Swap）</strong>：<strong>固定 Harness、只换模型</strong>（换更强或更弱的），看分数波动幅度 → 回答「瓶颈到底<strong>在模型还是在 Harness</strong>」。</li>
+</ul>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 260" role="img" aria-label="固定的 Harness 盒子里有四个组件加一个模型槽；消融箭头指向关闭其中一个组件，模型替换箭头指向更换模型槽">
+  <!-- Harness box -->
+  <rect class="dgm-node" x="230" y="40" width="260" height="180" rx="12"/>
+  <text class="dgm-muted" x="360" y="62" font-size="12" text-anchor="middle">固定的 Harness</text>
+
+  <!-- components -->
+  <rect class="dgm-node" x="250" y="76" width="100" height="34" rx="6"/>
+  <text class="dgm-text" x="300" y="97" font-size="11.5" text-anchor="middle">提示词</text>
+  <rect class="dgm-node" x="370" y="76" width="100" height="34" rx="6"/>
+  <text class="dgm-text" x="420" y="97" font-size="11.5" text-anchor="middle">工具设计</text>
+  <rect class="dgm-node" x="250" y="120" width="100" height="34" rx="6"/>
+  <text class="dgm-text" x="300" y="141" font-size="11.5" text-anchor="middle">反馈循环</text>
+  <rect class="dgm-node" x="370" y="120" width="100" height="34" rx="6"/>
+  <text class="dgm-text" x="420" y="141" font-size="11.5" text-anchor="middle">上下文压缩</text>
+
+  <!-- model slot -->
+  <rect class="dgm-hub" x="250" y="168" width="220" height="38" rx="8"/>
+  <text class="dgm-accent-text" x="360" y="192" font-size="12.5" font-weight="700" text-anchor="middle">🧠 模型槽 (LLM)</text>
+
+  <!-- ablation arrow (left) -->
+  <text class="dgm-accent-text" x="90" y="92" font-size="13" font-weight="700" text-anchor="middle">消融</text>
+  <text class="dgm-muted" x="90" y="110" font-size="10.5" text-anchor="middle">关掉一个组件</text>
+  <line class="dgm-edge" x1="120" y1="93" x2="246" y2="93" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar2)"/>
+  <text class="dgm-muted" x="90" y="132" font-size="10" text-anchor="middle">→ 哪个部件重要？</text>
+
+  <!-- model swap arrow (right) -->
+  <text class="dgm-accent-text" x="628" y="182" font-size="13" font-weight="700" text-anchor="middle">模型替换</text>
+  <text class="dgm-muted" x="628" y="200" font-size="10.5" text-anchor="middle">整体换模型</text>
+  <line class="dgm-edge" x1="600" y1="187" x2="474" y2="187" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <text class="dgm-muted" x="628" y="222" font-size="10" text-anchor="middle">→ 瓶颈在模型还是 Harness？</text>
+
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>同一个 Harness，两种切法：消融是「拆掉一块看会不会塌」，模型替换是「换掉发动机看跑不跑得更快」。前者向内定位组件，后者向外区分是模型还是框架的锅。</figcaption>
+</figure>
+
+<h2>三、模型替换：一张 2×2 读表法</h2>
+
+<p>模型替换怎么读结果？书里给了两条明确的信号——把它们摆成一张 2×2，你一眼就能对号入座：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 640 340" role="img" aria-label="2乘2矩阵：行为换强模型和换弱模型，列为分数变化大和分数几乎不变，四格给出瓶颈定位结论">
+  <!-- axis labels -->
+  <text class="dgm-muted" x="330" y="24" font-size="12" font-weight="700" text-anchor="middle">分数怎么变？</text>
+  <text class="dgm-muted" x="200" y="46" font-size="11" text-anchor="middle">明显变动</text>
+  <text class="dgm-muted" x="470" y="46" font-size="11" text-anchor="middle">几乎不变</text>
+  <text class="dgm-muted" x="34" y="130" font-size="11" text-anchor="middle" transform="rotate(-90 34 130)">换上更强模型</text>
+  <text class="dgm-muted" x="34" y="255" font-size="11" text-anchor="middle" transform="rotate(-90 34 255)">换上更弱模型</text>
+
+  <!-- top-left: stronger, rises -->
+  <rect class="dgm-good-node" x="70" y="60" width="260" height="120" rx="10"/>
+  <text class="dgm-text" x="200" y="92" font-size="12.5" font-weight="700" text-anchor="middle">换强 → 分数明显涨</text>
+  <text class="dgm-muted" x="200" y="118" font-size="11" text-anchor="middle">模型能力曾是限制因素</text>
+  <text class="dgm-muted" x="200" y="138" font-size="11" text-anchor="middle">升级值得，瓶颈偏「模型」</text>
+  <text class="dgm-muted" x="200" y="160" font-size="9.5" text-anchor="middle">（书中明确信号的镜像）</text>
+
+  <!-- top-right: stronger, flat -->
+  <rect class="dgm-accent-node" x="350" y="60" width="260" height="120" rx="10"/>
+  <text class="dgm-text" x="480" y="92" font-size="12.5" font-weight="700" text-anchor="middle">换强 → 分数不涨</text>
+  <text class="dgm-accent-text" x="480" y="118" font-size="11.5" font-weight="700" text-anchor="middle">瓶颈在 Harness</text>
+  <text class="dgm-muted" x="480" y="138" font-size="11" text-anchor="middle">改提示词 / 工具 / 反馈循环</text>
+  <text class="dgm-muted" x="480" y="160" font-size="9.5" text-anchor="middle">★ 书中原话</text>
+
+  <!-- bottom-left: weaker, drops -->
+  <rect class="dgm-accent-node" x="70" y="192" width="260" height="120" rx="10"/>
+  <text class="dgm-text" x="200" y="224" font-size="12.5" font-weight="700" text-anchor="middle">换弱 → 分数大跌</text>
+  <text class="dgm-accent-text" x="200" y="250" font-size="11.5" font-weight="700" text-anchor="middle">瓶颈在模型能力</text>
+  <text class="dgm-muted" x="200" y="270" font-size="11" text-anchor="middle">表现主要由模型决定</text>
+  <text class="dgm-muted" x="200" y="292" font-size="9.5" text-anchor="middle">★ 书中原话</text>
+
+  <!-- bottom-right: weaker, flat -->
+  <rect class="dgm-good-node" x="350" y="192" width="260" height="120" rx="10"/>
+  <text class="dgm-text" x="480" y="224" font-size="12.5" font-weight="700" text-anchor="middle">换弱 → 分数不跌</text>
+  <text class="dgm-muted" x="480" y="250" font-size="11" text-anchor="middle">模型能力有富余</text>
+  <text class="dgm-muted" x="480" y="270" font-size="11" text-anchor="middle">改进空间在 Harness</text>
+  <text class="dgm-muted" x="480" y="292" font-size="9.5" text-anchor="middle">（书中明确信号的镜像）</text>
+</svg>
+</div>
+<figcaption>书里逐字写死的是两格：<strong>换强不涨 → 瓶颈在 Harness</strong>；<strong>换弱大跌 → 瓶颈在模型</strong>。另外两格是它们的逻辑镜像，读的时候要提醒自己：这只是「最直接的解读」，究竟是任务本身难还是 Harness 过度依赖模型先验，还得进一步分析。</figcaption>
+</figure>
+
+<p>注意作者的克制：换弱模型分数大跌，只是「<strong>最直接的解读</strong>」指向模型能力本身，它并不能一步到位区分「任务真的难」还是「Harness 过度依赖模型先验」——那需要再往下挖。评估给的是方向，不是终审判决。</p>
+
+<h2>四、为什么这套方法值钱：一个真实的 2×2 案例</h2>
+
+<p>本章「从数据到假设」一节给了个绝好的例子。在 AndroidWorld 上，complex_ui（复杂界面理解）任务成功率只有 17%。团队提出两个深层假设，正好组成一个 2×2 对比实验（Claude/GPT-5 × 仅截图/截图+元素树）：H5 是<strong>换更强的视觉模型 GPT-5</strong>（模型替换思路），H6 是<strong>在截图之外补上 UI 元素树信息</strong>（改 Harness 的输入）。每个配置在全部 116 个任务上跑 5 次、用不同随机种子。假设数据是这样的：</p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><div class="lbl">基线（仅截图）</div><div class="track"><div class="val base" style="width:17%">17%</div></div></div>
+  <div class="row"><div class="lbl">H5 换 GPT-5</div><div class="track"><div class="val write" style="width:35%">35%</div></div></div>
+  <div class="row"><div class="lbl">H6 加元素树</div><div class="track"><div class="val read" style="width:52%">52%</div></div></div>
+  <div class="row"><div class="lbl">H5+H6 组合</div><div class="track"><div class="val out" style="width:68%">68%</div></div></div>
+</div>
+<figcaption>complex_ui 成功率（假设值，来自本章示例）。换上更强的 GPT-5 只把 17% 抬到 35%，每步延迟却从 4 秒飙到 15 秒；而给 Harness 补一份元素树信息，用 30% 的 token 增量和 2 秒延迟就换来到 52%。</figcaption>
+</figure>
+
+<p>这张图讲的正是全课的题眼：<strong>换更强的模型（H5）几乎没把复杂界面救回来，说明瓶颈不在模型的思考能力，而在输入的信息是否充分</strong>。书里的原话是 H6 优于 H5——「性价比高得多」。如果没有这套模型替换 + 对照实验，团队很可能一路砸钱升级模型，越走越偏。这就是「评估对象是组合体」这句话的现金价值。</p>
+
+<h2>五、边界与最容易踩的坑</h2>
+
+<div class="pitfall">
+<p><strong>坑一：把模型替换和消融当成一回事。</strong>初学者常常一看到「做个实验定位问题」就随手关组件，却以为自己在判断「要不要换模型」。记住操作对象：消融<strong>关组件</strong>（定位 Harness 内部），模型替换<strong>换模型</strong>（区分模型 vs Harness）。用错了，你会关掉一堆组件、得出一堆「这个特性有用」的结论，却始终没回答「到底该不该升级模型」这个最初的问题。</p>
+<p><strong>坑二：把一次运行的分差当真、看到 3% 就切模型。</strong>书里算得很实：100 个用例、成功率 70%，二项分布标准误约 √(0.7×0.3/100)≈4.6%，95% 置信区间约 70%±9 个百分点。把两个成功率当独立来比，差值的标准误还要再乘 √2、约 6.5%。所以「新模型 73% vs 旧模型 70%」这 3 个百分点<strong>完全落在噪声带宽里</strong>——据此切换模型，「与掷硬币差别不大」。正确做法：每个配置跑 3-5 次取均值；同一批任务上用<strong>配对分析</strong>（McNemar 检验的思路，只看一对一错的用例），它扣掉了「题目难易」这个共同噪声，比「两个独立成功率相减」灵敏得多。<strong>分差小于噪声带宽时，不做切换决策。</strong></p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：你评的从来不是模型，而是「模型 + Harness」组合体。分数不好，先别急着换模型——用<strong>模型替换</strong>（固定 Harness、只换模型）判断瓶颈在模型还是 Harness：换强不涨 → 瓶颈在 Harness，换弱大跌 → 瓶颈在模型；确认锅在 Harness 后，再用<strong>消融</strong>（逐个关组件）定位是哪个部件。而且任何分差，都要先量一量它有没有超出噪声带宽。
+</div>
+
+<h2>六、关键定义</h2>
+
+<dl class="keydef">
+<dt>模型替换实验（Model Swap）</dt>
+<dd>固定 Harness、只更换更强或更弱的模型，观察分数变化幅度，用以区分性能瓶颈在模型能力还是在 Harness 设计。<em>避免</em>与消融实验混用——消融是关闭 Harness 组件，模型替换是换模型。</dd>
+<dt>消融实验（Ablation Study）</dt>
+<dd>逐一「摘除」某个组件（思考模式、上下文压缩、自动记忆等），看整体性能掉多少，从而判断该组件的真实贡献；用来回答「某个特性是真的改善了体验，还是只是感觉有用」。</dd>
+<dt>二项分布标准误（Standard Error）</dt>
+<dd>刻画成功率因抽样随机而波动的幅度，值越大说明该成功率越不可靠。n 个用例上成功率 p 时约为 √(p(1-p)/n)；95% 置信区间约 p±2 个标准误。<em>避免</em>把落在噪声带宽内的分差当成真实提升。</dd>
+<dt>配对分析（Paired Analysis / McNemar）</dt>
+<dd>同一批任务上对比两个配置的默认正确做法：逐题比较胜负、只看结果不同的用例，扣除「题目本身难易」这一共同噪声源，因此比「两个独立成功率相减」灵敏得多。</dd>
+</dl>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：你的 Agent 分数不理想，换上业界最强模型分数几乎没涨，这说明瓶颈最可能在哪里？该做消融还是模型替换来进一步确认？</summary>
+<div class="answer">
+<p>瓶颈大概率在 <strong>Harness</strong>（提示词/工具/反馈循环）而非模型能力——因为换强模型不涨，说明模型不是限制因素。此时应做<strong>消融实验</strong>：逐一关闭 Harness 的某个组件，看整体性能掉多少，定位是哪个部件在拖后腿。模型替换已经完成了它的使命（区分瓶颈在模型还是 Harness）。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：你把新模型和旧模型各在 100 个用例上跑了一次，成功率 73% vs 70%。能据此判定新模型更好、直接全量切换吗？</summary>
+<div class="answer">
+<p>不能。100 个用例、成功率 70% 时二项标准误约 4.6%，95% 置信区间约 70%±9 个百分点；把两个成功率当独立比较，差值标准误约 6.5%。3 个百分点<strong>完全落在噪声带宽之内</strong>，据此切换「与掷硬币差别不大」。正确做法是每个配置跑 3-5 次取均值，并在同一批任务上做<strong>配对分析</strong>（McNemar），确认差异超出噪声后再决策——分差小于噪声带宽时不做切换。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>想把「读报告 → 提假设 → 跑 2×2 → 做决策」的完整闭环亲手走一遍，做<strong>实验 6-10</strong>（对应仓库 <code>chapter6/android-world/</code>）：以 AndroidWorld 上 t3a Agent 的真实评估报告为起点，交叉分析逐任务表格与能力标签矩阵，构建三层改进假设，正是本课那个 H5/H6 案例的出处。要顺带理解配对比较背后的排名机制，可做<strong>实验 6-6 / 6-8</strong>（对应仓库 <code>chapter6/elo-leaderboard/</code>）：用 Chatbot Arena 的真实盲选投票数据从零实现 Elo 与 Bradley-Terry 模型。整本书实验都在 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>八、主推资源</h2>
+
+<p>本课一手来源是《深入理解 AI Agent》第 6 章「Agent 的评估」正文（<code>book/chapter6.md</code>），尤其是开篇「模型 + Harness 组合体」那段与「评估结果的统计显著性」一节，值得逐字读。延伸阅读（原文正文未给直接 URL，来自配套项目）：Scale AI 的 <strong>「Rubrics as Rewards」</strong>（Rubric 四准则出处）；配对比较部分引用 LMSYS 论文 <strong>「Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena」</strong>、<a href="https://chat.lmsys.org/">Chatbot Arena</a> 与 Bradley-Terry 模型。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「消融」和「模型替换」各自的操作对象再对照一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0031-proposer-reviewer-for-media.html"><span class="dir">← 上一课</span>提议者-审核者机制：让 Agent 看见自己生成的效果</a>
+  <a class="next" href="0033-progressive-disclosure-user-simulation.html"><span class="dir">下一课 →</span>为什么不能把答案一次性告诉 Agent：渐进式信息透露</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

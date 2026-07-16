@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>05 · Tool Calling：给大脑装上手脚</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 如何长出一个 Agent · 第 05 课 · 预计 10 分钟 · <a href="04-system-prompt-persona.html">← 上一课：System Prompt</a> · <a href="06-tool-description-is-prompt.html">下一课：工具描述就是 Prompt →</a></p>
+
+<h1>Tool Calling：给大脑装上手脚</h1>
+
+<p class="lede">上一课，我们给 agent 装上了人格和规矩。可它还是一个"只会动嘴"的大脑。这一课只做一件事：让它能真的去查天气、发消息、跑代码——但你会看到一个反直觉的真相：<strong>模型自己从头到尾没碰过任何工具，真正动手的一直是我们的代码。</strong></p>
+
+<div class="chain in">
+<p>上一课 agent 会说话了，也知道自己"是谁、该守什么规矩"。但它被关在一个没有网线、没有手机、没有键盘的房间里：问它"北京今天几度"，它只能凭记忆瞎猜；让它"给张三发条消息"，它一个字也发不出去。</p>
+<p>大脑本身不能联网、不能动手——怎么办？</p>
+</div>
+
+<h2>一、先打个比方：隔着玻璃罩的天才</h2>
+
+<p>想象一个绝顶聪明的人（这就是大模型），被关在一个封闭的玻璃罩里。他能读你递进去的纸条，也能写纸条递出来。但他<strong>够不到</strong>罩子外面的任何东西——没有网络、没有电话、没有文件。</p>
+
+<p>你想让他帮你查天气，他没法自己查。他能做的只有一件事：<strong>写一张纸条递出来</strong>，上面写着"请帮我查一下：北京今天天气（工具：search，参数 query=北京天气）"。然后<strong>你</strong>——罩子外面的人——照着纸条真的去查，把结果写成另一张纸条递回去。他读到结果，才能接着往下想。</p>
+
+<div class="good">
+这就是 tool calling（工具调用）的全部秘密：<strong>模型只会"请求"调用一个工具，它输出的只是一段文字（一张纸条）；真正去执行那个工具的，永远是我们罩子外面的后端代码。</strong>模型碰不到网络、碰不到函数、碰不到文件——这个边界是理解整门课的关键。很多人第一次会误以为"模型自己上网了"，其实没有。</p>
+</div>
+
+<p>那"纸条"长什么样、怎么递、递给谁、结果又怎么塞回去？这就是一次完整的"一来一回"。</p>
+
+<h2>二、一次完整的一来一回（round-trip）</h2>
+
+<p>把玻璃罩的比方拆成五个动作，你就看清了整条链路。注意箭头方向——谁在说话、谁在动手：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 380" role="img" aria-label="tool call 往返时序：后端与大模型之间来回递纸条，真正执行工具的是后端">
+  <!-- actor boxes -->
+  <rect class="dgm-node" x="55" y="26" width="230" height="46" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="170" y="49" font-size="13" font-weight="700" text-anchor="middle">我们的后端</text>
+  <text class="dgm-muted" x="170" y="65" font-size="10.5" text-anchor="middle">conductorAgent（罩子外）</text>
+
+  <rect class="dgm-hub" x="435" y="26" width="230" height="46" rx="8" stroke-width="2"/>
+  <text class="dgm-accent-text" x="550" y="49" font-size="13" font-weight="700" text-anchor="middle">大模型 LLM</text>
+  <text class="dgm-muted" x="550" y="65" font-size="10.5" text-anchor="middle">玻璃罩里的天才</text>
+
+  <!-- lifelines -->
+  <line class="dgm-edge" x1="170" y1="72" x2="170" y2="358" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <line class="dgm-edge" x1="550" y1="72" x2="550" y2="358" stroke-width="1.2" stroke-dasharray="4 4"/>
+
+  <!-- arrowhead markers -->
+  <defs>
+    <marker id="ah-r" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" class="dgm-accent"/>
+    </marker>
+    <marker id="ah-l" markerWidth="9" markerHeight="9" refX="1" refY="3" orient="auto">
+      <path d="M7,0 L0,3 L7,6 Z" class="dgm-accent"/>
+    </marker>
+    <marker id="ah-mut-r" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L7,3 L0,6 Z" fill="currentColor"/>
+    </marker>
+  </defs>
+
+  <!-- ① 请求：后端 → 模型 -->
+  <line x1="176" y1="108" x2="544" y2="108" class="dgm-edge" stroke-width="1.5" marker-end="url(#ah-r)"/>
+  <text class="dgm-text" x="360" y="100" font-size="12" font-weight="700" text-anchor="middle">① 发请求，把工具清单一起带上</text>
+  <text class="dgm-muted" x="360" y="123" font-size="10.5" text-anchor="middle">model.WithTools(toolInfos)　名字+描述+参数格式</text>
+
+  <!-- ② 纸条：模型 → 后端 -->
+  <line x1="544" y1="164" x2="176" y2="164" class="dgm-edge" stroke-width="1.5" marker-end="url(#ah-l)"/>
+  <text class="dgm-accent-text" x="360" y="156" font-size="12" font-weight="700" text-anchor="middle">② 回一张纸条：「我要调 search(query=北京天气)」</text>
+  <text class="dgm-muted" x="360" y="179" font-size="10.5" text-anchor="middle">msg.ToolCalls —— 只是请求，不是执行</text>
+
+  <!-- ③ 后端自己执行 -->
+  <rect class="dgm-accent-node" x="72" y="200" width="196" height="52" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="170" y="221" font-size="12" font-weight="700" text-anchor="middle">③ 我们真的去跑 search()</text>
+  <text class="dgm-muted" x="170" y="238" font-size="10" text-anchor="middle">executeToolCall → CallTool</text>
+  <text class="dgm-muted" x="360" y="228" font-size="10.5" text-anchor="middle">← 动手的是后端，</text>
+  <text class="dgm-muted" x="360" y="242" font-size="10.5" text-anchor="middle">模型此刻在"等结果"</text>
+
+  <!-- ④ 回注：后端 → 模型（下一轮请求里） -->
+  <line x1="176" y1="288" x2="544" y2="288" class="dgm-edge" stroke-width="1.5" marker-end="url(#ah-r)"/>
+  <text class="dgm-text" x="360" y="280" font-size="12" font-weight="700" text-anchor="middle">④ 把返回值包成 tool 消息，塞回去</text>
+  <text class="dgm-muted" x="360" y="303" font-size="10.5" text-anchor="middle">AddToolResult（Role = tool）</text>
+
+  <!-- ⑤ 模型继续 -->
+  <line x1="544" y1="340" x2="176" y2="340" class="dgm-edge" stroke-width="1.5" marker-end="url(#ah-l)"/>
+  <text class="dgm-text" x="360" y="332" font-size="12" font-weight="700" text-anchor="middle">⑤ 读到结果，接着往下 —— 或不再要工具就收工</text>
+  <text class="dgm-muted" x="360" y="355" font-size="10.5" text-anchor="middle">下一步 ToolCalls 为空 → agent.done = true</text>
+</svg>
+</div>
+<figcaption>tool call 的一来一回。②是"请求"（<code>msg.ToolCalls</code>），③才是"执行"（<code>executeToolCall</code> 里的 <code>CallTool</code>）——请求与执行分属罩子内外两个世界。④的 <code>AddToolResult</code> 把结果变成 <code>Role=tool</code> 的消息，正是它让循环能滚到下一步。</figcaption>
+</figure>
+
+<p>看懂这张图，你就抓住了本课的骨架。剩下的，是把这五个动作对到 mino_server 的真实代码上。</p>
+
+<h2>三、落到 mino_server：注册 → 注入 → 执行 → 回注</h2>
+
+<p>在真实的 Conductor Agent 里，"给大脑装手脚"被拆成四个清清楚楚的环节。我们顺着走一遍：</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">① 注册</span><span class="n-sub">GetAllToolServices<br>一张大表 · 54 个服务</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">② 转 schema</span><span class="n-sub">AsTools + ToOpenAPIV3<br>变成模型看得懂的说明书</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">③ 注入（每轮）</span><span class="n-sub">getCurrentToolInfos<br>model.WithTools</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">④ 执行</span><span class="n-sub">executeToolCall<br>真正跑函数</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">⑤ 回注</span><span class="n-sub">AddToolResult<br>Role=tool，进下一轮</span></div>
+</div>
+<figcaption>绿=相对稳定（启动时建好），红=每轮都要重来。落到 <code>tools.go</code> 的 <code>GetAllToolServices</code>／<code>ToOpenAPIV3</code>，<code>agent.go</code> 的 <code>getCurrentToolInfos</code>／<code>model.WithTools</code>，<code>toolcall.go</code> 的 <code>executeToolCall</code>，<code>message.go</code> 的 <code>AddToolResult</code>。</figcaption>
+</figure>
+
+<h3>① 注册：一张写着所有"手脚"的大表</h3>
+
+<p>agent 能用的全部工具，先登记在一张表里。位置是 <code>biz/domain/dmservice/agents/conductorservice/tools.go</code> 的 <code>GetAllToolServices</code>：它返回一个大 <code>map</code>，把每一类工具服务（浏览器、代码执行、搜索、画图、发消息、子代理……）都挂进去，共 <strong>54 个在用的工具服务</strong>（还有一个 <code>browser_sub_agent</code> 被注释掉了）。</p>
+
+<p>注意用词是"工具<strong>服务</strong>"，不是"工具"。一个服务可以吐出 0 到多个具体工具——真正决定"这次用户能用哪些工具"的，是两道过滤：先 <code>hooks.GetToolServices</code> 按当前场景/开关从 54 个里挑出要用的那批，再 <code>service.AsTools</code> 把每个服务展开成一个个具体工具。所以工具集是<strong>按人、按场景现拼</strong>的，不是所有人都看到全部 54 个。</p>
+
+<h3>② 转 schema：把"手脚"翻译成模型看得懂的说明书</h3>
+
+<p>模型不认识 Go 的函数，它只认 JSON。所以每个工具的参数要先翻译成一份"说明书"，告诉模型"这个工具接收哪些字段、什么类型、哪个必填"。</p>
+
+<p>在 mino_server 里，工具参数用 eino 的 <code>ParamsOneOf</code> 描述，要发给模型时调 <code>ToOpenAPIV3()</code> 序列化成 <strong>OpenAPI v3 的 JSON schema</strong>（见 <code>tools.go</code> 里的 <code>tool.ToolInfo.ParamsOneOf.ToOpenAPIV3()</code>）。这份 schema 就是玻璃罩里的天才唯一能读到的"这个工具怎么用"的信息——记住这句话，下一课整节都在讲它。</p>
+
+<div class="keydef">
+<dt>schema（工具参数说明书）</dt>
+<dd>用 JSON 写的"这个工具接收哪些字段"的规格。模型靠它决定该往参数里填什么。mino_server 用 <code>ToOpenAPIV3()</code> 把内部的 <code>ParamsOneOf</code> 转成 OpenAPI v3 格式的 schema。</dd>
+<dt>tool call（工具调用请求）</dt>
+<dd>模型输出的一段结构化文字，形如"调用 search，参数 {query:'北京天气'}"。它只是<strong>请求</strong>，不是执行；在代码里表现为模型回复消息上的 <code>ToolCalls</code> 字段。</dd>
+</div>
+
+<h3>③ 注入：每一轮都把工具清单重新挂到请求上</h3>
+
+<p>工具装好了，怎么让模型这一轮"看见"它们？在每次请求模型前，<code>agent.go</code> 的 <code>getCurrentToolInfos()</code> 从 <code>agent.toolMap</code> 里取出当前所有工具，<strong>按工具名字典序排好</strong>（顺序稳定才利于命中缓存），再用 <code>model.WithTools(toolInfos)</code> 一次性挂进这一轮请求的 options。</p>
+
+<div class="leak">
+这里藏着 chat 和 agent 的一个关键区别：<strong>工具定义不写在对话消息（messages）里，而是作为一个"带外"的 API 参数（<code>model.WithTools</code>）单独传给模型。</strong>你在上一课看到的 system prompt 里只有工具的"使用规则"文字，真正的工具 schema 走的是 tools 这条独立通道。这也意味着：工具越多，每一轮请求都要把全部工具定义重新带一遍——这是固定的 token 底盘成本。</div>
+
+<p>顺带一提，这一轮请求还显式打开了 <code>WithEnableParallelToolCalls(true)</code>：允许模型一次纸条上写多个工具，让后端并发执行（并发怎么控、上限多少，是第 07 课的事）。挂好工具后，<code>streamCallLLM</code> 里的 <code>agent.llmClient.Stream(ctx, messages, options...)</code> 才真正把请求发出去——这是 Conductor 主循环里真正把请求发给大模型的地方（各子 agent、摘要/压缩等模块另有各自的 LLM 调用点）。</p>
+
+<h3>④ 执行：真正动手的一步（也是本课的题眼）</h3>
+
+<p>模型回复回来了。<code>runConductorStep</code> 先看它的回复里有没有工具调用：如果 <code>len(ToolCalls) == 0</code>，说明模型不想再调工具了，就把 <code>agent.done = true</code> 收工；如果有，就把这些工具调用分组、过策略，交给 <code>toolcall.go</code> 的 <code>executeToolCallGroups</code>。</p>
+
+<p>顺着 <code>executeToolCallGroups → executeToolCall</code> 走到底，你会看到这一行——工具<strong>真正被跑起来</strong>的地方：</p>
+
+<pre><code>// toolcall.go: executeToolCall
+callSerial, callParallel, callStreaming := toolInfo.CallTool.Unpack()
+// ... 在 goroutine 里调用其中之一，真正执行这个工具</code></pre>
+
+<p>请把这一步和第②步对照着看：模型在②里<strong>说</strong>"我要调 search"，我们在④里<strong>做</strong>了 search。说和做，分属玻璃罩内外两个世界。模型永远只递纸条，动手的永远是这段后端代码。</p>
+
+<h3>⑤ 回注：让结果变成下一轮的输入，循环才能滚下去</h3>
+
+<p>工具跑完拿到返回值，<code>message.go</code> 的 <code>AddToolResult</code> 把它包成一条 <code>Role = common.Tool</code> 的消息，<code>append</code> 进 <code>agent.newMessages</code>：</p>
+
+<pre><code>// message.go: AddToolResult
+toolMessage := &minomessage.Message{
+    Role: common.Tool,
+    Contents: []minomessage.MessageContent{ messageContent },
+}
+agent.newMessages = append(agent.newMessages, toolMessage)</code></pre>
+
+<p>这一步是整个闭环的关键：下一步再拼消息（<code>buildConductorMessages</code>）时，这条 <code>tool</code> 消息就在历史里，模型于是"看见"了上一轮工具返回了什么，据此接着想。<strong>工具结果变成了下一轮的输入</strong>——这正是第 02 课那个"心跳循环"能一圈圈转下去的燃料。</p>
+
+<h2>四、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：有人说"agent 自己上网查了天气"。基于这节课，这句话哪里不准确？谁才真正联了网？</summary>
+<div class="answer">
+<p>不准确在"自己"。模型（玻璃罩里的天才）从头到尾没碰过网络——它只是<strong>输出了一段文字</strong>（<code>ToolCalls</code>：请求调用 search）。真正发起网络请求、拿到天气数据的，是我们后端在 <code>executeToolCall</code> 里跑的那段代码（<code>toolInfo.CallTool</code>）。</p>
+<p>为什么这个区分重要？因为它决定了"安全边界"和"能力边界"都握在我们手里：模型能做什么，取决于我们在那张大表（<code>GetAllToolServices</code>）里给了它哪些工具、以及我们的执行代码愿意替它做什么。模型请求调一个不存在的工具，也只会被我们判为无效、退回去让它改——它无法绕过我们直接触碰世界。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：工具定义为什么走 <code>model.WithTools</code> 这条"带外"通道，而不是像普通对话那样写进 messages 数组？漏掉这一步会怎样？</summary>
+<div class="answer">
+<p>因为工具清单在概念上不是"对话内容"，而是"这一轮你可以调用的能力表"，属于请求的元信息。mino_server 每轮用 <code>getCurrentToolInfos()</code> 取出全部工具、排好序，再 <code>model.WithTools(toolInfos)</code> 挂上去（<code>agent.go</code>）。</p>
+<p>如果不挂（或忘了挂），模型这一轮就<strong>不知道自己有任何工具可用</strong>，只能凭记忆瞎答——退化回上一课那个"只会动嘴的大脑"。这也解释了为什么每轮都要重挂一遍：工具定义不像 system prompt 那样一次写死在对话里，它是每次请求独立带上的参数。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（想清楚"为什么"）：为什么 <code>getCurrentToolInfos</code> 要专门把工具"按名字排序"？乱序会有什么坏处？</summary>
+<div class="answer">
+<p>为了让请求前缀<strong>稳定</strong>，从而命中前缀缓存。工具定义在每轮请求里位置靠前，一旦它们的排列顺序在不同轮之间抖动，缓存就会从分歧点起失效，成本和延迟都上去。排序保证"同一批工具永远以同一顺序出现"，这段前缀就能被缓存反复命中。</p>
+<p>这是"稳定在前、易变在后"这条原则的一个具体落点——它把"成本"和"工具怎么组织"焊在了一起。（前缀缓存的完整机制是后面成本课的内容，这里先埋个种子。）</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>现在 agent 有手有脚了。但回头看第②步——模型是<strong>怎么决定</strong>该调哪个工具、往参数里填什么的？它手上只有一份东西：每个工具的<strong>文字描述和参数 schema</strong>（第②步转出来的那份说明书）。</p>
+<p>换句话说，工具描述写得好不好，直接决定模型调得对不对：描述含糊，它就调错工具、传错参数，整个 agent 就"变笨"了。所以工具描述其实是 prompt 的一部分——这就是下一课要拆的东西。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>一句话收束：tool calling 是一来一回的纸条游戏——模型只负责"请求"（<code>ToolCalls</code>），执行永远在我们手里（<code>executeToolCall</code>），结果回注（<code>AddToolResult</code>）后循环才滚得下去。下一课《工具描述就是 Prompt》：为什么一句描述没写好，agent 就会调错工具、变笨。读到卡壳，回会话里问你的 AI 老师，可要求 ELI5 或看真实代码。 · <a href="index.html">← 返回课程门户</a></p>
+</footer>
+</main>
+</body>
+</html>

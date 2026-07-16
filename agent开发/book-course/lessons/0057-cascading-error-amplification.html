@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0057 · 错误的级联放大：当「一致性」给错误背书</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0057 课 · 进阶应用 · 多 Agent 协作 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>错误的级联放大：当「一致性」给错误背书</h1>
+
+<p class="lede">这节课只押一件事：多 Agent 系统有一种单 Agent 根本不存在的<strong>语义级失败</strong>——一个 Agent 的错误，会被后续 Agent 因为「统一」而层层强化，最后<strong>反而获得更高的可信度</strong>。它出现在第十章「常见失败模式」一节的「失败模式二：错误的级联放大」。学会认出它，并掌握唯一靠谱的断链手段——<strong>交叉验证</strong>。</p>
+
+<h2>一、是什么：一场发生在 Agent 之间的「传话游戏」</h2>
+
+<p>第十章把多 Agent 的失败模式分成两类来讲：失败模式一是<strong>共享文件系统的并发冲突</strong>（文件层面的工程问题，用乐观锁、工作副本隔离来防）；失败模式二，也就是本课，是<strong>错误的级联放大</strong>——语义层面、更隐蔽的风险。原文的定义很干脆：</p>
+
+<div class="bookquote">
+当多个 Agent 频繁互动时，一个 Agent 的错误可能被后续 Agent 逐层强化，就像"传话游戏"中信息越传越走样。
+<span class="src">——《深入理解 AI Agent》第十章</span>
+</div>
+
+<p>书里给了一个极其具体、而且你此刻正在读的这本书本身就踩过的例子。假设一个翻译系统采用管理者模式（第十章的书籍翻译 Agent 架构，对应<strong>图10-6</strong>、实验 10-3），Manager 把一本技术书分章分给多个翻译 Agent。错误是这样一节一节滚大的：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 320" role="img" aria-label="传话游戏式的错误级联：术语Agent把reasoning误译为推理写入glossary，翻译AgentA与B沿用，校对Agent因全书统一而误判通过；一条独立视角的交叉验证箭头从下方切断链条">
+  <text class="dgm-muted" x="360" y="20" font-size="12" text-anchor="middle">错误沿链条被「一致性」放大 →（框线越往右越重）</text>
+
+  <!-- A: 术语 Agent -->
+  <rect class="dgm-node" x="16" y="44" width="156" height="64" rx="8"/>
+  <text class="dgm-text" x="94" y="70" font-size="13" font-weight="700" text-anchor="middle">术语 Agent</text>
+  <text class="dgm-muted" x="94" y="90" font-size="10.5" text-anchor="middle">reasoning → 「推理」</text>
+  <text class="dgm-muted" x="94" y="103" font-size="10.5" text-anchor="middle">（歧义未察觉）</text>
+
+  <!-- B: glossary -->
+  <rect class="dgm-node" x="204" y="56" width="108" height="40" rx="8"/>
+  <text class="dgm-text" x="258" y="80" font-size="12" font-weight="700" text-anchor="middle">glossary.json</text>
+
+  <!-- C: 翻译 A/B -->
+  <rect class="dgm-node" x="344" y="40" width="164" height="72" rx="8"/>
+  <text class="dgm-text" x="426" y="62" font-size="12.5" font-weight="700" text-anchor="middle">翻译 Agent A / B</text>
+  <text class="dgm-muted" x="426" y="80" font-size="10" text-anchor="middle">reasoning tokens → 推理 token</text>
+  <text class="dgm-muted" x="426" y="94" font-size="10" text-anchor="middle">inference latency → 推理延迟</text>
+  <text class="dgm-muted" x="426" y="107" font-size="10" text-anchor="middle">（沿用术语表）</text>
+
+  <!-- D: 校对 Agent -->
+  <rect class="dgm-hub" x="540" y="44" width="164" height="64" rx="8"/>
+  <text class="dgm-accent-text" x="622" y="68" font-size="13" font-weight="700" text-anchor="middle">校对 Agent</text>
+  <text class="dgm-muted" x="622" y="87" font-size="10.5" text-anchor="middle">全书「统一」→ 判定 ✗</text>
+  <text class="dgm-muted" x="622" y="100" font-size="10.5" text-anchor="middle">误认为翻译质量高</text>
+
+  <!-- chain arrows -->
+  <line class="dgm-edge" x1="172" y1="76" x2="200" y2="76" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line class="dgm-edge" x1="312" y1="76" x2="340" y2="76" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line class="dgm-edge" x1="508" y1="76" x2="536" y2="76" stroke-width="2" marker-end="url(#ar)"/>
+
+  <!-- Reviewer: 独立视角 -->
+  <rect class="dgm-node" x="360" y="228" width="304" height="72" rx="8"/>
+  <text class="dgm-accent-text" x="512" y="252" font-size="13" font-weight="700" text-anchor="middle">独立视角 · 交叉验证</text>
+  <text class="dgm-muted" x="512" y="270" font-size="10.5" text-anchor="middle">不看前序 Agent 的思考过程</text>
+  <text class="dgm-muted" x="512" y="284" font-size="10.5" text-anchor="middle">只对照原文证据 与 最终结论是否一致</text>
+
+  <!-- break arrow cutting the last link -->
+  <path class="dgm-edge" d="M540 228 C540 160, 560 120, 578 90" fill="none" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <text class="dgm-accent" x="470" y="170" font-size="14" font-weight="700" text-anchor="middle">✂ 断链</text>
+  <text class="dgm-muted" x="470" y="186" font-size="10" text-anchor="middle">reasoning=思考 · inference=推理</text>
+
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>一个术语误译经过术语表 → 两个翻译 Agent → 校对 Agent，越传越"像是对的"。校对本该是安全网，却把"统一"当成了"正确"。交叉验证从下方切进来，只认原文证据，才把链条断开。</figcaption>
+</figure>
+
+<p>问题出在哪？<strong>reasoning</strong>（模型的思考过程）和 <strong>inference</strong>（模型的前向推理／部署运行）是<strong>两个不同的概念</strong>。因为术语 Agent 一开始把 reasoning 译成了「推理」，后续 Agent 遇到 inference 时也自然选了同一个词——两个概念被合并成了同一个译名，读者再也无法区分。正确做法是 <strong>reasoning 译为「思考」、inference 译为「推理」</strong>。可校对 Agent 看到全书「统一」用「推理」，反而认为翻译质量很高。这也正是本书采用 reasoning=思考、inference=推理这条翻译约定的原因：用不同的中文词消除歧义。</p>
+
+<h2>二、为什么危险：一致性被当成了正确性</h2>
+
+<p>把这条链的要害提炼成一句话，正是本课的题眼：</p>
+
+<figure class="diagram">
+<div class="formula">
+<div class="eq">「一致性」 <span class="op">≠</span> 「正确性」</div>
+<div class="gloss">一个术语错误经过三个 Agent 传播后，因为"一致性"而获得了更高的可信度</div>
+</div>
+<figcaption>校对 Agent 的评判标准是"全书用词是否统一"。当错误已经统一地渗透到每一章，这个标准恰好为错误背书——错得越彻底，看起来越"专业"。</figcaption>
+</figure>
+
+<p>为什么单 Agent 不会这样翻车？因为单 Agent 没有「下游」去继承并加固它的错误；而多 Agent 之间的每一次移交、每一次读术语表，都是一次「投票」，票越多、越一致，后面的 Agent 越不敢质疑。原文特别点出：这条错误放大链<strong>在管理者模式中尤其危险</strong>——如果 Manager 基于某个子 Agent 的错误摘要做出了调度决策，后续所有子 Agent 的工作可能都建立在错误的前提之上。错误不再是一个局部 bug，而是整棵协作树的地基。</p>
+
+<div class="pitfall">
+<p><strong>误区一：把「一致」读成「正确」。</strong>初学者（以及例子里的校对 Agent）会本能地认为"全书用词统一 = 高质量"。恰恰相反——在级联放大场景里，<strong>一致性只是错误已经传遍全局的证据</strong>，它不提供任何关于"这个译名本身对不对"的信息。判断正确性必须回到链条<strong>之外</strong>的原始证据，而不是链条<strong>内部</strong>的自洽。</p>
+<p><strong>误区二：以为「错误」一定是幻觉。</strong>原文强调，这里的"错误"并不一定是幻觉——上例的源头其实是一次<strong>术语决策失误</strong>，却同样被"一致性"层层放大；但如果源头真是一次幻觉（比如翻译 Agent 因注意力分散而"记起"了一条并不存在的术语规则），<strong>放大机制完全相同，后果只会更严重</strong>。所以不要指望"模型不产生幻觉"就能免疫这个失败模式，它防的是传播，不是源头。</p>
+</div>
+
+<h2>三、怎么断链：交叉验证，让一个 Agent 以「独立视角」重看</h2>
+
+<p>断这条链的关键手段是<strong>交叉验证</strong>。注意作者划的重点——它<strong>不是</strong>让更多 Agent 加入同一条思维链（那只会让更多人一起把错误投票投得更实），而是让某个 Agent 以<strong>独立视角</strong>重新审视结论：</p>
+
+<div class="bookquote">
+核心不是让更多 Agent 参与同一条思维链，而是让某个 Agent 以独立视角重新审视结论：不看前序 Agent 的思考过程，只看原始证据和最终结论是否一致。
+<span class="src">——《深入理解 AI Agent》第十章</span>
+</div>
+
+<p>「不看前序思考过程」这半句是整个机制的灵魂。一旦 Reviewer 读了前序 Agent 的推导，它就被拉进了同一条思维链，会不自觉地接受既成的术语约定——独立性就此丧失。这正是第五章「提议者-审核者」机制在多 Agent 场景中的延伸：Reviewer 的价值不只在于挑代码错误或格式问题，更在于作为<strong>独立判断者</strong>，识别出整条思维链里被集体忽视的矛盾。</p>
+
+<p>对于高风险决策，还有比 LLM 更硬的断链器：引入<strong>外部验证手段</strong>——单元测试、编译器、数据库查询等确定性工具，它们提供的反馈<strong>不受幻觉影响</strong>，是最可靠的断链器。翻译这类没有编译器可用的软判断场景，就退回到"独立视角的 Reviewer + 原始证据"这条路。</p>
+
+<div class="experiment">
+<p>本课这条错误链就发生在第十章的<strong>书籍翻译 Agent 架构（实验 10-3，对应图10-6）</strong>里——这本书自己就是用它翻译/校对流程打磨的，reasoning=思考、inference=推理的约定就是被这个失败模式逼出来的。想动手复现级联放大与交叉验证，强烈建议边读边跑开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>错误的级联放大（Cascading Error Amplification）</dt>
+<dd>多 Agent 特有的语义级失败模式：一个 Agent 的错误被后续 Agent 逐层强化，像"传话游戏"越传越走样，并因"一致性"而反获更高可信度。<em>避免</em>与失败模式一「共享文件系统的并发冲突」混同——后者是文件层面的工程冲突，前者是语义层面的错误传播。</dd>
+<dt>交叉验证 / 独立视角（Cross-validation）</dt>
+<dd>断开级联链的关键手段：让某个 Agent 不看前序 Agent 的思考过程，只对照原始证据与最终结论是否一致。是第五章提议者-审核者机制在多 Agent 场景的延伸。<em>避免</em>理解成"让更多 Agent 参与同一条思维链"——那反而会加固错误。</dd>
+<dt>MAST 失败模式分类法（MAST）</dt>
+<dd>2025 年论文《Why Do Multi-Agent LLM Systems Fail?》提出的分类法，在 7 个主流框架上归纳出 14 种失败模式，分三大类：系统设计缺陷、Agent 间对齐失败、任务验证缺失。本课的两种失败模式偏工程视角，是对 MAST 的补充而非复述。<em>避免</em>把它当成可修补的 bug 清单——论文认为这些是根本性设计缺陷。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：术语 Agent 把 reasoning 译成「推理」，导致后续 inference 也被译成「推理」，校对 Agent 却认为翻译质量很高。校对为什么会误判，正确的断链方法是什么？</summary>
+<div class="answer">
+<p>校对看到全书「统一」使用「推理」，把一致性当成了正确性，于是给错误背书。断链方法是<strong>交叉验证</strong>：让某个 Agent 以独立视角、不看前序思考过程，只对照原始证据（原文 reasoning／inference 是两个概念）和最终结论是否一致；高风险场景还可引入单元测试、编译器等不受幻觉影响的确定性工具。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：级联放大链里那个最初的「错误」，一定是模型幻觉吗？如果不是幻觉，这个失败模式还成立吗？</summary>
+<div class="answer">
+<p>不一定是幻觉。上例的源头其实是一次<strong>术语决策失误</strong>（reasoning 译成"推理"），却同样被"一致性"层层放大。如果源头真是一次幻觉（比如翻译 Agent"记起"了一条并不存在的术语规则），放大机制<strong>完全相同，后果只会更严重</strong>。所以这个失败模式与错误的来源无关——它刻画的是错误在 Agent 之间的传播与加固，防幻觉并不能免疫它。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：在多 Agent 系统里，<strong>「一致」不等于「正确」</strong>——一致往往只是错误已经传遍全局的证据。要判断对错，别在链条内部找自洽，让一个 Agent 以独立视角、只看原始证据把链条断开；能上确定性工具（测试、编译器）就上，那是最硬的断链器。</p>
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课一手来源是第十章「常见失败模式 → 失败模式二：错误的级联放大」一节（<code>book/chapter10.md</code>）。要深挖多 Agent 为何常败，读 2025 年论文《Why Do Multi-Agent LLM Systems Fail?》（提出 MAST 分类法）。而本章"多 Agent 未必比单 Agent 强"这一判断的核心外部依据是 Tran &amp; Kiela, <a href="https://arxiv.org/abs/2604.02460"><em>Single-Agent LLMs Outperform Multi-Agent Systems on Multi-Hop Reasoning Under Equal Thinking Token Budgets</em></a>（arXiv:2604.02460, 2026）；相关来源还有 Gehring et al. RLEF（arXiv:2410.02089）、Erdogan et al. Plan-and-Act（arXiv:2503.09572）、Huang et al. <em>Large Language Models Cannot Self-Correct Reasoning Yet</em>（ICLR 2024）。配套仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把"交叉验证为什么必须不看前序思考过程"这一点再过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0056-orchestration-planner-bottleneck.html"><span class="dir">← 上一课</span>管理者模式：为什么最强的模型要给规划者</a>
+  <span class="none"></span>
+</nav>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0021 · 智能体化 RAG：从检索管道到主动探索的研究员</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0021 课 · 支柱一(上下文) · 记忆与知识库 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>智能体化 RAG：从检索管道，到会自己查资料的研究员</h1>
+
+<p class="lede">本课只押一件事：<strong>把「检索」从一条固定的单向管道，升级成一个由 Agent 主导的、可迭代的探索循环</strong>。这就是「非智能体化 RAG」与「智能体化 RAG」的分水岭。它出现在第三章「用户记忆和知识库」的后半段——当我们已经建好了强大的知识库（结构化索引、混合检索、重排序），下一个问题自然浮现：<strong>Agent 该如何智能地、自主地用好这个知识库？</strong>本课要让你记住两种范式的差别、为什么这样设计，以及它值多少、又在哪里不值。</p>
+
+<h2>一、是什么：两种范式，一条直线 vs 一个圈</h2>
+
+<p>作者把传统 RAG 定义得很直白：它「通常是一个简单直接的单向数据流」——<strong>用户查询 → 检索 → 把结果注入上下文 → 模型直接生成答案</strong>。这种「<strong>非智能体化</strong>（Non-Agentic）」模式高效，但作者紧接着下了一句重判断：<strong>它的能力上限很低</strong>，因为它本质上只是一个被动的「检索-生成」管道，缺乏对问题进行深度理解、分解和迭代探索的能力。</p>
+
+<p>要突破这个上限，就得把 RAG「从一个固定的数据处理流程，升级为一个由 Agent 主导的、动态的、迭代的探索过程」。关键的机制转变只有一句话——<strong>知识库检索不再是自动化的前置步骤，而是被封装成一个可供 Agent 随时调用的工具</strong>（`knowledge_base_search`）。Agent 采用 ReAct 模式，通过「思考 → 行动 → 观察」的循环主导整个过程。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="左侧非智能体化RAG是查询到检索到生成的一条直线；右侧智能体化RAG是思考行动观察评估构成的循环，评估不足则回到思考再查一轮">
+  <text class="dgm-muted" x="150" y="24" font-size="12" font-weight="700" text-anchor="middle">非智能体化 RAG（单向管道）</text>
+  <text class="dgm-muted" x="530" y="24" font-size="12" font-weight="700" text-anchor="middle">智能体化 RAG（ReAct 循环）</text>
+
+  <!-- LEFT: straight pipeline -->
+  <rect class="dgm-node" x="90" y="50" width="120" height="40" rx="7"/>
+  <text class="dgm-text" x="150" y="74" font-size="12.5" text-anchor="middle">查询</text>
+  <rect class="dgm-node" x="90" y="120" width="120" height="40" rx="7"/>
+  <text class="dgm-text" x="150" y="144" font-size="12.5" text-anchor="middle">检索</text>
+  <rect class="dgm-node" x="90" y="190" width="120" height="40" rx="7"/>
+  <text class="dgm-text" x="150" y="214" font-size="12.5" text-anchor="middle">生成答案</text>
+  <line class="dgm-edge" x1="150" y1="90" x2="150" y2="118" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line class="dgm-edge" x1="150" y1="160" x2="150" y2="188" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text class="dgm-muted" x="150" y="262" font-size="11" text-anchor="middle">一次到底，不回头</text>
+
+  <!-- RIGHT: ReAct loop -->
+  <rect class="dgm-hub" x="470" y="46" width="120" height="46" rx="9"/>
+  <text class="dgm-accent-text" x="530" y="66" font-size="12.5" font-weight="700" text-anchor="middle">思考</text>
+  <text class="dgm-muted" x="530" y="82" font-size="10" text-anchor="middle">分解 · 定关键词</text>
+
+  <rect class="dgm-node" x="620" y="120" width="80" height="44" rx="8"/>
+  <text class="dgm-text" x="660" y="140" font-size="11.5" text-anchor="middle">行动</text>
+  <text class="dgm-muted" x="660" y="155" font-size="9.5" text-anchor="middle">search</text>
+
+  <rect class="dgm-node" x="470" y="196" width="120" height="44" rx="8"/>
+  <text class="dgm-text" x="530" y="216" font-size="11.5" text-anchor="middle">观察</text>
+  <text class="dgm-muted" x="530" y="231" font-size="9.5" text-anchor="middle">读检索结果</text>
+
+  <rect class="dgm-node" x="360" y="120" width="80" height="44" rx="8"/>
+  <text class="dgm-text" x="400" y="140" font-size="11.5" text-anchor="middle">评估</text>
+  <text class="dgm-muted" x="400" y="155" font-size="9.5" text-anchor="middle">够了吗</text>
+
+  <!-- loop arrows clockwise -->
+  <path class="dgm-edge" d="M590 74 C630 82, 655 100, 660 118" fill="none" stroke-width="1.5" marker-end="url(#arr)"/>
+  <path class="dgm-edge" d="M655 164 C640 185, 605 194, 592 210" fill="none" stroke-width="1.5" marker-end="url(#arr)"/>
+  <path class="dgm-edge" d="M468 218 C440 214, 415 195, 405 166" fill="none" stroke-width="1.5" marker-end="url(#arr)"/>
+  <!-- 评估 -> 思考 : 不足则再来一轮 -->
+  <path class="dgm-edge" d="M405 118 C412 96, 435 78, 468 71" fill="none" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+  <text class="dgm-accent-text" x="432" y="100" font-size="9.5" text-anchor="middle">不足↺</text>
+  <text class="dgm-muted" x="530" y="284" font-size="11" text-anchor="middle">充分才综合作答 · 多轮迭代逼近</text>
+
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>图3-12 · 左边像「进图书馆只准搜一次、立刻写报告」；右边像一位研究员：反复查不同书架、调整搜索策略、交叉验证，直到材料够了才动笔。差别不在检索技术本身，而在「谁来决定要不要再查一次」。</figcaption>
+</figure>
+
+<h2>二、为什么这样设计：把「检索」交给会思考的大脑</h2>
+
+<p>为什么单向管道的上限低？因为它把「查什么、查够了没有」这两个判断从流程里彻底剥离了——查询词是用户原话直接拿去检索的，检索一次就必须交卷。作者的原话是：面对复杂问题时，Agent 「思考」分析核心需求，<strong>自主决定应该使用什么查询关键词</strong>才最有效；「行动」调用检索工具；「观察」到初步结果后<strong>不会立即生成答案</strong>，而是评估信息是否充分——不够就进入下一轮，提炼更精确的查询再搜，只有判断收集到充分信息后，才综合所有上下文生成最终的、有理有据的答案。</p>
+
+<p>这个设计的价值，作者用一句话点透：智能体化 RAG 「将搜索和思考通过 Agent 的自主决策<strong>有机融合</strong>」，能在海量非结构化知识中自主探索，通过多轮迭代逼近答案——而且它的能力会<strong>随知识库增长和模型提升而自然增长</strong>。换句话说，你不需要重写流程，只要底座模型更强、知识库更大，它就更能干。</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">复杂问题：「醉酒过失致人重伤且有盗窃前科如何量刑？」</div>
+  <div class="down">↓ 第一轮检索：分解问题，并行搜索</div>
+  <div class="branches">
+    <div class="branch"><div class="label">子问题 A</div><div class="step action">过失致人重伤量刑标准</div></div>
+    <div class="branch"><div class="label">子问题 B</div><div class="step action">醉酒刑事责任</div></div>
+    <div class="branch"><div class="label">子问题 C</div><div class="step action">盗窃前科影响</div></div>
+  </div>
+  <div class="down">↓ 思考与评估</div>
+  <div class="step decision">基本法条都找到了，但缺一块：不相关的「盗窃前科」在「过失致人重伤」判决中该如何被考量？</div>
+  <div class="down">↓ 第二轮检索（更聚焦的查询）</div>
+  <div class="step action">「过失伤害罪」× 「累犯」或「数罪并罚」的关联</div>
+  <div class="down">↓ 最终综合</div>
+  <div class="step terminal">综合「累犯」在不同罪名下的司法解释，给出逻辑严密、有法条依据的完整回答</div>
+</div>
+<figcaption>实验 3-9 里智能体化 RAG 处理复杂量刑问题的真实轨迹。注意第二步：它是<strong>先发现自己缺了什么</strong>，才构建出更精确的二次查询——这一步正是单向管道永远做不到的。</figcaption>
+</figure>
+
+<h2>三、边界与易错：它换来的东西，是拿速度买的</h2>
+
+<p>作者没有把智能体化 RAG 捧成万能药。实验 3-9 用一个中文司法问答数据集做了消融对比，结论分两种情况：</p>
+
+<ul>
+<li><strong>简单问题</strong>（如「故意杀人罪判几年？」）：一次直接检索就能找到答案。此时<strong>非智能体化 RAG 反而更好</strong>——单次检索流程简洁、响应更快，答案质量与智能体化 RAG 相差无几。作者明说：「在信息需求明确单一的场景下传统 RAG 仍是高效选择。」</li>
+<li><strong>复杂问题</strong>（如上面的醉酒量刑）：差距才显著。非智能体化 RAG 因首次检索关键词不精确、检索到的上下文不全面，常遗漏关键信息甚至<strong>出现事实性错误</strong>；智能体化 RAG 则靠多轮迭代把多跳问题的准确率显著拉高。</li>
+</ul>
+
+<p>所以作者给了一句极精炼的定性：智能体化 RAG 的价值在于它「<strong>解决问题</strong>」而非「<strong>回答问题</strong>」的能力——它<strong>牺牲一定的响应速度</strong>，换来对复杂问题更强的鲁棒性和更高的质量。这是一笔明码标价的交易，不是免费午餐。</p>
+
+<div class="pitfall">
+<p><strong>误区一：以为智能体化 RAG 永远比传统 RAG 好。</strong> 初学者容易把「更主动 = 更好」当成通用真理。但对信息需求单一的简单问题，多转几圈只是白白增加延迟，答案并不会更对。范式选择要看问题复杂度，不是越「智能体化」越高级。</p>
+<p><strong>误区二：以为智能体化 RAG 是架在其他检索技术「之上」的更高一层。</strong> 它和上下文感知检索、结构化索引<strong>不是层级关系</strong>。作者特意提醒：上下文感知检索「并不是架在智能体化 RAG 之上的更高一层」，而是回头去修补最基础的分块环节。智能体化 RAG 解决的是「谁来主导检索策略」，分块/索引/重排序解决的是「单次检索本身有多准」——两个正交的维度，好的系统两者都要。</p>
+<p><strong>误区三（作者留的思考题）：以为「让 Agent 自主决定要不要搜」就万事大吉。</strong> 智能体化 RAG 依赖模型判断「我需要再查一次」。但<strong>如果模型不知道自己不知道什么，就无法正确触发搜索</strong>——这个「元认知」问题本章并未给出终解，是留给你的开放问题。别把自主性等同于可靠性。</p>
+</div>
+
+<div class="experiment">
+<p><strong>动手验证：</strong>开源仓库的 <code>chapter3/agentic-rag/</code> 项目（<strong>实验 3-9 ★★</strong>）构建了一个能在两种模式间自由切换的完整 Agent 系统，接入多种知识库后端（如 <code>chapter3/retrieval-pipeline</code>、<code>chapter3/structured-index</code>），围绕中文司法问答数据集做消融实验。<strong>亲手把「故意杀人罪判几年」和「醉酒过失致人重伤且有盗窃前科如何量刑」各跑一遍两种模式</strong>，你会直接看到：简单题两者打平、复杂题非智能体化开始出事实错误。仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>智能体化 RAG（Agentic RAG）</dt>
+<dd>把知识库检索封装成 Agent 可随时调用的工具，用 ReAct（思考→行动→观察）循环主导多轮迭代检索：自主决定关键词、评估信息是否充分、不够则提炼查询再搜，直到充分才作答。<em>避免</em>与非智能体化 RAG（固定单向「检索→生成」管道）混——后者被动、能力上限低，无法分解问题与迭代探索。</dd>
+<dt>非智能体化 RAG（Non-Agentic RAG）</dt>
+<dd>传统 RAG 的单向数据流：用户查询直接用于检索，检索结果直接注入上下文，模型直接生成答案。高效，但只是被动的「检索-生成」管道，能力上限很低；<em>在信息需求单一的简单问题上反而更快更划算</em>。</dd>
+<dt>ReAct 循环</dt>
+<dd>「思考（Thought）→ 行动（Action）→ 观察（Observation）」的迭代模式（本书第一章已定义）。在智能体化 RAG 里，行动就是调用检索工具，观察就是读检索结果，思考则负责分解问题与评估「够了没有」。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：「故意杀人罪判几年」和「醉酒过失致人重伤且有盗窃前科如何量刑」两个问题，哪个更能体现智能体化 RAG 的优势？为什么非智能体化 RAG 在后者上常出错？</summary>
+<div class="answer">
+<p>后者（复杂多跳问题）。非智能体化 RAG 首次检索关键词不精确、上下文不全面就直接生成，常遗漏「盗窃前科如何影响过失伤害量刑」这类关联信息甚至出事实错误。智能体化 RAG 分解问题并行搜索 → 评估发现缺关联信息 → 构建更精确的二次查询（如「累犯/数罪并罚」）→ 综合作答，多跳准确率显著提升，代价是响应变慢。而前者「故意杀人罪判几年」信息需求单一，一次检索即可，非智能体化 RAG 更快且质量相当。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：作者说智能体化 RAG 的价值在于「解决问题」而非「回答问题」。这句话背后隐含了什么代价？系统的能力还会随什么增长？</summary>
+<div class="answer">
+<p>代价是<strong>响应速度</strong>——它靠多轮迭代换取对复杂问题更强的鲁棒性和更高质量，所以更慢。同时，因为检索被工具化、由模型自主驱动，它的能力会<strong>随知识库增长和底座模型提升而自然增长</strong>，不需要重写流程。所以选它还是选传统 RAG，本质是一道「问题复杂度 vs 可接受延迟」的权衡题。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：智能体化 RAG 的本质不是「更强的检索」，而是「把检索交给一个会思考的大脑，让它自己决定查什么、够没够、要不要再查一轮」。它拿延迟换复杂问题的正确率——所以简单题用传统单向 RAG，复杂多跳题才上智能体化 RAG。判断依据永远是问题复杂度，不是范式听起来有多先进。
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课一手来源是第三章「用户记忆和知识库」中「智能体化 RAG」一节及实验 3-9（书稿 <code>book/chapter3.md</code>）。延伸阅读作者在本章引用的经典：Anthropic 的 <a href="https://www.anthropic.com/engineering/contextual-retrieval">Contextual Retrieval</a>（与下一课工具设计、上一课的分块修补相互呼应），以及记忆评测相关的 LoCoMo（arXiv:2402.17753）与 Mem0（arXiv:2504.19413）。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「思考→行动→观察」这一圈在司法量刑例子上再走一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0020-chunking-flaw-and-contextual-retrieval.html"><span class="dir">← 上一课</span>分块的原罪与上下文感知检索：给每块补一段背景</a>
+  <a class="next" href="0022-five-tool-categories.html"><span class="dir">下一课 →</span>Agent 的五类工具：调用方向 × 作用对象</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent 开发四支柱 · 速查表（mino_server 代码坐标）</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+<style>
+  body { font-size: 15px; }
+  main { max-width: 60rem; }
+  h2 { border-top: 2px solid var(--accent); padding-top: .6rem; margin-top: 1.8rem; }
+  .ref-table { font-size: .84em; }
+  .ref-table td:first-child { white-space: nowrap; font-family: "PingFang SC", sans-serif; font-weight: 600; }
+  .ref-table code { font-size: .95em; }
+  .leaknote { font-size: .86em; border-left: 3px solid var(--accent); padding: .3em .8em; margin: .6rem 0; color: var(--accent); background: var(--accent-soft); border-radius: 0 4px 4px 0; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 2rem; }
+  @media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+  @media print {
+    h2 { break-before: auto; }
+    .cols { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 可打印速查表 · 代码坐标基于 <code>mino_server</code>（行号会漂移，以文件为准） · <a href="../index.html">返回门户</a></p>
+
+<h1>Agent 开发四支柱 · 速查表</h1>
+<p class="lede">一个中心（context 组织），四张脸。每支柱一句话记住"类比在哪漏水"，再配一张代码坐标表。</p>
+
+<h2>0 · 四个类比漏水点（一句话版）</h2>
+<table class="ref-table">
+<tr><th>支柱</th><th>服务端类比</th><th>⚠ 漏水点（记这个）</th></tr>
+<tr><td>context 管理</td><td>状态管理 + 缓存淘汰</td><td>位置影响读取质量（lost in the middle）；容量是<strong>软退化</strong>不是硬报错（context rot）；淘汰是<strong>有损总结</strong>不是删除</td></tr>
+<tr><td>工具调用</td><td>RPC 边界设计</td><td>调用方是<strong>概率性读者</strong>；工具描述是 prompt 的一部分；错误信息要<strong>回注</strong>给模型自愈</td></tr>
+<tr><td>评估</td><td>CI 断言</td><td>判分是<strong>统计性</strong>不是确定性；裁判本身<strong>不可信</strong>需校准</td></tr>
+<tr><td>成本与延迟</td><td>计费单位 + 限流</td><td>缓存匹配规则<strong>由厂商定死</strong>（字节级前缀）；读写<strong>非对称</strong>计价；感知延迟 ≠ 实际延迟（流式）</td></tr>
+</table>
+
+<div class="cols">
+<div>
+
+<h2>支柱一 · context 管理（主轴）</h2>
+<div class="leaknote">"字段放哪"从质量问题升级成钱的问题——因为前缀缓存。</div>
+<table class="ref-table">
+<tr><td>组装入口</td><td><code>conductorservice/agent.go</code> <code>buildConductorMessages</code>:1418</td></tr>
+<tr><td>组装顺序</td><td>System(1471) → mode dev(1474) → hook dev(1478) → chatMessages(1485)</td></tr>
+<tr><td>context_info</td><td><code>buildContextPayload</code>:1492；块序 space→user→time→lang→<strong>plan</strong>→personal→memory→mobile</td></tr>
+<tr><td>缓存击穿雷</td><td><code>&lt;current_plan&gt;</code> 在 step 1→2 变（<code>IsLastMessageFromUser</code> true→false），注释 1524-1531</td></tr>
+<tr><td>压缩触发线</td><td><code>summary.go</code> <code>min(0.8×窗口, 200K)</code>；AXON_IM 上限 100K</td></tr>
+<tr><td>压缩防抖</td><td><code>summaryReuseStepThreshold=2</code>；三道闸：nil → 复用阈值 → token 线</td></tr>
+<tr><td>压缩用模型</td><td>常态 <strong>Gemini-3-Flash</strong>；话题门控/预压缩用 <strong>GPT-5.4-Nano</strong></td></tr>
+<tr><td>预压缩阈值</td><td><code>preCompactTokenThreshold=50_000</code>、<code>preCompactIdleThreshold=12h</code></td></tr>
+<tr><td>flush 落盘</td><td><code>memory_flush.go</code>；<code>SafeGo</code>+<code>context.WithoutCancel</code>；写 <code>memory/YYYY-MM-DD.md</code> 再入向量库</td></tr>
+</table>
+
+<h2>支柱二 · 工具调用</h2>
+<div class="leaknote">工具定义每轮原样重发 = 固定 context 税；描述含糊模型就调错。</div>
+<table class="ref-table">
+<tr><td>工具注册</td><td><code>tools.go</code> <code>GetAllToolServices</code>:13（约 50 个）</td></tr>
+<tr><td>每轮注入</td><td><code>getCurrentToolInfos</code>:1965（按 name 字典序）→ <code>model.WithTools</code> agent.go:1582</td></tr>
+<tr><td>两道过滤</td><td><code>hooks.GetToolServices</code>（SubType/FG）+ <code>AsTools</code> 内二次门控</td></tr>
+<tr><td>分层超时</td><td>普通 <code>5.5min</code>；subAgent/ACP/文件传输 <code>30min</code>；slides <code>10min</code></td></tr>
+<tr><td>并发上限</td><td><code>maxParallelToolCount=5</code>、<code>maxParallelSubAgentsToolCount=3</code></td></tr>
+<tr><td>JSON 损坏</td><td>不执行，回注修复提示（<code>toolcall.go</code> 分诊三分支）</td></tr>
+<tr><td>超长上下文</td><td><code>ErrLLMPromptTooLong=100007009</code>；串行自愈 vs 并行放弃（<strong>FIXME</strong> 未解）</td></tr>
+</table>
+
+</div>
+<div>
+
+<h2>支柱三 · 评估</h2>
+<div class="leaknote">judge 跨厂商（生产 Claude/GPT，裁判 Gemini）——规避自评偏差。</div>
+<table class="ref-table">
+<tr><td>入口</td><td><code>cmd/memory_eval/main.go</code>（独立 <code>go build</code>，非 <code>go test</code>）</td></tr>
+<tr><td>跑批</td><td><code>runner.go</code> <code>runAll</code> 串行 for；默认并发 1</td></tr>
+<tr><td>三维判分</td><td><code>scorer.go</code>:33 <code>contains</code> + <code>toolCall</code> + <code>llmJudge</code></td></tr>
+<tr><td>权重</td><td>recall .3/.7 · store .5/.5 · update .4/.6 · rejection .2/.8</td></tr>
+<tr><td>通过阈值</td><td><code>0.6</code>（硬编码 runner.go:92 / report.go:54）</td></tr>
+<tr><td>被测/裁判</td><td>被测 <code>claude-sonnet-4-5</code>；裁判 <code>google/gemini-2.5-flash</code> 走 OpenRouter</td></tr>
+<tr><td>裁判三兜底</td><td>无 key(196) / 调用出错(208) / 解析失败(225) → 均退 <code>0.5</code></td></tr>
+<tr><td>对抗样本</td><td>category==5「无高分即通过」；<code>scorer.py</code> F1/recall 阈值</td></tr>
+</table>
+
+<h2>支柱四 · 成本与延迟</h2>
+<div class="leaknote">缓存写贵 25%、读省 90%；流式让 TTFT 与总时长解耦。</div>
+<table class="ref-table">
+<tr><td>缓存计价</td><td>读 <code>0.1×</code>、写 <code>1.25×</code>、输出常为输入数倍</td></tr>
+<tr><td>缓存映射</td><td><code>claude/convert.go</code> <code>convertCacheControl</code>:54；1h TTL（GCP 不支持，见 TODO:59）</td></tr>
+<tr><td>模型路由</td><td><code>agent.go</code> <code>switchModel</code>:1182 / <code>tryModelFallback</code>:1200</td></tr>
+<tr><td>路由策略</td><td><code>model_policy.go</code> <code>PickPrimaryModel</code>；AB cohort + FG；缺依赖 fail-closed</td></tr>
+<tr><td>成本档</td><td><code>CostTier</code> 仅 <code>standard</code>/<code>lite</code> 两档（用于限流）</td></tr>
+<tr><td>fallback</td><td>429/Overloaded → fallback；<code>retry.Do</code> 只重试瞬时错，PromptTooLong 不重试</td></tr>
+<tr><td>流式</td><td><code>stream.go</code> + <code>StreamingMessageProcessor</code>（降感知延迟）</td></tr>
+<tr><td>PTU 准入</td><td><code>ptuquota/</code> <code>admission.go</code>/<code>waitlist.go</code>/<code>bucket.go</code>（令牌桶 + Top-K 排队）</td></tr>
+<tr><td>过载 throttle</td><td><code>loadshedding/policy.go</code> 归一化 sigmoid（slope 0.11、midpoint 22）；<strong>仅免费用户</strong></td></tr>
+</table>
+
+</div>
+</div>
+
+<h2>收口 · 耦合与项目现状</h2>
+<p style="font-size:.9em">全 <code>conductorservice/</code> + <code>llms/</code> 下 <strong>恰 2 处 FIXME、0 处 HACK/XXX</strong>——成熟度高。核心耦合：<strong>context 组织是中心</strong>，质量（注意力/位置）、成本（前缀缓存排列）、评估（context 可复现性）、工具（返回值占预算）都从组装图上推导。详见 <a href="../lessons/0012-four-pillars-coupling-review.html">0012 总复盘</a>。</p>
+
+<footer class="lesson-footer">
+<p>速查表是压缩的精华，课程是展开的推导。忘了"为什么"就回去读对应 lesson。行号随代码演进漂移，认文件与符号名，不认死行号。</p>
+</footer>
+</main>
+</body>
+</html>

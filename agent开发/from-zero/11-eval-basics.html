@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>11 · 怎么知道 Agent 没变笨：评估入门</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 如何长出一个 Agent · 第 11 课 · 预计 10 分钟 · 上一课 <a href="10-agent-memory.html">10 Agent 的记忆</a> · 下一课 <a href="12-token-economics-basics.html">12 Token 经济学</a> · <a href="index.html">课程门户</a></p>
+
+<h1>怎么知道 Agent 没变笨：评估入门</h1>
+
+<p class="lede">你手里的 agent 已经<strong>会说、会做、会记</strong>了。可从今天起你还会不停地改它：改一句 prompt、换一个更便宜的模型、加一个新工具。每一次改动，它都可能<strong>悄悄变笨</strong>——而你不会立刻发现。这一课装上最后两个零件里的第一个：一套能自动回答"它到底有没有变笨"的评估（eval）系统。</p>
+
+<div class="chain in">
+<p>上一课你给 agent 装上了长期记忆，它看起来相当完整了。但紧接着的问题很扎人：你今天往 prompt 里改了一句话、给记忆抽取换了个更小的模型，<strong>你怎么知道它没因此变笨？</strong></p>
+<p>服务端代码有 CI（持续集成，代码一提交就自动跑测试）替你把关每次改动。可 agent 的输出<strong>天生带随机性</strong>——同一个输入，模型每次说的话都不一样。传统单元测试那句"断言输出等于某个固定值"在这里当场失灵。那 agent 的"CI"到底长什么样？</p>
+</div>
+
+<h2>一、为什么"断言相等"会死在这里</h2>
+
+<p>先用生活化的方式想（ELI5）。传统单元测试像<strong>判断题</strong>：标准答案是 <code>4</code>，你答 <code>4</code> 就对，答 <code>5</code> 就错，一刀切。这套逻辑对普通代码完美好用——<code>add(2,2)</code> 必须永远等于 <code>4</code>。</p>
+
+<p>可 agent 的输出像<strong>作文</strong>。你问它"我上次说我喜欢喝什么？"，它这次答"你之前提到你喜欢喝美式咖啡"，下次答"根据我的记忆，你偏爱美式"。两句话<strong>意思一样、字面完全不同</strong>。要是拿"逐字相等"去判分，两次都会判错——但它其实两次都答对了。</p>
+
+<p>所以 agent 的评估必须换一套判分哲学：不是<strong>确定性</strong>的（对/错二选一），而是<strong>统计性</strong>的（打一个 0 到 1 之间的分，跑一批用例看整体过没过）。这就是 eval——你可以把它理解成"<strong>agent 的新 CI</strong>"：改完 prompt / 换完模型，跑一遍 eval，分数没塌，才敢上线。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 800 340" role="img" aria-label="评估流水线：被测回复经三维打分、按类别加权、与 0.6 阈值比较后判 PASS 或 FAIL">
+  <!-- edges: 被测 -> 三维 -->
+  <line class="dgm-edge" x1="170" y1="170" x2="210" y2="62" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="170" y1="170" x2="210" y2="170" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="170" y1="170" x2="210" y2="278" stroke-width="1.5"/>
+  <!-- edges: 三维 -> 加权 -->
+  <line class="dgm-edge" x1="370" y1="62" x2="420" y2="170" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="370" y1="170" x2="420" y2="170" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="370" y1="278" x2="420" y2="170" stroke-width="1.5"/>
+  <!-- 加权 -> 阈值 -->
+  <line class="dgm-edge" x1="550" y1="170" x2="590" y2="170" stroke-width="1.5"/>
+  <!-- 阈值 -> PASS / FAIL -->
+  <line class="dgm-edge" x1="700" y1="170" x2="720" y2="98" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="700" y1="170" x2="720" y2="238" stroke-width="1.5"/>
+  <text class="dgm-muted" x="705" y="120" font-size="11" text-anchor="end">≥0.6</text>
+  <text class="dgm-muted" x="705" y="222" font-size="11" text-anchor="end">&lt;0.6</text>
+
+  <!-- 被测回复 -->
+  <rect class="dgm-node" x="20" y="130" width="150" height="80" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="95" y="163" font-size="13" font-weight="700" text-anchor="middle">被测回复</text>
+  <text class="dgm-muted" x="95" y="182" font-size="10.5" text-anchor="middle">文本 + 工具调用</text>
+
+  <!-- 三维打分 -->
+  <rect class="dgm-node" x="210" y="30" width="160" height="64" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="290" y="55" font-size="12.5" font-weight="700" text-anchor="middle">① 关键词命中</text>
+  <text class="dgm-muted" x="290" y="74" font-size="10.5" text-anchor="middle">ContainsScore</text>
+
+  <rect class="dgm-node" x="210" y="138" width="160" height="64" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="290" y="163" font-size="12.5" font-weight="700" text-anchor="middle">② 工具调对没</text>
+  <text class="dgm-muted" x="290" y="182" font-size="10.5" text-anchor="middle">ToolCallScore</text>
+
+  <rect class="dgm-accent-node" x="210" y="246" width="160" height="64" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="290" y="271" font-size="12.5" font-weight="700" text-anchor="middle">③ 裁判打质量分</text>
+  <text class="dgm-muted" x="290" y="290" font-size="10.5" text-anchor="middle">LLMJudgeScore</text>
+
+  <!-- 加权 -->
+  <rect class="dgm-hub" x="420" y="130" width="130" height="80" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="485" y="163" font-size="13" font-weight="700" text-anchor="middle">按类别加权</text>
+  <text class="dgm-muted" x="485" y="182" font-size="10.5" text-anchor="middle">weightedScore</text>
+
+  <!-- 阈值 -->
+  <rect class="dgm-link-node" x="590" y="130" width="110" height="80" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="645" y="163" font-size="13" font-weight="700" text-anchor="middle">总分 &lt; 0.6 ?</text>
+  <text class="dgm-muted" x="645" y="182" font-size="10.5" text-anchor="middle">runAll</text>
+
+  <!-- PASS / FAIL -->
+  <rect class="dgm-good-node" x="720" y="72" width="72" height="52" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="756" y="103" font-size="13" font-weight="700" text-anchor="middle">PASS</text>
+  <rect class="dgm-accent-node" x="720" y="212" width="72" height="52" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="756" y="243" font-size="13" font-weight="700" text-anchor="middle">FAIL</text>
+</svg>
+</div>
+<figcaption>一条 eval 用例的完整流水线：<code>scorer.go</code> 的 <code>score</code> 先算出三个分，<code>weightedScore</code> 按用例类别加权成一个总分，<code>runner.go</code> 的 <code>runAll</code> 拿它和 <code>0.6</code> 比，判 PASS / FAIL。</figcaption>
+</figure>
+
+<h2>二、三维判分：从三个角度同时看一次回复</h2>
+
+<p>既然不能"逐字相等"，那就换成从三个互补的角度给同一次回复打分。mino_server 的 <code>cmd/memory_eval/eval/scorer.go</code> 里，<code>score</code> 函数正是这么做的，它填出 <code>scoreDetail</code> 的三个分数字段（外加一个评语字段 <code>JudgeReasoning</code>）：</p>
+
+<dl class="keydef">
+<dt>① 关键词命中（<code>ContainsScore</code>）</dt>
+<dd>最"死板"的一维：回复里<strong>该出现的词出现了没</strong>。用例可以要求 <code>ContainsAll</code>（按命中比例给分（命中数 ÷ 关键词总数），全部命中才拿满分）、<code>ContainsAny</code>（命中一个即可）、<code>NotContains</code>（一旦出现就判 0）。它便宜、确定、不花钱，专抓"事实有没有说到"。</dd>
+<dt>② 工具调对没（<code>ToolCallScore</code>）</dt>
+<dd>专门盯"记忆类"行为：该存的时候有没有<strong>真的调用写文件的工具</strong>（<code>write_file</code> / <code>edit_file</code>，甚至"更新记忆""追加信息"这类中文任务名，见 <code>isWriteTool</code>）；该拒绝的时候有没有<strong>忍住别乱写</strong>。它检查的是"做了没"，而不是"说得好不好"。</dd>
+<dt>③ 裁判打质量分（<code>LLMJudgeScore</code>）</dt>
+<dd>最"聪明"也最贵的一维：<strong>另请一个大模型当阅卷老师</strong>，读完被测回复给一个 0.0–1.0 的质量分，外加一句 <code>reasoning</code>（评语）。它能判前两维判不了的东西——回答自不自然、有没有幻觉、有没有礼貌地承认"我不知道"。</dd>
+</dl>
+
+<p>三维互补：关键词管"说没说到点上"，工具管"手脚有没有动对",裁判管"整体答得好不好"。单看任何一维都会漏，合起来才是一次靠谱的评价。</p>
+
+<h2>三、按 case 类别加权：不同题型看重不同的东西</h2>
+
+<p>可三维不该<strong>一视同仁</strong>地相加。想想真实场景：</p>
+
+<ul>
+<li>问它"我上次说喜欢喝什么"（<strong>recall，回忆</strong>题）——重点是<strong>答得对不对、好不好</strong>，你根本不在乎它调没调工具。</li>
+<li>让它"记住我明天要开会"（<strong>store，存储</strong>题）——重点是它<strong>有没有真的把工具调起来把这句话写进硬盘</strong>，光嘴上答应"好的记下了"却没写，等于没记。</li>
+<li>问它一个记忆里根本没有的事（<strong>rejection，拒答</strong>题）——重点是它<strong>老不老实、会不会瞎编</strong>，这几乎全看裁判。</li>
+</ul>
+
+<p>所以 <code>scorer.go</code> 的 <code>weightedScore</code> 按用例的 <code>category</code> 给三维配了不同权重（下面每行权重相加都是 1.0）：</p>
+
+<table>
+<tr><th>类别 category</th><th>加权公式</th><th>这一题最看重</th></tr>
+<tr><td><strong>recall</strong> 回忆</td><td>关键词 × 0.3 ＋ 裁判 × 0.7</td><td>答得准不准（工具无关）</td></tr>
+<tr><td><strong>store</strong> 存储</td><td>工具 × 0.5 ＋ 裁判 × 0.5</td><td>手脚动没动 + 存得好不好，各占一半</td></tr>
+<tr><td><strong>update</strong> 更新</td><td>工具 × 0.4 ＋ 裁判 × 0.6</td><td>改对没 + 改得好不好</td></tr>
+<tr><td><strong>rejection</strong> 拒答</td><td>关键词 × 0.2 ＋ 裁判 × 0.8</td><td>诚不诚实（几乎全看裁判）</td></tr>
+<tr><td><em>default</em> 其它</td><td>（三维之和）÷ 3</td><td>没指定类别时三者取平均</td></tr>
+</table>
+
+<p>拿一道 recall 题走一遍：假设关键词全命中 <code>ContainsScore = 1.0</code>，裁判觉得答得还行给了 <code>0.6</code>。加权总分 ＝ <code>1.0 × 0.3 ＋ 0.6 × 0.7 ＝ 0.30 ＋ 0.42 ＝ 0.72</code>。<code>runner.go</code> 的 <code>runAll</code> 里，只要总分 <strong>不小于 0.6</strong> 就判 PASS——<code>0.72 ≥ 0.6</code>，这题过关。</p>
+
+<figure class="diagram">
+<div class="bars" role="img" aria-label="一道 recall 用例的加权分解：关键词贡献 0.30、裁判贡献 0.42，合计 0.72，越过 0.6 阈值">
+  <div class="row">
+    <div class="lbl">关键词命中 ×0.3</div>
+    <div class="track"><div class="val read" style="width:30%">贡献 0.30</div></div>
+  </div>
+  <div class="row">
+    <div class="lbl">裁判质量 ×0.7</div>
+    <div class="track"><div class="val out" style="width:42%">贡献 0.42</div></div>
+  </div>
+  <div class="row">
+    <div class="lbl">加权总分</div>
+    <div class="track"><div class="val read" style="width:30%">0.30</div><div class="val out" style="width:42%">0.42 → 合计 0.72</div></div>
+  </div>
+  <div class="row">
+    <div class="lbl">通过阈值 0.6</div>
+    <div class="track"><div class="val base" style="width:60%">&lt; 0.6 判 FAIL｜≥ 0.6 判 PASS</div></div>
+  </div>
+</div>
+<figcaption>一道 recall 用例（<code>ContainsScore=1.0</code>、<code>LLMJudgeScore=0.6</code>）在 <code>weightedScore</code> 里的分解：<code>1.0×0.3 + 0.6×0.7 = 0.72</code>，越过 <code>runAll</code> 里的 <code>0.6</code> 线，判 PASS。</figcaption>
+</figure>
+
+<h2>四、裁判为什么要"跨厂商"——考生不能自己改自己的卷</h2>
+
+<p>第三维的裁判是个大模型。这里藏着一个很容易忽略、却致命的坑：<strong>要是让被测的模型自己给自己打分，会怎样？</strong></p>
+
+<p>ELI14：这就像让考生自己批改自己的作文。人会天然偏袒自己写的东西，模型也一样——研究里这叫<strong>自评偏袒（self-preference bias）</strong>，模型倾向于给"和自己风格相近的输出"打高分。你辛辛苦苦搭 eval 就是为了得到一个诚实的信号，结果裁判是自己人，信号就废了。</p>
+
+<p>mino_server 的解法很干脆：<strong>让裁判和考生来自不同厂商</strong>。看 <code>cmd/memory_eval/eval/config.go</code> 的 <code>parseFlags</code> 里三个默认值：</p>
+
+<ul>
+<li>被测模型 <code>-model</code> 默认 <code>claude-sonnet-4-5</code>——Anthropic 的模型，经内部的 AnyClaw Gateway 跑。</li>
+<li>裁判模型 <code>-judge-model</code> 默认 <code>google/gemini-2.5-flash</code>——Google 的模型。</li>
+<li>裁判走的接口 <code>-base-url</code> 默认 <code>https://openrouter.ai/api/v1</code>——OpenRouter（一个能统一调各家模型的中转站）。</li>
+</ul>
+
+<p>被测是 Claude、裁判是 Gemini，一个 Anthropic 一个 Google，<strong>厂商不同</strong>，自评偏袒无从谈起。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 760 300" role="img" aria-label="跨厂商裁判：被测 Claude 经 AnyClaw Gateway，裁判 Gemini 经 OpenRouter，厂商不同以规避自评偏袒">
+  <!-- 被测 -->
+  <rect class="dgm-node" x="40" y="50" width="250" height="120" rx="10" stroke-width="1.5"/>
+  <text class="dgm-text" x="165" y="82" font-size="14" font-weight="700" text-anchor="middle">被测：Claude Sonnet 4.5</text>
+  <text class="dgm-muted" x="165" y="108" font-size="12" text-anchor="middle">厂商 Anthropic</text>
+  <text class="dgm-muted" x="165" y="130" font-size="12" text-anchor="middle">经 AnyClaw Gateway 跑</text>
+  <text class="dgm-muted" x="165" y="152" font-size="11" text-anchor="middle">-model</text>
+
+  <!-- 裁判 -->
+  <rect class="dgm-accent-node" x="470" y="50" width="250" height="120" rx="10" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="595" y="82" font-size="14" font-weight="700" text-anchor="middle">裁判：Gemini 2.5 Flash</text>
+  <text class="dgm-muted" x="595" y="108" font-size="12" text-anchor="middle">厂商 Google</text>
+  <text class="dgm-muted" x="595" y="130" font-size="12" text-anchor="middle">经 OpenRouter 跑</text>
+  <text class="dgm-muted" x="595" y="152" font-size="11" text-anchor="middle">-judge-model · -base-url</text>
+
+  <!-- arrow 被测 -> 裁判 -->
+  <line class="dgm-edge" x1="290" y1="110" x2="470" y2="110" stroke-width="2"/>
+  <polygon class="dgm-accent" points="470,110 458,104 458,116"/>
+  <text class="dgm-muted" x="380" y="98" font-size="11.5" text-anchor="middle">把被测回复交给裁判打分</text>
+
+  <!-- 中间 badge -->
+  <rect class="dgm-hub" x="230" y="196" width="300" height="42" rx="21" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="380" y="222" font-size="13" font-weight="700" text-anchor="middle">≠ 不同厂商 → 规避自评偏袒</text>
+
+  <!-- 兜底注 -->
+  <text class="dgm-muted" x="380" y="270" font-size="11.5" text-anchor="middle">裁判失败(无 key / HTTP 错 / JSON 解析失败) → 兜底 0.5</text>
+  <text class="dgm-muted" x="380" y="288" font-size="11.5" text-anchor="middle">但被测本身报错 → 直接 0 分</text>
+</svg>
+</div>
+<figcaption>跨厂商裁判：<code>config.go</code> 的 <code>parseFlags</code> 让被测（<code>claude-sonnet-4-5</code>）与裁判（<code>google/gemini-2.5-flash</code> 经 <code>openrouter.ai/api/v1</code>）分属不同厂商。<code>scorer.go</code> 的 <code>llmJudge</code> 里，裁判自己出问题时兜底 <code>0.5</code>。</figcaption>
+</figure>
+
+<h2>五、裁判本身也会错——所以要留兜底</h2>
+
+<p>关键的清醒认识：<strong>裁判也是个会出错、会掉线、会胡言乱语的大模型</strong>。它可能没配 API key、可能 HTTP 请求超时、可能返回一坨不合法的 JSON 让你解析失败。如果这些情况直接判 0 分，那就是<strong>拿裁判的故障去冤枉被测的 agent</strong>——明明 agent 答得好好的，只因为阅卷老师那边网断了就记零分，这不公平。</p>
+
+<p>所以 <code>scorer.go</code> 的 <code>llmJudge</code> 分了几档处理：</p>
+
+<ul>
+<li>没配 API key → 返回中间分 <code>0.5</code>（"这题我没法评，先给个不偏不倚的分"）。</li>
+<li>裁判请求出错 / HTTP 非 200 / 返回的 JSON 解析不出来 → 同样兜底 <code>0.5</code>。</li>
+<li><strong>但如果是被测调用本身就报错了</strong>（<code>result.Error</code> 非空，即 agent 那头压根没跑通）→ 这不是裁判的锅，<strong>直接 0 分</strong>，绝不能兜底。</li>
+</ul>
+
+<p>顺带一个防失控的小细节：裁判请求的 <code>MaxTokens</code> 上限是 <code>1024</code>——它只需要吐一个分数加一句评语，不需要长篇大论，卡住上限既省钱又快。</p>
+
+<div class="good">
+<strong>本课带走的一句话</strong>：eval 是 agent 的新 CI，但判分是<strong>统计性</strong>的——三维（关键词 / 工具 / 裁判）分角度看，按题型加权成一个总分，拿 <code>0.6</code> 卡通过；裁判要跨厂商防自评偏袒，裁判自己出故障还要兜底 <code>0.5</code>，唯独被测自己崩了才判 0。</div>
+
+<h2>六、这只是入门</h2>
+
+<p>你现在看到的是 eval 最朴素的样子：一个独立的小程序（<code>cmd/memory_eval</code> 是 <code>package main</code>，靠 <code>run.sh</code> 里 <code>go build -o ./output/memory_eval ./cmd/memory_eval/</code> 单独编译出来跑，<strong>不是 <code>go test</code></strong>），扫一批用例、打分、出报告。真正成体系的评估还有更多讲究——数据集怎么建、指标怎么设计、怎么防止 eval 自己也在骗你。那是进阶篇"评估支柱"的内容，这一课只是通往那里的一座小桥。</p>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：一道 store（存储）用例里，agent 嘴上答"好的，我已经帮你记下来了！"，但整个回复<strong>没有任何工具调用</strong>。裁判被这句漂亮话骗到，给了 0.9 的质量分。这道题最后大概率 PASS 还是 FAIL？为什么？</summary>
+<div class="answer">
+<p><strong>大概率 FAIL。</strong> store 类别的加权是 <code>ToolCallScore × 0.5 + LLMJudgeScore × 0.5</code>。这题该调写文件工具却一个都没调，<code>ToolCallScore</code> 判 <code>0</code>。就算裁判给到满分：<code>0 × 0.5 + 0.9 × 0.5 = 0.45</code>，低于 <code>0.6</code> 阈值 → FAIL。</p>
+<p>这正是"三维互补 + 按类别加权"的价值：store 题把一半权重压在<strong>工具到底调没调</strong>上，光靠嘴甜骗不过去。裁判会被话术带偏，但工具维不会——它只认"手脚有没有真的动"。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：你半夜跑 eval，OpenRouter 那边网络抖动，裁判请求全部超时。结果一批 recall 用例分数普遍是 0.5 上下。这是不是说明 agent 变笨了？该怎么判断？</summary>
+<div class="answer">
+<p><strong>几乎可以肯定不是 agent 变笨，而是裁判掉线了。</strong> <code>scorer.go</code> 的 <code>llmJudge</code> 在裁判 HTTP 出错时会兜底返回 <code>0.5</code>。recall 加权是 <code>contains × 0.3 + judge × 0.7</code>，裁判维被钉死在 <code>0.5</code>，总分自然被拖到 <code>0.5</code> 附近——这是<strong>裁判故障的特征信号，不是被测的真实水平</strong>。</p>
+<p>怎么判断：看结果里裁判的 <code>reasoning</code> 字段——兜底时它写的是 "judge HTTP error…" 这类故障说明而不是真评语。正确做法是网络恢复后重跑，别拿这批被污染的分数下结论。这也正是"裁判本身会错，所以要留兜底"的现实意义：兜底分保护 agent 不被裁判的故障冤枉，但你要能<strong>识别</strong>出这是兜底、而非真实评价。</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>好了，有了 eval 这道自动关卡，agent 的<strong>质量能守住了</strong>——改 prompt、换模型、加工具，跑一遍就知道有没有变笨。</p>
+<p>可是你有没有算过这笔账？每一轮对话都要把全部历史重新发给模型、把所有工具定义带上、还要维护缓存，现在<strong>又要额外跑一整套 eval</strong>……这一切都在烧钱、烧时间。token 悄悄成了这台机器的新计费单位。下一课就来算清楚：一次 agent 交互到底花了多少 token，钱都烧在了哪儿。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>本课收束：eval ≈ agent 的新 CI，但判分是统计性的——三维（<code>ContainsScore</code> / <code>ToolCallScore</code> / <code>LLMJudgeScore</code>）按题型在 <code>weightedScore</code> 里加权，<code>runAll</code> 拿 <code>0.6</code> 卡 PASS/FAIL；裁判跨厂商（Claude 被测 vs Gemini 裁判经 OpenRouter）防自评偏袒，裁判出故障兜底 <code>0.5</code>，被测自己报错才判 0。下一课：<a href="12-token-economics-basics.html">12 Token 经济学：一次交互到底烧多少钱</a>。返回 <a href="index.html">课程门户</a>。</p>
+</footer>
+</main>
+</body>
+</html>

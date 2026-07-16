@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>从零看 mino_server 如何长出一个 Agent · 入门课</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+<style>
+  .course-grid { display: grid; gap: 1.1rem; margin: 1.5rem 0; }
+  .mod { border: 1px solid var(--border); border-radius: 10px; padding: 1em 1.3em; }
+  .mod h3 { margin-top: 0; display: flex; align-items: baseline; gap: .6rem; }
+  .mod h3 .tag { font-size: .66em; font-weight: 600; padding: .15em .6em; border-radius: 20px; background: var(--accent-soft); color: var(--accent); font-family: "PingFang SC", sans-serif; }
+  .mod.first { border-color: var(--accent); border-width: 1.5px; }
+  ul.lessons { list-style: none; padding: 0; margin: .4rem 0 0; }
+  ul.lessons li { padding: .45em 0; border-bottom: 1px dashed var(--border); display: flex; gap: .7rem; align-items: baseline; }
+  ul.lessons li:last-child { border-bottom: none; }
+  ul.lessons .num { font-family: "SF Mono", monospace; font-size: .82em; color: var(--muted); flex: 0 0 1.8rem; }
+  ul.lessons a { text-decoration: none; font-weight: 600; }
+  ul.lessons .desc { color: var(--muted); font-size: .85em; }
+  .toplinks { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.2rem 0; font-family: "PingFang SC", sans-serif; font-size: .9rem; }
+  .toplinks a { padding: .4em .9em; border: 1px solid var(--border); border-radius: 6px; text-decoration: none; }
+  .track-banner { border: 1px solid var(--good); background: var(--good-soft); border-radius: 8px; padding: .7em 1em; margin: 1.4rem 0; font-family: "PingFang SC", sans-serif; font-size: .9rem; }
+  .track-banner a { font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+<p class="meta">入门课 · 基于生产项目 <code>mino_server</code>（MinoServer，Go + Kitex）真实代码 · 面向从零起步的读者</p>
+
+<h1>从零看 <span style="white-space:nowrap">mino_server</span> 如何长出一个 Agent</h1>
+
+<p class="lede">不解剖成品，而是<strong>跟着一个真实的生产 Agent，从"只会聊天的大模型"开始，一个零件一个零件地把它装成能自己干活的 agent</strong>。每一节课只装一个零件——而且这个零件之所以出现，都是被上一节留下的一个真实问题逼出来的。这条"问题链"就是这门课的脊椎。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="从大模型逐层叠加能力，长成生产级 agent">
+  <!-- layers bottom-up -->
+  <rect class="dgm-node" x="210" y="248" width="300" height="34" rx="6" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="270" font-size="13" font-weight="700" text-anchor="middle">① 大模型（无状态的大脑）</text>
+
+  <rect class="dgm-node" x="185" y="208" width="350" height="34" rx="6" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="230" font-size="13" font-weight="700" text-anchor="middle">② 循环 + messages（会连续做事）</text>
+
+  <rect class="dgm-node" x="160" y="168" width="400" height="34" rx="6" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="190" font-size="13" font-weight="700" text-anchor="middle">③ 工具（装上手脚）</text>
+
+  <rect class="dgm-node" x="135" y="128" width="450" height="34" rx="6" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="150" font-size="13" font-weight="700" text-anchor="middle">④ 编排 + 可靠性（不失控、能自愈）</text>
+
+  <rect class="dgm-node" x="110" y="88" width="500" height="34" rx="6" stroke-width="1.5"/>
+  <text class="dgm-text" x="360" y="110" font-size="13" font-weight="700" text-anchor="middle">⑤ 压缩 + 记忆（扛得住长对话）</text>
+
+  <rect class="dgm-hub" x="85" y="48" width="550" height="34" rx="6" stroke-width="2"/>
+  <text class="dgm-accent-text" x="360" y="70" font-size="13" font-weight="700" text-anchor="middle">⑥ 评估 + 成本延迟（可信、可负担）＝ 生产级 Agent</text>
+</svg>
+</div>
+<figcaption>每往上一层，都是被下一层的一个真实痛点逼出来的。13 节课就是这座塔的施工顺序。</figcaption>
+</figure>
+
+<div class="track-banner">
+🧭 这是<strong>入门课（发育学：怎么长出来）</strong>。学完想深入，去 <a href="../index.html">《四支柱工程课》（进阶：成熟系统按关注点解剖）</a>——同一个 <code>mino_server</code>，两种看法。
+</div>
+
+<div class="toplinks">
+  <a href="../MISSION.md">🎯 Mission</a>
+  <a href="../GLOSSARY.md">📖 术语表</a>
+  <a href="../RESOURCES.md">🔗 资源</a>
+  <a href="../index.html">🏛 进阶课门户</a>
+</div>
+
+<div class="course-grid">
+
+  <div class="mod first">
+    <h3>模块 0 · 起点 <span class="tag">Agent 是什么</span></h3>
+    <ul class="lessons">
+      <li><span class="num">01</span><a href="01-what-is-an-agent.html">一个 Agent 到底是什么</a><span class="desc">大脑 + 心跳 + 手脚三件套 · Conductor 亮相</span></li>
+      <li><span class="num">02</span><a href="02-the-agent-loop.html">最小内核：Agent 的心跳循环</a><span class="desc">6 步 loop · agent.go / streamCallLLM</span></li>
+    </ul>
+  </div>
+
+  <div class="mod">
+    <h3>模块 1 · 让模型能对话 <span class="tag">messages</span></h3>
+    <ul class="lessons">
+      <li><span class="num">03</span><a href="03-from-chat-to-messages.html">从聊天到 messages</a><span class="desc">role、多轮、无状态重发 · buildConductorMessages</span></li>
+      <li><span class="num">04</span><a href="04-system-prompt-persona.html">System Prompt：给 Agent 人格与规矩</a><span class="desc">人设 + 动态 context · prompts.go</span></li>
+    </ul>
+  </div>
+
+  <div class="mod">
+    <h3>模块 2 · 给模型装上手脚 <span class="tag">工具</span></h3>
+    <ul class="lessons">
+      <li><span class="num">05</span><a href="05-tool-calling-basics.html">Tool Calling：装上手脚</a><span class="desc">工具调用的完整往返 · tools.go / toolcall.go</span></li>
+      <li><span class="num">06</span><a href="06-tool-description-is-prompt.html">工具描述就是 Prompt</a><span class="desc">写不好 agent 就变笨 · schema 与注入</span></li>
+    </ul>
+  </div>
+
+  <div class="mod">
+    <h3>模块 3 · 能多步又不失控 <span class="tag">编排 + 可靠性</span></h3>
+    <ul class="lessons">
+      <li><span class="num">07</span><a href="07-orchestration-loop-control.html">编排：何时再走一步、何时停、能否并行</a><span class="desc">终止条件、并发上限</span></li>
+      <li><span class="num">08</span><a href="08-reliability-timeout-retry.html">可靠性：超时、报错、坏 JSON 怎么自愈</a><span class="desc">分层超时、回退、回注修复</span></li>
+    </ul>
+  </div>
+
+  <div class="mod">
+    <h3>模块 4 · Context 会爆炸 <span class="tag">压缩 + 记忆</span></h3>
+    <ul class="lessons">
+      <li><span class="num">09</span><a href="09-context-overflow-compaction.html">Context 会爆炸：聊着聊着为什么就崩了</a><span class="desc">窗口有限、主动压缩 · summary.go</span></li>
+      <li><span class="num">10</span><a href="10-agent-memory.html">Agent 的记忆：短期 Context 与长期 Memory</a><span class="desc">异步落盘 + 向量库 · memory_flush.go</span></li>
+    </ul>
+  </div>
+
+  <div class="mod">
+    <h3>模块 5 · 可信又可负担 <span class="tag">评估 + 成本</span></h3>
+    <ul class="lessons">
+      <li><span class="num">11</span><a href="11-eval-basics.html">怎么知道 Agent 没变笨：评估入门</a><span class="desc">统计性判分、跨厂商裁判 · memory_eval</span></li>
+      <li><span class="num">12</span><a href="12-token-economics-basics.html">Token 是新的钱：成本、延迟与前缀缓存</a><span class="desc">缓存读写非对称、流式</span></li>
+    </ul>
+  </div>
+
+  <div class="mod first">
+    <h3>收口 <span class="tag">全景</span></h3>
+    <ul class="lessons">
+      <li><span class="num">13</span><a href="13-zero-to-production-capstone.html">从零到生产：你亲手装完的这台 Agent</a><span class="desc">能力叠加图 + 经验清单 + 通往进阶课</span></li>
+    </ul>
+  </div>
+
+</div>
+
+<footer class="lesson-footer">
+<p>建议按 01→13 顺序读，因为每一课都在回答上一课留下的问题。每节课句句落到 <code>mino_server</code> 真实符号（认文件名与函数名，行号会随代码演进漂移）。读到卡壳，回会话里问你的 AI 老师，可要求 ELI5 / 看真实代码。</p>
+</footer>
+</main>
+</body>
+</html>

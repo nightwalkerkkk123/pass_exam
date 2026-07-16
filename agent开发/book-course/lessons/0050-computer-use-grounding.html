@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0050 · 点哪个按钮：Computer Use 视觉定位的三条路线</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0050 课 · 进阶应用 · 多模态与实时交互 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>点哪个按钮：Computer Use 视觉定位的三条路线</h1>
+
+<p class="lede">Computer Use Agent 每转一圈都要回答同一个问题：<strong>“这个按钮在截图的哪个坐标？”</strong>——这就是<strong>视觉定位（Grounding）</strong>。本课唯一要拿下的，是三条定位路线各自怎么做、什么时候选哪条，以及贯穿其中的那句设计直觉：<strong>让模型答选择题，比让它答填空题靠谱得多</strong>。这一段在书里紧跟“感知-思考-行动循环”，是《Computer Use》一节的技术核心（原文“视觉定位（Grounding）”小节）。</p>
+
+<h2>一、Grounding 到底是什么问题</h2>
+
+<p>先把它放回循环里。Computer Use 的核心是一个<strong>感知-思考-行动</strong>的循环（图9-7）：截图 → 多模态模型看着截图和任务指令、输出一段思考和一个动作 → 执行层去点/去输入 → 等界面响应后再截图，进入下一轮。</p>
+
+<p>循环里有三个关键设计维度：<strong>动作空间</strong>（能执行哪些操作）、<strong>视觉定位</strong>（如何在截图中找到目标元素）、<strong>模型架构</strong>（如何从截图生成正确动作）。这节课只钻中间那个——因为它是最容易翻车、也最能拉开系统好坏的一环。原文把话说得很直白：模型要回答的是“搜索框在哪里？”“提交按钮的坐标是什么？”</p>
+
+<p>作者把所有做法先归成<strong>两大思路</strong>，再在第一条思路里分出两种实现，于是一共<strong>三条路线</strong>：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 240" role="img" aria-label="视觉定位三条路线的决策树：根节点问界面有没有结构化信息，有则用DOM或Accessibility Tree索引，没有则可选Set-of-Mark视觉标注或纯坐标预测">
+  <!-- root -->
+  <rect class="dgm-hub" x="250" y="20" width="220" height="56" rx="10"/>
+  <text class="dgm-accent-text" x="360" y="44" font-size="14" font-weight="700" text-anchor="middle">界面有结构化信息吗？</text>
+  <text class="dgm-muted" x="360" y="63" font-size="11" text-anchor="middle">DOM / Accessibility Tree</text>
+
+  <!-- children -->
+  <rect class="dgm-node" x="30" y="150" width="230" height="66" rx="8"/>
+  <text class="dgm-text" x="145" y="178" font-size="13" font-weight="700" text-anchor="middle">DOM / AX 结构化索引</text>
+  <text class="dgm-muted" x="145" y="197" font-size="11" text-anchor="middle">可得时最精确稳定（browser-use）</text>
+
+  <rect class="dgm-node" x="300" y="150" width="170" height="66" rx="8"/>
+  <text class="dgm-text" x="385" y="178" font-size="13" font-weight="700" text-anchor="middle">Set-of-Mark 标注</text>
+  <text class="dgm-muted" x="385" y="197" font-size="11" text-anchor="middle">对通用模型友好</text>
+
+  <rect class="dgm-node" x="510" y="150" width="180" height="66" rx="8"/>
+  <text class="dgm-text" x="600" y="178" font-size="13" font-weight="700" text-anchor="middle">纯坐标预测</text>
+  <text class="dgm-muted" x="600" y="197" font-size="11" text-anchor="middle">对训练过的模型直接</text>
+
+  <!-- edges -->
+  <line class="dgm-edge" x1="330" y1="76" x2="160" y2="148" stroke-width="1.5" marker-end="url(#ar50)"/>
+  <line class="dgm-edge" x1="378" y1="76" x2="386" y2="148" stroke-width="1.5" marker-end="url(#ar50)"/>
+  <line class="dgm-edge" x1="405" y1="76" x2="590" y2="148" stroke-width="1.5" marker-end="url(#ar50)"/>
+
+  <text class="dgm-accent-text" x="235" y="112" font-size="12" font-weight="700" text-anchor="middle">有</text>
+  <text class="dgm-accent-text" x="360" y="122" font-size="12" font-weight="700" text-anchor="middle">没有 · 选择题</text>
+  <text class="dgm-accent-text" x="520" y="112" font-size="12" font-weight="700" text-anchor="middle">没有 · 填空题</text>
+
+  <defs>
+    <marker id="ar50" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>三条路线的分岔口只有一个问题：界面能不能自己交出结构。能，就直接读结构（最准）；不能，就在“视觉标注”和“坐标预测”之间二选一。左侧与中间两条属于“选择题”思路，最右一条是“填空题”思路。</figcaption>
+</figure>
+
+<h2>二、三条路线，逐一拆开</h2>
+
+<p><strong>路线一 · 结构化元素索引（DOM / Accessibility Tree）。</strong>现代网页在渲染前就已经定义好完整的元素结构（DOM 树）和语义角色（哪个是按钮、哪个是输入框），无障碍接口（Accessibility Tree）为许多桌面应用提供类似信息。与其让模型在像素里猜“哪块是按钮”，不如直接问界面本身“你有哪些可点的元素？”。以 <code>browser-use</code> 为代表的方案分四步走：用 CDP（Chrome DevTools Protocol）拿到 DOM 与无障碍信息 → 自动检测可交互元素 → 给每个元素标 ID 并在截图上画框 → 同时生成一份 ID 到元素的文本清单（图9-9）。模型只需吐一个 ID 号，系统用该元素的中心坐标去点。代价是<strong>不省 token</strong>（所有标注都要发给模型），换来的是<strong>定位准确稳定</strong>，还免掉了分割模型的漏检误检。</p>
+
+<p><strong>路线二 · Set-of-Mark（SoM，纯视觉标注）。</strong>SoM 由微软研究院 2023 年提出，最初是为了释放 GPT-4V 的定位能力。它是<strong>纯视觉</strong>的：用图像分割模型（SAM、SEEM 等）在截图上切出候选区域，给每块叠一个编号，模型看到的是一张带编号的图，只报编号，由系统换算成区域中心坐标。它<strong>不需要 DOM、不需要任何界面内部结构</strong>——所以原生桌面软件、游戏界面照样能用，只要分割模型能把区域切出来。可以把路线一理解成“SoM 思想在 Web 上的结构化实现”：同样是“先标号、再选号”，只是标号的活儿从分割模型换成了界面自带的结构。</p>
+
+<p><strong>路线三 · 纯坐标预测。</strong>这条路线<strong>不做任何标注</strong>，直接让模型输出坐标。代表是 <strong>SeeClick</strong> 和 Claude 的 computer use：在海量“GUI 截图 + 元素位置”配对数据上训练，让模型学会把“点击提交按钮”这样的自然语言直接映射到截图里的精确坐标——像人一样纯靠“看”。它省掉了标注这一步，但把最难的开放式定位全压回了模型身上。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 190" role="img" aria-label="坐标预测的双向缩放流程：真实屏幕2560乘1440等比缩放到1366乘768送入模型，模型输出坐标683,384，再反向映射回真实坐标约1280,720">
+  <rect class="dgm-node" x="20" y="66" width="170" height="60" rx="8"/>
+  <text class="dgm-text" x="105" y="92" font-size="13" font-weight="700" text-anchor="middle">真实屏幕</text>
+  <text class="dgm-muted" x="105" y="111" font-size="11" text-anchor="middle">2560×1440 (16:9)</text>
+
+  <rect class="dgm-hub" x="275" y="60" width="180" height="72" rx="10"/>
+  <text class="dgm-accent-text" x="365" y="88" font-size="13" font-weight="700" text-anchor="middle">送入模型</text>
+  <text class="dgm-muted" x="365" y="107" font-size="11" text-anchor="middle">FWXGA 1366×768</text>
+
+  <rect class="dgm-node" x="540" y="66" width="160" height="60" rx="8"/>
+  <text class="dgm-text" x="620" y="92" font-size="13" font-weight="700" text-anchor="middle">真实坐标</text>
+  <text class="dgm-muted" x="620" y="111" font-size="11" text-anchor="middle">≈ (1280, 720)</text>
+
+  <line class="dgm-edge" x1="190" y1="96" x2="271" y2="96" stroke-width="1.5" marker-end="url(#ar50b)"/>
+  <line class="dgm-edge" x1="455" y1="96" x2="536" y2="96" stroke-width="1.5" marker-end="url(#ar50b)"/>
+
+  <text class="dgm-muted" x="230" y="52" font-size="11" text-anchor="middle">等比缩放</text>
+  <text class="dgm-muted" x="230" y="150" font-size="10.5" text-anchor="middle">按宽高比选档</text>
+  <text class="dgm-muted" x="496" y="52" font-size="11" text-anchor="middle">模型输出 (683,384)</text>
+  <text class="dgm-muted" x="496" y="150" font-size="10.5" text-anchor="middle">反向按比例映射</text>
+
+  <defs>
+    <marker id="ar50b" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>坐标预测必须配一层“双向坐标缩放”：真实屏幕等比缩到模型训练分辨率送入，模型报出的坐标再反向乘回真实分辨率（对应图9-10）。关键是<strong>按宽高比选目标档位</strong>，否则非等比拉伸会把坐标判断系统性带偏。</figcaption>
+</figure>
+
+<p>为什么路线三非配这层缩放不可？因为模型对坐标的理解<strong>高度依赖训练时用的分辨率</strong>。Claude 训练只用过三档：XGA（1024×768）、WXGA（1280×800）、FWXGA（1366×768）。截图分辨率一旦不匹配，预测坐标就会系统性偏移——“就像在小地图上量了距离，直接拿到大地图上用”。反向映射的算法很朴素：</p>
+
+<div class="formula">
+<div class="eq">真实<b>x</b> <span class="op">=</span> 模型x <span class="op">×</span> (2560 / 1366)　　真实<b>y</b> <span class="op">=</span> 模型y <span class="op">×</span> (1440 / 768)</div>
+<div class="gloss">(683, 384) → (683×2560/1366, 384×1440/768) ≈ (1280, 720)</div>
+</div>
+
+<h2>三、为什么“选择题比填空题好答”</h2>
+
+<p>这句直觉是三条路线背后的<strong>设计主轴</strong>，也是路线一、二共享的红利。开放式定位（“在整张截图里找到那个按钮并报出精确坐标”）对模型极难；而选择题思路先把界面元素标好编号，把问题压成封闭式——“从这堆标好的元素里挑一个”。用原文的对比说：模型只需说<strong>“点击 [123]”</strong>，而不是<strong>“点击屏幕左上角偏右大约 200 像素处的蓝色按钮”</strong>。就像考试里选择题比填空题更容易答对，把开放定位关进有限选项，正确率自然更稳。</p>
+
+<p>反过来也就看清了路线三的代价：坐标预测本质是<strong>填空题</strong>——没有选项兜底，全靠模型“看”准。所以它只对<strong>专门做过 GUI 定位训练</strong>的模型才直接好用，对没训练过的通用模型则不友好。这就是为什么同样一件“点按钮”的事，会分裂出三条工程路线。</p>
+
+<div class="pitfall">
+<p><strong>误区一：以为“没有结构就只能用坐标预测”。</strong>不对。结构化信息不可得时（原生桌面软件如 Photoshop、Canvas/WebGL 渲染的界面、游戏），<strong>视觉标注（原始 SoM）和坐标预测两条都能走</strong>。SoM 把定位变成选择题，对未经专门训练的通用模型更友好；坐标预测省去标注，对做过 GUI 定位训练的模型更直接。二选一是按“你手里的模型训没训练过”来定，不是“没结构就只剩坐标”。</p>
+<p><strong>误区二：随便把截图塞进模型就报坐标。</strong>坐标预测最隐蔽的坑是<strong>非等比拉伸</strong>。若硬把 16:9 的屏幕拉进 4:3 的 1024×768，画面被横向压扁，模型预测的坐标就会系统性偏移。正确做法是先按宽高比挑最接近的档位（16:9 挑 FWXGA 1366×768），等比缩放后再送入，输出坐标再反向映射回去。</p>
+</div>
+
+<h2>四、选择逻辑：一句话收口</h2>
+
+<p>作者把三条路线的取舍浓缩成一条判断链：<strong>结构化信息可得时，优先用 DOM / Accessibility Tree 索引</strong>，定位最精确稳定；<strong>不可得时，视觉标注或坐标预测都行</strong>，按“模型有没有做过 GUI 定位训练”来挑。而且要老实承认边界：<strong>两者在小元素和密集界面上的精度都还有差距</strong>——这不是已经解决的问题，而是仍在推进的战线。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：视觉定位先看“界面能不能自己交出结构”。能，就读 DOM / AX（最准）；不能，就在 SoM 标注和坐标预测里按“模型训没训练过”二选一。贯穿始终的直觉只有一句——<strong>能把定位变成选择题，就别让模型去答填空题</strong>；只有非用坐标预测（填空题）时，才必须补上按宽高比缩放的双向映射。</p>
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>视觉定位（Grounding）</dt>
+<dd>在感知-思考-行动循环的每一轮里，模型要在截图中准确定位目标元素（“搜索框在哪”“提交按钮坐标是多少”）的问题。三条路线都是它的不同解法。</dd>
+<dt>Set-of-Mark（SoM）</dt>
+<dd>微软研究院 2023 年提出的<strong>纯视觉</strong>标注法：用分割模型（SAM/SEEM）在截图上切出候选区域并叠编号，模型只报编号、系统换算成区域中心坐标。不依赖 DOM，桌面软件与游戏同样适用。<em>避免</em>把它当成只能用于网页。</dd>
+<dt>结构化元素索引（DOM / Accessibility Tree）</dt>
+<dd>直接从界面自带的结构里枚举可交互元素并编号（以 <code>browser-use</code> 为代表，经 CDP 读取），是 SoM 思想在 Web 上的结构化实现。可得时定位最精确稳定，代价是不省 token。</dd>
+<dt>双向坐标缩放</dt>
+<dd>坐标预测路线的工具层机制：截图按宽高比选目标档位、等比缩放后送入模型，模型输出坐标再反向按比例映射回真实分辨率。<em>避免</em>非等比拉伸——那会让坐标系统性偏移。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：真实屏幕 2560×1440（16:9），要送入只在 XGA/WXGA/FWXGA 三档训练过的 Claude，该选哪档？模型输出坐标后要怎么处理？</summary>
+<div class="answer">
+<p>选 <strong>FWXGA（1366×768）</strong>，因为它宽高比最接近 16:9，避免非等比拉伸把坐标判断带偏。把截图<strong>等比缩放</strong>到 1366×768 送入；模型输出坐标后要<strong>反向按比例映射</strong>回真实分辨率，如 (683,384) → (683×2560/1366, 384×1440/768) ≈ (1280,720)。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：界面是个 Canvas/WebGL 渲染的游戏，拿不到任何 DOM 结构。此时用哪条路线？决定“选哪条”的关键因素是什么？</summary>
+<div class="answer">
+<p>结构不可得，所以 DOM/AX 索引出局，剩下<strong>视觉标注（原始 SoM）</strong>或<strong>纯坐标预测</strong>两条都可行。选哪条的关键是<strong>手里的模型有没有做过 GUI 定位训练</strong>：没训练过的通用模型更适合 SoM（把定位变成选择题），做过定位训练的模型可以直接用坐标预测。两者在小元素/密集界面上精度都仍有差距。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>这一节有两个可上手的实验，都在开源仓库里 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>：<strong>实验 9-7</strong> 用 <code>browser-use</code> 做自然语言驱动的浏览器操作，启用 SoM 可视化模式后，每次决策前都会保存带红色标注框和 ID 号的截图——你能亲眼看到“选择题”是怎么标出来的（打开 Google 查旧金山天气那个例子，全程 5 步约 20 秒）。想先看纯坐标预测那一路，可跑 <strong>实验 9-6</strong> 的 Anthropic Computer Use Demo，留意它每个动作间隔 2–5 秒、明显慢于人类。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是《深入理解 AI Agent》第九章《多模态与实时交互》中“视觉定位（Grounding）”小节（<code>book/chapter9.md</code>），配图为图9-7～图9-10。延伸阅读：SoM 原始工作（微软研究院，2023）、<code>browser-use</code> 项目、以及坐标预测代表 SeeClick 与 Anthropic 的 computer use 文档。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“选择题 vs 填空题”这条直觉在三条路线上各走一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0049-fast-slow-thinking.html"><span class="dir">← 上一课</span>快慢思考的三种接法</a>
+  <a class="next" href="0051-slow-fast-decoupling-across-scenes.html"><span class="dir">下一课 →</span>藏起「慢」：快慢解耦如何跨场景</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>02 · 最小内核：Agent 的心跳循环</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 如何长出一个 Agent · 第 02 课 · 预计 10 分钟 · 上一课 <a href="01-what-is-an-agent.html">01 一个 Agent 到底是什么</a> · 下一课 <a href="03-from-chat-to-messages.html">03 从聊天到 messages</a> · <a href="index.html">课程门户</a></p>
+
+<h1>最小内核：Agent 的心跳循环</h1>
+
+<p class="lede">上一课你记住了一句话：<strong>agent = 大脑 + 循环 + 工具</strong>。这节课只干一件事——把中间那个"循环"拆开给你看。看完你会有一个顿悟：大脑其实很笨（每次都失忆），真正让它"会连续干活"的，是它外面那个一圈一圈转的循环。</p>
+
+<div class="chain in">
+<p>上一课我们知道了 agent = 大脑 + 循环 + 工具。可"循环"到底怎么转？</p>
+<p>更让人困惑的是：为什么普通聊天是<strong>你问一句、它答一句</strong>，而 agent 却能自己"想一步、做一步、再想一步"，连着做好几件事都不用你插手？这中间到底藏了什么机关？</p>
+</div>
+
+<h2>一、先打个比方：一个记性只有 7 秒的天才厨师</h2>
+
+<p>想象你雇了一位料理天赋点满、但<strong>记性只有 7 秒</strong>的厨师（我们叫他"大脑"）。你只要把菜谱和眼前的食材给他看，他就能准确告诉你"下一步该干嘛"。但你一转身，他就把刚才发生的一切忘得干干净净。</p>
+
+<p>用这样一个"每次都失忆"的厨师，怎么做出一整桌菜（也就是完成一个多步骤的任务）？答案很朴素——<strong>你在旁边当那个不失忆的循环</strong>：</p>
+
+<ol>
+<li>你把菜谱 + 现在桌上已有的东西，一起端到他面前（<em>组装</em>）；</li>
+<li>问他："下一步做什么？"（<em>问大脑</em>）；</li>
+<li>他要么说"齐活，上菜！"，要么说"去切葱"（<em>看他要不要你动手</em>）；</li>
+<li>如果要动手，你就真去把葱切了（<em>执行</em>）；</li>
+<li>把切好的葱端回桌上，让他下次能看见（<em>把结果摆回台面</em>）；</li>
+<li>回到第 1 步，再问一遍"下一步做什么"。</li>
+</ol>
+
+<p>厨师永远只回答"下一步"这一个问题，是<strong>你这个循环</strong>把无数个"下一步"串成了一道完整的菜。这就是 agent 和聊天的根本差别：聊天只跑一次第 1、2 步就停了；agent 把这 6 步<strong>圈起来自动转</strong>，直到厨师说"做完了"。</p>
+
+<div class="good">
+<strong>本课要焊进脑子的一句话</strong>：无状态的大脑（每次调用都从零读起、答完就忘）+ 一个在外面反复调用它的循环 = 一个会自己干活的 agent。大脑负责"想"，循环负责"记住 + 反复问 + 动手"。智能来自大脑，<em>能干活</em>来自循环。
+</div>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 820 300" role="img" aria-label="Agent 心跳循环的 6 步：组装消息、问大模型、看要不要工具、执行工具、结果塞回消息，再回到第一步">
+  <!-- 5 work boxes across the top -->
+  <g>
+    <rect class="dgm-node" x="20" y="36" width="140" height="70" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="90" y="64" font-size="13" font-weight="700" text-anchor="middle">① 组装消息</text>
+    <text class="dgm-muted" x="90" y="86" font-size="10" text-anchor="middle">buildConductorMessages</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="180" y="36" width="140" height="70" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="250" y="64" font-size="13" font-weight="700" text-anchor="middle">② 问大模型</text>
+    <text class="dgm-muted" x="250" y="86" font-size="10" text-anchor="middle">streamCallLLM</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="340" y="36" width="140" height="70" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="410" y="60" font-size="13" font-weight="700" text-anchor="middle">③ 要调工具吗</text>
+    <text class="dgm-muted" x="410" y="78" font-size="10" text-anchor="middle">len(ToolCalls)</text>
+    <text class="dgm-muted" x="410" y="93" font-size="10" text-anchor="middle">== 0 ?</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="500" y="36" width="140" height="70" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="570" y="64" font-size="13" font-weight="700" text-anchor="middle">④ 执行工具</text>
+    <text class="dgm-muted" x="570" y="86" font-size="10" text-anchor="middle">executeToolCallGroups</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="660" y="36" width="140" height="70" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="730" y="64" font-size="13" font-weight="700" text-anchor="middle">⑤ 结果塞回</text>
+    <text class="dgm-muted" x="730" y="86" font-size="10" text-anchor="middle">AddToolResult</text>
+  </g>
+  <!-- forward arrows between boxes -->
+  <text class="dgm-muted" x="170" y="77" font-size="18" text-anchor="middle">→</text>
+  <text class="dgm-muted" x="330" y="77" font-size="18" text-anchor="middle">→</text>
+  <text class="dgm-muted" x="490" y="77" font-size="18" text-anchor="middle">→</text>
+  <text class="dgm-muted" x="650" y="77" font-size="18" text-anchor="middle">→</text>
+  <!-- return path: from box5 bottom back to box1 bottom -->
+  <path class="dgm-edge" d="M 730 106 L 730 170 L 90 170 L 90 120" fill="none" stroke-width="2"/>
+  <polygon class="dgm-accent" points="90,106 84,120 96,120"/>
+  <text class="dgm-accent-text" x="410" y="164" font-size="13" font-weight="700" text-anchor="middle">⑥ 回到第 1 步 —— 转一整圈 = 一个 step</text>
+</svg>
+</div>
+<figcaption>Agent 的"心跳"：外层循环在 <code>streamChat</code> 里一圈圈转，一整圈就是一个 <code>step</code>。①②③ 在 <code>requestAgentMessage</code> / <code>runConductorStep</code> 里，④⑤ 在 <code>executeToolCallGroups</code> 里；⑤ 之后 <code>AddToolResult</code> 把工具结果摆回台面，⑥ 让大脑下一圈能"看见"它，循环才滚得下去。</figcaption>
+</figure>
+
+<h2>二、把比方翻译成真代码：一圈 = 一个 step</h2>
+
+<p>现在把厨房搬进 <code>mino_server</code>。心跳循环的本体是一个函数 <code>conductorAgent.streamChat</code>（文件 <code>biz/domain/dmservice/agents/conductorservice/agent.go</code>）。它的核心就是一个 <code>for</code> 循环，每转一圈，计数器 <code>runStepCount</code> 加一——这个"一圈"就叫<strong>一步（step）</strong>：</p>
+
+<pre><code>for agent.runStepCount = 0; agent.runStepCount &lt; agent.maxStepCount; agent.runStepCount++ {
+    // (a) 余额够不够？（第 2 圈起才查，第 1 圈放行）
+    if agent.runStepCount &gt; 0 &amp;&amp; enforceCreditsInterception {
+        if err := agent.checkCreditsExhausted(ctx); err != nil { return err }
+    }
+    // (b) 上下文太长就先压缩一下（下一课的话题，这里先放着）
+    if err := agent.summarize(ctx); err != nil { return err }
+    // (c) 真正跑一步：问大模型 + 执行它要的工具
+    if err := agent.runConductorStep(ctx); err != nil { /* 按错误类型 continue / 压缩 / return */ }
+    // (d) 大脑说"做完了"？收工
+    if agent.done { return nil }
+    // (e) 把用户中途插进来的新消息接上，进入下一圈
+}
+// 转满上限还没 done：熔断报错
+if !agent.done {
+    return errno.NewWithCtx(ctx, errcode.ErrAgentMaxStepCountReached, "max step count reached")
+}</code></pre>
+
+<p>看清楚了吗？比方里那 6 步，和这段 <code>for</code> 循环是一一对应的。而每一圈里真正"想 + 做"的活，都被塞进 <code>(c)</code> 那一行的 <code>runConductorStep</code> 里。我们把它再拆成两半：</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">前半：开口问</span><span class="n-sub">determineNextStep<br>→ requestAgentMessage<br>组装消息 → 问模型 → 存回复</span></div>
+  <div class="arrow">→</div>
+  <div class="node"><span class="n-title">中间：看回复</span><span class="n-sub">len(ToolCalls) == 0 ?<br>没工具 = 收工<br>有工具 = 继续</span></div>
+  <div class="arrow">→</div>
+  <div class="node"><span class="n-title">后半：动手做</span><span class="n-sub">executeToolCallGroups<br>执行 → AddToolResult<br>结果塞回消息</span></div>
+</div>
+<figcaption>一个 step 内部的三段（对应 <code>runConductorStep</code>）。前半"开口问"是 <code>requestAgentMessage</code>：它按顺序做 <code>buildConductorMessages</code>（拼消息）→ <code>streamCallLLM</code>（发给大模型）→ <code>AddMessage</code>（把大模型这次的回复存下来）。后半"动手做"才是执行工具。</figcaption>
+</figure>
+
+<p><strong>前半"开口问"——主循环里只有一个函数真的在跟大模型说话。</strong>在 agent 的主推理循环里，每一步真正把消息发给大模型的就是 <code>conductorAgent.streamCallLLM</code>（<code>agent.go</code>）；仓库别处（上下文压缩、记忆抽取、标题生成等）另有各自的 LLM 调用。它长这样：</p>
+
+<pre><code>options := []model.Option{
+    common.WithThinking(thinkingTokens),
+    common.WithEnableParallelToolCalls(true),   // 允许模型一次要好几个工具
+}
+toolInfos := agent.getCurrentToolInfos()
+options = append(options, model.WithTools(toolInfos))   // 工具清单"带外"传进去，不写进 messages
+llmStream, err := agent.llmClient.Stream(ctx, messages, options...)   // ← 真正发给大模型就这一行
+// ...一块块（流式）接收：思考内容 / 正文 / 工具调用，最后合并成一条完整回复...</code></pre>
+
+<p>这里先埋两颗种子（后面的课会展开）：第一，工具清单是用 <code>model.WithTools</code> 当作 API 参数<strong>带外</strong>递给模型的，<em>不</em>塞进 messages 数组里——这正是 agent 和普通聊天在接口上的关键差别。第二，回复是<strong>流式</strong>一块块回来的，最后由 <code>StreamingMessageProcessor</code> 合并成一条完整消息返回。</p>
+
+<p><strong>中间"看回复"——循环滚不滚得下去，全看这一句。</strong>拿到大模型的回复后，<code>runConductorStep</code> 做一个极简单却极关键的判断：</p>
+
+<pre><code>msg, err := agent.determineNextStep(ctx)   // 内部：buildConductorMessages → streamCallLLM → AddMessage
+if err != nil { return err }
+agent.lastAgentMessage = msg
+
+if len(agent.lastAgentMessage.ToolCalls) == 0 {   // 大脑这次没要任何工具
+    agent.done = true                             // = 它认为事情办完了
+    return nil
+}
+// 否则：把这一批工具分组、过策略、真正执行
+groups, err := agent.categorizeToolCalls(ctx, agent.lastToolCalls)
+groups = agent.applyToolCallPolicies(ctx, groups)
+err = agent.executeToolCallGroups(ctx, groups)   // 执行 + AddToolResult 把结果塞回消息</code></pre>
+
+<p>翻译成人话：<strong>模型的回复里还带着"我要调工具"的请求，就继续；不带了，就说明它觉得任务结束了。</strong>这就是 agent 判断"该不该再走一步"的全部逻辑——朴素得让人意外。</p>
+
+<p><strong>后半"动手做 + 把结果摆回台面"——这是循环能闭合的秘密。</strong>工具跑完，结果不会凭空进入下一轮。<code>AddToolResult</code>（文件 <code>message.go</code>）把每个工具的输出包成一条 <code>Role = common.Tool</code> 的消息，<code>append</code> 进 <code>agent.newMessages</code>：</p>
+
+<pre><code>toolMessage := &amp;minomessage.Message{
+    Role:     common.Tool,
+    Contents: []minomessage.MessageContent{ messageContent },
+}
+agent.newMessages = append(agent.newMessages, toolMessage)</code></pre>
+
+<p>下一圈开头 <code>buildConductorMessages</code> 重新拼消息时，会把 <code>agent.newMessages</code> 里这些新东西一起读回去（转换逻辑在 <code>context.go</code> 的 <code>newConductorBasicMessages</code>）。于是<strong>上一步的工具结果，变成了下一步大脑的输入</strong>——就像切好的葱被端回了台面。这正是那个"失忆厨师"能连续做菜的唯一原因：不是他记住了，是<strong>循环替他把台面维护住了</strong>。</p>
+
+<h2>三、循环怎么知道该停？两道保险</h2>
+
+<p>如果只会"继续、继续、继续"，agent 就成了停不下来的机器——要么陷入死循环无限切葱，要么把你的账单烧穿。所以循环设了两道明确的出口，外加几个中途急刹。</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">进入新一圈之前先问：<code>runStepCount &lt; maxStepCount</code>（默认 <strong>100</strong>）？余额还够吗？</div>
+  <div class="down">▼</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">否 · 转满 100 圈还没 done / 余额耗尽</div>
+      <div class="step">⛔ 跳出循环，<code>return ErrAgentMaxStepCountReached</code>（保险丝熔断）</div>
+    </div>
+    <div class="branch">
+      <div class="label">是 · 这一圈继续</div>
+      <div class="step action">跑一步 <code>runConductorStep</code>：问大模型，拿到这一轮的回复</div>
+    </div>
+  </div>
+  <div class="down">▼（这一圈继续往下）</div>
+  <div class="step decision">大模型的回复里，<strong>还有工具调用吗</strong>？<code>len(lastAgentMessage.ToolCalls) == 0</code>？</div>
+  <div class="down">▼</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">== 0 · 大脑不再要工具</div>
+      <div class="step terminal">✅ <code>agent.done = true</code> → <code>return nil</code>（正常完成，循环结束）</div>
+    </div>
+    <div class="branch">
+      <div class="label">&gt; 0 · 还要动手</div>
+      <div class="step action">执行工具 → <code>AddToolResult</code> 塞回消息 → <code>runStepCount++</code>，回到最上面再转一圈</div>
+    </div>
+  </div>
+</div>
+<figcaption>两道出口的判定逻辑，全在 <code>streamChat</code> 的循环头与尾、以及 <code>runConductorStep</code> 里。出口一（绿色）：某一步模型不再要工具 → <code>agent.done = true</code> → <code>return nil</code>，正常收工。出口二（灰色）：转满 <code>maxStepCount</code> 还没 <code>done</code> → 循环结束抛 <code>ErrAgentMaxStepCountReached</code>。</figcaption>
+</figure>
+
+<p><strong>出口一（正常）：大脑说"够了"。</strong>只要某一步的回复里 <code>len(ToolCalls) == 0</code>，<code>runConductorStep</code> 就把 <code>agent.done</code> 置为 <code>true</code>；回到循环体，<code>if agent.done { return nil }</code> 直接优雅退出。这是绝大多数任务的收尾方式。</p>
+
+<p><strong>出口二（兜底）：转太多圈了。</strong><code>for</code> 循环的条件是 <code>runStepCount &lt; maxStepCount</code>。这个上限来自常量 <code>defaultMaxStepCount = 100</code>（<code>agent.go</code>），也就是说一个任务最多允许大脑"想 + 做"100 个来回。特殊品类可以由 hooks 覆写（代码注释里举了 <code>AnyClaw = 200</code> 的例子）。转满了还没 <code>done</code>，循环外那句 <code>if !agent.done</code> 就会抛出 <code>ErrAgentMaxStepCountReached</code>。这不是 bug，是<strong>保险丝</strong>：宁可报错停下，也不让一个跑飞的 agent 无限烧钱。</p>
+
+<p>除了这两道正门，中途还有几个"急刹"：余额被 <code>checkCreditsExhausted</code> 判定耗尽会直接 <code>return</code>；上下文太长（<code>ErrLLMPromptTooLong</code>）不会崩，而是先压缩再 <code>continue</code> 重来一圈——这些"自愈"手法留到第 08、09 课细讲。此外，工具本身也可以是"终结型"的：<code>executeToolCallGroups</code> 里如果某个工具结果带 <code>IsFinish</code>，同样会把 <code>agent.done</code> 置 <code>true</code>，让循环收尾。</p>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>心跳循环（agent loop）</dt>
+<dd>Agent 的最小内核。一个反复"组装消息 → 问大模型 → 看要不要工具 → 执行工具 → 结果塞回消息"的外层循环，本体是 <code>conductorAgent.streamChat</code> 里的 <code>for</code>。它让"每次失忆的大脑"能连续完成多步任务。</dd>
+<dt>一步（step）</dt>
+<dd>循环转的一整圈，计数器 <code>runStepCount</code> 加一。一步 = 一次大模型对话回合（一次 <code>streamCallLLM</code>）+ 这次回合里它要求的全部工具的执行。模型一次可以要多个工具（开了 <code>WithEnableParallelToolCalls</code>），这一批工具都在<strong>同一步</strong>内跑完。</dd>
+<dt>done</dt>
+<dd>一个布尔开关。当某一步大模型不再要求任何工具（<code>len(ToolCalls) == 0</code>），或某个终结型工具返回时，<code>agent.done</code> 被置 <code>true</code>，循环随即正常退出。它就是循环的"停止信号"。</dd>
+<dt>maxStepCount / ErrAgentMaxStepCountReached</dt>
+<dd>循环的硬上限，默认 <code>defaultMaxStepCount = 100</code>（可被 hooks 覆写，如 AnyClaw 200）。转满还没 <code>done</code> 就抛 <code>ErrAgentMaxStepCountReached</code>——防跑飞的保险丝。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：同样是调用大模型，为什么普通聊天"你问一句它答一句就停"，而 agent 能自己连做好几步？机关到底在哪一层？</summary>
+<div class="answer">
+<p>机关<strong>不在大模型里</strong>，而在大模型<em>外面</em>那个循环。聊天应用调用一次模型、拿到回复、显示、结束——只跑了"组装 + 问"这两步。agent 把这套动作放进 <code>streamChat</code> 的 <code>for</code> 循环：每拿到一次回复就检查"里面还要不要调工具"，要就执行、把结果塞回消息、<strong>再问一遍</strong>，直到模型说"不用了"。</p>
+<p>所以"会连续干活"是循环的功劳，不是模型变聪明了。模型始终是那个无状态、答完就忘的大脑；是循环替它维护台面（消息列表）、反复调用它。这就是本课最该带走的顿悟：<strong>无状态大脑 + 外部循环 = 会干活的 agent</strong>。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：某一步，大模型一口气要求同时调用 3 个工具（搜索、读文件、算数）。这算走了几步（step）？工具结果什么时候能被模型"看见"？</summary>
+<div class="answer">
+<p>算<strong>一步</strong>。一步 = 一次大模型回合 + 这次回合里它要的<em>全部</em>工具的执行。因为开了 <code>WithEnableParallelToolCalls(true)</code>，模型可以在一次回复里要求多个工具；这一批工具会被 <code>categorizeToolCalls</code> 分成并行/串行组，在<strong>同一步内</strong>全部跑完。</p>
+<p>3 个工具的结果都由 <code>AddToolResult</code> 塞进 <code>agent.newMessages</code> 后，循环才 <code>runStepCount++</code> 进入<strong>下一步</strong>——也就是<strong>下一次</strong> <code>streamCallLLM</code>。所以模型要到下一步开口时，才第一次"看见"这 3 个工具返回了什么。记住这条时序：本步执行工具 → 塞回消息 → 下一步大脑才读到。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3：如果一个 agent 因为任务太复杂，转了整整 100 圈还没得出"done"，会发生什么？为什么要这么设计？</summary>
+<div class="answer">
+<p><code>for</code> 循环条件 <code>runStepCount &lt; maxStepCount</code>（默认 100）不再成立，循环结束；循环外的 <code>if !agent.done</code> 命中，抛出 <code>ErrAgentMaxStepCountReached</code>。任务以报错告终。</p>
+<p>这么设计是因为大模型不保证一定会收敛——它可能陷入"调工具→再调工具→再调工具"的死循环，或钻进无意义的兜圈子。每一圈都要真金白银地调用一次大模型（花 token = 花钱）。<code>maxStepCount</code> 是一根保险丝：<strong>宁可停下来报错，也不让一个失控的 agent 无限消耗资源与预算。</strong>这也是"能干活"之外，生产级 agent 必须补上的"不失控"——正是后面模块 3 的主题。</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>循环每转一圈的第 1 步都是"组装消息"（<code>buildConductorMessages</code>）——把该带给大脑的东西拼成一份发过去。可这份"东西"里到底装了什么？系统人设、历史对话、上一步的工具结果……它们按什么顺序摆放，大脑才读得懂、读得对？</p>
+<p>这份被反复组装、又决定一切的东西，有个名字叫 <strong>messages</strong>。下一课我们就钻进 <code>buildConductorMessages</code>，看清喂给大脑的到底是什么。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>这一课你拆开了 agent 的最小内核：一个在 <code>streamChat</code> 里转圈的循环，靠 <code>done</code> 停、靠 <code>maxStepCount</code> 兜底。<strong>下一课（03）</strong>：从聊天到 messages——喂给大脑的那份"消息清单"到底长什么样。读到卡壳，回会话里问你的 AI 老师，可要求 ELI5 或直接看真实代码。返回 <a href="index.html">课程门户</a>。</p>
+</footer>
+</main>
+</body>
+</html>

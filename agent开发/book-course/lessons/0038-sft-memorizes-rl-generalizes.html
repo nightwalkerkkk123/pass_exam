@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0038 · SFT 记忆、RL 泛化：一张卡牌游戏讲透两种优化目标</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0038 课 · 支柱三(模型) · 模型后训练 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>SFT 记忆、RL 泛化：一副 J/Q/K 卡牌讲透两种优化目标</h1>
+
+<p class="lede">本课只押一件事：<strong>SFT 学到的是“见到这种输入就吐那种输出”的固定映射（记忆），RL 学到的是“怎样的过程能得到好结果”的可迁移策略（泛化）</strong>。这个分野不是口号，而是能测量的现象——第 7 章用一副卡牌游戏 GeneralPoints 把它量化了出来：训练时 J/Q/K 都当 10，测试时 J 变成 11，SFT 当场崩、RL 反而更稳。把这一节吃透，你就拿到了整章“为什么要 SFT、什么时候必须上 RL”的判断根基。</p>
+
+<h2>一、是什么：同一副牌，两种“想要”</h2>
+
+<p>作者在 7.1 节把话挑明——SFT 和 RL 的<strong>一切</strong>差异，都源于一件事：<strong>优化目标不同</strong>。不是算法花哨程度不同，不是数据量不同，是它们各自“想要什么”根本不一样。</p>
+
+<div class="formula">
+<div class="eq"><b>SFT</b> <span class="op">→</span> 像不像标准答案（极大似然）</div>
+<div class="eq"><b>RL</b> <span class="op">→</span> 结果好不好（期望奖励）</div>
+<div class="gloss">对应表7-2 · 两者的分野全部由此派生</div>
+</div>
+
+<p>用书里的卡牌例子把它落地。任务像“24 点”：用四张牌上的数字、每个恰用一次、加减乘除凑出 24。训练时约定 <strong>J/Q/K 都计为 10</strong>。</p>
+
+<ul>
+<li><strong>SFT 优化“像不像标准答案”</strong>。给定问题，只有唯一一条“对”的输出——那条示范答案。模型被拉着去逼近它，学到的是“看到这种输入，就吐那种输出”的固定映射。于是它<strong>记忆</strong>：记死“见到 J/Q/K 用 10”。</li>
+<li><strong>RL 优化“结果好不好”</strong>。给定问题，<strong>任何</strong>能拿高奖励的输出都算好——不止一条。模型自己探索多条路径，哪条结果好就强化哪条，学到的是“怎样的过程能凑出目标”这套<strong>策略</strong>。于是它<strong>泛化</strong>。</li>
+</ul>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 320" role="img" aria-label="双轴对照图：左列 SFT 从唯一标准答案到固定映射到记忆，右列 RL 从多条高奖励路径到通用策略到泛化，中间用 J 从 10 变 11 的分布漂移箭头把两者串起来">
+  <!-- SFT column -->
+  <text class="dgm-accent-text" x="150" y="30" font-size="15" font-weight="700" text-anchor="middle">SFT · 记忆</text>
+  <rect class="dgm-node" x="40" y="46" width="220" height="46" rx="8"/>
+  <text class="dgm-text" x="150" y="68" font-size="12.5" font-weight="700" text-anchor="middle">唯一的“标准答案”</text>
+  <text class="dgm-muted" x="150" y="84" font-size="10.5" text-anchor="middle">每个 token 都被监督</text>
+  <line class="dgm-edge" x1="150" y1="92" x2="150" y2="118" stroke-width="1.5" marker-end="url(#ar)"/>
+  <rect class="dgm-node" x="40" y="120" width="220" height="46" rx="8"/>
+  <text class="dgm-text" x="150" y="142" font-size="12.5" font-weight="700" text-anchor="middle">固定的“输入→输出”映射</text>
+  <text class="dgm-muted" x="150" y="158" font-size="10.5" text-anchor="middle">“见到 J/Q/K 就用 10”</text>
+  <line class="dgm-edge" x1="150" y1="166" x2="150" y2="192" stroke-width="1.5" marker-end="url(#ar)"/>
+  <rect class="dgm-hub" x="40" y="194" width="220" height="46" rx="8"/>
+  <text class="dgm-accent-text" x="150" y="216" font-size="12.5" font-weight="700" text-anchor="middle">J=11 时照旧套 10 → 出错</text>
+  <text class="dgm-muted" x="150" y="232" font-size="10.5" text-anchor="middle">环境一变就崩</text>
+
+  <!-- RL column -->
+  <text class="dgm-accent-text" x="550" y="30" font-size="15" font-weight="700" text-anchor="middle">RL · 泛化</text>
+  <rect class="dgm-node" x="440" y="46" width="220" height="46" rx="8"/>
+  <text class="dgm-text" x="550" y="68" font-size="12.5" font-weight="700" text-anchor="middle">多条高奖励路径</text>
+  <text class="dgm-muted" x="550" y="84" font-size="10.5" text-anchor="middle">自己探索、结果好就强化</text>
+  <line class="dgm-edge" x1="550" y1="92" x2="550" y2="118" stroke-width="1.5" marker-end="url(#ar)"/>
+  <rect class="dgm-node" x="440" y="120" width="220" height="46" rx="8"/>
+  <text class="dgm-text" x="550" y="142" font-size="12.5" font-weight="700" text-anchor="middle">通用的“计算过程”策略</text>
+  <text class="dgm-muted" x="550" y="158" font-size="10.5" text-anchor="middle">“怎样凑出目标数”</text>
+  <line class="dgm-edge" x1="550" y1="166" x2="550" y2="192" stroke-width="1.5" marker-end="url(#ar)"/>
+  <rect class="dgm-hub" x="440" y="194" width="220" height="46" rx="8"/>
+  <text class="dgm-accent-text" x="550" y="216" font-size="12.5" font-weight="700" text-anchor="middle">J=11 时用同策略重算 → 对</text>
+  <text class="dgm-muted" x="550" y="232" font-size="10.5" text-anchor="middle">分布漂移下更稳</text>
+
+  <!-- middle distribution-shift arrow -->
+  <rect class="dgm-node" x="300" y="120" width="100" height="46" rx="10" stroke-dasharray="5 4"/>
+  <text class="dgm-text" x="350" y="140" font-size="12" font-weight="700" text-anchor="middle">分布漂移</text>
+  <text class="dgm-muted" x="350" y="157" font-size="11" text-anchor="middle">J: 10 → 11</text>
+  <line class="dgm-edge" x1="300" y1="143" x2="266" y2="143" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <line class="dgm-edge" x1="400" y1="143" x2="434" y2="143" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="350" y="278" font-size="11" text-anchor="middle">同一个分布漂移，打在两种目标上，结果相反</text>
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>左右两条链子起点相同（同一副牌、同一预算），只因“想要什么”不同，走到分布漂移那一格就分道扬镳。对应表7-2「学到的东西」与「分布漂移下」两行。</figcaption>
+</figure>
+
+<h2>二、为什么这样设计：优化目标决定了学到什么</h2>
+
+<p>要真正理解“为什么”，得先接受书里第一个反直觉的事实：<strong>SFT 在数学上和预训练是同一个任务</strong>——都是“预测下一个词”、最小化同一个损失函数，只差两点：数据换成了“问题→理想回答”的示范对，以及计算损失时只在回答 token 上回传梯度（loss masking，损失屏蔽）。</p>
+
+<p>正因为 SFT 的目标就是<strong>让标注回答里每个 token 的概率尽可能高</strong>，“SFT 记忆”就顺理成章了：它被训练成尽量一字不差地复现示范。这在格式固定的任务上样本效率极高（几千条就见效），但能力边界也被钉死在示范数据上——示范里没有的情况它没学过，示范里的答案一旦不再适用（环境变了），它还是照背不误。</p>
+
+<p>RL 则完全不看标准答案，而是让模型自己生成、再按结果好坏给奖惩。因为“任何拿到高奖励的输出都算好”，模型被逼着去找的不是“那一条答案”，而是“能产出好答案的那套过程”。过程是可迁移的，答案不是——这就是泛化的来源。作者在 7.1 节把这句话讲透后，用一张对照表收束：</p>
+
+<div class="bookquote">
+SFT 学的是“看到这种输入，就输出那种答案”的映射……RL 学的则是“怎样的计算过程能得到正确答案”这一更通用的策略：J 变成 11 时，RL 模型会用同样的策略重新计算，而不是套用记忆中的答案。
+<span class="src">——《深入理解 AI Agent》第 7 章 · 实验 7-11 小结</span>
+</div>
+
+<h2>三、把现象量化：GeneralPoints 实验的数字</h2>
+
+<p>光讲道理不够，作者搬出了 GeneralPoints（Chu 等人 2025，《SFT Memorizes, RL Generalizes》）这组对照实验（<strong>实验 7-11</strong>，架构见图7-12）。设计干净到只留一个变量：<strong>同一任务、同一基础模型（Llama-3.2-Vision-11B）、同一计算预算，唯一区别是训练方法用 SFT 还是 RL</strong>（RL 部分用带价值网络的 PPO）。都只用单一规则（J/Q/K=10）的数据训练，然后在分布内（ID）与分布外（OOD）两套测试集上评估。</p>
+
+<ul>
+<li><strong>规则变体（GP-L / GP-VL）</strong>：训练 J/Q/K=10，测试改成 11/12/13——数字组合是训练没见过的，考“规则泛化”。</li>
+<li><strong>视觉变体（GP-VL）</strong>：训练用黑色花色（♠♣），测试用红色花色（♥♦），考“视觉外观泛化”。</li>
+</ul>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">规则 OOD · RL(GP-L)</span><div class="track"><div class="val read" style="width:35%">+3.5%（11.5→15.0）</div></div></div>
+  <div class="row"><span class="lbl">规则 OOD · SFT(GP-L)</span><div class="track"><div class="val write" style="width:81%">−8.1%（11.5→3.4）</div></div></div>
+  <div class="row"><span class="lbl">视觉 OOD · RL(GP-VL)</span><div class="track"><div class="val read" style="width:100%">+17.6%（23.6→41.2）</div></div></div>
+  <div class="row"><span class="lbl">视觉 OOD · SFT(GP-VL)</span><div class="track"><div class="val write" style="width:99%">−9.9%（23.6→13.7）</div></div></div>
+</div>
+<figcaption>绿条是 RL（分布外还在涨），红条是 SFT（分布外全在跌）。条长只表示相对幅度，括号内是准确率变化的原始数字。同一现象在纯语言与视觉-语言两种模态下都成立——这正是本实验的核心贡献：系统量化了“SFT 记忆、RL 泛化”。</figcaption>
+</figure>
+
+<p>还有一个值得记的补充结论：<strong>验证迭代次数越多，泛化越好</strong>——10 次带来 +5.99%，1 次只有 +0.48%。作者据此判断：思考时的计算扩展，是 RL 泛化的关键之一。</p>
+
+<h2>四、边界与易错：别把这套结论用歪</h2>
+
+<div class="pitfall">
+<p><strong>误区一：以为 SFT 是和预训练“完全不同的新方法”。</strong>不是。作者反复强调——SFT 在数学上就是预训练那个“预测下一个词”，只差换了数据、加了 loss masking。把它想成“另一种训练”，你就会误以为记忆是它的 bug；其实记忆恰恰是“最大化标注答案概率”这个目标的<strong>直接后果</strong>，是特性不是缺陷。</p>
+<p><strong>误区二：把“必须先 SFT 后 RL”当成宇宙规律。</strong>书里说得很死：这条只在<strong>“较小基础模型 + 严格结构化输出”</strong>的设定下成立。本实验里 Llama-3.2-Vision-11B 这个量级不经 SFT 直接 RL 会<strong>完全失败</strong>——不是效果差，而是基础模型产不出结构化输出、奖励根本无从计算。但足够强的基模（DeepSeek-R1-Zero）能直接 RL 成功、自行涌现反思与长链思考。把边界条件一并记住，才不会张冠李戴。</p>
+<p><strong>误区三：想用 SFT/RL 去“记住大量事实”。</strong>后训练只擅长固化“怎么用知识”的<strong>协议性知识</strong>（格式、风格、流程），要灌大量<strong>事实性知识</strong>该找 RAG 或继续预训练。</p>
+</div>
+
+<h2>五、宏观背景：为什么这一节是全章地基</h2>
+
+<p>因为“SFT 记忆、RL 泛化”是第 7 章的两条主线之一，后面所有实验都在反复坐实它。作者由此提炼出“先形后神”的训练范式——借中国画术语：<strong>SFT 先把“形”（格式、结构）画准，RL 再追“神”（策略、泛化）</strong>。两者不是竞争而是先后：没有稳定的输出格式，RL 的奖励信号就是一片噪声，压根算不出来。这一判断会在第 0039 课展开成“到底什么时候该 SFT、什么时候才轮到 RL”的决策框架。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：SFT 优化“像不像标准答案”，学到固定映射，所以<strong>记忆</strong>、分布一漂移就崩；RL 优化“结果好不好”，学到可迁移策略，所以<strong>泛化</strong>、换了环境还能重算。同一副牌、同一预算，J 从 10 变 11，就足以让 SFT 掉 8.1% 而 RL 涨 3.5%。以后判断一个后训练该用哪种方法，先问一句：部署环境会不会和训练时不一样？
+</div>
+
+<h2>六、关键定义</h2>
+
+<dl class="keydef">
+<dt>监督微调（SFT, Supervised Fine-Tuning）</dt>
+<dd>用几千到几万条“问题—标准回答”示范对继续做“预测下一个词”、且只在回答 token 上算损失的后训练方法，把指令遵循、格式、风格、流程等协议性知识固化进参数。<em>避免</em>泛称为“微调”或等同于“训练”——它特指有标注输入-输出对、带 loss masking 的方法。</dd>
+<dt>损失屏蔽（loss masking）</dt>
+<dd>计算 SFT/工具 RL 损失时把不希望模型学习的 token（问题部分、环境返回的反馈 token）屏蔽掉，只对模型自己生成的回答 token 回传梯度。<em>避免</em>与注意力掩码（attention mask）混为一谈，两者作用位置不同。</dd>
+<dt>寻峰与覆盖式（mode-seeking vs mass-covering）</dt>
+<dd>两种概率分布拟合性格：极大似然（SFT）是 mass-covering，努力覆盖示范里所有模式、雨露均沾；反向 KL 的策略优化（RL）是 mode-seeking，只集中到少数几个高奖励峰、赢者通吃。<em>避免</em>把 mode-seeking 简单等同于“过拟合”，它是分布拟合方向的固有性质。</dd>
+</dl>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：训练时 J/Q/K 都当 10，测试时 J 变成 11。为什么 SFT 模型会出错而 RL 模型能答对？</summary>
+<div class="answer">
+<p>SFT 优化“像不像标准答案”，学到的是固定映射“见到 J/Q/K 就当 10”，J 变 11 时它照旧用 10，所以出错；RL 优化“结果好不好”，学到的是“怎样的计算过程能凑出目标”这套可迁移策略，J 变 11 时用同一策略重算一遍，所以泛化。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：在 GeneralPoints 这组实验里，如果不先做 SFT、直接对基础模型做 RL，会发生什么？这能不能说明“任何模型都必须先 SFT”？</summary>
+<div class="answer">
+<p>会<strong>完全失败</strong>：Llama-3.2-Vision-11B 这个量级的基础模型产不出结构化输出，奖励函数根本无法计算，RL 也就无从学起。但这<strong>不是</strong>普适规律——书里特别强调，这只是“较小基础模型 + 严格结构化输出”这个特定设定下的结论。足够强的基模（如 DeepSeek-R1-Zero）可以跳过 SFT 直接 RL 成功。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>GeneralPoints（实验 7-11）本身没有单独的配套目录，但同源研究里的视觉导航版本可以亲手跑：<strong>实验 7-12</strong> 对应仓库 <code>chapter7/SpatialReasoning/</code>——基于 V-IRL 真实城市街景的视觉-语言导航 RL（带价值网络的 PPO + 过程奖励），在跨城市的视觉 OOD 上把 RL 从 16.7% 拉到 <strong>77.8%</strong>，把“SFT 记忆、RL 泛化”在多轮、多模态任务上又验证了一遍。完整仓库见 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>八、主推资源</h2>
+
+<p>本课现象的一手来源是 <strong>Chu 等人（2025），《SFT Memorizes, RL Generalizes》，arXiv:2501.17161</strong>——GeneralPoints 与 V-IRL 两组对照实验的原始出处，系统量化了“SFT 记忆、RL 泛化”。配合书中 7.1 节“SFT 与 RL 的本质区别”（表7-2）与实验 7-11 小结一起读，收获最大。开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把表7-2 的八行差异逐行过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0037-three-stage-training-map.html"><span class="dir">← 上一课</span>三阶段炼成：预训练、SFT、RL 各在做什么</a>
+  <a class="next" href="0039-sft-then-rl-decision.html"><span class="dir">下一课 →</span>先形后神：什么时候该做 SFT、什么时候才轮到 RL</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

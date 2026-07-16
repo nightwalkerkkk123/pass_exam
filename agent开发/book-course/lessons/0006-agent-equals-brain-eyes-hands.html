@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0006 · 一个公式看懂 Agent：大脑 + 眼睛 + 手脚</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0006 课 · 基础 · 概念地图 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>一个公式看懂 Agent：大脑 + 眼睛 + 手脚</h1>
+
+<p class="lede">第 1 章开篇就把整本书的<strong>坐标系</strong>钉死在一句话上：<strong>Agent = LLM + 上下文 + 工具</strong>，换成直觉版就是<strong>大脑 + 眼睛 + 手脚</strong>。这节课唯一要拿下的东西，是把这个公式变成一副<strong>可复用的拆解眼镜</strong>——以后随手拿起 Cursor、Deep Research、Manus、豆包、Pine 里的任意一个，你都能立刻把它拆到<strong>感知 / 行动 / 策略</strong>三个维度上。作者在“现代 Agent = LLM + 上下文 + 工具”一节里把这套心智模型交给你，本章其余部分全是它的展开。</p>
+
+<h2>一、公式：三个词，每个都要做“广义理解”</h2>
+
+<p>作者的原话是：“现代 Agent 系统的本质可以用一个简洁的公式来表达。”但紧接着他补了一句很重要的限定——<strong>“其中每个词都需要做广义的理解”</strong>。这句限定不是客套，它决定了你会不会一开始就把公式读窄。</p>
+
+<div class="formula">
+<div class="eq"><b>Agent</b> <span class="op">=</span> LLM <span class="op">+</span> 上下文 <span class="op">+</span> 工具</div>
+<div class="gloss">= 大脑 + 眼睛 + 手脚 · 三者缺一不可</div>
+</div>
+
+<p>三个词分别做广义理解后是这样：</p>
+
+<ul>
+<li><strong>LLM = 大脑</strong>：不只是一组模型参数，而是整个决策内核——理解意图、思考规划、做出判断。它的能力来自两部分：<strong>预训练</strong>积累的世界知识与语言能力，加上<strong>后训练</strong>固化的决策策略（后者第 7 章展开）。</li>
+<li><strong>上下文 = 眼睛</strong>：不只是喂给模型的那段文本，而是 Agent 在<strong>每个决策点能看到的全部信息</strong>——环境信息、用户记忆、领域知识、自身状态和任务进展。</li>
+<li><strong>工具 = 手脚</strong>：不只是几个可调用的 API 函数，而是 Agent <strong>能做的所有事情的集合</strong>——从预定义工具调用、按需加载的 Skills，到动态生成代码创造新能力、委托子 Agent 协作、主动与用户沟通、响应外部事件。</li>
+</ul>
+
+<p>作者给的一句话总结最好记：<strong>大脑负责思考和决策，眼睛提供思考所需的全部信息，手脚将决策转化为对现实世界的改变。</strong></p>
+
+<h2>二、为什么要拆成三维：它接上了强化学习的学术骨架</h2>
+
+<p>这套“大脑 / 眼睛 / 手脚”的直觉，不是作者临时编的顺口溜——它<strong>恰好对应强化学习（RL）里的三个核心概念</strong>（详见第 7 章）。作者特意说明：下面这层映射是<strong>“可选阅读”</strong>，没有 RL 背景可以跳过、不影响理解；它只是帮有 RL 背景的读者把已有知识和本书术语对齐。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 320" role="img" aria-label="Agent 三维映射信息图：直觉理解（大脑/眼睛/手脚）对应实现组件（LLM/上下文/工具）对应学术概念（策略/观察空间/动作空间）">
+  <text class="dgm-text" x="360" y="26" font-size="14" font-weight="700" text-anchor="middle">同一个 Agent，三层视角</text>
+
+  <!-- row labels (left gutter) -->
+  <text class="dgm-muted" x="52" y="102" font-size="11.5" text-anchor="middle">直觉</text>
+  <text class="dgm-muted" x="52" y="176" font-size="11.5" text-anchor="middle">实现组件</text>
+  <text class="dgm-muted" x="52" y="246" font-size="11.5" text-anchor="middle">学术（可选）</text>
+
+  <!-- lane 1: 大脑 / LLM / 策略 -->
+  <rect class="dgm-node" x="110" y="56" width="185" height="234" rx="10"/>
+  <text class="dgm-text" x="202" y="100" font-size="15" font-weight="700" text-anchor="middle">🧠 大脑</text>
+  <line class="dgm-edge" x1="120" y1="128" x2="285" y2="128" stroke-width="1"/>
+  <text class="dgm-text" x="202" y="174" font-size="14" font-weight="700" text-anchor="middle">LLM</text>
+  <line class="dgm-edge" x1="120" y1="200" x2="285" y2="200" stroke-width="1"/>
+  <text class="dgm-text" x="202" y="242" font-size="13" text-anchor="middle">策略 Policy</text>
+  <text class="dgm-muted" x="202" y="262" font-size="10.5" text-anchor="middle">下一步做什么</text>
+
+  <!-- lane 2: 眼睛 / 上下文 / 观察空间 (hub — 决定性) -->
+  <rect class="dgm-hub" x="315" y="56" width="185" height="234" rx="10"/>
+  <text class="dgm-accent-text" x="407" y="100" font-size="15" font-weight="700" text-anchor="middle">👁 眼睛</text>
+  <line class="dgm-edge" x1="325" y1="128" x2="490" y2="128" stroke-width="1"/>
+  <text class="dgm-accent-text" x="407" y="174" font-size="14" font-weight="700" text-anchor="middle">上下文</text>
+  <line class="dgm-edge" x1="325" y1="200" x2="490" y2="200" stroke-width="1"/>
+  <text class="dgm-accent-text" x="407" y="242" font-size="13" text-anchor="middle">观察空间</text>
+  <text class="dgm-muted" x="407" y="262" font-size="10.5" text-anchor="middle">能看到的一切</text>
+
+  <!-- lane 3: 手脚 / 工具 / 动作空间 -->
+  <rect class="dgm-node" x="520" y="56" width="185" height="234" rx="10"/>
+  <text class="dgm-text" x="612" y="100" font-size="15" font-weight="700" text-anchor="middle">🖐 手脚</text>
+  <line class="dgm-edge" x1="530" y1="128" x2="695" y2="128" stroke-width="1"/>
+  <text class="dgm-text" x="612" y="174" font-size="14" font-weight="700" text-anchor="middle">工具</text>
+  <line class="dgm-edge" x1="530" y1="200" x2="695" y2="200" stroke-width="1"/>
+  <text class="dgm-text" x="612" y="242" font-size="13" text-anchor="middle">动作空间</text>
+  <text class="dgm-muted" x="612" y="262" font-size="10.5" text-anchor="middle">能做的所有事</text>
+
+  <text class="dgm-muted" x="360" y="308" font-size="11" text-anchor="middle">中间那列（眼睛/上下文）是本章反复强调的“决定性因素”</text>
+</svg>
+</div>
+<figcaption>竖着读是同一个组件的三种叫法，横着读是三个不同维度。大脑=策略（Policy，决定下一步做什么）、眼睛=观察空间（Observation Space，能看到什么）、手脚=动作空间（Action Space，能做什么）。</figcaption>
+</figure>
+
+<p>为什么值得把直觉和学术挂钩？因为它告诉你这三个维度<strong>不是随意切的三刀</strong>，而是任何一个“在环境里行动的智能体”都逃不掉的三件事：<strong>它看到什么、它能做什么、它据此怎么决策</strong>。这也是为什么作者说“理解这三者的作用及其相互关系，是构建有效 Agent 系统的基础”。</p>
+
+<h2>三、把眼镜戴上：五个产品，同一副骨架</h2>
+
+<p>公式的威力在于它<strong>可迁移</strong>。作者用它一口气拆了五个形态完全不同的产品——从写代码的 Cursor 到打电话砍账单的 Pine，全都落进同一张三维表：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<table>
+<thead>
+<tr><th>Agent 产品</th><th>眼睛（感知）</th><th>手脚（行动）</th><th>策略</th></tr>
+</thead>
+<tbody>
+<tr><td><strong>Cursor</strong> 等 Coding Agent</td><td>需求文档、代码库、终端环境</td><td>开放式：内部思考、代码搜索、文件读写、执行命令</td><td>增量开发：理解需求→搜索代码→编辑→测试→调试修复</td></tr>
+<tr><td><strong>Deep Research</strong> 等搜索 Agent</td><td>网络资源、学术数据库、本地文件</td><td>开放式：内部思考、搜索查询、网页阅读、摘要生成</td><td>迭代深化：按已有信息调整搜索方向，逐步综合报告</td></tr>
+<tr><td><strong>Manus</strong> 等电脑操控 Agent</td><td>电脑屏幕、浏览器页面、文件系统</td><td>开放式：内部思考、点击、输入、滚动、截图、执行代码</td><td>视觉感知+操作：观察屏幕→识别元素→操作→验证</td></tr>
+<tr><td><strong>豆包</strong> 等手机助手 Agent</td><td>手机屏幕、已安装的 App</td><td>开放式：内部思考、点击、滑动、输入、打开 App</td><td>意图理解+App 操控：理解需求→定位 App→操作→确认</td></tr>
+<tr><td><strong>Pine AI</strong> 等个人办事 Agent</td><td>用户账户、历史账单、服务商知识库</td><td>开放式：内部思考、打电话、发邮件、填表单、与用户确认</td><td>多步骤：收集信息→定策略→联系服务商→谈判→汇报</td></tr>
+</tbody>
+</table>
+</div>
+<figcaption>五个产品外形迥异，但都能被三维拆开。这张表就是本课要交给你的“拆解练习册”——遇到任何新 Agent，先填这三格。</figcaption>
+</figure>
+
+<p>作者还点出这五个系统有三个<strong>共同特征</strong>，而它们全都是三个组件协同作用的结果：</p>
+
+<ul>
+<li><strong>开放式的动作空间</strong>——不是从有限的几个按钮里选，而是能生成任意自然语言和代码（来自“手脚/工具”）。</li>
+<li><strong>能内部思考</strong>——采取行动前先思考和规划（来自“大脑/LLM”）。</li>
+<li><strong>能持续交互</strong>——根据环境反馈不断调整策略（三者转成一个循环）。</li>
+</ul>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">👁 上下文</span><span class="n-sub">看到什么</span></div>
+  <div class="arrow">→</div>
+  <div class="node volatile"><span class="n-title">🧠 LLM</span><span class="n-sub">思考·决策</span></div>
+  <div class="arrow">→</div>
+  <div class="node"><span class="n-title">🖐 工具</span><span class="n-sub">改变世界</span></div>
+  <div class="arrow">↺</div>
+  <div class="node"><span class="n-title">环境反馈</span><span class="n-sub">回喂给眼睛</span></div>
+</div>
+<figcaption>三个组件不是并排摆着，而是转成一个圈：看到→决策→行动→反馈再回到眼睛。这个循环第 0008 课会以 <strong>ReAct</strong> 的名字正式展开，本课先记住“三件事协同成一个圈”。</figcaption>
+</figure>
+
+<div class="pitfall">
+<p><strong>最常见的翻车：把三个词读窄。</strong>初学者最容易犯的错，是不理会作者“每个词都要做广义理解”的提醒，于是——把 <strong>LLM</strong> 读成“就是一堆模型参数”，把 <strong>上下文</strong> 读成“就是我输入的那段 prompt”，把 <strong>工具</strong> 读成“就是几个 API 函数”。</p>
+<p>为什么这是错的、且代价很大？因为一旦读窄，你就会漏掉公式真正的解释力。比如把“手脚”窄化成“几个 API”，你就想不到<strong>动态生成代码、委托子 Agent、响应外部事件</strong>也都算工具；把“眼睛”窄化成“对话历史”，你就会漏掉<strong>工具定义、用户记忆、环境状态</strong>同样是上下文的一部分——而这正是下一课消融实验要坐实的东西。公式的价值全在“广义”二字，读窄了它就退化成一句正确的废话。</p>
+</div>
+
+<h2>四、为什么值得为一个公式单开一课（宏观背景）</h2>
+
+<p>因为作者明说了本章的定位：<strong>它是全书的“概念地图”</strong>。这个三维公式是一副<strong>不随版本翻篇的坐标系</strong>——当下一代模型、下一个热门框架冒出来时，你不必从零理解它，只要问三个问题：<strong>它能看到什么（上下文/眼睛）、能做什么（工具/手脚）、大脑（LLM）多强、据此怎么决策（策略）</strong>。作者甚至提醒：初读本章不必逐一记住所有概念，先建立整体印象，后面每一章都会回来展开其中一个方面。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：任何 Agent，不管形态多花哨，都能拆成三个维度——<strong>眼睛（上下文/看到什么）、手脚（工具/能做什么）、大脑（LLM/据此如何决策）</strong>；三者缺一不可，且每个词都要做<strong>广义</strong>理解。以后读任何 Agent 系统、排查任何 Agent 故障，先把它套进这三个格子。</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>Agent 核心公式（Agent = 大脑 + 眼睛 + 手脚）</dt>
+<dd>全书主线：Agent = LLM（大脑，思考决策）+ 上下文（眼睛，能看到的全部信息）+ 工具（手脚，能做的所有事），三者缺一不可。<em>关键</em>：每个词都要做广义理解，别读窄成“参数/prompt/几个 API”。</dd>
+<dt>策略（Policy）</dt>
+<dd>“大脑/LLM”对应的学术概念：Agent 决定“下一步做什么”的决策逻辑——面对当前看到的信息，从所有可选行动中挑出最合适的一个。（RL 背景可选映射。）</dd>
+<dt>观察空间（Observation Space）</dt>
+<dd>“眼睛/上下文”对应的学术概念：Agent 能看到的所有信息——能看到什么、读到什么、记住什么、能访问哪些系统。本章反复强调它是<strong>决定性因素</strong>。</dd>
+<dt>动作空间（Action Space）</dt>
+<dd>“手脚/工具”对应的学术概念：Agent 能做的所有事情的集合——从发消息到执行代码再到操控界面。本章五个产品的动作空间都是<strong>开放式</strong>的。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：把 Cursor 这类 Coding Agent 拆到「眼睛 / 手脚 / 策略」三个维度，各自对应什么？</summary>
+<div class="answer">
+<p><strong>眼睛（感知）</strong>=需求文档、代码库、终端环境；<strong>手脚（行动）</strong>=开放式动作（内部思考、代码搜索、文件读写、执行命令）；<strong>策略</strong>=增量开发（理解需求→搜索相关代码→编辑代码→测试验证→调试修复）。这正是“戴上公式眼镜”拆一个产品的标准动作。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：作者反复强调公式里“工具”要做广义理解。除了“调用预定义的 API 函数”，工具还包括哪些？</summary>
+<div class="answer">
+<p>按原文，“工具”是 Agent 能做的<strong>所有事情的集合</strong>，广义地包括：预定义的工具调用、<strong>按需加载的专业技能（Skills）</strong>、<strong>动态生成代码创造新能力</strong>、<strong>委托子 Agent 协作</strong>、<strong>主动与用户沟通</strong>、以及<strong>响应外部事件</strong>。把工具窄化为“几个 API 函数”，就会漏掉后面几种，也就看不懂后续章节里 Agent 的很多能力从哪来。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p><strong>配套实验（强烈建议边读边跑）：实验 1.1 上下文消融</strong>，对应仓库目录 <code>chapter1/context/</code>。它做的正是把公式里“眼睛”这一维拆开验证：用一个带多工具（PDF 解析 / 货币转换 / 计算器 / Python 代码解释器）的 Agent，切换 <code>full / no_history / no_reasoning / no_tool_calls / no_tool_results</code> 五种上下文模式做批量消融，用成功率、耗时、迭代次数实证“每个上下文组件都不可或缺”。这是下一课（第 0007 课）的主戏，先把仓库拉下来：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源是《深入理解 AI Agent》<strong>第 1 章</strong>“现代 Agent = LLM + 上下文 + 工具”一节（<code>book/chapter1.md</code>）——尤其是那两张表：三组件到 RL 概念的映射表、五个产品的三维拆解表，值得对着读。本章后半程“构建有效 Agent 的核心原则 / 编排模式 / 护栏与安全性”直接引用了 Anthropic 的 <strong>《Building Effective Agents》</strong>（原文未附 URL，可按标题检索 Anthropic 官方博客）。配套项目 <code>chapter1/learning-from-experience</code> 另引用了 Shunyu Yao 的 <a href="https://ysymyth.github.io/The-Second-Half/">《The Second Half》</a> 与 <a href="https://arxiv.org/abs/2210.03629">ReAct 论文</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师随手挑一个你在用的 AI 产品，带你把“眼睛 / 手脚 / 策略”三格现场填一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0005-reasoning-vs-inference-glossary.html"><span class="dir">← 上一课</span>思考 vs 推理：一个贯穿全书的术语约定</a>
+  <a class="next" href="0007-context-five-components-ablation.html"><span class="dir">下一课 →</span>拆掉一个组件会怎样：上下文消融实验</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

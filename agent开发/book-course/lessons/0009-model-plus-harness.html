@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0009 · 从能跑的 Demo 到可靠产品：Harness 工程</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0009 课 · 基础 · 概念地图 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>从能跑的 Demo 到可靠产品：Harness 工程</h1>
+
+<p class="lede">前八课把 <strong>Agent = LLM + 上下文 + 工具</strong> 讲透了——那是「能跑一个 Demo」的最小配方。但书的下半章（“Harness 工程：模型之外的竞争力”）立刻泼了盆冷水：一个能跑的 Demo 和一个可靠的产品之间，还隔着一道鸿沟。这节课只押一个生产公式——<strong>Agent = Model + Harness</strong>——并把它拆成两句人话：<strong>「能做事」靠上下文 + 工具，「不做错事」靠约束 + 验证 + 纠正</strong>。这就是本章后半段全部内容的骨架。</p>
+
+<h2>一、是什么：同一个系统，两个视角</h2>
+
+<p>作者特意提醒：Harness 公式不是要<strong>替换</strong>前面的核心公式，而是换一个抽象层次去看同一个系统。<strong>Agent = LLM + 上下文 + 工具</strong> 描述的是 Agent 的<strong>内部组成</strong>（大脑、眼睛、手脚分别由什么承担）；而 Harness 工程给的是一个<strong>工程实现</strong>视角——把 LLM 当作一个核心组件（Model），围绕它构建的<strong>所有支撑代码</strong>统称为 Harness。之所以换用更通用的 “Model” 一词，是因为这套原则适用于<strong>任何</strong>具备推理和工具调用能力的模型，不绑定某一类模型。</p>
+
+<div class="formula">
+<div class="eq"><b>Agent</b> <span class="op">=</span> LLM <span class="op">+</span> [上下文 + 工具 + 约束 + 验证 + 纠正] <span class="op">=</span> Model <span class="op">+</span> Harness</div>
+<div class="gloss">最小公式是 Demo 视角，扩展公式是生产视角——后者完全包含前者，只是在外围加了一圈安全网</div>
+</div>
+
+<p>关键要读懂这个方括号：<strong>约束、验证、纠正不是三个新增的「独立模块」</strong>，而是围绕原公式里“上下文 + 工具”构建的一层保障。最小可工作的 Agent 只需 LLM + 上下文 + 工具就能跑；要在生产环境长期可靠运转，才需要补全外面这三层工程外壳。把它想成书里那个马具（Harness）隐喻：模型是一匹强壮但不可预测的马，Harness 是缰绳与挽具——不是限制它奔跑，而是把力量引导到正确方向。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 400" role="img" aria-label="Harness 洋葱图：最内核是 Model，中层是上下文加工具（能做事），外层是约束、验证、纠正三层保障（不做错事）">
+  <!-- concentric rings -->
+  <circle class="dgm-node" cx="205" cy="205" r="172" fill-opacity="0.22"/>
+  <circle class="dgm-node" cx="205" cy="205" r="120" fill-opacity="0.5"/>
+  <circle class="dgm-hub" cx="205" cy="205" r="66"/>
+  <!-- ring labels -->
+  <text class="dgm-text" x="205" y="58" font-size="14" font-weight="700" text-anchor="middle">① 约束 · 验证 · 纠正</text>
+  <text class="dgm-muted" x="205" y="77" font-size="11.5" text-anchor="middle">不做错事（生产保障层）</text>
+  <text class="dgm-text" x="205" y="118" font-size="13.5" font-weight="700" text-anchor="middle">② 上下文 + 工具</text>
+  <text class="dgm-muted" x="205" y="136" font-size="11.5" text-anchor="middle">能做事（核心能力）</text>
+  <text class="dgm-accent-text" x="205" y="203" font-size="16" font-weight="700" text-anchor="middle">Model</text>
+  <text class="dgm-muted" x="205" y="223" font-size="11.5" text-anchor="middle">LLM · 大脑</text>
+  <!-- callouts on the right -->
+  <rect class="dgm-node" x="470" y="52" width="238" height="66" rx="8"/>
+  <text class="dgm-text" x="484" y="80" font-size="13" font-weight="700">约束 Constrain</text>
+  <text class="dgm-muted" x="484" y="100" font-size="11.5">设定边界：能做什么、不能做什么</text>
+  <rect class="dgm-node" x="470" y="152" width="238" height="66" rx="8"/>
+  <text class="dgm-text" x="484" y="180" font-size="13" font-weight="700">验证 Verify</text>
+  <text class="dgm-muted" x="484" y="200" font-size="11.5">自动判断操作结果的对错</text>
+  <rect class="dgm-node" x="470" y="252" width="238" height="66" rx="8"/>
+  <text class="dgm-text" x="484" y="280" font-size="13" font-weight="700">纠正 Correct</text>
+  <text class="dgm-muted" x="484" y="300" font-size="11.5">发现问题时自动修正或回退</text>
+  <!-- connectors -->
+  <line class="dgm-edge" x1="372" y1="120" x2="470" y2="90" stroke-width="1.4" stroke-dasharray="5 4"/>
+  <line class="dgm-edge" x1="377" y1="205" x2="470" y2="188" stroke-width="1.4" stroke-dasharray="5 4"/>
+  <line class="dgm-edge" x1="372" y1="290" x2="470" y2="288" stroke-width="1.4" stroke-dasharray="5 4"/>
+</svg>
+</div>
+<figcaption>Harness 洋葱图：核心是 Model（LLM），中层「上下文 + 工具」让它<strong>能做事</strong>，外层「约束 / 验证 / 纠正」三道保障让它<strong>不做错事</strong>。三道保障不是套在外面的独立模块，而是围绕上下文与工具长出来的安全网。</figcaption>
+</figure>
+
+<p>书里把五个功能各自的一句话职责列成了表——记住这张表，就等于记住了 Harness 的全貌：</p>
+
+<table>
+<thead><tr><th>功能</th><th>一句话职责</th><th>与上下文/工具的关系</th></tr></thead>
+<tbody>
+<tr><td><strong>上下文 Context</strong></td><td>为模型提供感知信息</td><td>核心能力</td></tr>
+<tr><td><strong>工具 Tools</strong></td><td>为模型提供行动手段</td><td>核心能力</td></tr>
+<tr><td><strong>约束 Constrain</strong></td><td>设定行为边界——能做什么、不能做什么</td><td>围绕上下文和工具构建的安全边界</td></tr>
+<tr><td><strong>验证 Verify</strong></td><td>自动判断操作结果的对错</td><td>围绕工具执行结果构建的检查机制</td></tr>
+<tr><td><strong>纠正 Correct</strong></td><td>发现问题时自动修正或回退</td><td>围绕工具调用失败构建的恢复机制</td></tr>
+</tbody>
+</table>
+
+<h2>二、为什么这样切：一个退款例子看清「有无 Harness」</h2>
+
+<p>作者用同一个任务把这条鸿沟摆到台面上：<strong>让一个 Agent 帮用户退掉 3 天前的订单</strong>。同一个模型，有没有 Harness，结果天壤之别。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 360" role="img" aria-label="退款任务在没有 Harness 和有 Harness 两种情况下的对比：左侧四个缺口导致失败，右侧五个环节各司其职">
+  <rect class="dgm-node" x="18" y="14" width="316" height="46" rx="8" fill-opacity="0.35"/>
+  <text class="dgm-text" x="176" y="37" font-size="13.5" font-weight="700" text-anchor="middle">没有 Harness</text>
+  <text class="dgm-muted" x="176" y="53" font-size="11" text-anchor="middle">脱缰的野马：能力惊人，却不可靠</text>
+  <rect class="dgm-hub" x="386" y="14" width="316" height="46" rx="8"/>
+  <text class="dgm-accent-text" x="544" y="37" font-size="13.5" font-weight="700" text-anchor="middle">有 Harness</text>
+  <text class="dgm-muted" x="544" y="53" font-size="11" text-anchor="middle">同一个模型，被引导成可靠执行</text>
+
+  <!-- left column: 4 gaps -->
+  <rect class="dgm-node" x="18" y="78" width="316" height="42" rx="6"/>
+  <text class="dgm-text" x="34" y="104" font-size="11.5">缺上下文 · 看不到退款政策</text>
+  <rect class="dgm-node" x="18" y="128" width="316" height="42" rx="6"/>
+  <text class="dgm-text" x="34" y="154" font-size="11.5">缺工具 · 不知道该调哪个 API</text>
+  <rect class="dgm-node" x="18" y="178" width="316" height="42" rx="6"/>
+  <text class="dgm-text" x="34" y="204" font-size="11.5">缺验证 · 直接编造一个退款结果</text>
+  <rect class="dgm-node" x="18" y="228" width="316" height="42" rx="6"/>
+  <text class="dgm-text" x="34" y="254" font-size="11.5">缺纠正 · 用户发现退款根本没发生</text>
+
+  <!-- right column: 5 roles -->
+  <rect class="dgm-node" x="386" y="78" width="316" height="38" rx="6"/>
+  <text class="dgm-text" x="402" y="102" font-size="11.5"><tspan class="dgm-accent-text" font-weight="700">上下文</tspan> · 系统提示写明 7 天退款政策</text>
+  <rect class="dgm-node" x="386" y="122" width="316" height="38" rx="6"/>
+  <text class="dgm-text" x="402" y="146" font-size="11.5"><tspan class="dgm-accent-text" font-weight="700">工具</tspan> · 调用 query_order / process_refund</text>
+  <rect class="dgm-node" x="386" y="166" width="316" height="38" rx="6"/>
+  <text class="dgm-text" x="402" y="190" font-size="11.5"><tspan class="dgm-accent-text" font-weight="700">约束</tspan> · 校验退款金额 ≤ 订单金额</text>
+  <rect class="dgm-node" x="386" y="210" width="316" height="38" rx="6"/>
+  <text class="dgm-text" x="402" y="234" font-size="11.5"><tspan class="dgm-accent-text" font-weight="700">验证</tspan> · 查数据库确认退款成功</text>
+  <rect class="dgm-node" x="386" y="254" width="316" height="38" rx="6"/>
+  <text class="dgm-text" x="402" y="278" font-size="11.5"><tspan class="dgm-accent-text" font-weight="700">纠正</tspan> · API 调用超时则自动重试</text>
+</svg>
+</div>
+<figcaption>同一个退款任务的两种命运。左边四个缺口，正好对应 Harness 的四个功能缺席；右边五个环节各司其职，模型的能力才被“引导、约束和放大”为可靠的任务执行。</figcaption>
+</figure>
+
+<p>把这个例子读慢一点，你就能分清两组词的分工。作者原话把边界划得很清：“上下文中嵌入退款政策是<strong>上下文</strong>的范畴，而校验退款金额不超过订单金额则属于<strong>约束</strong>；工具执行 API 调用是<strong>工具</strong>的范畴，而 API 超时后自动重试则属于<strong>纠正</strong>。”上下文与工具让 Agent <strong>能做事</strong>，约束、验证、纠正让 Agent <strong>不做错事</strong>。</p>
+
+<p>为什么书要花这么大力气强调后三者？因为在成熟度曲线上，两者的重要性是<strong>不对称</strong>的。早期框架主要在给模型工具、给上下文，让它“能做事”；而生产级系统的重心已经转向约束、验证、纠正。作者举了 Claude Code：它的 Harness 里<strong>绝大部分代码</strong>都是约束、验证与纠正（流程状态管理、多层上下文压缩、权限分类、熔断器、错误恢复），工具本身（文件读写、命令执行、搜索）只占一小部分。一句话——<strong>行业正在从“能做事”转向“可靠地做事”，Harness 工程因此成为核心竞争力。</strong></p>
+
+<div class="bookquote">
+当各家模型的能力越来越接近、不再是决定性的差异因素时，竞争优势就转移到了模型之外的工程实践。
+<span class="src">——《深入理解 AI Agent》第 1 章「从提示工程到 Harness 工程」</span>
+</div>
+
+<p>作者还给了一条清晰的演进弧线：<strong>软件工程 → 提示工程 → 上下文工程 → Harness 工程</strong>。这四层不是替代关系，而是<strong>层层包含</strong>——提示工程是上下文工程的子集，上下文工程是 Harness 工程的子集。每上一层，工程师的关注范围就从“模型能看到什么”扩展到“模型在什么样的系统里运行”。</p>
+
+<h2>三、边界与易错：最容易把五要素归错格子</h2>
+
+<div class="pitfall">
+<p><strong>误区一：把「校验退款金额」当成验证。</strong>很多人一看到“校验”两个字就归到验证。但按书的定义，<strong>校验退款金额不超过订单金额是「约束」</strong>——它在事情发生<em>之前</em>限定行为边界（能做什么、不能做什么）。而“验证”是<em>事后</em>检查操作结果对不对（比如查数据库确认退款是否真的成功）。判断口诀：<strong>约束是画红线（能不能做），验证是对答案（做得对不对）。</strong></p>
+<p><strong>误区二：把「自动重试」当成约束。</strong>API 超时后自动重试属于<strong>「纠正」</strong>——它是工具调用<em>失败之后</em>的恢复机制，不是事前的边界限定。约束防越界、验证发现错误、纠正恢复异常，三者在时间线上各占一段，别混。</p>
+<p><strong>误区三：读到「模型即 Agent」就以为框架/Harness 不重要了。</strong>恰恰相反——书里反复强调：<strong>模型越强，Harness 越关键</strong>。因为模型自主决策的空间越大，出错时的影响面也越大，越需要精细的约束、验证和纠正来兜底。模型厂商的真正优势不是“让框架变薄”，而是能对模型与外围 Harness 做协同优化。</p>
+</div>
+
+<div class="experiment">
+<p>本课属概念地图，直接配套的动手实验是上一课已引入的<strong>实验 1.1 上下文消融</strong>（对应仓库 <code>chapter1/context/</code>）：一组全组件基线 + 四组各缺一个组件的对照，用成功率/耗时/迭代/工具调用数实证每个上下文组件的作用。它正是“能做事”那半边——上下文——的地基。整本书代码见开源仓库 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>，强烈建议边读边跑。</p>
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>Harness（工程外壳/马具）</dt>
+<dd>模型之外的<strong>全部</strong>基础设施，核心是上下文与工具，外加约束、验证、纠正三层保障机制；把模型的能力引导、约束并放大为可靠的任务执行。<em>避免</em>简单等同于“框架”或“SDK”——它是围绕模型的整套工程外壳，不限于某个具体框架。</dd>
+<dt>模型即 Agent（Model as Agent）</dt>
+<dd>先进模型通过后训练（尤其 RL）把工具调用内化为原生能力，何时调、调哪个、传什么参数都由模型自主决定、无需人工编排层的新范式。<em>避免</em>理解为“框架不再重要”——恰恰相反，模型越强 Harness 越关键。</dd>
+<dt>防呆（Poka-yoke）</dt>
+<dd>源自丰田生产体系的设计思路：从设计上让错误无法发生（如 USB 只能单向插入），应用到工具接口（ACI）设计中主动防止模型误用。<em>避免</em>把它当成“错误处理/异常捕获”，它是从接口设计上消除出错可能。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：让 Agent 帮用户退 3 天前的订单，「校验退款金额不超过订单金额」和「API 超时后自动重试」分别属于 Harness 五要素的哪一个？</summary>
+<div class="answer">
+<p>「校验退款金额不超过订单金额」属于<strong>约束</strong>（限定能做什么、设定行为边界，是事前的红线）；「API 超时自动重试」属于<strong>纠正</strong>（工具调用失败后的恢复机制，是事后的补救）。注意别把前者误归为“验证”——验证是事后核对操作结果对不对，比如查数据库确认退款是否真的成功。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：书里说“模型越强，Harness 越关键”，这和「模型即 Agent」趋势不是矛盾吗？为什么两者能共存？</summary>
+<div class="answer">
+<p>不矛盾。「模型即 Agent」说的是模型把<strong>工具调用决策</strong>内化成了原生能力，不再需要人工编排层；但模型自主决策的空间越大，一旦出错，<strong>影响面也越大</strong>，因此越需要精细的约束、验证、纠正来保证可靠性。所以模型变强，恰恰把竞争优势推向了模型<em>之外</em>的工程实践——这也正是“各家模型能力趋同后，竞争优势转移到 Harness”这一判断的由来。模型厂商的真正优势是能对模型与外围 Harness 做<strong>协同优化</strong>。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：<strong>Agent = Model + Harness</strong>。上下文 + 工具让它<strong>能做事</strong>，约束 + 验证 + 纠正让它<strong>不做错事</strong>——后三者不是独立模块，而是围绕上下文与工具长出的安全网。判断任何一个 Harness 要素时，先问它发生在时间线的哪一段：<strong>事前画红线是约束，事后对答案是验证，出错后补救是纠正。</strong>模型越强，这层外壳越是胜负手。</p>
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本章后半段的“构建有效 Agent 的核心原则”“编排模式”“护栏与安全性”直接引用了 Anthropic 的经验文章 <strong>《Building Effective Agents》</strong>——包括“保持简单 / 保持透明 / 设计好工具接口（ACI）”三原则、工作流 vs 自主 Agent 的分类，以及护栏实践（原文未附 URL，可按标题检索 Anthropic 官方工程博客）。想动手，先跑上下文消融实验，配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师拿退款例子把五要素逐个再走一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0008-react-loop-trajectory.html"><span class="dir">← 上一课</span>想→做→看：ReAct 循环与轨迹如何累积</a>
+  <a class="next" href="0010-workflow-vs-autonomous.html"><span class="dir">下一课 →</span>工作流还是自主 Agent：编排模式怎么选</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

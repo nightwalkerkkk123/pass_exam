@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0053 · 多 Agent 何时真赢过单 Agent：唯一判据</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0053 课 · 进阶应用 · 多 Agent 协作 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>多 Agent 何时真赢过单 Agent：唯一判据是「有没有新信息」</h1>
+
+<p class="lede">这节课只押一条判据：<strong>协作过程是否引入了单个 Agent 在生成时无法获得的新信息？</strong>它出现在第十章《多 Agent 协作》正文“多 Agent 何时真正优于单 Agent”一节，是全章所有工程方案的<strong>总体参照</strong>。学会用这一条尺子量任何一种协作，你就能一眼分清哪些多 Agent 是真本事、哪些只是“让模型再想一遍”还多花了十几倍的钱。</p>
+
+<h2>一、是什么：一条判据，把学术与工程的争吵一次说清</h2>
+
+<p>书里先摆出一个看似矛盾的现象：学术研究常说“单 Agent 就够了”，工程实践里多 Agent 却确实更好。作者的回答不是和稀泥，而是给出一条清晰的判据——两派讨论的根本不是同一种“多 Agent”。</p>
+
+<div class="formula">
+<div class="eq">多 Agent 是否<b>值得</b> <span class="op">⟺</span> 协作是否引入了<b>生成时不存在的新信息</b></div>
+<div class="gloss">第十章 · “多 Agent 何时真正优于单 Agent”的核心判据</div>
+</div>
+
+<p>学术研究里比较的，多是“多个 Agent 看着<strong>同一段文本</strong>互相讨论”（如辩论）——没有引入新信息；工程实践里有效的多 Agent，往往带一条<strong>外部反馈环路</strong>（代码执行、视觉渲染、工具调用）——引入了新信息。前者无效，后者显著提升。书里用表10-2 把五种模式一次列清：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<table>
+<thead>
+<tr><th>协作模式</th><th>是否引入新信息</th><th>效果</th></tr>
+</thead>
+<tbody>
+<tr><td>同一模型自我审查（重读自己的输出）</td><td>否</td><td>通常无效甚至有害</td></tr>
+<tr><td>不同 Agent 辩论同一段文本</td><td>否</td><td>等计算量下与单 Agent 持平</td></tr>
+<tr><td>Reviewer 用测试执行结果审查代码</td><td><strong>是（执行反馈）</strong></td><td>显著提升</td></tr>
+<tr><td>Reviewer 看渲染截图审查前端 / PPT 代码</td><td><strong>是（视觉反馈）</strong></td><td>显著提升</td></tr>
+<tr><td>Reviewer 用外部工具验证事实</td><td><strong>是（工具反馈）</strong></td><td>显著提升</td></tr>
+</tbody>
+</table>
+</div>
+<figcaption>表10-2 · 五行的分界线只有一条：中间那一列是“否”还是“是”。是“否”的两行，无论包装成审查还是辩论，都不产生实质价值。</figcaption>
+</figure>
+
+<p>书里给了两个坐实“是”这一侧的实证：2025 年的 RLEF 通过强化学习让模型利用<strong>真实执行结果</strong>（编译错误、测试失败、运行时异常）迭代改进代码，效果远超独立多次采样；2025 年的 WebGen-Agent 用多层级视觉反馈（截图 + 视觉语言模型描述）搭起反馈脚手架，据报道让 Claude 3.5 Sonnet 在该基准上从 26.4% 提升到 51.9%——接近翻倍。</p>
+
+<h2>二、为什么这样设计：把判据画成一次分流</h2>
+
+<p>为什么一条判据就够？因为它把“要不要上多 Agent”从模糊的直觉，变成一个可以当场执行的<strong>二分判断</strong>。任何一个协作步骤，先问它一句：这一步让某个 Agent 看到了它自己生成时根本拿不到的信息吗？答案分流如下——</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="判据分流图：协作步骤问是否引入新信息，否通向辩论与自我审查等算力持平甚至有害，是通向执行视觉工具反馈显著提升">
+  <rect class="dgm-node" x="40" y="120" width="150" height="56" rx="8"/>
+  <text class="dgm-text" x="115" y="145" font-size="13" font-weight="700" text-anchor="middle">一个协作步骤</text>
+  <text class="dgm-muted" x="115" y="163" font-size="11" text-anchor="middle">审查 / 辩论 / 反馈…</text>
+
+  <rect class="dgm-hub" x="270" y="112" width="170" height="72" rx="10"/>
+  <text class="dgm-accent-text" x="355" y="142" font-size="13" font-weight="700" text-anchor="middle">引入了生成时</text>
+  <text class="dgm-accent-text" x="355" y="160" font-size="13" font-weight="700" text-anchor="middle">拿不到的新信息？</text>
+
+  <line class="dgm-edge" x1="190" y1="148" x2="266" y2="148" stroke-width="1.5" marker-end="url(#ar53)"/>
+
+  <!-- No branch -->
+  <path class="dgm-edge" d="M355 184 C355 235, 355 235, 355 250" fill="none" stroke-width="1.5" marker-end="url(#ar53)"/>
+  <text class="dgm-muted" x="372" y="215" font-size="12" text-anchor="start">否</text>
+  <rect class="dgm-node" x="230" y="250" width="250" height="44" rx="8"/>
+  <text class="dgm-text" x="355" y="270" font-size="12.5" font-weight="700" text-anchor="middle">辩论 / 自我审查</text>
+  <text class="dgm-muted" x="355" y="286" font-size="10.5" text-anchor="middle">等算力下持平，甚至越改越差</text>
+
+  <!-- Yes branch -->
+  <line class="dgm-edge" x1="440" y1="148" x2="536" y2="148" stroke-width="1.5" marker-end="url(#ar53)"/>
+  <text class="dgm-accent-text" x="488" y="138" font-size="12" text-anchor="middle">是</text>
+  <rect class="dgm-node dgm-accent" x="540" y="96" width="150" height="104" rx="8" fill-opacity="0.12"/>
+  <text class="dgm-accent-text" x="615" y="120" font-size="12.5" font-weight="700" text-anchor="middle">显著提升</text>
+  <text class="dgm-text" x="615" y="143" font-size="11" text-anchor="middle">执行反馈</text>
+  <text class="dgm-text" x="615" y="161" font-size="11" text-anchor="middle">视觉反馈</text>
+  <text class="dgm-text" x="615" y="179" font-size="11" text-anchor="middle">工具反馈</text>
+  <defs>
+    <marker id="ar53" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>同一条判据、一次分流。左下角那条“否”的路，就是学术论文里“单 Agent 就够了”的战场；右上角那条“是”的路，才是工程实践里多 Agent 真正赢的地方。</figcaption>
+</figure>
+
+<p>“否”这一侧为什么无效，书里给了信息论层面的硬解释。2026 年 Tran 与 Kiela 在多跳推理任务上对比单 Agent 与五种多 Agent 架构，发现<strong>当思考 token 预算被严格控制为相同时，单 Agent 与多 Agent 持平甚至更好</strong>。依据是信息论里的<strong>数据处理不等式</strong>：辩论中各 Agent 处理的是完全相同的文本，Agent 之间每一次串行传递中间结论，<strong>只可能丢信息、不可能凭空造信息</strong>。辩论在一些论文里的收益，很可能只是因为它偷偷消耗了更多总计算量。</p>
+
+<p>对等协作那一节里，作者还把“自我审查”这一行拆开讲透：Huang 等人在 ICLR 2024《Large Language Models Cannot Self-Correct Reasoning Yet》中发现，让模型在<strong>没有外部反馈</strong>时审查并修正自己的回答，准确率反而下降——把正确答案改错的次数，比把错误改对的次数还多。ICLR 2024 的 CRITIC 论文给了对照：接上外部工具（搜索、Python 解释器）验证时效果显著提升，一旦移除工具、只留模型自评，提升大部分消失。这就是提议者-审核者范式的设计原理：Reviewer 的价值不在“再看一遍”，而在它<strong>渲染了截图、跑出了测试结果</strong>——这些是 Proposer 写代码时根本拿不到的新信号。</p>
+
+<h2>三、边界与代价：判据之外，还有一张账单</h2>
+
+<p>就算判据是“是”，也别急着上多 Agent——书里把<strong>成本</strong>摆在所有设计之前。Anthropic 曾披露，其多 Agent 研究系统的 token 消耗约为普通对话的 <strong>15 倍</strong>，而 token 用量本身就能解释其中约 <strong>80%</strong> 的性能差异。换句话说：多 Agent 的收益必须大到能覆盖数倍乃至一个数量级的额外开销，否则一个调校得当的单 Agent 才是更划算的选择。</p>
+
+<div class="pitfall">
+<p><strong>初学者最容易想错的一句：“多 Agent 天生更强，人越多越好。”</strong> 这句直觉恰恰踩空了判据。让三个 Agent 围着同一段文本辩论、或让同一个模型生成后再自己审一遍，都<strong>没有引入任何新信息</strong>——按数据处理不等式，它们至多持平、常常还越改越差，却实打实地烧掉了十几倍的 token。判据管的不是“几个 Agent”，而是“这次协作有没有让谁看到新东西”。</p>
+<p>另一个易混点：这条数据处理不等式<strong>只否定“串行传递中间结论”</strong>的辩论式多 Agent，并不否定另外两类做法——对同一问题<strong>多次独立采样再聚合</strong>（self-consistency、多数投票），或利用<strong>生成与验证的难度不对称</strong>（写答案难、验答案易）来做生成-验证分工。这两类要么引入了额外的独立采样、要么利用了任务本身的不对称结构，都不在数据处理不等式的射程之内。别把“辩论无效”错误地推广成“所有多路做法无效”。</p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：评估任何一种多 Agent 协作，先问一句——它引入了单个 Agent 生成时拿不到的新信息吗？没有（自我审查、等算力辩论），那多半是白花十几倍 token 的错觉；有（执行 / 视觉 / 工具反馈），才是真价值，且收益还得大到能盖过那张账单。</p>
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>新信息判据</dt>
+<dd>判断多 Agent 相对单 Agent 是否有实质价值的唯一核心标准：<strong>协作过程是否引入了单个 Agent 在生成时无法获得的新信息</strong>。有效来源包括执行反馈、视觉反馈、工具反馈；无效的典型是自我审查与等算力下的辩论。对应表10-2。</dd>
+<dt>数据处理不等式（Data Processing Inequality）</dt>
+<dd>信息论结论：处理同一份信息的串行链路上，每一次传递中间结论只可能丢失信息、不可能凭空创造信息。书中用它解释“多 Agent 辩论同一段文本”为何在等 token 预算下不优于单 Agent。<em>避免</em>把它推广到独立多次采样或生成-验证不对称的场景。</dd>
+<dt>提议者-审核者（Proposer–Reviewer）</dt>
+<dd>最经典的对等协作范式：Proposer 生成，Reviewer 渲染 / 执行结果并用外部反馈评估、给出结构化改进建议，反复迭代。其价值不在“让模型再想一遍”，而在 Reviewer 能接触 Proposer 生成时拿不到的新信息（截图、测试结果、外部搜索）。<em>避免</em>误以为换个 Agent 重读就能生效。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：「让同一个模型生成代码后再自己审查一遍」和「Reviewer 渲染 PPT 截图后审查」，哪个属于有效的多 Agent 协作？为什么？</summary>
+<div class="answer">
+<p><strong>后者有效。</strong>前者没有引入任何新信息，只是让模型再想一遍，研究表明纯自我纠正常常越改越差；后者的截图包含 Proposer 生成代码时完全无法获得的视觉信息，属于引入了新信息，因此能显著提升。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：有人读到“多 Agent 辩论在等 token 预算下并不优于单 Agent”，就断言“所有多路 / 多次做法都没用”。按本书，这个推广错在哪？</summary>
+<div class="answer">
+<p>错在越界了。数据处理不等式否定的只是“多个 Agent <strong>串行传递中间结论</strong>”的辩论式协作——同一份文本反复转手，只会丢信息。它<strong>不否定</strong>另外两类：其一是对同一问题<strong>多次独立采样再聚合</strong>（self-consistency、多数投票），引入了额外的独立采样；其二是利用<strong>生成与验证的难度不对称</strong>（写答案难、验答案易）做生成-验证分工，利用了任务本身的不对称结构。这两类都不在数据处理不等式的适用范围内。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本节是第十章的“判据”总论，没有独立配套代码；判据的正例会在后面的对等协作与管理者实验里反复落点（如书籍翻译 Agent、边打电话边用电脑的双 Agent）。想现在就把“新信息”看成分水岭，最直接的动手方式是跑一遍提议者-审核者：对比“Reviewer 只重读代码”与“Reviewer 跑测试 / 看渲染截图”两种设置，亲眼看提升如何随新信息的有无而出现。整本书实验都在开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课判据与数据处理不等式论证的核心外部依据是 Tran, D. &amp; Kiela, D.《Single-Agent LLMs Outperform Multi-Agent Systems on Multi-Hop Reasoning Under Equal Thinking Token Budgets》（<a href="https://arxiv.org/abs/2604.02460">arXiv:2604.02460</a>, 2026）。同类值得一并读的：Gehring et al.《RLEF》（<a href="https://arxiv.org/abs/2410.02089">arXiv:2410.02089</a>）、Erdogan et al.《Plan-and-Act》（<a href="https://arxiv.org/abs/2503.09572">arXiv:2503.09572</a>）、Huang et al.《Large Language Models Cannot Self-Correct Reasoning Yet》（ICLR 2024）。一手来源仍是本书第十章《多 Agent 协作》正文“多 Agent 何时真正优于单 Agent”一节。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“新信息”这条判据套到你手边的某个多 Agent 设计上走一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0052-shared-vs-nonshared-context.html"><span class="dir">← 上一课</span>共享 vs 不共享上下文：多 Agent 的第一个岔路口</a>
+  <a class="next" href="0054-agent-virtual-filesystem.html"><span class="dir">下一课 →</span>Agent 眼中的文件系统：一棵挂载四类区域的目录树</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

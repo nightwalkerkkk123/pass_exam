@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0040 · 数据和环境比算法更重要：后训练最值钱的判断</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0040 课 · 支柱三(模型) · 模型后训练 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>数据和环境比算法更重要：后训练最值钱的一条判断</h1>
+
+<p class="lede">这节课只押一个反直觉的判断：<strong>决定后训练成败的，不是你调 PPO 还是 GRPO，而是仿真环境的保真度和训练数据的质量。</strong>它出自第 7 章「数据与环境：比算法更重要的事」——作者亲口说这是「全章我最想让你记住的一节」。如果这门课你只带走一条工程直觉，就是这一条。</p>
+
+<h2>一、优先级被搞反了：先验 &gt; 环境 &gt; 算法</h2>
+
+<p>初学者接触 RL，第一反应几乎都是「我该用哪个算法」。但工业界一线的经验恰恰相反。作者把话说得很硬：<strong>算法的重要性，远不及三个更基础的要素——仿真环境的保真度、训练数据的质量、基础模型的能力。</strong>现成算法（PPO、GRPO 等）早已封装进 veRL、TRL 这类框架，你会用、能选对就够了；真正拉开差距的，是环境和数据做得好不好。</p>
+
+<p>这不是一句口号，而是有历史依据的。本章 7.2 节记录了 OpenAI 的「认知反转」（图7-6）：几十年 RL 研究者一直默认的优先级是<strong>算法 &gt; 环境 &gt; 先验</strong>——第一阶段（2015–2016）算法中心主义，换个环境就得从头训；第二阶段（2016–2018）转向环境的重要性，试图把整个互联网变成训练场；直到第三阶段（2018 至今）「先验的觉醒」，GPT 系列证明语言预训练积累的先验知识可以<strong>通过与 RL 完全无关的方式获得</strong>。于是真实的排序被彻底颠倒过来：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 680 300" role="img" aria-label="后训练要素优先级金字塔：底座是基础模型(先验)，中层是环境与数据，顶尖是算法，重要性自底向上递减">
+  <!-- base: 基础模型/先验 -->
+  <polygon class="dgm-hub" points="195,175 485,175 560,250 120,250"/>
+  <text class="dgm-accent-text" x="340" y="205" font-size="15" font-weight="700" text-anchor="middle">基础模型（先验）</text>
+  <text class="dgm-muted" x="340" y="226" font-size="11.5" text-anchor="middle">能力的地基·最关键</text>
+  <!-- middle: 环境+数据 -->
+  <polygon class="dgm-node" points="270,100 410,100 485,175 195,175"/>
+  <text class="dgm-text" x="340" y="135" font-size="14" font-weight="700" text-anchor="middle">环境 + 数据</text>
+  <text class="dgm-muted" x="340" y="153" font-size="11" text-anchor="middle">保真度·质量</text>
+  <!-- top: 算法 -->
+  <polygon class="dgm-node" points="340,34 270,100 410,100"/>
+  <text class="dgm-text" x="340" y="88" font-size="12.5" font-weight="700" text-anchor="middle">算法</text>
+  <!-- side annotation -->
+  <line class="dgm-edge" x1="600" y1="60" x2="600" y2="245" stroke-width="1.5" marker-end="url(#arw)"/>
+  <text class="dgm-muted" x="616" y="70" font-size="11" text-anchor="start">算法</text>
+  <text class="dgm-muted" x="616" y="248" font-size="11" text-anchor="start">先验</text>
+  <text class="dgm-accent-text" x="628" y="160" font-size="11.5" font-weight="700" text-anchor="middle" transform="rotate(90 628 160)">重要性递增 ↓</text>
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>真实排序：<strong>先验（基础模型）&gt; 环境 &gt; 算法</strong>（图7-6 记录了 OpenAI 三阶段的认知演变）。金字塔越靠底座越关键——算法只是塔尖那一小块。</figcaption>
+</figure>
+
+<h2>二、环境：为什么真实 API 不能直接拿来训练</h2>
+
+<p>RL 的本质是「试错学习」，而试错必须有个<strong>试错的场地</strong>——这就是仿真环境（simulation environment）。模型在环境里一遍遍跑任务、拿反馈、调策略。环境的<strong>保真度</strong>（跟真实部署场景有多像）直接决定训出来的策略能不能用。这里有两条作者反复强调的判断：</p>
+
+<ul>
+<li><strong>环境失真，策略必废。</strong>如果仿真里的客服总按固定套路回话、错误信息跟生产环境对不上，模型就会学到一套只在仿真里管用的「应试策略」，一上线就露馅。这是 RL 项目最常见的翻车方式——不是算法不行，是练习场跟考场不是一回事。</li>
+<li><strong>构建高保真环境，常常比训练本身更贵、更难。</strong>一个能大规模并行、可复现、反馈真实的环境，往往要投入比调模型多得多的工程。</li>
+</ul>
+
+<p>那为什么不干脆连上真实的搜索、浏览器、打电话 API 来训练？因为<strong>真实 API 有速率限制、会封号、有副作用，根本没法直接拿来训练</strong>。RL 要成千上万次可复现地反复试错，真实世界既扛不住这个并发，也不允许你把不可逆的副作用重放一万遍。所以你必须先花大力气造一个稳定可控可重放的<strong>「影子世界」</strong>——本章后面的 AWorld MCP 沙盒、ReTool 代码解释器沙盒，之所以花那么大力气搭环境，正是这个原因。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 680 250" role="img" aria-label="两条路径对比：直接接真实API会因速率限制封号副作用而无法训练；先造可并行可复现可重放的影子世界沙盒，策略才能上线">
+  <!-- start node -->
+  <rect class="dgm-node" x="20" y="96" width="150" height="58" rx="8"/>
+  <text class="dgm-text" x="95" y="120" font-size="13" font-weight="700" text-anchor="middle">RL 需要</text>
+  <text class="dgm-muted" x="95" y="139" font-size="11" text-anchor="middle">上万次可重放试错</text>
+  <!-- path A: real API -->
+  <line class="dgm-edge" x1="170" y1="110" x2="256" y2="70" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <rect class="dgm-node" x="260" y="34" width="180" height="60" rx="8"/>
+  <text class="dgm-text" x="350" y="58" font-size="12.5" font-weight="700" text-anchor="middle">直接接真实 API</text>
+  <text class="dgm-muted" x="350" y="77" font-size="10.5" text-anchor="middle">速率限制 · 封号 · 副作用</text>
+  <line class="dgm-edge" x1="440" y1="64" x2="520" y2="64" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <text class="dgm-muted" x="600" y="60" font-size="12.5" text-anchor="middle">✗ 无法大规模</text>
+  <text class="dgm-muted" x="600" y="77" font-size="12.5" text-anchor="middle">可复现试错</text>
+  <!-- path B: shadow world -->
+  <line class="dgm-edge" x1="170" y1="140" x2="256" y2="182" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <rect class="dgm-hub" x="260" y="156" width="180" height="60" rx="8"/>
+  <text class="dgm-accent-text" x="350" y="180" font-size="12.5" font-weight="700" text-anchor="middle">先造「影子世界」</text>
+  <text class="dgm-muted" x="350" y="199" font-size="10.5" text-anchor="middle">MCP 沙盒 · 代码沙盒</text>
+  <line class="dgm-edge" x1="440" y1="186" x2="520" y2="186" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <text class="dgm-accent-text" x="600" y="182" font-size="12.5" font-weight="700" text-anchor="middle">✓ 可并行·可复现</text>
+  <text class="dgm-accent-text" x="600" y="199" font-size="12.5" font-weight="700" text-anchor="middle">策略能上线</text>
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>动手调算法之前，先问自己一句：我的仿真环境，真的像真实世界吗？这个问题的答案，比选 PPO 还是 GRPO 重要得多。</figcaption>
+</figure>
+
+<h2>三、数据：质量胜过算法，SFT 到位甚至不必上 RL</h2>
+
+<p>如果说环境是场地，<strong>数据就是教材，而且是三要素里最关键的一环</strong>。SFT 阶段的数据指示范样本（输入—输出对），RL 阶段指任务分布和奖励信号。无论哪个阶段，一条铁律贯穿始终：<strong>数据质量胜过算法。</strong>再精巧的算法，喂进去脏数据、覆盖不全的数据、有系统性偏差的数据，学出来的也只能是脏策略——SFT 会一字不差把噪声和偏见固化进参数，RL 则会朝着有偏差的奖励拼命优化（这正是 reward hacking 的温床）。<strong>Garbage in, garbage out</strong>，在后训练里体现得淋漓尽致。</p>
+
+<p>由此引出一个很多团队没想通、却极其省钱的判断：<strong>很多场景下，只要 SFT 的数据质量到位，你根本不需要做 RL。</strong>RL 又贵又不稳定，常是 SFT 的几十到上百倍成本，大家却往往一上来就想上 RL。但只要任务分布可预期、能拿到足够多样且高质量的示范数据，一个扎实的 SFT 往往就够用。作者给的行业例证是 Anthropic：2025 年之前它的后训练配方主要是「海量高质量数据做 SFT + RLAIF」，<strong>并不怎么依赖如今做代码、推理已成标配的 RLVR</strong>，可它当时的 Coding 模型质量就已经非常出色——靠的不是算法花哨，而是把数据质量做到了极致。</p>
+
+<div class="bookquote">
+数据决定你能到哪，RL 决定你还能再高多少。
+<span class="src">——《深入理解 AI Agent》第 7 章「数据与环境」</span>
+</div>
+
+<p>那「数据质量」具体指什么？作者给了三个维度：<strong>覆盖面</strong>（是否覆盖到部署时会遇到的长尾与边界情况）、<strong>多样性</strong>（示范里的说话者、风格、解法够不够丰富，否则模型会塌缩到单一模式）、<strong>标注准确性</strong>（示范答案本身对不对，尤其思维链蒸馏里，错误的思考过程会被学生一并模仿）。这三点的投入产出比，通常远高于换一个更花哨的算法。</p>
+
+<div class="pitfall">
+<p><strong>初学者最容易犯的错，是把全部注意力放在「调哪个算法」上。</strong>翻开论文看到 PPO、GRPO、DPO 一堆名字，就以为选对算法是胜负手，于是一上来就纠结超参、纠结要不要上最新的 RL 变体——却对「我的仿真环境像不像真实世界」「我的示范数据覆盖全不全」这两个真正决定成败的问题视而不见。</p>
+<p>为什么这样想会错？因为现成算法早被 veRL、TRL 封装好，调用通常只改几行配置；而环境失真会让策略「练习场管用、考场露馅」，脏数据会被 SFT 一字不差固化进参数、被 RL 越优化越偏。<strong>算法是塔尖那一小块，环境和数据才是地基。</strong>把顺序摆正：先把环境和 SFT 数据做扎实，再判断到底需不需要 RL。</p>
+</div>
+
+<div class="experiment">
+<p>本课对应的两个「花大力气搭环境」的实战，都在开源仓库里可跑：</p>
+<ul>
+<li><strong>实验 7-16</strong>（<code>chapter7/AWorld-train/</code>）：在 MCP 服务器沙盒（26 服务器 / 126 工具函数）上用 Qwen3-4B 跑通 GAIA 多工具「从实践中学习」——正因为真实 API 的速率限制、服务波动、账号封禁使直接在生产环境训练不可行，才必须先构建这个可控可重放的沙盒。</li>
+<li><strong>实验 7-15</strong>（<code>chapter7/retool/</code>）：SFT 预热 + 基于 veRL 改造的 PPO，把代码解释器沙盒整合进 RL 思考循环，对 <code>&lt;interpreter&gt;</code> 反馈 token 做损失屏蔽，AIME2024 从 25% 提升到 67%。</li>
+</ul>
+<p>仓库入口：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>仿真环境（simulation environment）</dt>
+<dd>RL 试错学习的「场地」，模型在其中反复跑任务、拿反馈、调策略。核心指标是<strong>保真度</strong>——跟真实部署场景有多像，它直接决定训出的策略能否上线。<em>避免</em>把它当成可有可无的配套，它常常比训练本身更贵、更难。</dd>
+<dt>监督微调（SFT / Supervised Fine-Tuning）</dt>
+<dd>用几千到几万条「问题—标准回答」示范对继续做「预测下一个词」、且只在回答 token 上算损失的后训练方法，把指令遵循、格式、风格、流程等协议性知识固化进参数。<em>避免</em>泛称为「微调」或等同于「训练」——它特指有标注输入-输出对、带 loss masking 的方法。</dd>
+<dt>可验证奖励强化学习（RLVR）</dt>
+<dd>奖励来自规则验证器（测试是否通过、答案是否正确）而非学习到的奖励模型的 RL；此时「奖励模型」退化成一段确定性代码。如今做代码、推理已成标配，但 Anthropic 早期恰恰<strong>不怎么依赖</strong>它也训出了顶尖模型。<em>避免</em>与 RLHF 混淆。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：为什么真实 API（搜索、打电话、浏览器）几乎不能直接拿来做 RL 训练？这跟「环境比算法重要」有什么关系？</summary>
+<div class="answer">
+<p>因为真实 API 有速率限制、会封号、有不可逆副作用，无法大规模并行、可复现地反复试错。所以必须先花大力气造一个稳定可控可重放的高保真「影子世界」（如 AWorld 的 MCP 沙盒、ReTool 的代码沙盒）——环境保真度直接决定策略能不能上线，这份工程投入往往比调算法回报高得多。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：按本章的判断，什么情况下你「甚至不需要做 RL」？作者举了谁作为例证？</summary>
+<div class="answer">
+<p>当任务分布可预期、能拿到足够多样且足够高质量的示范数据时，一个扎实的 SFT 往往就够用——RL 又贵又不稳定（常是 SFT 的几十到上百倍成本），不必一上来就上。例证是 <strong>Anthropic</strong>：2025 年之前主要靠「海量高质量数据做 SFT + RLAIF」，并不怎么依赖 RLVR，Coding 模型质量却已非常出色。一句话概括：数据决定你能到哪，RL 决定你还能再高多少。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：后训练拉开差距的从来不是算法，而是<strong>仿真环境的保真度</strong>和<strong>训练数据的质量</strong>。动手前先问两句——我的环境像不像真实世界？我的 SFT 数据覆盖全、够多样、标注准吗？把这两件事做扎实，很多场景连 RL 都不用上。真实优先级是：<strong>先验 &gt; 环境 &gt; 算法</strong>。
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课一手来源是第 7 章「数据与环境：比算法更重要的事」一节。想追到「SFT 记忆、RL 泛化」现象的原始量化证据，读 Chu 等人（2025）《SFT Memorizes, RL Generalizes》，<a href="https://arxiv.org/abs/2501.17161">arXiv:2501.17161</a>——它是本章 GeneralPoints 与 V-IRL 两组对照实验的出处。「优先级搞反了」的历史叙事，可回看姚顺雨《The Second Half》一文所记录的 OpenAI 三阶段演变（对应图7-6）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，比如让老师用「练习场 vs 考场」的比喻再把「环境失真、策略必废」讲一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0039-sft-then-rl-decision.html"><span class="dir">← 上一课</span>先形后神：什么时候该做 SFT、什么时候才轮到 RL</a>
+  <a class="next" href="0041-dense-signal-frontier.html"><span class="dir">下一课 →</span>稀疏奖励的困境与两种破局：RLVP 与 On-Policy Distillation</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

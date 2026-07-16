@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0049 · 快慢思考的三种接法：从各说各话到边想边说</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0049 课 · 进阶应用 · 多模态与实时交互 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>快慢思考的三种接法：从各说各话，到军师递纸条，到边想边说</h1>
+
+<p class="lede">这节课只押一件事：<strong>如何调和「实时响应」与「深度思考」这一对矛盾，有三种方案，而它们真正的区别是「快慢之间的协调机制由弱到强」</strong>。方案一让快慢各跑各的（会重复、会矛盾）；方案二让慢思考退到幕后当「军师」，经状态栏给快思考递建议（仍做不到边想边说）；方案三把思考直接内化进单一端到端模型（Step-Audio R1 的双脑，最优雅，但要追一个移动的靶子）。这是第 9 章「思考架构的取舍：从分离到统一」一节的骨架，也是全书少数「跨场景可迁移」的理论重点之一。</p>
+
+<h2>一、矛盾是什么：毫秒级回应 vs 秒级思考</h2>
+
+<p>作者把要解决的问题一句话点破：<strong>实时响应与深度思考之间的矛盾</strong>——用户期待毫秒级的回应，而复杂问题需要秒级的思考时间，如何在保持低延迟的同时让模型想得足够深？</p>
+
+<p>这里有个关键前提，初学者常常搞错：这个矛盾<strong>并不专属于端到端架构，级联流水线同样绕不开</strong>。也就是说，「快慢思考」是一个独立于语音架构之上的设计维度——原文说得很直白：方案一、方案二本质上是「两个独立模型并发」的快慢分工，并不依赖端到端，甚至可以套在级联流水线之上；只有方案三才把思考真正内化进端到端模型。</p>
+
+<h2>二、三种方案：协调机制由弱到强</h2>
+
+<p>作者特别强调，这三种方案<strong>不是线性的技术迭代，而是针对不同约束的设计取舍，在实践中并存</strong>。它们排列的逻辑，是「快慢之间的协调机制」由弱到强——先看这张对照图，再逐个拆。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 400" role="img" aria-label="三种快慢思考方案对比：方案一快慢各自对用户说话会冲突；方案二慢思考经状态栏单向提醒快思考；方案三单一模型内构思脑与表达脑流水线并行">
+  <!-- 列标题 -->
+  <rect class="dgm-node" x="14" y="14" width="216" height="34" rx="8"/>
+  <text class="dgm-text" x="122" y="36" font-size="13" font-weight="700" text-anchor="middle">方案一 · 并行各说各话</text>
+  <rect class="dgm-node" x="252" y="14" width="216" height="34" rx="8"/>
+  <text class="dgm-text" x="360" y="36" font-size="13" font-weight="700" text-anchor="middle">方案二 · 慢思考当军师</text>
+  <rect class="dgm-hub" x="490" y="14" width="216" height="34" rx="8"/>
+  <text class="dgm-accent-text" x="598" y="36" font-size="13" font-weight="700" text-anchor="middle">方案三 · 端到端内化</text>
+
+  <!-- ===== 列一 ===== -->
+  <rect class="dgm-node" x="34" y="70" width="176" height="42" rx="8"/>
+  <text class="dgm-text" x="122" y="90" font-size="12.5" font-weight="700" text-anchor="middle">快思考</text>
+  <text class="dgm-muted" x="122" y="106" font-size="10.5" text-anchor="middle">500ms 应付性回答</text>
+  <rect class="dgm-node" x="34" y="176" width="176" height="42" rx="8"/>
+  <text class="dgm-text" x="122" y="196" font-size="12.5" font-weight="700" text-anchor="middle">慢思考</text>
+  <text class="dgm-muted" x="122" y="212" font-size="10.5" text-anchor="middle">5–10s 深度思考</text>
+  <rect class="dgm-node" x="72" y="300" width="100" height="36" rx="8"/>
+  <text class="dgm-text" x="122" y="322" font-size="12" font-weight="700" text-anchor="middle">👤 用户</text>
+  <!-- 两条独立箭头 -->
+  <path class="dgm-edge" d="M122 112 L122 298" fill="none" stroke-width="1.5" marker-end="url(#ar)"/>
+  <path class="dgm-edge" d="M100 218 C100 260, 105 275, 112 298" fill="none" stroke-width="1.5" marker-end="url(#ar)"/>
+  <!-- 冲突叉号 -->
+  <text class="dgm-accent-text" x="152" y="262" font-size="20" font-weight="800" text-anchor="middle">✕</text>
+  <text class="dgm-muted" x="122" y="362" font-size="10.5" text-anchor="middle">无协调 → 重复 / 自相矛盾</text>
+
+  <!-- ===== 列二 ===== -->
+  <rect class="dgm-node" x="272" y="70" width="176" height="42" rx="8"/>
+  <text class="dgm-text" x="360" y="90" font-size="12.5" font-weight="700" text-anchor="middle">快思考（前台）</text>
+  <text class="dgm-muted" x="360" y="106" font-size="10.5" text-anchor="middle">维持对话在线</text>
+  <rect class="dgm-node" x="272" y="176" width="176" height="42" rx="8"/>
+  <text class="dgm-text" x="360" y="196" font-size="12.5" font-weight="700" text-anchor="middle">慢思考（后台军师）</text>
+  <text class="dgm-muted" x="360" y="212" font-size="10.5" text-anchor="middle">异步持续推理</text>
+  <rect class="dgm-node" x="310" y="300" width="100" height="36" rx="8"/>
+  <text class="dgm-text" x="360" y="322" font-size="12" font-weight="700" text-anchor="middle">👤 用户</text>
+  <!-- 慢→快 单向虚线（状态栏） -->
+  <path class="dgm-edge" d="M360 176 L360 114" fill="none" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="360" y="150" font-size="10" text-anchor="middle">状态栏建议</text>
+  <text class="dgm-muted" x="360" y="163" font-size="10" text-anchor="middle">（一条细文本通道）</text>
+  <!-- 只有快对用户说话 -->
+  <path class="dgm-edge" d="M360 218 C420 250, 420 275, 400 298" fill="none" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="360" y="362" font-size="10.5" text-anchor="middle">先想再说 → 仍不能边想边说</text>
+
+  <!-- ===== 列三 ===== -->
+  <rect class="dgm-hub" x="504" y="66" width="188" height="156" rx="10"/>
+  <text class="dgm-accent-text" x="598" y="86" font-size="11.5" font-weight="700" text-anchor="middle">端到端单模型</text>
+  <rect class="dgm-node" x="524" y="98" width="148" height="42" rx="7"/>
+  <text class="dgm-text" x="598" y="116" font-size="11.5" font-weight="700" text-anchor="middle">构思脑</text>
+  <text class="dgm-muted" x="598" y="131" font-size="10" text-anchor="middle">持续思考·产出分段</text>
+  <rect class="dgm-good-node" x="524" y="162" width="148" height="42" rx="7"/>
+  <text class="dgm-text" x="598" y="180" font-size="11.5" font-weight="700" text-anchor="middle">表达脑</text>
+  <text class="dgm-muted" x="598" y="195" font-size="10" text-anchor="middle">每收一段即转语音</text>
+  <path class="dgm-edge" d="M598 140 L598 160" fill="none" stroke-width="1.5" marker-end="url(#ar)"/>
+  <rect class="dgm-node" x="548" y="300" width="100" height="36" rx="8"/>
+  <text class="dgm-text" x="598" y="322" font-size="12" font-weight="700" text-anchor="middle">👤 用户</text>
+  <path class="dgm-edge" d="M598 204 L598 298" fill="none" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="598" y="362" font-size="10.5" text-anchor="middle">边想边说 → 但追移动靶子</text>
+
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>三方案对照（对应图9-5「快/慢思考架构与方案对比」的思路）：从左到右，快慢之间的通道从「没有」，到「一条单向文本状态栏」，到「合进同一个模型」。协调越紧，越接近人类那样的「边想边说」，但代价也越大。</figcaption>
+</figure>
+
+<h3>方案一：快思考应付，慢思考回答</h3>
+
+<p>快慢思考<strong>并行执行</strong>：快思考在 500ms 内给一句简短的应付性回答（像人先说「让我想想」），慢思考在后台花 5–10 秒做深度思考后给完整回答（用的是「推理时计算扩展 / test-time scaling」——让模型多想一会儿、多花计算步骤换质量）。</p>
+
+<p>它有两个致命毛病，根子是同一个：<strong>快慢被拆成两个独立的思考过程，而非一个连贯的认知活动，之间没有协调机制</strong>。</p>
+<ul>
+<li><strong>简单问题过度思考</strong>：用户问「今天星期几」，快思考已在 500ms 内答对「星期三」，慢思考仍跑满 10 秒后又重复一遍——不只是浪费算力，更破坏对话节奏，用户都准备聊下一个话题了却被打断。</li>
+<li><strong>快慢不一致</strong>：两者看同样的上下文，思考路径却可能完全不同。快思考基于某假设给了初步答案，慢思考却发现假设不成立、得出相反结论。用户几秒内先后听到自相矛盾的回答，信任感瞬间崩塌（书里那个「套餐建议买 / 又说不合适」的对话就是活例）。</li>
+</ul>
+
+<h3>方案二：快思考交互，慢思考提醒</h3>
+
+<p>方案二让慢思考<strong>能看到快思考的输出</strong>，并通过 <strong>Agent 状态栏</strong>（第二章的动态元信息注入机制）向快思考<strong>提建议</strong>，而不是直接对用户说话。相比方案一进了两步：慢思考在后台异步跑、利用说话间隙持续思考；因为看得到快思考的输出，不会正面冲突，而是退到幕后当「军师」。GPT-Live 的「委派」、Pine AI 语音 Agent 都是它在生产中的实例——后台推理模型把结论经一条精简文本通道回传前台，由前台决定何时、以什么措辞说给用户。</p>
+
+<p>但它仍有本质局限，作者点了三条：</p>
+<ul>
+<li><strong>快思考可能不听指挥</strong>：两个独立思考实例之间的沟通间接又模糊。快思考收到状态栏后可能理解偏了——把「价格需要重新确认」听成「问用户能否接受这个价格」，而非「价格算错了要重新算」。</li>
+<li><strong>看不到中间思考结果</strong>：慢思考 10 秒里已产生大量有价值的中间结论，快思考完全看不到，只能干等最终那一条状态栏。「就像两个人合作解题，却只能靠递纸条交流，看不到对方的草稿纸。」</li>
+<li><strong>根本上无法「边想边说」</strong>：人面对难题是想一段说一段，方案二里的快思考只能说些填充词干等慢思考出结果，没法把思考过程自然地穿插进对话。</li>
+</ul>
+
+<h3>方案三：端到端思考与表达统一（Step-Audio R1）</h3>
+
+<p>方案二解决了「等待」，但架构上依然是「先想再说」——思考和表达仍是两个分离的过程。要突破，就得把思考能力<strong>直接内化进模型</strong>。Step-Audio R1 由两个互补机制组成，分别回答两个不同的问题，且<strong>前者是后者的前提</strong>：</p>
+<ul>
+<li><strong>MGRD（模态锚定思考蒸馏）先解决「想得对不对」</strong>：现有音频模型有个反直觉现象——思考链越长，性能反而越差。根因是「文本代理思考」：模型「思考」时其实是在基于文本转录做语义分析，而非真正分析声学特征（判断歌曲情绪时它看的是「歌词提到悲伤」，而不是「小调旋律加下行音高轮廓」）。MGRD 通过迭代自我改进，筛出真正「在听声音」的思考过程（提到「语速快 40%、音量升高、声调变尖」这类声学参数的），用它们重训，让模型学会「用耳朵思考」。</li>
+<li><strong>MPS 双脑架构再解决「说得及不及时」</strong>：灵感来自人脑分工——负责思考和负责组织语言的区域分开、可并行。<strong>构思脑（Formulation Brain）</strong>持续思考、产出一段段结果；<strong>表达脑（Articulation Brain）</strong>每收到一段就结合上文转成语音。二者流水线并行，构思脑还没想完，表达脑就已开口。</li>
+</ul>
+
+<p>MPS 的时间线是这节课最该记住的一张图：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 680 250" role="img" aria-label="MPS 双脑时间线：构思脑 t=0 开始思考、t=200ms 产出第一段思考结果；表达脑 t=200ms 收到、t=350ms 开始输出语音，用户在 350ms 听到第一个音节">
+  <!-- 时间轴 -->
+  <line class="dgm-edge" x1="60" y1="210" x2="640" y2="210" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <text class="dgm-muted" x="640" y="230" font-size="11" text-anchor="end">时间</text>
+  <!-- 刻度 -->
+  <line class="dgm-edge" x1="90" y1="205" x2="90" y2="215" stroke-width="1"/>
+  <text class="dgm-muted" x="90" y="230" font-size="10.5" text-anchor="middle">t=0</text>
+  <line class="dgm-edge" x1="300" y1="205" x2="300" y2="215" stroke-width="1"/>
+  <text class="dgm-muted" x="300" y="230" font-size="10.5" text-anchor="middle">200ms</text>
+  <line class="dgm-edge" x1="440" y1="205" x2="440" y2="215" stroke-width="1"/>
+  <text class="dgm-accent-text" x="440" y="230" font-size="10.5" font-weight="700" text-anchor="middle">350ms</text>
+
+  <!-- 构思脑泳道 -->
+  <text class="dgm-muted" x="60" y="66" font-size="11" text-anchor="start">构思脑</text>
+  <rect class="dgm-node" x="90" y="72" width="210" height="34" rx="6"/>
+  <text class="dgm-text" x="195" y="93" font-size="11" text-anchor="middle">思考第 1 段</text>
+  <rect class="dgm-node" x="300" y="72" width="200" height="34" rx="6"/>
+  <text class="dgm-muted" x="400" y="93" font-size="11" text-anchor="middle">继续思考第 2 段…</text>
+  <!-- 200ms 产出第一段：向下传给表达脑 -->
+  <path class="dgm-edge" d="M300 106 L300 138" fill="none" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <text class="dgm-muted" x="312" y="126" font-size="9.5" text-anchor="start">交付第 1 段</text>
+
+  <!-- 表达脑泳道 -->
+  <text class="dgm-muted" x="60" y="158" font-size="11" text-anchor="start">表达脑</text>
+  <rect class="dgm-good-node" x="440" y="142" width="150" height="34" rx="6"/>
+  <text class="dgm-text" x="515" y="163" font-size="11" text-anchor="middle">输出语音 token</text>
+  <!-- 200→350 的准备间隙 -->
+  <path class="dgm-edge" d="M300 159 L436 159" fill="none" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#ar2)"/>
+  <text class="dgm-muted" x="368" y="152" font-size="9.5" text-anchor="middle">结合已有回复</text>
+
+  <!-- 用户听到 -->
+  <line class="dgm-accent" x1="440" y1="30" x2="440" y2="205" stroke-width="1.2" stroke-dasharray="3 3"/>
+  <text class="dgm-accent-text" x="450" y="44" font-size="11" font-weight="700" text-anchor="start">👂 用户在 350ms 听到第一个音节</text>
+
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>MPS 双脑流水线（对应图9-6）：构思脑 t=0 开始想、200ms 产出第一段思考结果；表达脑 200ms 收到、结合已生成回复，350ms 就开始吐语音。两模块像接力一样重叠运行，用户 350ms 就听到声音，而不必等整段思考跑完。</figcaption>
+</figure>
+
+<div class="bookquote">
+只有思考本身扎根于声音，边想边说才真正有价值。
+<span class="src">——《深入理解 AI Agent》第 9 章「思考架构的取舍」</span>
+</div>
+
+<h2>三、为什么前沿产品大多没选「最优雅」的方案三</h2>
+
+<p>方案三把思考内化进单一模型，最优雅地实现了「边想边说」——那为什么 GPT-Live、Grok Voice「Think Fast」、Pine AI 这些前沿产品，反而大多押注方案二的「解耦」路线？这是这节课最该想透的「为什么」。</p>
+
+<p>作者给的务实理由是一个「<strong>移动的靶子</strong>」：前沿推理模型每隔几个月就迭代一次，而实时交互能力需要专门的数据和训练目标。把两者塞进同一个模型（方案三），等于让它去追一个不断移动的靶子，还可能<strong>稀释掉最宝贵的推理能力</strong>；模型既要当最强推理者、又要当实时说话者，两种能力都在快速演进，统一路线就得反复重训才跟得上。反过来，解耦（方案二）能把最强推理模型<strong>原封不动</strong>放后台、只训练一个轻量交互模型在前台——于是随时能换用当下最强的「大脑」，这正是 GPT-Live 强调「可持续换用最新前沿模型」的原因。到 2026 年，这条路已成主流，Thinking Machines Lab 给它起了名字叫「交互模型（Interaction Models）」。</p>
+
+<p>所以三者的关系不是谁取代谁，而是一组取舍：<strong>方案三换来「更紧的边想边说」和极致自然度，代价是专门的训练成本；方案二换来「可随时更换的大脑」，代价是那条细文本通道的信息损失。</strong></p>
+
+<div class="pitfall">
+<p><strong>这一节最密集的误区区，逐条拆：</strong></p>
+<p>① <strong>别把三方案当「新旧替代」。</strong> 它们是针对不同约束并存的取舍，不是线性迭代——「最优雅」不等于「该选它」。</p>
+<p>② <strong>方案一/二不依赖端到端。</strong> 它们本质是「两个独立模型并发」的快慢分工，甚至可以套在级联流水线之上；只有方案三才把思考真正内化进单一端到端模型。把「快慢思考」误当成「端到端模型专属」是常见错误。</p>
+<p>③ <strong>MGRD ≠ MPS。</strong> MGRD 解决「想得对不对」（让思考扎根声学特征），MPS 双脑解决「说得及不及时」（思考/表达并行）。它们常被当成一回事，其实是两个正交的问题，且 MGRD 是 MPS 的前提。</p>
+<p>④ <strong>「双脑」也不止一种。</strong> MPS 的构思脑/表达脑拆的是「想 / 说」；本章后面机器人的「双层架构」拆的是「谋划全局 / 实时执行」——两种「双 X 架构」切分的维度并不相同，别混。</p>
+</div>
+
+<h2>四、附带的一根伏笔：接口能不能不用文字</h2>
+
+<p>回头看方案二会发现一个被忽略的维度：慢思考给快思考「递话」用的是<strong>文本</strong>通道（状态栏里一句建议）。文本好懂好调试，却是慢思考脑子里那点东西的「一根细吸管」——真正丰富的中间状态被压成了几句话。那么这条接口能不能不用文字？作者在实时游戏场景里给了一个走得通的答案，叫<strong>潜空间桥（Latent Bridge）</strong>：把快、慢两个模型都冻结不动，只训一座几千万参数的小「桥」，把慢模型的隐层结论直接投影成几个「潜 token」拼进快模型输入，绕开「想法→文字→再理解」的往返。在多个 Atari 游戏上，它比文本通道又高一截（部分游戏 +26% 到 +82%），每步只多花约 5 毫秒。</p>
+
+<p>但它同时给了一条<strong>诚实的边界</strong>：快慢协作到底有没有用，取决于任务瓶颈在「想不想得到」还是「来不来得及反应」——只有当慢思考本就比快反应强时，这座桥才帮得上忙（相关性跨游戏高达 r≈0.9）；纯拼反应速度的任务，再好的桥也无济于事。这也预告了后面 Computer Use 的同一个问题：什么时候值得请一个「慢军师」，什么时候那只是徒增延迟。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：三种快慢方案的排列逻辑是「协调机制由弱到强」——各说各话（无协调，会重复/矛盾）→ 慢当军师经状态栏单向提醒（先想再说，仍不能边想边说）→ 端到端内化的双脑并行（真边想边说，但追移动靶子）。「最优雅」的方案三不等于「该选它」：前沿产品大多选方案二，是为了随时换用当下最强的大脑。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>文本代理思考（Textual Surrogate Reasoning）</dt>
+<dd>音频模型「思考」时实际基于文本转录做语义分析、而非真正分析声学特征的捷径现象，会导致思考链越长性能反而越差。<em>注意</em>：这不是说思维链本身有问题，而是思考根基错位到了文本而非声音。</dd>
+<dt>模态锚定思考蒸馏（MGRD, Modality-Grounded Reasoning Distillation）</dt>
+<dd>Step-Audio R1 的机制：筛选出真正基于声学特征（如语速、音高轮廓）而非歌词/文字的思考过程来迭代训练，让模型「用耳朵思考」。<em>注意</em>：解决「想得对不对」，与 MPS 双脑解决的「说得及不及时」是两回事。</dd>
+<dt>MPS 双脑架构（Mind-Paced Speaking，跟随思维节奏说话）</dt>
+<dd>Step-Audio R1 用构思脑（持续思考、产出分段结果）与表达脑（每收到一段就转成语音）两个模型并行，实现低延迟的「边想边说」。<em>注意</em>：这是「思考 / 表达」的解耦，不同于机器人双层架构「谋划 / 执行」的解耦。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：GPT-Live、Grok Voice、Pine AI 这些前沿产品大多押注方案二的「解耦」而非方案三的「统一模型」，务实理由是什么？</summary>
+<div class="answer">
+<p>因为前沿推理模型每隔几个月就迭代，而实时交互能力需专门数据和训练目标；塞进同一模型等于追一个不断移动的靶子，还可能稀释宝贵的推理能力。解耦后把最强推理模型原封不动放后台、只训练轻量交互模型在前台，就能随时换用当下最强的「大脑」。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：Step-Audio R1 的 MGRD 与 MPS 双脑各自解决什么问题？为什么说「前者是后者的前提」？</summary>
+<div class="answer">
+<p>MGRD（模态锚定思考蒸馏）解决「<strong>想得对不对</strong>」——让模型真正基于声学特征而非文本转录来思考，修掉「文本代理思考」这个越想越差的毛病。MPS 双脑解决「<strong>说得及不及时</strong>」——让构思脑与表达脑并行、实现低延迟的边想边说。前者是后者的前提，是因为：只有思考本身扎根于声音，「边想边说」才真正有价值；否则边想边说的只是一堆基于文本转录的错位分析，说得再快也没意义。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套代码是<strong>实验 9-1</strong>（对应仓库 <code>chapter9/live-audio/</code>）：一套完整的实时语音对话系统（前端 Next.js 捕获麦克风 + 后端 Node.js WebSocket），后端跑 Silero VAD 检测约 500ms 静音后切分音频，ASR/LLM/TTS 三级均可切换多家提供商，并做实时延迟监控。它演示的是<strong>级联流水线</strong>的串行数据流——正好是本节三种快慢方案可以「套上去」的那条底座（方案一、二本就不依赖端到端）。想直接体验方案三的「边想边说」，可参考正文里的<strong>实验 9-3</strong>（用 Step-Audio R1 对比 TBS / MPS 各配置）。仓库入口：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本节「级联 / 轮次式 / 全双工」三分法与快慢解耦的产业观察，一手来源是 OpenAI 的 <a href="https://openai.com/index/introducing-gpt-live/">Introducing GPT-Live（2026-07-08）</a>。想深挖两条延伸主线：Thinking Machines Lab 的 <a href="https://thinkingmachines.ai/blog/interaction-models/">Interaction Models</a>（把「快慢解耦」正式命名为交互模型），以及作者团队关于潜空间桥的论文 <em>The Latent Bridge: A Continuous Slow-Fast Channel for Real-Time Game Agents</em>（arXiv:2606.24470）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「协调机制由弱到强」这条主线各方案的取舍再过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0048-escaping-vad-three-paradigms.html"><span class="dir">← 上一课</span>一条主线看懂三种语音范式：如何摆脱 VAD 的轮次假设</a>
+  <a class="next" href="0050-computer-use-grounding.html"><span class="dir">下一课 →</span>Computer Use 怎么找到按钮：视觉定位三条路线</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

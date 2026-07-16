@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0007 · 拆掉一根柱子，Agent 会怎样倒下：上下文消融实验</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0007 课 · 基础 · 概念地图 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>拆掉一根柱子，Agent 会怎样倒下：上下文消融实验</h1>
+
+<p class="lede">上一课我们把「眼睛（上下文）= 模型能感知到的一切」记进了肌肉记忆。这一课要把这只眼睛<strong>拆开看</strong>：上下文其实由<strong>五个部件</strong>拼成，还分「静态前缀」和「动态轨迹」两层。而验证这五个部件是否真的缺一不可，书里用了一个极干净的办法——<strong>消融实验（Ablation Study）</strong>：逐一拆掉一个部件，看 Agent 怎么坏。这节课出自第 1 章「上下文：Agent 的眼睛」一节和紧随其后的<strong>实验 1.1</strong>。</p>
+
+<h2>一、上下文不是「一段文本」，而是五个部件</h2>
+
+<p>初学者最容易把上下文想成「用户发过来的那段话」。书里从 API 视角把它拆得很明确：每次调用 LLM 时的上下文，<strong>由五个部分构成</strong>。</p>
+
+<ul>
+<li><strong>系统提示词（System Prompt）</strong>：开发者写的、整段对话里保持不变的「岗位说明书」——定义 Agent 的身份、权限和行为准则，还会装进跨会话的用户记忆和动态环境状态。</li>
+<li><strong>工具定义（Tool Definitions）</strong>：声明可用工具的名称、功能描述和参数格式。<strong>没有它，Agent 就无法识别和调用任何工具</strong>。</li>
+<li><strong>用户消息（User Messages）</strong>：来自用户的输入，可能还夹带 RAG 检索进来的外部知识。</li>
+<li><strong>模型回复（Assistant Messages）</strong>：模型之前生成的回复，最多含三块——思考过程（reasoning，内部思考链）、文本内容（content，对用户的回复）、工具调用请求（tool_calls）。三者不一定同时出现。</li>
+<li><strong>工具执行结果（Tool Results）</strong>：框架执行工具后返回的结果，是 Agent 下一步思考的<strong>直接依据</strong>。</li>
+</ul>
+
+<p>这五块不是平级散放的，它们被劈成两层：<strong>前两项（系统提示词 + 工具定义）是「静态前缀」</strong>，每次调用都被自动拼在最前面、整段对话保持不变；<strong>后三项（用户消息 + 模型回复 + 工具执行结果）是随交互不断增长的「动态消息历史」</strong>，也就是下一课要展开的<strong>轨迹（trajectory）</strong>。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 680 320" role="img" aria-label="上下文分层堆叠图：上方三层是动态轨迹（用户消息、模型回复、工具执行结果），下方两层是静态前缀（工具定义、系统提示词）">
+  <!-- dynamic trajectory group -->
+  <rect class="dgm-node" x="180" y="20" width="430" height="42" rx="6"/>
+  <text class="dgm-text" x="200" y="46" font-size="13" font-weight="700">用户消息</text>
+  <text class="dgm-muted" x="600" y="46" font-size="11" text-anchor="end">User Messages（含 RAG 外部知识）</text>
+
+  <rect class="dgm-node" x="180" y="70" width="430" height="42" rx="6"/>
+  <text class="dgm-text" x="200" y="96" font-size="13" font-weight="700">模型回复</text>
+  <text class="dgm-muted" x="600" y="96" font-size="11" text-anchor="end">reasoning + content + tool_calls</text>
+
+  <rect class="dgm-node" x="180" y="120" width="430" height="42" rx="6"/>
+  <text class="dgm-text" x="200" y="146" font-size="13" font-weight="700">工具执行结果</text>
+  <text class="dgm-muted" x="600" y="146" font-size="11" text-anchor="end">Tool Results · 下一步思考的直接依据</text>
+
+  <!-- static prefix group -->
+  <rect class="dgm-hub" x="180" y="192" width="430" height="42" rx="6"/>
+  <text class="dgm-accent-text" x="200" y="218" font-size="13" font-weight="700">工具定义</text>
+  <text class="dgm-muted" x="600" y="218" font-size="11" text-anchor="end">Tool Definitions · 没它就动不了手</text>
+
+  <rect class="dgm-hub" x="180" y="242" width="430" height="42" rx="6"/>
+  <text class="dgm-accent-text" x="200" y="268" font-size="13" font-weight="700">系统提示词</text>
+  <text class="dgm-muted" x="600" y="268" font-size="11" text-anchor="end">System Prompt · 岗位说明书</text>
+
+  <!-- group brackets -->
+  <path class="dgm-edge" d="M168 20 L156 20 L156 162 L168 162" fill="none" stroke-width="1.5"/>
+  <text class="dgm-muted" x="150" y="95" font-size="12" text-anchor="middle" transform="rotate(-90 150 95)">动态轨迹（会增长）</text>
+
+  <path class="dgm-edge" d="M168 192 L156 192 L156 284 L168 284" fill="none" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="150" y="238" font-size="12" text-anchor="middle" transform="rotate(-90 150 238)">静态前缀（不变）</text>
+
+  <text class="dgm-muted" x="395" y="304" font-size="11.5" text-anchor="middle">↑ 每次调用 LLM，静态前缀自动拼在最前，轨迹随交互往上叠 ↑</text>
+</svg>
+</div>
+<figcaption>上下文 = 静态前缀（系统提示词 + 工具定义）+ 动态轨迹（用户消息 + 模型回复 + 工具执行结果）。前两层对话中不变，后三层随每一步不断累积。</figcaption>
+</figure>
+
+<h2>二、怎么证明每个部件都不可少：消融实验</h2>
+
+<p>凭直觉说「每一块都重要」是不够的。书里用了一个从科研里借来的干净办法——<strong>消融实验</strong>：就像医生诊断时逐一排除病因，先去掉 A 看系统还正不正常，再去掉 B，以此类推，从而判断<strong>每个组件到底贡献了什么</strong>。注意它不是性能跑分，重点是「去掉一个看还转不转」的对照排除。</p>
+
+<p><strong>实验 1.1</strong> 就是照这个思路做的。它从五个部件里挑了<strong>四个</strong>来消融——<strong>系统提示词不参与</strong>。为什么？书里说得很直接：没有系统提示词，Agent 连基本的角色认知都没有，测试根本没有意义。所以实验设计成<strong>五组对照</strong>：一组保留全部组件的完整基线，外加四组各缺一个组件（工具定义 / 工具执行结果 / 思考过程 / 历史消息）。</p>
+
+<div class="bookquote">
+上下文决定了 Agent 能看到什么，而 Agent 只能基于它看到的信息做决策。
+<span class="src">——《深入理解 AI Agent》第 1 章 · 实验 1.1 的核心洞察</span>
+</div>
+
+<p>这句话是理解整个实验的钥匙：Agent 不是「知道」世界，它只是「看到」上下文里有的东西。拆掉哪一块，就等于蒙住它某一部分视野——蒙住的方式不同，崩坏的方式也就不同。（对应<strong>图 1-2</strong>：一组全组件基线 + 四组各缺一个组件的对照。）</p>
+
+<h2>三、拆掉一个部件，Agent 有四种崩法</h2>
+
+<p>实验结果最值钱的地方，在于四个部件被拆掉后，Agent 表现出<strong>四种完全不同的故障</strong>。记住这张对照，你以后排查 Agent 故障时，能反过来倒推「是哪一块上下文丢了」。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 680 300" role="img" aria-label="消融结果对照：去掉工具定义导致无法行动；去掉工具执行结果导致无限循环；去掉思考过程导致自相矛盾；去掉历史消息导致失忆重来">
+  <defs>
+    <marker id="ar7" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+
+  <!-- row 1 -->
+  <rect class="dgm-node" x="24" y="20" width="210" height="46" rx="7"/>
+  <text class="dgm-text" x="129" y="48" font-size="13" font-weight="700" text-anchor="middle">去掉 工具定义</text>
+  <line class="dgm-edge" x1="238" y1="43" x2="356" y2="43" stroke-width="1.5" marker-end="url(#ar7)"/>
+  <rect class="dgm-accent-node" x="360" y="20" width="296" height="46" rx="7"/>
+  <text class="dgm-accent-text" x="374" y="41" font-size="12.5" font-weight="700">无法行动</text>
+  <text class="dgm-muted" x="374" y="58" font-size="11">识别不出任何工具，完全丧失行动能力</text>
+
+  <!-- row 2 -->
+  <rect class="dgm-node" x="24" y="82" width="210" height="46" rx="7"/>
+  <text class="dgm-text" x="129" y="110" font-size="13" font-weight="700" text-anchor="middle">去掉 工具执行结果</text>
+  <line class="dgm-edge" x1="238" y1="105" x2="356" y2="105" stroke-width="1.5" marker-end="url(#ar7)"/>
+  <rect class="dgm-accent-node" x="360" y="82" width="296" height="46" rx="7"/>
+  <text class="dgm-accent-text" x="374" y="103" font-size="12.5" font-weight="700">无限循环</text>
+  <text class="dgm-muted" x="374" y="120" font-size="11">看不到反馈，盲目反复调同一个工具</text>
+
+  <!-- row 3 -->
+  <rect class="dgm-node" x="24" y="144" width="210" height="46" rx="7"/>
+  <text class="dgm-text" x="129" y="172" font-size="13" font-weight="700" text-anchor="middle">去掉 思考过程</text>
+  <line class="dgm-edge" x1="238" y1="167" x2="356" y2="167" stroke-width="1.5" marker-end="url(#ar7)"/>
+  <rect class="dgm-accent-node" x="360" y="144" width="296" height="46" rx="7"/>
+  <text class="dgm-accent-text" x="374" y="165" font-size="12.5" font-weight="700">自相矛盾</text>
+  <text class="dgm-muted" x="374" y="182" font-size="11">丢了决策原因，前后决策互相打架</text>
+
+  <!-- row 4 -->
+  <rect class="dgm-node" x="24" y="206" width="210" height="46" rx="7"/>
+  <text class="dgm-text" x="129" y="234" font-size="13" font-weight="700" text-anchor="middle">去掉 历史消息</text>
+  <line class="dgm-edge" x1="238" y1="229" x2="356" y2="229" stroke-width="1.5" marker-end="url(#ar7)"/>
+  <rect class="dgm-accent-node" x="360" y="206" width="296" height="46" rx="7"/>
+  <text class="dgm-accent-text" x="374" y="227" font-size="12.5" font-weight="700">失忆重来</text>
+  <text class="dgm-muted" x="374" y="244" font-size="11">从头重跑任务，重复已做过的步骤</text>
+
+  <text class="dgm-muted" x="340" y="278" font-size="11.5" text-anchor="middle">四个部件，四种截然不同的坏法——故障形态就是它缺了哪一块的指纹</text>
+</svg>
+</div>
+<figcaption>实验 1.1 的四种退化模式。工具定义撑起「能不能动」，工具结果撑起「闭环反馈」，思考过程撑起「决策连贯」，历史消息撑起「跨轮记忆」——各司其职，缺谁坏谁那一路。</figcaption>
+</figure>
+
+<p>逐条说清「为什么是这种坏法」：</p>
+<ul>
+<li><strong>工具定义</strong>是行动能力的地基。它本就在「静态前缀」里——静态前缀写的就是「Agent 有哪些手脚可用」，抽掉它，模型压根不知道有工具存在，自然识别不出、也调不动。</li>
+<li><strong>工具执行结果</strong>是<strong>闭环控制</strong>的关键。缺了它，Agent 看不到上一步反馈，等于闭着眼做事，于是盲目地把同一个工具一遍遍地调，陷入无限循环。</li>
+<li><strong>思考过程（reasoning）</strong>保留了「Agent 当初为什么这么决定」的理由。剥掉它，前后两步之间没了连贯的思路，决策就开始自相矛盾。</li>
+<li><strong>历史消息</strong>防止冗余。没有它 Agent 等于失忆，每一步都像第一步，于是从头把整个任务重跑一遍，重复执行已经做完的步骤。</li>
+</ul>
+
+<div class="pitfall">
+<p>把「上下文」窄化成「用户输入的那段文本」，是这一课最想帮你纠正的误区。上下文其实是<strong>五个部件</strong>（系统提示词 / 工具定义 / 用户消息 / 模型回复 / 工具执行结果），还分<strong>静态前缀</strong>（不变的前两项）和<strong>动态轨迹</strong>（增长的后三项）两层。</p>
+<p>为什么这个误区代价大？因为一旦你只盯着「用户消息」，就会漏掉两件最要命的事：<strong>工具定义</strong>也在上下文里（漏了它，Agent 直接失去手脚），<strong>工具执行结果</strong>也在上下文里（漏了它，Agent 会陷入死循环）。这两块恰恰不是「用户输入的文本」，却决定了 Agent 到底能不能可靠地干活。</p>
+</div>
+
+<h2>四、为什么这件事值得单开一课</h2>
+
+<p>因为它把上一课那句「上下文 = 模型能感知到的一切」从口号<strong>落成了可验证的清单</strong>。你不再需要靠感觉判断「上下文够不够」，而是有五个具体格子可以逐一检查：系统提示词写清身份了吗？工具定义齐全吗？工具结果回喂了吗？思考过程保留了吗？历史消息留着吗？这正是全书从「感觉驱动」走向「原则驱动」的一小步。</p>
+
+<p>更重要的是，这五个部件不是本课的终点，而是后面几章的<strong>坐标原点</strong>：静态前缀 + 轨迹的划分，直接接上下一课的 ReAct 循环与轨迹累积；「上下文决定 Agent 能看到什么」这句洞察，是第二章「上下文工程」整章的立论根基。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：上下文不是一段文本，是<strong>五个部件、两层结构</strong>（静态前缀 + 动态轨迹）。消融实验证明它们缺一不可，而且<strong>缺谁、就以哪种方式崩</strong>——去工具定义→动不了，去工具结果→死循环，去思考过程→自相矛盾，去历史消息→失忆重来。以后排查 Agent 故障，先反问：是哪一块上下文丢了？
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>静态前缀（static prefix）</dt>
+<dd>每次 LLM 调用都自动拼接在轨迹前、且对话中保持不变的部分，即<strong>系统提示词 + 工具定义</strong>。<em>避免</em>把用户消息或工具结果算进静态前缀，它们属于动态轨迹。</dd>
+<dt>轨迹（trajectory）</dt>
+<dd>Agent 执行任务过程中不断积累的消息历史——用户消息、模型回复（思考过程 + 工具调用）、工具执行结果；对应上下文的动态部分。<em>避免</em>与「上下文」整体混用；上下文 = 静态前缀 + 轨迹，轨迹只是其中动态增长的那部分。</dd>
+<dt>消融实验（Ablation Study）</dt>
+<dd>逐一移除系统某个组件、观察系统是否退化，从而判断每个组件贡献的实验方法。<em>避免</em>把它当成性能基准测试（benchmark），它的重点是「去掉 A 看还正不正常」的对照排除。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：消融实验中，去掉「工具执行结果」和去掉「历史消息」分别导致什么典型故障？为什么不同？</summary>
+<div class="answer">
+<p>去工具结果 → 看不到上一步反馈，Agent 盲目执行、反复调用同一个工具陷入无限循环；去历史消息 → Agent 失忆，从头重跑整个任务、重复已完成步骤。前者是<strong>缺当前反馈导致的闭环断裂</strong>，后者是<strong>缺跨轮记忆导致的冗余重复</strong>——一个断在「看不到刚做的一步」，一个断在「记不住做过的所有步」。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：实验 1.1 从五个上下文部件里只消融了四个，唯独不拆「系统提示词」。为什么把它排除在外？</summary>
+<div class="answer">
+<p>因为系统提示词是 Agent 的<strong>基本身份定义</strong>。书里说得很直接：没有系统提示词，Agent 连基本的角色认知都没有，测试没有意义——它会退化到根本不知道自己该干什么，得到的不是「某个组件缺失时的退化表现」，而是「压根没法开始」，无法作为有效对照。所以实验保留系统提示词，只在其余四个部件上做「缺一个」的对照。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>这一课对应的就是<strong>实验 1.1 ★★（上下文消融）</strong>，代码在开源仓库 <code>chapter1/context/</code>。它搭了一个带多种工具（PDF 解析 / 货币转换 / 计算器 / Python 代码解释器）的 Agent，提供五种上下文模式（<code>full</code> / <code>no_history</code> / <code>no_reasoning</code> / <code>no_tool_calls</code> / <code>no_tool_results</code>）和批量消融测试，输出成功率、耗时、迭代次数、工具调用数的对照与可视化——让你<strong>亲眼</strong>看到每拆掉一个部件，Agent 各自怎么崩。仓库地址：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是书的第 1 章「上下文：Agent 的眼睛」一节与紧接其后的<strong>实验 1.1</strong>（<code>book/chapter1.md</code>），建议连着读完这两段，把五个部件和四种崩法对着<strong>图 1-2</strong> 过一遍。配套代码在开源仓库 <code>chapter1/context/</code>：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「静态前缀 vs 动态轨迹」这条分界再走一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0006-agent-equals-brain-eyes-hands.html"><span class="dir">← 上一课</span>一个公式看懂 Agent：大脑+眼睛+手脚</a>
+  <a class="next" href="0008-react-loop-trajectory.html"><span class="dir">下一课 →</span>想→做→看：ReAct 循环与轨迹如何累积</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

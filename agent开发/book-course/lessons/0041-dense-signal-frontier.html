@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0041 · 被浪费的反馈：稀疏奖励的困境，与两条破局路</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0041 课 · 支柱三(模型) · 模型后训练 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>被浪费的反馈：稀疏奖励的困境，与两条把它救回来的前沿路</h1>
+
+<p class="lede">这节课只押一件事：<strong>当前 RL 样本效率低，根子在于它只从最终的成败结果里学，却把环境每一步给出的丰富反馈全浪费了</strong>。把这条困境讲透，你就能看懂本章第 7.10 与 7.12 节两条前沿思路——<strong>RLVP（验证路径惩罚）</strong>和 <strong>On-Policy Distillation（在轨蒸馏）</strong>——为什么它们本质上是同一件事：把被纯结果奖励扔掉的信息，重新变回模型能学的信号。这两条路，正是全章收尾时点名"最有希望的两个方向"。</p>
+
+<h2>一、是什么：稀疏奖励的困境</h2>
+
+<p>先看一个书里反复用到的场景——Pine AI 打电话帮用户改套餐。用二元奖励（成功 = 1，失败 = 0）训练：第一次忘收集账号，reward = 0；第二次忘信用卡后四位，reward = 0；第三次遗漏账单地址，reward = 0……<strong>经过 100 次尝试才偶然成功一次</strong>。</p>
+
+<p>问题的根源，书里引用 Silver 与 Sutton《Welcome to the Era of Experience》说得很直白：<strong>当前 RL 方法只能从最终的成败结果中学习，却无法从环境给出的丰富反馈中学习</strong>。客服明明说了"需要信用卡后四位"，人类听一次就记住了；但 RL 只看到最终结果"失败"，根本不知道为什么失败。更糟的是——10 步流程里，即使前 9 步完美、只有第 9 步出错，它拿到的信号也只是"整个任务失败了"，无从得知到底哪一步坏了事。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="左侧稀疏奖励困境:一条10步轨迹走到头只拿到一个成败标量、打电话100次才偶然成功;右侧两条破局箭头:RLVP用R=O+βΦ把组内方差从0变正,On-Policy Distillation用在轨轨迹加教师逐token分布把达标步数压到纯RL的约十分之一">
+  <!-- 左栏标题 -->
+  <text class="dgm-text" x="20" y="28" font-size="14" font-weight="700">稀疏奖励困境</text>
+  <text class="dgm-muted" x="20" y="46" font-size="11">10 步只回一个成败标量</text>
+
+  <!-- 轨迹 10 步 -->
+  <g>
+    <rect class="dgm-node" x="18" y="66" width="26" height="26" rx="5"/>
+    <rect class="dgm-node" x="48" y="66" width="26" height="26" rx="5"/>
+    <rect class="dgm-node" x="78" y="66" width="26" height="26" rx="5"/>
+    <rect class="dgm-node" x="108" y="66" width="26" height="26" rx="5"/>
+    <rect class="dgm-node" x="138" y="66" width="26" height="26" rx="5"/>
+    <rect class="dgm-node" x="168" y="66" width="26" height="26" rx="5"/>
+    <rect class="dgm-node" x="198" y="66" width="26" height="26" rx="5"/>
+    <rect class="dgm-node" x="228" y="66" width="26" height="26" rx="5"/>
+    <rect class="dgm-accent-node" x="258" y="66" width="26" height="26" rx="5"/>
+    <rect class="dgm-node" x="288" y="66" width="26" height="26" rx="5"/>
+    <text class="dgm-muted" x="271" y="112" font-size="10" text-anchor="middle">第9步错</text>
+    <line class="dgm-edge" x1="314" y1="79" x2="352" y2="79" stroke-width="1.5" marker-end="url(#arL)"/>
+    <rect class="dgm-node" x="354" y="62" width="70" height="34" rx="6"/>
+    <text class="dgm-text" x="389" y="83" font-size="12" font-weight="700" text-anchor="middle">reward=0</text>
+  </g>
+  <text class="dgm-muted" x="20" y="140" font-size="11">中间 9 步的对错 → 全部被丢掉</text>
+  <text class="dgm-muted" x="20" y="158" font-size="11">→ 打电话 100 次才偶然成功一次</text>
+
+  <!-- 分隔 -->
+  <line class="dgm-edge" x1="20" y1="178" x2="440" y2="178" stroke-width="1" stroke-dasharray="3 4"/>
+
+  <!-- 破局标题 -->
+  <text class="dgm-accent-text" x="20" y="204" font-size="13" font-weight="700">把被浪费的信息变回可学信号</text>
+
+  <!-- 破局一 RLVP -->
+  <rect class="dgm-good-node" x="18" y="220" width="200" height="62" rx="8"/>
+  <text class="dgm-text" x="30" y="242" font-size="12" font-weight="700">① RLVP　R = O + β·Φ</text>
+  <text class="dgm-muted" x="30" y="260" font-size="10.5">加一路可验证路径信号 Φ</text>
+  <text class="dgm-muted" x="30" y="275" font-size="10.5">全败组内方差 0 → 正，梯度复活</text>
+
+  <!-- 破局二 On-Policy Distillation -->
+  <rect class="dgm-link-node" x="234" y="220" width="206" height="62" rx="8"/>
+  <text class="dgm-text" x="246" y="242" font-size="12" font-weight="700">② On-Policy Distillation</text>
+  <text class="dgm-muted" x="246" y="260" font-size="10.5">在轨轨迹 + 教师逐 token 分布</text>
+  <text class="dgm-muted" x="246" y="275" font-size="10.5">达标步数 ≈ 纯 RL 的 1/10</text>
+
+  <!-- 右侧共同落点 -->
+  <path class="dgm-edge" d="M448 90 C520 90, 520 250, 460 250" fill="none" stroke-width="1.5" marker-end="url(#arL)"/>
+  <text class="dgm-accent-text" x="470" y="70" font-size="12" font-weight="700">被扔掉的</text>
+  <text class="dgm-accent-text" x="470" y="88" font-size="12" font-weight="700">丰富反馈</text>
+  <text class="dgm-muted" x="470" y="120" font-size="10.5">·"要先验证身份"</text>
+  <text class="dgm-muted" x="470" y="136" font-size="10.5">·"这条命令有破坏性"</text>
+  <text class="dgm-muted" x="470" y="152" font-size="10.5">·"又证出一步"</text>
+  <text class="dgm-muted" x="470" y="176" font-size="10.5">两条路都在回收它</text>
+
+  <defs>
+    <marker id="arL" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>左：纯结果奖励下，一整条轨迹走到头只回一个标量，中间每一步的对错全被丢掉（对应<strong>图7-16 奖励密度谱</strong>里最稀疏的一端）。右：RLVP 与 On-Policy Distillation 是两条把"被浪费的丰富反馈"重新变回可学信号的路。</figcaption>
+</figure>
+
+<h2>二、为什么是"浪费"：model-free 只认最终标量</h2>
+
+<p>书里把根子说得更技术一点：RL 样本效率低有多重原因（高方差、稀疏奖励、在轨数据难以复用），其中一个重要根源在于主流策略梯度方法的 <strong>model-free（无模型）</strong>特性——它不建模环境动态，也难以直接利用单次反馈里的丰富信息。于是环境每次交互返回的错误原因、缺失字段、正确流程提示，<strong>大部分都被浪费了</strong>。那个打电话的例子里，客服明确告知"需要信用卡后四位来验证身份"，但 model-free RL 只能从 0/1 的最终信号学习，无法直接用上这句话，只能靠数百次随机探索偶然撞对。</p>
+
+<p>作者把两条破局思路并排摆出来：一条是<strong>把环境反馈里被浪费的信息重新变成可学习的奖励</strong>（写进奖励函数）——这是 RLVP；另一条是<strong>让每一步的训练信号更密集</strong>（不只在终点拿一个标量）——这是 On-Policy Distillation。下面分别拆开。</p>
+
+<h2>三、破局一：RLVP —— 用"组内方差"解释惩罚为何永远有效</h2>
+
+<p>RLVP 的配方一句话：<strong>奖励结果，惩罚路径（reward the outcome, penalize the path）</strong>。总奖励写成两部分：</p>
+
+<figure class="diagram">
+<div class="formula">
+<div class="eq"><b>R</b> <span class="op">=</span> O <span class="op">+</span> β·Φ</div>
+<div class="gloss">O = 稀疏的结果奖励（仍是真正的目标）；Φ = 确定性规则引擎逐动作给出的路径信号</div>
+</div>
+<figcaption>Φ 是对"动作 + 动作发生前的状态"的纯函数判断，<strong>不是一个学出来的裁判模型</strong>。它有两种用法：减号（−λ，违规动作扣分）与加号（+β，可验证的好动作加分）。这套东西不改优化算法，只是重塑了每一步的奖励，直接接在 PPO/GRPO 循环上。</figcaption>
+</figure>
+
+<p>它为什么有效？书里给了一个统一解释——<strong>组内方差（within-group variance）</strong>。回忆 <strong>图7-13</strong> 的 GRPO：它不训价值网络，而是对同一个 prompt 采一组 rollout，用每条"相对组内平均"的好坏当优势。这里有个数学事实：<strong>GRPO 的优势本质就是组内方差</strong>——如果一组里每条 rollout 拿到的奖励完全一样，方差为零、优势全为零，这组样本贡献不出任何梯度、白跑了。</p>
+
+<p>只用结果奖励时，零方差死局恰好在训练一头一尾必然发生：</p>
+
+<ul>
+<li><strong>全败组（训练早期）</strong>：任务太难，一组 rollout 全失败，O 全是 0 → 方差为零 → 没梯度。训练早期几乎全是这种组，大量昂贵采样被白白浪费。</li>
+<li><strong>全胜组（训练后期）</strong>：任务快学会了，一组 rollout 全成功，O 全是 1 → 方差同样为零 → 没梯度。</li>
+</ul>
+
+<p>也就是说，纯结果奖励<strong>在成功率的两个极端都是"瞎的"</strong>。社区以前的做法是把这些零方差的组直接丢掉（DAPO 的 dynamic sampling）。RLVP 换了个问法：与其丢掉，不如问——什么样的密集信号能在这里<strong>补回缺失的方差</strong>？答案分成"永远可达"和"有条件可达"两半：</p>
+
+<ul>
+<li><strong>可验证的惩罚，永远能补回方差。</strong> 哪怕一组 rollout 全失败，它们"失败得规不规矩"通常各不相同——有的跑了破坏性命令、有的没有。惩罚一加，全败组内部立刻有了差异，梯度就活了。因为坏动作总是便宜可查，惩罚是"<strong>普遍可用的那一半</strong>"。</li>
+<li><strong>可验证的进展奖励（Partial Credit），只在"进展可达"时补回方差。</strong> 一组里有的多通过两个测试、有的多证出一个引理，就有了进展差异；但若每条 rollout 的进展都卡在零（软件修复里没人能让任何隐藏测试通过），进展信号处处为零，还是零方差——它是"<strong>可达性门控的那一半</strong>"。</li>
+</ul>
+
+<div class="bookquote">
+密集信号只在它能补回结果奖励所缺的组内方差时才有用——惩罚永远满足，进展奖励只在部分成功可达时满足。
+<span class="src">——《深入理解 AI Agent》第 7 章 · 验证路径惩罚（RLVP）</span>
+</div>
+
+<p>实验 7-14 给了硬数据：TerminalBench 上每局违规次数从纯结果奖励的 3.71 降到 0.66（约 6 倍），而成功率基本持平——说明"守规"几乎是免费拿到的；miniF2F 代数题上达到 0.9 成功率所需迭代数从 7.0 降到 4.4（4B 模型，30B 上更明显）；链式文件操作里"全败组"比例从 65% 降到 8%。而 RLVP 与本章反复出现的 RLVR 只差一个字母，恰好互补：<strong>RLVR 验证结果，RLVP 额外验证过程</strong>。</p>
+
+<h2>四、破局二：On-Policy Distillation —— "在轨 + 稠密"两个短板一起补</h2>
+
+<p>另一条路不动奖励函数，而是让<strong>每一步的信号本身更密集</strong>。要理解它，先看 SFT 和 RL 各自的一个致命短板：</p>
+
+<ul>
+<li><strong>SFT 的短板 · Learner-Sampler Mismatch</strong>：数据由"采样者"（教师/人类）生成，"学习者"只被动模仿正确路径；自己上场一旦走到训练数据里没出现过的偏差状态，就不知道怎么回正轨，小错累积成大错。根源是"训练时谁在走"和"部署时谁在走"不是同一个分布。</li>
+<li><strong>RL 的短板 · 信号太稀疏</strong>：让学生自己走（在轨）解决了分布不匹配，但每条轨迹走到头只拿一个成败标量，中间每步该怎么改还得靠成百上千次试错慢慢反推。</li>
+</ul>
+
+<p>On-Policy Distillation 把两者的优点合起来：<strong>让学生自己生成轨迹（On-Policy，解决分布不匹配），同时让一个更强的教师模型对学生走的每一步逐 token 打分（Dense Signal，解决信号稀疏）。</strong> 教师不只判断这一步对不对，而是直接给出"当前位置下一个 token 各种选择该占多大概率"的完整分布，学生最小化自己分布与教师分布的 <strong>KL 散度</strong>。相比只有最终成败的二元信号，这种逐 token 的分布对齐，密集了不止一个数量级。</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">SFT</div><div class="head">离轨 + 稠密</div><div class="sub">有分布不匹配</div></div>
+  <div class="cell"><div class="role">RL</div><div class="head">在轨 + 稀疏</div><div class="sub">反馈太稀疏</div></div>
+  <div class="cell"><div class="role">On-Policy Distillation</div><div class="head">在轨 + 稠密</div><div class="sub">两个短板都补上</div></div>
+</div>
+<figcaption>三种方法只差两个坐标：轨迹由谁采样（在轨/离轨）、信号有多密（稠密/稀疏）。SFT 缺"在轨"、RL 缺"稠密"，On-Policy Distillation 同时占住两格——这就是它强的全部秘密。</figcaption>
+</figure>
+
+<p>效果书里给得很实：在数学等任务上，达到同等性能所需的训练步数<strong>只要纯 RL 的约 1/10</strong>；它还顺带缓解过拟合（每次轨迹都不同、教师针对具体轨迹给反馈，学到的是通用策略而非背答案），数据复用率大幅提升。在多轮 Agent 场景里价值尤其大——成败信号出现在最末端、既稀疏又滞后，逐 token 的教师分布恰好补上中间每一步缺失的指引。作者与合作者在 8B 小模型的"时间感"后训练里做过一次干净验证：DPO 与四种 RL 配方轮番失败（各踩中一个前面讲过的失败模式），换成 On-Policy Distillation（冻结的 Qwen3-32B 教师逐 token 给分布）训练平滑收敛，四种条件下通过率一律比同源 SFT 基线<strong>高出 23 到 47 个百分点</strong>。</p>
+
+<div class="pitfall">
+<p><strong>误区一：把"必须先 SFT 后 RL"当普适规律。</strong> 它只在"较小基模 + 严格结构化输出"下成立——V-IRL 那类多轮任务里不经 SFT 初始化，基础模型连结构化 JSON 都产不出来，RL 无从训起；但强基模（如 R1-Zero）能直接 RL。别把一条工程经验背成铁律。</p>
+<p><strong>误区二（本课最关键）：以为 On-Policy Distillation 的"蒸馏"就是普通蒸馏。</strong> 普通（离轨）蒸馏是教师先生成一批轨迹、学生照着模仿；On-Policy Distillation 的关键区别是<strong>轨迹由学生自己采样（在轨）</strong>，教师只在学生真实走出的每一步上给逐 token 目标分布。丢掉"在轨"这两个字，你就把它降级回了 SFT，也就说不清它凭什么能同时补上两个短板。它还有个前提：<strong>必须有一个足够真实的仿真环境让学生自由探索</strong>——否则学生走到教师也没见过的偏差状态，教师打分同样不可靠。</p>
+</div>
+
+<div class="experiment">
+<p>本节两条路都能在开源仓库里动手跑。RLVP 对应 <strong>实验 7-14</strong>（<code>chapter7/retool</code> 演示的是相邻的工具 RL 思路：SFT 预热 + 基于 veRL 改造 PPO，把代码解释器沙盒整合进思考循环、对 <code>&lt;interpreter&gt;</code> 反馈 token 做损失屏蔽，AIME2024 从 25% 提升到 67%）。要亲手体会"组内方差救回全败组"，也可以看 <strong>实验 7-13</strong> 的 <code>chapter7/SimpleVLA-RL</code>——它用动态采样过滤全成功/全失败组来确保稳定梯度，正是同一枚硬币的另一面。完整仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>验证路径惩罚（RLVP, RL with Verified Penalty）</dt>
+<dd>在结果奖励 O 之外加一路确定性规则引擎给出的路径信号 Φ（<strong>R = O + β·Φ</strong>）：违规动作扣分、合规/可达进展动作加分——"奖励结果、惩罚路径"。<em>避免</em>与 RLVR 混淆：RLVR 验证结果，RLVP 额外验证过程，两者互补叠加。</dd>
+<dt>可验证奖励强化学习（RLVR, RL with Verifiable Rewards）</dt>
+<dd>奖励来自规则验证器（测试是否通过、答案是否正确）而非学习到的奖励模型的 RL；此时"奖励模型"退化成一段确定性代码。<em>避免</em>与 RLHF（奖励来自人类偏好训练的 RM）混淆，也别和只差一字母的 RLVP 混。</dd>
+<dt>信用分配（credit assignment）</dt>
+<dd>多步序列中判断到底哪一步对最终成败贡献最大的问题；由折扣因子、GAE（PPO）、组内相对比较（GRPO）、turn-level 分摊等机制承担。<em>避免</em>与"奖励设计"画等号——它是奖励延迟下的归因难题。</dd>
+<dt>在轨蒸馏（On-Policy Distillation）</dt>
+<dd>让学生自己生成轨迹（在轨），更强教师对每一步逐 token 给出目标概率分布（稠密），学生最小化与教师分布的 KL 的方法；是"在轨 + 稠密信号"的组合。<em>避免</em>与普通（离轨）蒸馏或 CoT 蒸馏混淆——关键区别是轨迹由学生而非教师采样。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：GRPO 里为什么"全败组"和"全胜组"都学不到东西？RLVP 的可验证惩罚为什么能救回全败组？</summary>
+<div class="answer">
+<p>GRPO 的优势本质是组内方差——一组 rollout 奖励完全相同时方差为零、优势全为零、贡献不出梯度。全败组（O 全 0）和全胜组（O 全 1）都是零方差死局。RLVP 加一路可验证惩罚：哪怕一组全失败，它们"失败得规不规矩"通常各不相同（有的跑了破坏性命令、有的没有），惩罚一加组内立刻有了差异，梯度就活了——所以惩罚是"永远可达"的那半个解。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：把三种后训练方法放到"在轨/离轨 × 稠密/稀疏"的坐标里，SFT、RL、On-Policy Distillation 各落在哪一格？为什么说 On-Policy Distillation 同时补上了另两者的短板？</summary>
+<div class="answer">
+<p>SFT = 离轨 + 稠密（有分布不匹配，即 Learner-Sampler Mismatch）；RL = 在轨 + 稀疏（信号太稀疏，中间每步靠试错反推）；On-Policy Distillation = 在轨 + 稠密。它让学生自己采样轨迹（在轨，解决 SFT 的分布不匹配），同时让更强教师对每一步逐 token 给出目标分布（稠密，解决 RL 的信号稀疏），所以两个短板一起补上。代价是必须有足够真实的仿真环境，否则学生走到偏差状态时教师打分不可靠。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：RL 卡住的根子往往不是奖励函数设计得不够巧，而是<strong>信号本身不够密</strong>——纯结果奖励把环境里"要先验证身份""这条命令有破坏性""又证出一步"这类明确、可机器判定的反馈全浪费了。RLVP（把被浪费的信息写进奖励，用组内方差解释惩罚为何永远可达）与 On-Policy Distillation（让每一步都拿到教师的逐 token 分布）是两条互补的回收路，也是全章点名"最有希望的两个方向"。
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课两条前沿路的一手来源都是书的第 7 章正文（<code>book/chapter7.md</code> 的"奖励结果、约束过程"与"On-Policy Distillation"两节）。要把"SFT 记忆、RL 泛化"这条更大的主线补齐，推荐读原始论文：Chu 等人（2025），《SFT Memorizes, RL Generalizes》，arXiv:2501.17161——它是本章 GeneralPoints 与 V-IRL 两组对照实验的出处，系统量化了这一现象。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把"组内方差为什么等于优势""教师逐 token 分布到底长什么样"各自推一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0040-data-env-over-algorithm.html"><span class="dir">← 上一课</span>数据和环境比算法更重要：后训练最值钱的一条判断</a>
+  <a class="next" href="0042-why-agents-dont-auto-learn.html"><span class="dir">下一课 →</span>为什么无限上下文也不会让 Agent 自动学习</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

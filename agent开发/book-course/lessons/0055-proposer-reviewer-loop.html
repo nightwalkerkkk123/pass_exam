@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0055 · 提议者-审核者循环：为什么不能自己审自己</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0055 课 · 进阶应用 · 多 Agent 协作 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>提议者-审核者循环：为什么不能自己审自己</h1>
+
+<p class="lede">这节课只押一件事：<strong>Reviewer 的独立价值，不来自「换个视角再想一遍」，而来自它能接触到 Proposer 生成时根本拿不到的新信息</strong>——测试结果、渲染截图、编译错误、外部搜索结果。这是第十章「对等协作模式」里最经典的范式（图10-4），也是全章那条总判据（表10-2：协作是否引入生成时不存在的新信息）落到具体架构上的第一个样板。把这一课想透，你就有了判断一切「双 Agent 迭代」值不值得做的尺子。</p>
+
+<h2>一、是什么：最经典的对等协作范式</h2>
+
+<p>提议者-审核者（Proposer-Reviewer）是对等协作里最经典的一种。对等协作通常只涉及 2-3 个平等身份的 Agent，通过多轮迭代互相提供反馈——相比管理者模式和去中心化模式，它实现复杂度低得多，只需定义好两个角色、通信机制和迭代终止条件就能跑起来，是快速验证想法、构建原型的理想选择。</p>
+
+<p>它的骨架很简单：<strong>Proposer Agent 负责生成，Reviewer Agent 评估质量、给出结构化改进建议，两者反复迭代直到效果达标</strong>。书中第五章已经在 PPT 生成、视频编辑、日志可视化三个实验里详细演示过它——Proposer 写代码，Reviewer 渲染执行结果并用 Vision LLM 打分。除了写代码，这套范式还适用于一大类审查场景：</p>
+
+<ul>
+<li><strong>安全审查</strong>：Proposer 生成操作方案，Reviewer 检查合规性和潜在风险。</li>
+<li><strong>内容审核</strong>：Proposer 起草回复，Reviewer 检查业务规则和用语规范。</li>
+<li><strong>代码审核</strong>：Proposer 编写代码，Reviewer 检查安全性和最佳实践。</li>
+</ul>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 250" role="img" aria-label="提议者-审核者循环：Proposer 生成产物，Reviewer 用外部工具产生新信息并给出结构化改进建议，回到 Proposer，反复迭代直到达标">
+  <rect class="dgm-hub" x="40" y="95" width="150" height="62" rx="10"/>
+  <text class="dgm-accent-text" x="115" y="122" font-size="14" font-weight="700" text-anchor="middle">Proposer</text>
+  <text class="dgm-muted" x="115" y="140" font-size="11" text-anchor="middle">生成产物</text>
+
+  <rect class="dgm-node" x="510" y="95" width="150" height="62" rx="10"/>
+  <text class="dgm-text" x="585" y="122" font-size="14" font-weight="700" text-anchor="middle">Reviewer</text>
+  <text class="dgm-muted" x="585" y="140" font-size="11" text-anchor="middle">评估质量</text>
+
+  <rect class="dgm-node" x="280" y="10" width="140" height="46" rx="8" stroke-dasharray="4 3"/>
+  <text class="dgm-text" x="350" y="30" font-size="12" font-weight="700" text-anchor="middle">🔧 外部工具</text>
+  <text class="dgm-muted" x="350" y="46" font-size="10.5" text-anchor="middle">渲染 / 测试 / 搜索</text>
+
+  <!-- proposer -> reviewer (top: product) -->
+  <line class="dgm-edge" x1="190" y1="118" x2="506" y2="118" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="348" y="110" font-size="11" text-anchor="middle">产物（代码/方案/草稿）</text>
+
+  <!-- reviewer -> tools -> back (new info) -->
+  <path class="dgm-edge" d="M560 95 C520 60, 430 45, 422 40" fill="none" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <path class="dgm-edge" d="M280 42 C210 55, 160 78, 132 95" fill="none" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <text class="dgm-accent-text" x="205" y="60" font-size="10.5" text-anchor="middle">新信息注入</text>
+
+  <!-- reviewer -> proposer (bottom: structured feedback) -->
+  <path class="dgm-edge" d="M585 157 C585 220, 115 220, 115 157" fill="none" stroke-width="1.5" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="350" y="214" font-size="11.5" text-anchor="middle">结构化改进建议 → 反复迭代，直到达标</text>
+
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>图10-4 · 提议者-审核者循环。关键不在「两个角色来回传话」，而在虚线那条支路：Reviewer 借外部工具（渲染、测试、搜索）拿到 Proposer 生成时不存在的新信息，再把它变成结构化建议回喂。抽掉这条支路，循环就退化成「自己审自己」。</figcaption>
+</figure>
+
+<h2>二、为什么这样设计：新信息，而不是新视角</h2>
+
+<p>范式的核心问题是一句反问：<strong>为什么不能让一个 Agent 自己生成、再自己审查？</strong> 直觉上「重读一遍总能挑出毛病」，但书里用三篇研究把这条直觉按死了。</p>
+
+<ul>
+<li><strong>Huang et al., ICLR 2024《Large Language Models Cannot Self-Correct Reasoning Yet》</strong>：让 GPT-4 在<strong>没有外部反馈</strong>的情况下审查并修正自己的回答，准确率反而<strong>下降</strong>——模型把正确答案改错的次数，比把错误答案改对的次数还多。</li>
+<li><strong>TACL 2024 综述《When Can LLMs Actually Correct Their Own Mistakes?》(arXiv:2406.01297)</strong>：进一步确认，除非提供可靠的外部反馈（测试用例执行结果、外部工具验证输出），纯靠模型自身的「自我纠正」几乎不起作用。</li>
+<li><strong>ICLR 2024 CRITIC 论文</strong>：让模型用外部工具（搜索引擎、Python 解释器）验证自己的回答，效果显著提升；但一旦<strong>移除工具验证、只留模型的自我评估，大部分提升就消失了</strong>。</li>
+</ul>
+
+<p>三篇指向同一个结论：<strong>审查的价值不在于「让模型再想一遍」，而在于引入了模型生成时不具备的新信息</strong>——测试结果、渲染截图、编译错误、外部搜索结果。回到第五章的 PPT 生成实验：Reviewer 的价值不是「用同一个模型再看一遍代码」，而是<strong>渲染了 PPT 并截取了屏幕截图</strong>——这张截图里的视觉信息，Proposer 在写代码时完全无法获得。同理，代码生成里执行测试用例产生的通过/失败结果，也是编写代码时并不存在的新信号。Reviewer 的独立价值，正来源于它能接触到 Proposer 拿不到的这些外部反馈。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 240" role="img" aria-label="表10-2 信息增量对比：无新信息的两种模式无效或持平，引入外部反馈的三种模式显著提升">
+  <text class="dgm-muted" x="20" y="24" font-size="12" font-weight="700">协作模式</text>
+  <text class="dgm-muted" x="470" y="24" font-size="12" font-weight="700" text-anchor="middle">引入新信息？</text>
+  <text class="dgm-muted" x="620" y="24" font-size="12" font-weight="700" text-anchor="middle">效果</text>
+  <line class="dgm-edge" x1="20" y1="34" x2="680" y2="34" stroke-width="1"/>
+
+  <text class="dgm-text" x="20" y="60" font-size="12">同一模型自我审查（重读自己输出）</text>
+  <text class="dgm-muted" x="470" y="60" font-size="12" text-anchor="middle">否</text>
+  <text class="dgm-muted" x="620" y="60" font-size="12" text-anchor="middle">无效甚至有害</text>
+
+  <text class="dgm-text" x="20" y="88" font-size="12">不同 Agent 辩论同一段文本</text>
+  <text class="dgm-muted" x="470" y="88" font-size="12" text-anchor="middle">否</text>
+  <text class="dgm-muted" x="620" y="88" font-size="12" text-anchor="middle">等算力下与单 Agent 持平</text>
+
+  <line class="dgm-edge" x1="20" y1="102" x2="680" y2="102" stroke-width="1" stroke-dasharray="4 3"/>
+
+  <text class="dgm-text" x="20" y="128" font-size="12">Reviewer 用测试执行结果审查代码</text>
+  <text class="dgm-accent-text" x="470" y="128" font-size="12" font-weight="700" text-anchor="middle">是（执行反馈）</text>
+  <text class="dgm-accent-text" x="620" y="128" font-size="12" font-weight="700" text-anchor="middle">显著提升</text>
+
+  <text class="dgm-text" x="20" y="156" font-size="12">Reviewer 看渲染截图审查前端/PPT</text>
+  <text class="dgm-accent-text" x="470" y="156" font-size="12" font-weight="700" text-anchor="middle">是（视觉反馈）</text>
+  <text class="dgm-accent-text" x="620" y="156" font-size="12" font-weight="700" text-anchor="middle">显著提升</text>
+
+  <text class="dgm-text" x="20" y="184" font-size="12">Reviewer 用外部工具验证事实</text>
+  <text class="dgm-accent-text" x="470" y="184" font-size="12" font-weight="700" text-anchor="middle">是（工具反馈）</text>
+  <text class="dgm-accent-text" x="620" y="184" font-size="12" font-weight="700" text-anchor="middle">显著提升</text>
+
+  <line class="dgm-edge" x1="20" y1="200" x2="680" y2="200" stroke-width="1"/>
+  <text class="dgm-muted" x="20" y="224" font-size="11">分水岭在「引入新信息？」这一列——它把有效与无效切得干干净净。</text>
+</svg>
+</div>
+<figcaption>表10-2 · 多 Agent 协作模式的信息增量对比。上半区（否）无效或持平，下半区（是）显著提升，唯一的差别就是那条外部反馈支路。判断一个双 Agent 循环值不值得，先问它落在哪一半。</figcaption>
+</figure>
+
+<h2>三、边界与易错：别把它当「多 Agent 天然更强」的证据</h2>
+
+<p>提议者-审核者好用，但它的有效性有严格前提。最常见的误解，是把「用了两个 Agent」本身当成变强的理由。</p>
+
+<div class="pitfall">
+<p><strong>误区一：以为「多 Agent 天然更强」。</strong> 全章反复强调，真正的判据只有一条——<strong>协作是否引入了生成时不存在的新信息</strong>。等算力预算下，辩论式的多 Agent 并不优于单 Agent：2026 年 Tran 与 Kiela 的研究在多跳推理任务上发现，当思考 token 预算被严格控制为相同时，单 Agent 的表现与多 Agent 持平甚至更好。信息论里的<strong>数据处理不等式</strong>给了解释：辩论中多个 Agent 处理的是完全相同的文本，Agent 之间每串行传递一次中间结论，只可能丢信息、不可能凭空造信息。</p>
+<p><strong>误区二：忽视成本。</strong> Anthropic 曾披露，其多 Agent 研究系统的 token 消耗约为普通对话的 <strong>15 倍</strong>，且 token 用量本身就能解释约 80% 的性能差异。所以多 Agent 的收益必须大到能覆盖数倍乃至一个数量级的额外开销，否则一个调校得当的单 Agent 往往更划算。</p>
+<p><strong>误区三：混淆两种「能力配置」论断。</strong> 「审查者能力应与被审者相近」说的是<strong>审查场景</strong>——审查者必须跟得上被审者的推理才能发现破绽，落差太大就根本审不动；而「最强模型给规划者」说的是另一件事——<strong>规划与执行的分工</strong>（下一课的主题）。二者语境不同，不矛盾。</p>
+</div>
+
+<p>需要划清 Tran-Kiela 论证的边界：它针对的是「多 Agent <strong>串行传递中间结论</strong>」造成的信息瓶颈，并不否定另外两类做法——对同一问题<strong>多次独立采样再聚合</strong>（如 self-consistency、多数投票），或利用<strong>生成与验证的难度不对称</strong>（写答案难、验答案易）来做生成-验证分工。这两类要么引入了额外的独立采样、要么利用了任务本身的不对称结构，都不落在数据处理不等式的适用范围内。提议者-审核者恰好属于「有效」的一侧——因为 Reviewer 那条外部工具支路真的注入了新信息。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：判断一个「提议-审核」循环值不值得做，只问一个问题——<strong>Reviewer 是否借外部工具拿到了 Proposer 生成时不存在的新信息（测试结果、渲染截图、搜索输出）？</strong> 拿到了，它就是实质性的增益；没拿到，它只是让同一个模型再想一遍，通常无效甚至有害，还白烧十几倍的 token。</p>
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>共享上下文 / 不共享上下文（Shared / Non-shared Context）</dt>
+<dd>多 Agent 的第一设计维度：共享指后一 Agent 继承前一 Agent 的完整轨迹（隐式协调、信息零损耗、上下文膨胀）；不共享指各 Agent 维护独立上下文，仅通过工具参数/共享文件/消息总线三种显式机制通信。提议者-审核者是「不共享上下文」下的对等协作形态。<em>避免</em>与「多轮对话历史」混同——这里区分的是 Agent 之间是否继承彼此的完整轨迹。</dd>
+<dt>新信息判据</dt>
+<dd>本章总判据：多 Agent 相对单 Agent 是否有实质价值，只看协作过程是否引入了单个 Agent 在生成时无法获得的新信息（执行反馈、视觉反馈、工具反馈）。对应表10-2。</dd>
+<dt>数据处理不等式（Data Processing Inequality）</dt>
+<dd>信息论结论，本章用它解释辩论式多 Agent 的局限：Agent 之间每串行传递一次中间结论，只可能丢失信息、不可能凭空创造信息。因此在等算力预算下，处理同一段文本的辩论并不优于单 Agent。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：CRITIC 实验中，实验者移除工具验证步骤、只保留模型的自我评估后，大部分提升消失了。这说明审查的价值来自哪里？</summary>
+<div class="answer">
+<p>说明审查的价值不在于「让模型再想一遍」，而在于引入了模型生成时不具备的新信息——搜索引擎结果、Python 解释器的执行结果等外部工具反馈。移除工具后没有新信息注入，提升自然消失。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：都是「两个 Agent 来回讨论」，为什么提议者-审核者（Reviewer 渲染截图打分）能显著提升质量，而辩论模式在等算力下却和单 Agent 持平？</summary>
+<div class="answer">
+<p>差别在于是否引入了生成时不存在的新信息。提议者-审核者里，Reviewer 借外部工具（渲染 PPT 截图、执行测试）拿到了 Proposer 写代码时完全无法获得的视觉/执行反馈，是真正的新信号；而辩论模式里两个 Agent 处理的是完全相同的文本，没有外部反馈注入。按数据处理不等式，串行传递中间结论只会丢信息、不会造信息，所以等算力下辩论并不优于单 Agent。判据始终是那一条：协作是否引入了新信息。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本课的三个落地实验都在第五章（PPT 生成、视频编辑、日志可视化），Proposer 写代码、Reviewer 渲染截图打分的完整代码可在开源仓库对照阅读：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。读的时候盯住一件事——Reviewer 到底通过哪个工具拿到了 Proposer 拿不到的信息。</p>
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课「新信息判据」与数据处理不等式论证的一手来源：Tran, D., Kiela, D. <em>Single-Agent LLMs Outperform Multi-Agent Systems on Multi-Hop Reasoning Under Equal Thinking Token Budgets.</em> arXiv:2604.02460, 2026。关于「不能自己审自己」，直接读三篇原文最扎实：Huang et al. <em>Large Language Models Cannot Self-Correct Reasoning Yet</em>（ICLR 2024）、TACL 2024 综述 <em>When Can LLMs Actually Correct Their Own Mistakes?</em>（arXiv:2406.01297）、以及 ICLR 2024 的 CRITIC 论文。想看「引入执行反馈」如何显著提升，再补 Gehring et al. <em>RLEF</em>（arXiv:2410.02089）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「新信息判据」在表10-2 里逐行过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0054-agent-virtual-filesystem.html"><span class="dir">← 上一课</span>Agent 眼中的文件系统：一棵挂载四类区域的目录树</a>
+  <a class="next" href="0056-orchestration-planner-bottleneck.html"><span class="dir">下一课 →</span>管理者模式：为什么最强的模型要给规划者</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

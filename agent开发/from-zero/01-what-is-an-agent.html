@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01 · 一个 Agent 到底是什么</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 长出一个 Agent · 第 01 课 · 预计 8 分钟 · 上一课：无（这是起点）· 下一课 <a href="02-the-agent-loop.html">02 最小内核：Agent 的心跳循环</a> · <a href="index.html">🏠 课程门户</a></p>
+
+<h1>一个 Agent 到底是什么</h1>
+
+<p class="lede">一句话：Agent = 一个<strong>大脑</strong>（大模型）＋ 一颗<strong>心跳</strong>（不停问“下一步干嘛”的循环）＋ 一副<strong>手脚</strong>（能真的动手的工具）。这一课我们只把这三件套讲清楚，别的都往后放。</p>
+
+<h2>一、先用生活场景想一遍（ELI5）</h2>
+
+<p>想象你有一个特别聪明、但被关在一个小房间里的朋友。房间只有一道<strong>投信口</strong>：你写一张纸条塞进去，他看完、在纸条背面写好答案，再塞出来。仅此而已——他<strong>没有记忆</strong>（下次你塞纸条，他完全不记得上次聊过啥），<strong>没有手脚</strong>（不能上网、不能打电话、不能帮你订咖啡），只会“读文字 → 写文字”。</p>
+
+<p>这个“关在房间里、只会读写文字”的朋友，就是一个<strong>裸的大模型（LLM）</strong>。你平时用的普通聊天机器人（chatbot），玩法就是最朴素的一种：你塞一张纸条，他回一张，一个来回，结束。</p>
+
+<p>现在我们给这个房间做两个改造，神奇的事情就发生了：</p>
+
+<ul>
+<li><strong>装一颗心跳</strong>：门外站一个助理，拿到朋友的答案后不急着交给你，而是看看“事儿办完没？没办完就再塞一张纸条进去问‘接下来呢’”。这样朋友就能<strong>连续想好几步</strong>，而不是一锤子买卖。</li>
+<li><strong>装一副手脚</strong>：在房间里装上电话、电脑、打印机。朋友现在可以在纸条上写“帮我搜一下 X”，助理照做，把搜到的东西塞回去给他看——他就能<strong>真的动手办事</strong>了。</li>
+</ul>
+
+<p>一个能<strong>自己连续走好几步、还能真的动手</strong>的东西，就叫 <strong>Agent（智能体）</strong>。这就是它和普通 chatbot 的根本区别。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 440" role="img" aria-label="Agent 三件套：大脑、心跳循环、手脚，以及它们之间的回灌关系">
+  <!-- 大脑 -->
+  <rect class="dgm-hub" x="200" y="26" width="320" height="82" rx="12" stroke-width="2"/>
+  <text class="dgm-accent-text" x="360" y="58" font-size="17" font-weight="700" text-anchor="middle">🧠 大脑 ＝ 大模型（LLM）</text>
+  <text class="dgm-muted" x="360" y="80" font-size="12" text-anchor="middle">一次调用只认这次发过去的文字 · 无状态</text>
+  <text class="dgm-muted" x="360" y="98" font-size="12" text-anchor="middle">主循环出口：streamCallLLM</text>
+
+  <!-- 心跳容器 -->
+  <rect class="dgm-node" x="108" y="128" width="504" height="184" rx="14" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text class="dgm-accent-text" x="126" y="152" font-size="14" font-weight="700">💓 心跳 ＝ 循环 streamChat</text>
+  <text class="dgm-muted" x="126" y="171" font-size="11.5">for step := 0; step &lt; maxStepCount(默认100); step++ ——转一圈 ＝ 一步(step)·示意</text>
+
+  <!-- 下行箭头：大脑发指令 -->
+  <line class="dgm-edge" x1="288" y1="188" x2="288" y2="286" stroke-width="1.8"/>
+  <polygon class="dgm-accent" points="282,284 294,284 288,296"/>
+  <text class="dgm-muted" x="196" y="228" font-size="11.5" text-anchor="middle">① 大脑说：</text>
+  <text class="dgm-muted" x="196" y="245" font-size="11.5" text-anchor="middle">“我要调这些工具”</text>
+  <text class="dgm-muted" x="196" y="262" font-size="11.5" text-anchor="middle">(ToolCalls)</text>
+
+  <!-- 上行箭头：结果回灌 -->
+  <line class="dgm-edge" x1="432" y1="286" x2="432" y2="188" stroke-width="1.8"/>
+  <polygon class="dgm-good-node" points="426,190 438,190 432,178"/>
+  <text class="dgm-muted" x="524" y="228" font-size="11.5" text-anchor="middle">③ 工具结果</text>
+  <text class="dgm-muted" x="524" y="245" font-size="11.5" text-anchor="middle">回灌成下一轮输入</text>
+  <text class="dgm-muted" x="524" y="262" font-size="11.5" text-anchor="middle">(AddToolResult)</text>
+
+  <!-- 手脚 -->
+  <rect class="dgm-good-node" x="200" y="332" width="320" height="82" rx="12" stroke-width="2"/>
+  <text class="dgm-text" x="360" y="364" font-size="17" font-weight="700" text-anchor="middle">🖐 手脚 ＝ 工具（tools）</text>
+  <text class="dgm-muted" x="360" y="386" font-size="12" text-anchor="middle">浏览器 / 跑代码 / 搜索 / 做 PPT / 发消息 …</text>
+  <text class="dgm-muted" x="360" y="404" font-size="12" text-anchor="middle">② 真正执行：executeToolCallGroups</text>
+</svg>
+</div>
+<figcaption>三件套与它们的“心跳循环”。大脑用 <code>streamCallLLM</code> 想一步、手脚用 <code>executeToolCallGroups</code> 干一步（<code>toolcall.go</code>）、结果用 <code>AddToolResult</code> 回灌成下一轮输入（<code>message.go</code>）——这一圈就是 <code>agent.streamChat</code>（<code>agent.go</code>）。</figcaption>
+</figure>
+
+<h2>二、三件套，逐个认门牌号</h2>
+
+<p>上面的房间比喻，在真实的 mino_server 里都有对应的代码零件。我们不深挖（那是后面每一课的事），先认个脸、记住门牌号。</p>
+
+<h3>🧠 大脑：大模型，一次调用只认这一次的文字</h3>
+
+<p>大脑就是大模型本身。它有一个关键性格：<strong>无状态（stateless）</strong>——每次调用它，它都像失忆一样，只看你<strong>这一次</strong>发过去的全部文字，不记得任何“上一次”。所以“连续性”不能指望大脑自己，得靠外面那颗心跳把历史一遍遍重新递给它（这正是下一课要解的谜）。</p>
+
+<p>在 mino_server 里，<strong>Conductor 主循环</strong>每走一步、要“开口问大脑”时，都走 <code>conductorAgent.streamCallLLM</code>（<code>biz/domain/dmservice/agents/conductorservice/agent.go:1545</code>）这个函数。记住这个名字：主循环里每一次“问大脑”都从这道门出去。不过它并不是全仓库唯一的 LLM 调用——生成摘要、标题、分类器、各子 agent 等别处另有多处 LLM 调用，只是不在这条主循环上。</p>
+
+<h3>💓 心跳：一个 for 循环，转一圈就是“一步”</h3>
+
+<p>心跳是让 Agent “活起来”的东西。它其实朴素得让人意外——就是一个 <code>for</code> 循环。这个循环写在 <code>conductorAgent.streamChat</code>（<code>agent.go</code>）里，每转一圈叫走了<strong>一步（step）</strong>：问一次大脑、把大脑要的工具跑一遍、看看事办完没有，没办完就再转一圈。</p>
+
+<div class="keydef">
+<dl>
+<dt>为什么循环要有上限？</dt>
+<dd>万一大脑犯轴、无限地“再来一步、再来一步”怎么办？所以循环设了一道保险丝：单次运行最多走 <code>defaultMaxStepCount = 100</code> 步（<code>agent.go</code>）。到顶还没干完，就主动停下报错，而不是无限烧钱空转。</dd>
+</dl>
+</div>
+
+<h3>🖐 手脚：工具，让文字变成动作</h3>
+
+<p>光会想没用，得能动手。工具（tools）就是 Agent 的手脚：一个浏览器工具让它能上网，一个代码工具让它能跑程序，一个消息工具让它能把结果发到飞书或 Discord 上。大脑在回复里写“我要调 X 工具、参数是这些”，后端就在 <code>conductorAgent.executeToolCallGroups</code>（<code>toolcall.go</code>）里真的把它跑起来。</p>
+
+<p>这里有个让循环能“滚下去”的关键动作：工具跑完后，结果会被 <code>AddToolResult</code>（<code>message.go</code>）包成一条消息，塞回给大脑当下一轮的输入。<strong>工具的输出，变成大脑的输入</strong>——这就是心跳能一圈圈转起来的秘密。</p>
+
+<h2>三、Agent ≠ Chatbot：差别到底在哪</h2>
+
+<p>很多人以为 Agent 就是“更强的聊天机器人”，这其实抓错了重点。差别不在于“答得多聪明”，而在于<strong>能不能自己多走几步、能不能真的动手</strong>。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">你的问题</span><span class="n-sub">一张纸条</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">大模型答一次</span><span class="n-sub">streamCallLLM</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">回答</span><span class="n-sub">对话结束 ✔</span></div>
+</div>
+<div class="pipeline">
+  <div class="node"><span class="n-title">你的目标</span><span class="n-sub">“帮我做份报告”</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">想一步</span><span class="n-sub">runConductorStep</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">动手调工具</span><span class="n-sub">executeToolCallGroups</span></div>
+  <span class="arrow">↺</span>
+  <div class="node stable"><span class="n-title">干完才停</span><span class="n-sub">agent.done</span></div>
+</div>
+<figcaption>上排是 chatbot：一个来回就结束。下排是 agent：想一步、动手、把结果回灌后再想下一步，循环到 <code>agent.done</code> 为止。对应 <code>runConductorStep</code>（<code>agent.go</code>）／ <code>executeToolCallGroups</code>（<code>toolcall.go</code>）。</figcaption>
+</figure>
+
+<p>用一句话记住：<strong>chatbot 是“一问一答”，agent 是“接了活儿自己去干，干完才回来”</strong>。多步（心跳）＋ 动手（工具），缺一个都还只是聊天机器人。</p>
+
+<h2>四、先看成品：Conductor 长什么样</h2>
+
+<p>说了半天三件套，来看一个真家伙。mino_server 里跑在生产环境的这个 Agent 叫 <strong>Conductor</strong>（“指挥”的意思，很贴切）。用户的一个请求打进来，第一站是它的大门 <code>conductorService.StreamChat</code>（<code>biz/domain/dmservice/agents/conductorservice/service.go</code>）：先 <code>newConductorAgent</code> 把这台 Agent 组装出来，再调 <code>agent.streamChat(ctx)</code> 真正开跑——也就是启动上面那颗心跳。</p>
+
+<p>Conductor 现在的“最终形态”能做很多事：<strong>上网查资料、写代码跑数据、做 PPT、生成图片、把结果发到飞书 / Discord / Slack</strong>……它背后挂着的手脚有多少？答案在 <code>GetAllToolServices</code>（<code>tools.go</code>）这张大注册表里：<strong>54 个在用的工具服务</strong>（还有 1 个 <code>browser_sub_agent</code> 被注释掉了）。下面按用途归成 6 类，各举几个真实的工具名，让你有个体感：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 396" role="img" aria-label="Conductor 能力全景：54 个工具服务按用途归为六类">
+  <!-- 标题条 -->
+  <text class="dgm-text" x="360" y="22" font-size="14" font-weight="700" text-anchor="middle">GetAllToolServices ——一张挂着 54 个工具服务的大注册表</text>
+
+  <!-- Row 1 -->
+  <g>
+    <rect class="dgm-node" x="16" y="40" width="222" height="150" rx="10" stroke-width="1.5"/>
+    <text class="dgm-accent-text" x="34" y="68" font-size="13.5" font-weight="700">🔎 上网 · 搜索</text>
+    <text class="dgm-muted" x="34" y="92" font-size="11.5">browser_use</text>
+    <text class="dgm-muted" x="34" y="112" font-size="11.5">search / search_image</text>
+    <text class="dgm-muted" x="34" y="132" font-size="11.5">get_web_page</text>
+    <text class="dgm-muted" x="34" y="152" font-size="11.5">wide_research</text>
+    <text class="dgm-muted" x="34" y="176" font-size="11" font-style="italic">让它能“看世界”</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="249" y="40" width="222" height="150" rx="10" stroke-width="1.5"/>
+    <text class="dgm-accent-text" x="267" y="68" font-size="13.5" font-weight="700">💻 跑代码 · 算数据</text>
+    <text class="dgm-muted" x="267" y="92" font-size="11.5">code_interpreter</text>
+    <text class="dgm-muted" x="267" y="112" font-size="11.5">sandbox / sql_execute</text>
+    <text class="dgm-muted" x="267" y="132" font-size="11.5">dataviz / insight</text>
+    <text class="dgm-muted" x="267" y="152" font-size="11.5">fin_data / crypto_data</text>
+    <text class="dgm-muted" x="267" y="176" font-size="11" font-style="italic">让它能“真的算”</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="482" y="40" width="222" height="150" rx="10" stroke-width="1.5"/>
+    <text class="dgm-accent-text" x="500" y="68" font-size="13.5" font-weight="700">📊 做交付物</text>
+    <text class="dgm-muted" x="500" y="92" font-size="11.5">slides_update（做 PPT）</text>
+    <text class="dgm-muted" x="500" y="112" font-size="11.5">claw_doc / website</text>
+    <text class="dgm-muted" x="500" y="132" font-size="11.5">svg_chart / storybook</text>
+    <text class="dgm-muted" x="500" y="152" font-size="11.5">notebook / page</text>
+    <text class="dgm-muted" x="500" y="176" font-size="11" font-style="italic">让它能“交出成品”</text>
+  </g>
+
+  <!-- Row 2 -->
+  <g>
+    <rect class="dgm-node" x="16" y="204" width="222" height="150" rx="10" stroke-width="1.5"/>
+    <text class="dgm-accent-text" x="34" y="232" font-size="13.5" font-weight="700">🎨 生成媒体</text>
+    <text class="dgm-muted" x="34" y="256" font-size="11.5">imagen（生成图片）</text>
+    <text class="dgm-muted" x="34" y="276" font-size="11.5">videogen（生成视频）</text>
+    <text class="dgm-muted" x="34" y="296" font-size="11.5">speechgen（生成语音）</text>
+    <text class="dgm-muted" x="34" y="340" font-size="11" font-style="italic">让它能“出图出声”</text>
+  </g>
+  <g>
+    <rect class="dgm-good-node" x="249" y="204" width="222" height="150" rx="10" stroke-width="2"/>
+    <text class="dgm-text" x="267" y="232" font-size="13.5" font-weight="700">💬 发消息 · 协作</text>
+    <text class="dgm-muted" x="267" y="256" font-size="11.5">message / claw_message</text>
+    <text class="dgm-muted" x="267" y="276" font-size="11.5">（发飞书/Discord/Slack）</text>
+    <text class="dgm-muted" x="267" y="296" font-size="11.5">channel_trigger / comment</text>
+    <text class="dgm-muted" x="267" y="316" font-size="11.5">hitl（问人类）</text>
+    <text class="dgm-muted" x="267" y="340" font-size="11" font-style="italic">让它能“找人 & 通知”</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="482" y="204" width="222" height="150" rx="10" stroke-width="1.5"/>
+    <text class="dgm-accent-text" x="500" y="232" font-size="13.5" font-weight="700">🤖 派子代理 · 编排</text>
+    <text class="dgm-muted" x="500" y="256" font-size="11.5">sub_agent（开分身）</text>
+    <text class="dgm-muted" x="500" y="276" font-size="11.5">plan / todo</text>
+    <text class="dgm-muted" x="500" y="296" font-size="11.5">scheduled_task</text>
+    <text class="dgm-muted" x="500" y="316" font-size="11.5">memory（记忆）</text>
+    <text class="dgm-muted" x="500" y="340" font-size="11" font-style="italic">让它能“分工 & 记事”</text>
+  </g>
+
+  <!-- footnote -->
+  <text class="dgm-muted" x="360" y="384" font-size="11" text-anchor="middle">…以上只是各类举例，注册表里共 54 个（每个服务还能再展开成一到多个具体工具）</text>
+</svg>
+</div>
+<figcaption>Conductor 的能力全景，源头是 <code>GetAllToolServices</code>（<code>tools.go</code>）里那张 map。“发飞书/Discord/Slack”靠 <code>message</code>／<code>claw_message</code> 工具，再接上 <code>biz/infrastructure/channel/</code> 下的 discord/lark/slack 渠道基础设施。</figcaption>
+</figure>
+
+<div class="good">
+<strong>本课要带走的一句话</strong>：Agent = 大脑（<code>streamCallLLM</code>）＋ 心跳（<code>agent.streamChat</code> 的 for 循环，最多 100 步）＋ 手脚（<code>GetAllToolServices</code> 里的 54 个工具，<code>executeToolCallGroups</code> 执行）。成品再花哨，也是这三件套堆出来的。接下来 12 课，我们就从最小的样子开始，一个零件一个零件把它装回去。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>Agent（智能体）</dt>
+<dd>一个能<strong>自主连续多步、并能调用工具动手</strong>的程序。三件套：大脑（LLM）＋ 心跳（loop）＋ 手脚（tools）。对应 mino_server 的 <code>Conductor</code>。</dd>
+<dt>大模型 / LLM</dt>
+<dd>Agent 的“大脑”。<strong>无状态</strong>：每次调用只认这一次发过去的全部文字，不记得上一次。Conductor 主循环里“问大脑”走 <code>streamCallLLM</code>（<code>agent.go:1545</code>）；仓库别处另有多处 LLM 调用。</dd>
+<dt>工具（tool）</dt>
+<dd>Agent 的“手脚”，把大脑的文字意图变成真实动作（上网、跑代码、发消息…）。在 <code>GetAllToolServices</code> 注册，共 54 个。</dd>
+<dt>心跳循环（agent loop）</dt>
+<dd>驱动 Agent 连续行动的 <code>for</code> 循环（<code>agent.streamChat</code>），转一圈 ＝ 一步(step)，上限 <code>defaultMaxStepCount = 100</code>。</dd>
+<dt>无状态（stateless）</dt>
+<dd>指大模型不自带记忆：连续性必须由外部把历史每次重新递进去，而不是模型自己记住。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：下面哪个才算 Agent，而不只是普通 chatbot？<br>A. 你问“今天天气咋样”，它凭训练知识答一句就结束<br>B. 你说“查一下明天北京天气，如果下雨就发飞书提醒我带伞”，它自己去查、判断、再发消息</summary>
+<div class="answer">
+<p><strong>答案：B。</strong>关键不在“答得聪不聪明”，而在两点：<strong>能自己多走几步</strong>（查→判断→发消息，不是一个来回就停）和<strong>能真的动手</strong>（调了搜索工具和发消息工具）。A 只走了一步、没动任何工具，就是典型 chatbot——对应“大脑答一次就 <code>agent.done</code>”。B 才是心跳（<code>agent.streamChat</code> 转了好几圈）＋ 手脚（调了 search、message 工具）齐活的 Agent。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：Agent 每走一步，工具跑出来的结果去哪了？为什么这一步是“循环能转起来”的关键？</summary>
+<div class="answer">
+<p>工具结果会被 <code>AddToolResult</code>（<code>message.go</code>）包成一条消息，塞回消息列表，成为<strong>下一轮发给大脑的输入</strong>。为什么关键？因为大脑是<strong>无状态</strong>的——它不会记得上一步工具返回了啥。只有把结果回灌进去，下一圈大脑才“看得见”刚才办事的结果，从而决定下一步干嘛。<strong>工具的输出变成大脑的输入</strong>，这个回灌动作就是心跳能一圈圈滚下去的燃料；不回灌，循环转第二圈时大脑就是睁眼瞎。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3：为什么心跳循环要设 <code>defaultMaxStepCount = 100</code> 这个上限？不设会怎样？</summary>
+<div class="answer">
+<p>这是一根<strong>保险丝</strong>。大脑有可能犯轴、陷入“再来一步、再来一步”却永远不收工的死循环。每一步都要真金白银地调用一次大模型（花 token、花时间）。不设上限，一个失控的请求就能无限空转、无限烧钱、还占着资源不放。设成 100 步后，到顶还没干完就主动停下报错——<strong>宁可失败，也不失控</strong>。这也预告了后面“可靠性 / 编排”那几课要处理的问题。</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>我们说大脑是<strong>无状态</strong>的：每次调用它，它只认这一次发过去的文字，完全不记得上一步发生了啥。可上面又说心跳能让它“连续做好几步”——这不矛盾吗？一个失忆的大脑，凭什么能接着上一步往下干？</p>
+<p>答案藏在“每一圈到底把<strong>哪些文字</strong>递给大脑”这件事里。下一课我们就把心跳循环拆开，一圈一圈看它 6 个动作怎么转、又是怎么把历史重新喂回去，让一个失忆的大脑装出“有连续性”的样子。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>你已经认识了 Agent 的三件套，也见过了成品 Conductor 的全貌。下一课 <a href="02-the-agent-loop.html">《最小内核：Agent 的心跳循环》</a>，我们钻进那个 <code>for</code> 循环，看它每一步到底在忙什么。读到卡壳，回会话里问你的 AI 老师，可要求 ELI5 或直接看真实代码。· <a href="index.html">🏠 返回课程门户</a></p>
+</footer>
+</main>
+</body>
+</html>

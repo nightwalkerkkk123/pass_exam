@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0036 · 读懂 Benchmark 报告：总分之下的结构性短板与三层假设</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0036 课 · 支柱三(模型) · Agent 评估 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>读懂 Benchmark 报告：总分之下的结构性短板与三层假设</h1>
+
+<p class="lede">这节课只押一件事：<strong>Benchmark 报告的价值，不在“总体成功率”这个单一数字，而在它揭示的结构性短板</strong>。你要学会交叉读两张表——逐任务表格 + 能力标签矩阵——把散落的任务失败定位到少数几个能力缺陷；再把改进按<strong>表层 / 中层 / 深层</strong>三层假设分级（成本递增、深层条件化启动），最后用<strong>成本收益比</strong>而非“有效就上”来决定部署谁。这是第 6 章“从 Benchmark 报告到系统改进”一节的完整闭环，也是把 Agent 工程从经验驱动推向科学工程的关键一步。</p>
+
+<h2>一、先看病灶，别看总分：两张表怎么交叉读</h2>
+
+<p>书里用了一个<strong>示教性的假设案例</strong>（作者反复强调“数据均为假设值，旨在演示方法论”）：在 AndroidWorld 上评估某个 Agent，拿到两张核心报告表——<strong>逐任务性能列表</strong>和<strong>按能力标签划分的性能矩阵</strong>。</p>
+
+<p>逐任务表格显示了一个清晰的模式：大部分常规任务（录音、拍照、联系人管理、笔记、文件操作、系统设置）成功率接近 100%，平均要十几步、最复杂可达数十步——证明 Agent 在标准场景下规划与执行没问题。<strong>失败高度集中</strong>在少数区域：短信回复、Wi-Fi 开关及状态验证、待办事项查询、Wi-Fi+蓝牙组合、VLC 播放列表创建。表面上这些任务彼此无关。</p>
+
+<p>真正把它们串起来的是<strong>能力标签矩阵</strong>——它把所有任务按“所需能力 × 难度”交叉分类。报告里往往浮现几个成功率极低的能力维度：</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">transcription</div><div class="head">🔤 转录</div><div class="sub">从图像/视频转录信息，暴露视觉理解缺陷</div></div>
+  <div class="cell"><div class="role">math_counting</div><div class="head">🔢 计数</div><div class="sub">不是不会算，而是没识别出要算、没从界面提数字</div></div>
+  <div class="cell"><div class="role">complex_ui</div><div class="head">🧩 复杂界面</div><div class="sub">重度依赖标准 UI，一遇非标准布局就崩</div></div>
+</div>
+<figcaption>三个低分能力维度。把它们和逐任务表叠起来看，失败原因就清晰了：待办查询失败=非标准 UI 读不出列表；Wi-Fi 失败=系统设置控件层级超出理解；VLC 失败=专业应用里找不到创建入口。散落的“任务失败”被收敛成少数几个“能力缺陷”。</figcaption>
+</figure>
+
+<h2>二、为什么要分三层：把改进按“验证成本”排队</h2>
+
+<p>诊断出病灶后，作者不是一股脑把所有改法都试一遍，而是把假设按<strong>验证成本从低到高</strong>组织成三层——这就是“构建改进路线图”的核心设计。为什么要分层？因为深层改动（换模型、加信息源）既贵又慢，只有当便宜的手段用尽、短板仍在时，才值得动它。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 360" role="img" aria-label="三层假设金字塔：底层表层假设H1H2成本低可并行，中层H3H4，顶层深层假设H5H6条件化启动；右侧成本收益比箭头筛选出H1H3H6部署">
+  <!-- 顶层 深层 -->
+  <polygon class="dgm-hub" points="360,30 300,110 420,110"/>
+  <text class="dgm-accent-text" x="360" y="72" font-size="13" font-weight="700" text-anchor="middle">深层</text>
+  <text class="dgm-muted" x="360" y="92" font-size="10.5" text-anchor="middle">H5 换模型 / H6 元素树</text>
+  <text class="dgm-muted" x="360" y="105" font-size="9.5" text-anchor="middle">2×2 · 条件化启动</text>
+  <!-- 中层 -->
+  <polygon class="dgm-node" points="300,116 420,116 480,206 240,206"/>
+  <text class="dgm-text" x="360" y="150" font-size="13" font-weight="700" text-anchor="middle">中层</text>
+  <text class="dgm-muted" x="360" y="170" font-size="10.5" text-anchor="middle">H3 修复多模态管道 · H4 全局思考</text>
+  <text class="dgm-muted" x="360" y="188" font-size="10" text-anchor="middle">独立、可并行</text>
+  <!-- 底层 -->
+  <polygon class="dgm-node" points="240,212 480,212 560,320 160,320"/>
+  <text class="dgm-text" x="360" y="252" font-size="13" font-weight="700" text-anchor="middle">表层</text>
+  <text class="dgm-muted" x="360" y="272" font-size="10.5" text-anchor="middle">H1 Wi-Fi 导航提示 · H2 待办 UI 规则</text>
+  <text class="dgm-muted" x="360" y="290" font-size="10" text-anchor="middle">成本低、相互独立、可并行验证</text>
+
+  <!-- 成本轴 左侧 -->
+  <line class="dgm-edge" x1="120" y1="320" x2="120" y2="40" stroke-width="1.5" marker-end="url(#a36)"/>
+  <text class="dgm-muted" x="112" y="185" font-size="11" text-anchor="middle" transform="rotate(-90 112 185)">验证成本递增 →</text>
+
+  <!-- 成本收益筛选 右侧 -->
+  <text class="dgm-muted" x="640" y="40" font-size="11" font-weight="700" text-anchor="middle">成本收益比筛选</text>
+  <text class="dgm-accent-text" x="640" y="120" font-size="11" text-anchor="middle">部署 H6</text>
+  <text class="dgm-muted" x="640" y="138" font-size="9.5" text-anchor="middle">否 H5(贵且弱)</text>
+  <text class="dgm-accent-text" x="640" y="200" font-size="11" text-anchor="middle">部署 H3</text>
+  <text class="dgm-muted" x="640" y="218" font-size="9.5" text-anchor="middle">否 H4(杀鸡用牛刀)</text>
+  <text class="dgm-accent-text" x="640" y="290" font-size="11" text-anchor="middle">部署 H1</text>
+  <text class="dgm-muted" x="640" y="308" font-size="9.5" text-anchor="middle">缓 H2(不可扩展)</text>
+  <line class="dgm-edge" x1="560" y1="320" x2="600" y2="290" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#a36)"/>
+  <line class="dgm-edge" x1="480" y1="206" x2="600" y2="200" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#a36)"/>
+  <line class="dgm-edge" x1="420" y1="110" x2="600" y2="120" stroke-width="1.3" stroke-dasharray="4 3" marker-end="url(#a36)"/>
+  <defs>
+    <marker id="a36" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>三层假设金字塔。底层最先跑、最便宜；深层假设有<strong>启动条件</strong>——“仅在表层和中层改进后 complex_ui 成功率仍低于 40% 时才启动”。右侧是决策端：不是“有效就上”，而是按成本收益比筛出 H1+H3+H6 部署，把 H4/H5/H2 分别否掉或缓办。</figcaption>
+</figure>
+
+<p>三层的具体内容（全部来自书中假设案例）：</p>
+<ul>
+<li><strong>表层</strong>（成本低、独立、可并行）：H1 给 Wi-Fi 操作加系统设置导航提示；H2 给待办应用提供 UI 元素识别规则。</li>
+<li><strong>中层</strong>（同样独立、可并行）：H3 修复多模态输入管道（回放轨迹发现图片被丢弃或转成文本，再强的多模态模型也无从转录）；H4 全局启用思考(reasoning)以解决计数失败。</li>
+<li><strong>深层</strong>（验证成本高、条件启动）：H5 换更强视觉模型（GPT-5）；H6 在截图之外增加 UI 元素树信息（UI Automator 的结构化 DOM 与截图交叉验证）。两者组成 <strong>2×2 对比实验</strong>（Claude/GPT-5 × 仅截图/截图+元素树），回答“模型能力和信息丰富度哪个更关键、是否有协同”。</li>
+</ul>
+
+<h2>三、从结果到决策：为什么“有效”不等于“该部署”</h2>
+
+<p>每个配置在完整 116 个任务上跑 5 次（不同随机种子）。假设实验结果出来后，作者的决策逻辑不是“凡有效即采用”，而是逐项权衡收益与它拖累的护栏指标（延迟、成本、token）：</p>
+
+<div class="formula">
+<div class="eq"><b>部署与否</b> <span class="op">=</span> 目标指标收益 <span class="op">−</span> 护栏指标代价 <span class="op">×</span> 受影响任务占比</div>
+<div class="gloss">收益要摊到“真正受益的任务”上，代价却常常摊到“全部任务”上</div>
+</div>
+
+<ul>
+<li><strong>H1+H3 明确部署</strong>：H1 成本低、收益高、无副作用（设置类 0%→75%，输入 token 仅 +8%）；H3 虽增加 15% vision token 和 1 秒/步延迟，但转录能力从无到有（0%→80%），且修复的是“输入管道丢多模态信息”这一<strong>架构性缺陷</strong>，还可能顺带改善其他视觉任务。</li>
+<li><strong>H6 优于 H5</strong>：H5(GPT-5) 每步延迟 4 秒飙到 15 秒，complex_ui 却只到 35%——说明瓶颈不在模型思考能力，而在输入信息是否充分；H6 用 +30% token、+2 秒换来 complex_ui 17%→52%（提升 35 个百分点），性价比高得多。H5+H6 组合成绩最高（68%）但时长在大规模部署中不可接受，只适合银行转账、医疗预约这类关键异步任务选择性启用。</li>
+<li><strong>H2 缓办</strong>：为每个非标准应用手写专门规则不可持续，只能作临时方案，长期应提升泛化能力。</li>
+</ul>
+
+<p>最终实施 H1、H3、H6 三项（H4 未部署），成功率从 88% 提到 94%。重跑完整 benchmark，失败模式变了：转录/设置/复杂 UI 大幅改善，剩余约 6% 集中在未解决的计数、仍波动的 Wi-Fi 状态验证（0%→60% 但不稳定），以及少量新失败——可能是提示词变长或元素树信息过多导致注意力分散。这份新报告，就成了下一轮假设（H7 条件化思考、H8 扩展手势动作空间）的起点。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 170" role="img" aria-label="从Benchmark到系统改进的闭环：诊断→假设→实验→决策→迭代，迭代回到诊断">
+  <rect class="dgm-node" x="20" y="60" width="110" height="48" rx="8"/>
+  <text class="dgm-text" x="75" y="82" font-size="12.5" font-weight="700" text-anchor="middle">诊断</text>
+  <text class="dgm-muted" x="75" y="99" font-size="9.5" text-anchor="middle">交叉两张表</text>
+
+  <rect class="dgm-node" x="160" y="60" width="110" height="48" rx="8"/>
+  <text class="dgm-text" x="215" y="82" font-size="12.5" font-weight="700" text-anchor="middle">假设</text>
+  <text class="dgm-muted" x="215" y="99" font-size="9.5" text-anchor="middle">三层路线图</text>
+
+  <rect class="dgm-node" x="300" y="60" width="110" height="48" rx="8"/>
+  <text class="dgm-text" x="355" y="82" font-size="12.5" font-weight="700" text-anchor="middle">实验</text>
+  <text class="dgm-muted" x="355" y="99" font-size="9.5" text-anchor="middle">分阶段·跑5次</text>
+
+  <rect class="dgm-hub" x="440" y="58" width="110" height="52" rx="9"/>
+  <text class="dgm-accent-text" x="495" y="80" font-size="12.5" font-weight="700" text-anchor="middle">决策</text>
+  <text class="dgm-muted" x="495" y="97" font-size="9.5" text-anchor="middle">成本收益比</text>
+
+  <rect class="dgm-node" x="580" y="60" width="100" height="48" rx="8"/>
+  <text class="dgm-text" x="630" y="82" font-size="12.5" font-weight="700" text-anchor="middle">迭代</text>
+  <text class="dgm-muted" x="630" y="99" font-size="9.5" text-anchor="middle">重跑生成新报告</text>
+
+  <line class="dgm-edge" x1="130" y1="84" x2="156" y2="84" stroke-width="1.5" marker-end="url(#b36)"/>
+  <line class="dgm-edge" x1="270" y1="84" x2="296" y2="84" stroke-width="1.5" marker-end="url(#b36)"/>
+  <line class="dgm-edge" x1="410" y1="84" x2="436" y2="84" stroke-width="1.5" marker-end="url(#b36)"/>
+  <line class="dgm-edge" x1="550" y1="84" x2="576" y2="84" stroke-width="1.5" marker-end="url(#b36)"/>
+  <path class="dgm-edge" d="M630 108 C630 150, 75 150, 75 110" fill="none" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#b36)"/>
+  <text class="dgm-muted" x="352" y="145" font-size="10.5" text-anchor="middle">新报告 = 下一轮诊断的起点（能力螺旋上升）</text>
+  <defs>
+    <marker id="b36" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>Benchmark 到系统改进的闭环（对应图6-7）。Benchmark 不是一次性考试，而是持续的“能力体检”——建立每周跑一次的机制，就能监测演进曲线、及时发现退化、验证改进、积累“哪类改进通常有效”的知识。</figcaption>
+</figure>
+
+<div class="pitfall">
+<p><strong>初学者最容易掉进的坑：把“提升了总体成功率”当成“该部署”的充分理由。</strong>看 H4——全局启用思考把总体成功率从 88% 提到 91%，看起来是净提升，谁不想要？</p>
+<p>但能力标签分布显示：<strong>只有约 8% 的任务涉及计数</strong>。H4 却让<strong>全部任务</strong>都承担 3 倍延迟（每步 4 秒→12 秒）和 3 倍成本。这是典型的<strong>“杀鸡用牛刀”</strong>——护栏指标（延迟、成本）的恶化，远远盖过了目标指标那 3 个百分点的微弱收益。错在哪？错在只盯着一个聚合数字，没把收益摊回“真正受益的 8% 任务”上。正确的做法是让 H4 的洞察（思考对计数有效）演化成 <strong>H7 条件化启用</strong>：任务开始前用一次约 1-2 秒的快速 LLM 调用分析任务描述，只对涉及计数或复杂推理的任务开思考，把代价压在真正需要的地方。</p>
+</div>
+
+<h2>四、宏观背景：这套方法论到底在改造什么</h2>
+
+<p>为什么值得为“怎么读一张报告”单开一课？因为它是本章“评估驱动的决策”这一层的落地形态。作者在章末点题：核心方法论是<strong>观察 → 假设 → 实验 → 验证 → 新认识 → 新假设</strong>，目的就是让 Agent 工程<strong>从经验驱动的“炼金术”转向数据驱动的科学工程</strong>。三层假设、成本收益决策、条件化启动，都是为了让“改哪里、先改哪、值不值得改”这三个问题有据可依，而不是凭手感。</p>
+
+<p>还有一条容易被忽视、但书里专门强调的前置原则：<strong>看到 Agent 表现下降时，应先检查评测系统本身，再动 Agent</strong>。评测环境资源不足杀进程、评分器有 bug、测试用例与生产脱节——这些在结果数字上跟“模型退化”长得一模一样，只有审查完整轨迹才能区分。基于失真信号调方向，改的方向可能从一开始就是错的。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：Benchmark 报告的价值是<strong>结构性短板</strong>，不是总分。交叉“逐任务表 + 能力标签矩阵”定位病灶，把改进按<strong>表层→中层→深层</strong>三层假设排队（深层条件化启动），再用<strong>成本收益比</strong>（收益摊给受益任务、代价摊给全部任务）而非“有效就上”做部署决策——H4“全局思考”被否、演化成 H7“条件化思考”，就是这条判断最锋利的一刀。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>古德哈特定律（Goodhart's Law）</dt>
+<dd>当一个度量指标变成优化目标时，它就不再是好的度量指标；Agent 越在某评分系统上调优，越倾向钻系统漏洞而非真正提升能力。<em>提醒</em>：别把机制指标（如“缩短计划文件长度”）当成真正目标（“降低会话成本”）。</dd>
+<dt>模型替换实验（Model Swap）</dt>
+<dd>固定 Harness、只更换更强或更弱的模型，观察分数变化幅度，用以区分性能瓶颈在模型能力还是在 Harness 设计。<em>避免</em>与消融实验混用——消融是关闭 Harness 组件，模型替换是换模型。本课 H5 换 GPT-5 就是一次模型替换实验。</dd>
+<dt>Pass^k（Pass hat k）</dt>
+<dd>k 次尝试全部成功的概率，回答“Agent 是否稳定可靠”，用于回归测试等看重稳定性的场景。<em>切勿</em>与 Pass@k（至少一次成功）混淆，二者衡量方向相反。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：AndroidWorld 假设案例中，全局启用思考(H4)把总体成功率从 88% 提到 91%，为什么最终被否决、演化成条件化启用(H7)？</summary>
+<div class="answer">
+<p>因为能力标签分布显示只有约 8% 的任务涉及计数，H4 却让全部任务承担 3 倍的延迟和成本——典型的“杀鸡用牛刀”。护栏指标（延迟、成本）恶化超过了目标指标的微小收益。但 H4 证明了思考对计数任务有效，于是演化为 H7：任务开始前用一次快速 LLM 调用分析任务描述，只对需要计数/复杂推理的任务开启思考，把代价控制在真正需要的任务上。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：为什么深层假设（H5/H6）不和表层、中层假设一起并行跑，而是设了一个“启动条件”？</summary>
+<div class="answer">
+<p>因为深层假设验证成本高（换模型、加信息源，延迟和 token 开销都大），不值得无条件地投入。书里给的启动条件是：<strong>仅在表层和中层改进后，complex_ui 成功率仍低于 40% 时才启动</strong>。也就是说，先用便宜的手段把能解决的短板解决掉，如果复杂界面理解这个硬骨头还在，才动用昂贵的深层实验。这正是三层假设“按验证成本从低到高排队”的设计意图——把贵的实验留到确实必要时。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套实验 <strong>实验 6-10 ★★★：AndroidWorld 的评估和改进</strong>（对应仓库 <code>chapter6/android-world/</code>）。它给出 t3a Agent 在 AndroidWorld 116 个任务上的真实评估报告——逐任务性能列表、按能力标签与难度划分的性能分析、失败任务轨迹与失败分析。用它把本课的完整闭环走一遍：<strong>诊断（交叉两张表）→ 构建三层假设 → 分阶段实验 → 成本收益决策 → 迭代重跑</strong>。另可参考 <code>chapter6/elo-leaderboard/</code>（实验 6-6/6-8，配对比较与 Elo 排名）。开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是第 6 章“从 Benchmark 报告到系统改进”一节（<code>book/chapter6.md</code>），建议连同图6-7（Benchmark 到改进的闭环）一起精读。本章还引用了若干外部工作：Rubric 四准则出自 Scale AI 的 <strong>“Rubrics as Rewards”</strong>；配对比较部分引用 LMSYS 论文 <strong>“Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena”</strong>、<a href="https://chat.lmsys.org/">Chatbot Arena</a> 与 Bradley-Terry 模型（原文正文未给这些来源的直接 URL，URL 来自配套项目 README）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“成本收益比为什么要把收益摊给受益任务、代价摊给全部任务”这一步再推一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0035-passk-vs-passhatk.html"><span class="dir">← 上一课</span>Pass@k 和 Pass^k 差一个符号，结论天差地别</a>
+  <a class="next" href="0037-three-stage-training-map.html"><span class="dir">下一课 →</span>三阶段炼成：预训练、SFT、RL 各在做什么</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

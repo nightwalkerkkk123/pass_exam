@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0035 · Pass@k 与 Pass^k：一个符号之差，方向相反</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0035 课 · 支柱三(模型) · Agent 评估 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>Pass@k 与 Pass^k：一个符号之差，方向相反</h1>
+
+<p class="lede">本课只押一件事：把 <strong>Pass@k</strong>（衡量“能力上限”）和 <strong>Pass^k</strong>（衡量“稳定可靠”）彻底分开。它们只差一个符号，起点还完全一样，但结论方向相反——用错一个，你的上线回归测试就会亲手把不稳定性藏起来。出处在第 6 章“结果与质量指标”一节，以及紧随其后的<strong>表6-3</strong>。</p>
+
+<h2>一、是什么：两个都在问“成功率”，但问的不是同一件事</h2>
+
+<p>任务成功率是最直接的硬指标。但作者提醒：在<strong>统计方式</strong>上，有两个常被混淆的指标，必须先分清（原文还列了第三个 Best@k，用于有连续评分的开放任务）：</p>
+
+<ul>
+<li><strong>Pass@k</strong>：k 次尝试中<strong>至少有一次</strong>成功的概率，回答“Agent <strong>能不能</strong>做到”。</li>
+<li><strong>Pass^k</strong>：k 次尝试<strong>全部</strong>成功的概率，回答“Agent 是否<strong>稳定可靠</strong>”。</li>
+<li><strong>Best@k</strong>：k 次尝试中<strong>最好一次</strong>的得分（而非是否成功），衡量“给足机会后的质量上限”。</li>
+</ul>
+
+<p>换句话说：同样是跑 k 次，Pass@k 只要有一次亮灯就算过；Pass^k 要求次次亮灯，漏一次就归零。一个乐观、一个严苛，天生朝相反方向走。</p>
+
+<h2>二、为什么方向相反：用书里的 60% 亲眼看一遍</h2>
+
+<p>作者给了一个一算就懂的例子。假设 Agent 单次成功率是 60%（即 Pass@1 = 0.6），跑 5 次：</p>
+
+<div class="formula">
+<div class="eq">Pass@5 <span class="op">=</span> 1 − 0.4<sup>5</sup> <span class="op">≈</span> 99%</div>
+<div class="eq">Pass^5 <span class="op">=</span> 0.6<sup>5</sup> <span class="op">≈</span> 7.8%</div>
+<div class="gloss">同一个 60% 的 Agent，同样跑 5 次 —— 一个说“几乎肯定成”，一个说“几乎肯定不稳”</div>
+</div>
+
+<p>为什么会岔这么开？因为两者对“多跑几次”的杠杆用法正相反：多一次机会，对 Pass@k 是<strong>多一次翻盘的机会</strong>（失败概率 0.4 连乘，越乘越小，成功率被抬向 100%）；对 Pass^k 却是<strong>多一道必须闯过的关</strong>（成功概率 0.6 连乘，越乘越小，被压向 0）。起点相同（k=1 时都是 60%），k 越大，两条线张成一个喇叭口。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 640 340" role="img" aria-label="Pass@k 与 Pass^k 随尝试次数 k 增长的两条曲线：从 k=1 时共同的 60% 出发,Pass@k 上升到 k=5 时约 99%,Pass^k 下降到约 7.8%,张成喇叭口">
+  <!-- axes -->
+  <line class="dgm-edge" x1="70" y1="40" x2="70" y2="300" stroke-width="1.5"/>
+  <line class="dgm-edge" x1="70" y1="300" x2="600" y2="300" stroke-width="1.5"/>
+  <!-- y ticks -->
+  <text class="dgm-muted" x="60" y="44" font-size="11" text-anchor="end">100%</text>
+  <text class="dgm-muted" x="60" y="148" font-size="11" text-anchor="end">60%</text>
+  <text class="dgm-muted" x="60" y="304" font-size="11" text-anchor="end">0%</text>
+  <line class="dgm-edge" x1="66" y1="144" x2="600" y2="144" stroke-width="0.8" stroke-dasharray="3 4" opacity="0.5"/>
+  <!-- x ticks -->
+  <text class="dgm-muted" x="90"  y="318" font-size="11" text-anchor="middle">k=1</text>
+  <text class="dgm-muted" x="212" y="318" font-size="11" text-anchor="middle">2</text>
+  <text class="dgm-muted" x="335" y="318" font-size="11" text-anchor="middle">3</text>
+  <text class="dgm-muted" x="457" y="318" font-size="11" text-anchor="middle">4</text>
+  <text class="dgm-muted" x="580" y="318" font-size="11" text-anchor="middle">k=5</text>
+  <text class="dgm-muted" x="335" y="336" font-size="11" text-anchor="middle">尝试次数 k</text>
+
+  <!-- Pass@k curve (green, optimistic, up) -->
+  <polyline points="90,144 212,82 335,57 457,47 580,43" fill="none" style="stroke:var(--good)" stroke-width="2.5"/>
+  <!-- Pass^k curve (accent/red, pessimistic, down) -->
+  <polyline points="90,144 212,206 335,244 457,266 580,280" fill="none" style="stroke:var(--accent)" stroke-width="2.5"/>
+
+  <!-- common start point -->
+  <circle cx="90" cy="144" r="4.5" class="dgm-hub"/>
+  <text class="dgm-muted" x="98" y="132" font-size="11">共同起点 60%</text>
+
+  <!-- endpoints -->
+  <circle cx="580" cy="43" r="4.5" style="fill:var(--good)"/>
+  <text x="574" y="34" font-size="12" font-weight="700" text-anchor="end" style="fill:var(--good)">Pass@k ≈ 99%</text>
+  <circle cx="580" cy="280" r="4.5" style="fill:var(--accent)"/>
+  <text x="574" y="296" font-size="12" font-weight="700" text-anchor="end" class="dgm-accent-text">Pass^k ≈ 7.8%</text>
+</svg>
+</div>
+<figcaption>同一个 60% 的 Agent：Pass@k（绿，至少成一次）被抬向 99%，Pass^k（红，次次都成）被压向 7.8%。差的只是 @ 和 ^ 一个符号，趋势却背道而驰。数字取自书中原例。</figcaption>
+</figure>
+
+<h2>三、边界/易错：上线回归测试到底该盯哪个</h2>
+
+<p>作者用<strong>表6-3</strong>把选择规则钉死：看你评估的<strong>目的</strong>是什么，而不是凭手感挑一个熟悉的指标。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 640 190" role="img" aria-label="两种评估目的对应两个指标:验证稳定性用 Pass hat k,评估能力天花板用 Pass@k 或 Best@k">
+  <!-- left: stability -->
+  <rect class="dgm-node" x="30" y="30" width="270" height="130" rx="10" style="stroke:var(--accent)"/>
+  <text class="dgm-text" x="165" y="60" font-size="14" font-weight="700" text-anchor="middle">目的：验证稳定性</text>
+  <text class="dgm-muted" x="165" y="80" font-size="11.5" text-anchor="middle">上线前的回归测试</text>
+  <text class="dgm-accent-text" x="165" y="116" font-size="22" font-weight="700" text-anchor="middle">→ Pass^k</text>
+  <text class="dgm-muted" x="165" y="142" font-size="11" text-anchor="middle">要的是“每次都别出错”</text>
+  <!-- right: ceiling -->
+  <rect class="dgm-node" x="340" y="30" width="270" height="130" rx="10" style="stroke:var(--good)"/>
+  <text class="dgm-text" x="475" y="60" font-size="14" font-weight="700" text-anchor="middle">目的：评估能力天花板</text>
+  <text class="dgm-muted" x="475" y="80" font-size="11.5" text-anchor="middle">探索性任务</text>
+  <text x="475" y="116" font-size="22" font-weight="700" text-anchor="middle" style="fill:var(--good)">→ Pass@k / Best@k</text>
+  <text class="dgm-muted" x="475" y="142" font-size="11" text-anchor="middle">看“给足机会后的上限”</text>
+</svg>
+</div>
+<figcaption>表6-3 的两条选择规则：先问“我在验证稳定性，还是在丈量能力上限”，再选指标。选反了，误判就写进了报告。</figcaption>
+</figure>
+
+<div class="pitfall">
+<p>最经典的错法：<strong>用 Pass@k 做上线前的稳定性回归测试</strong>。初学者的直觉是“Pass@k 数字漂亮、接近 100%，看着就靠谱”——可这正是它的陷阱。原文原话：用 Pass@k 会<strong>掩盖不稳定性</strong>——“Agent 五次只成功一次也显示‘通过’”。一个五次崩四次的 Agent，Pass@5 照样接近 99%，你却以为它稳如老狗，直接放它上线。</p>
+<p>反过来也别用错：探索性任务若拿 Pass^k 当关卡，会<strong>因偶发波动误报</strong>——“每次小改动都被判失败”，你会疲于奔命地追每一次随机抖动，却看不清真正的能力有没有涨。</p>
+</div>
+
+<h2>四、别把“看着变好了”当成真的变好了</h2>
+
+<p>盯对了指标，还有第二道坎：观察到的差异到底是信号，还是抽样噪声。作者在紧接着的“评估结果的统计显著性”一节里给了个冷水例子。粗估噪声带宽的工具是<strong>二项分布的标准误</strong>：n 个用例、成功率 p，标准误约为 √(p(1−p)/n)。100 个用例、成功率 70%，标准误 ≈ 4.6%，95% 置信区间约 70% ± 9 个百分点。</p>
+
+<p>于是“新模型 73% vs 旧模型 70%”这 3 个百分点，完全落在噪声里——把两者当独立比较时，差值标准误约是单个的 √2 倍（这里约 6.5%）。原文判词很直白：据此切换模型，<strong>与掷硬币差别不大</strong>。由此得到一条实用原则——<strong>分差小于噪声带宽时，不做切换决策</strong>。而且同一批任务上比两个配置，正确的默认做法是<strong>配对分析</strong>（如 McNemar 检验思路）：它扣掉了“题目本身难易”这一共同噪声源，比“两个独立成功率相减”灵敏得多。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：Pass@k 问“能不能做到”，Pass^k 问“稳不稳”。上线前的稳定性回归测试必须盯 <strong>Pass^k</strong>——因为 Pass@k 会把“五次只成一次”也算成通过，替你把不稳定性藏起来；探索性任务反过来用 Pass@k / Best@k。分清目的再选指标，选完还要过一遍噪声带宽，才敢下结论。
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>Pass@k</dt>
+<dd>k 次尝试中<strong>至少有一次</strong>成功的概率，回答“Agent 能不能做到”，衡量能力上限。60% 单次成功率下 Pass@5 ≈ 99%。<em>避免</em>拿它做稳定性回归测试——会掩盖不稳定性。</dd>
+<dt>Pass^k (Pass hat k)</dt>
+<dd>k 次尝试<strong>全部成功</strong>的概率，回答“Agent 是否稳定可靠”，用于回归测试等看重稳定性的场景。60% 单次成功率下 Pass^5 ≈ 7.8%。<em>切勿</em>与 Pass@k 混淆，二者衡量方向相反。</dd>
+<dt>Best@k</dt>
+<dd>k 次尝试中<strong>最好一次</strong>的得分（而非是否成功），衡量“给足机会后的质量上限”，多用于有连续评分的开放任务。</dd>
+<dt>标准误（standard error）</dt>
+<dd>刻画成功率因抽样随机而波动的幅度，值越大说明该成功率越不可靠；n 个用例、成功率 p 时约为 √(p(1−p)/n)。分差小于噪声带宽时不做切换决策。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：某 Agent 单次成功率 60%。跑 5 次，Pass@5 和 Pass^5 各约多少？做上线前的稳定性回归测试该盯哪个指标，为什么？</summary>
+<div class="answer">
+<p>Pass@5 = 1 − 0.4⁵ ≈ <strong>99%</strong>（几乎肯定至少成功一次，衡量能力上限）；Pass^5 = 0.6⁵ ≈ <strong>7.8%</strong>（全部成功的概率，衡量稳定性）。</p>
+<p>稳定性回归测试<strong>必须盯 Pass^k</strong>——用 Pass@k 会掩盖不稳定性（5 次只成功 1 次也显示“通过”）。反过来，探索性任务用 Pass^k 会因偶发波动误报，每次小改动都被判失败。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：新模型在你的评估集（100 个用例）上成功率 73%，旧模型 70%。该不该据此把线上切到新模型？</summary>
+<div class="answer">
+<p>不该，至少不能凭这 3 个百分点。100 个用例、70% 成功率的标准误约 4.6%，95% 置信区间约 ±9 个百分点；把两者当独立比较时差值标准误约 6.5%。3% 的分差完全落在噪声带宽内，据此切换“与掷硬币差别不大”。原则是：分差小于噪声带宽时不做切换决策；应先改用配对分析（同一批任务、逐题比胜负），仍不确定再扩大样本。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>想把“配对比较 / 相对能力评分”从纸面变成手感，跑<strong>实验 6-6 / 6-8</strong>：仓库目录 <code>chapter6/elo-leaderboard/</code> ——从零实现 Elo rating 与 Bradley-Terry 模型，用 Chatbot Arena 数百万场真实盲选投票构建排行榜（含 95% 置信区间的 bootstrap）。它演示的正是本课的下游主题：怎样从两两对决里稳健地提取“谁更强”，而不是被单场噪声带偏。开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是书的第 6 章“结果与质量指标”一节与<strong>表6-3</strong>（Pass@k 与 Pass^k 的适用场景），以及“评估结果的统计显著性”一节。指标背后的统计基础可延伸阅读：配对比较部分引用了 LMSYS 论文《Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena》与 <a href="https://chat.lmsys.org/">Chatbot Arena（chat.lmsys.org）</a>及 Bradley-Terry 模型；Rubric 四准则出自 Scale AI 的《Rubrics as Rewards》。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，比如让老师带你把 0.6⁵ 这个连乘为什么“越乘越小”再推一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0034-rubric-four-principles-and-veto.html"><span class="dir">← 上一课</span>用 Rubric 给开放式任务打分：四准则与一票否决</a>
+  <a class="next" href="0036-benchmark-report-to-hypothesis-tiers.html"><span class="dir">下一课 →</span>读懂 Benchmark 报告：从能力标签矩阵到三层假设</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

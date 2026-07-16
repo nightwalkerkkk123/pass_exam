@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0018 · 四种记忆存储格式：简单与表达力的根本张力</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0018 课 · 支柱一(上下文) · 记忆与知识库 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>四种记忆存储格式：简单性与表达力的根本张力</h1>
+
+<p class="lede">上一课解决了“会话结束后<strong>该记住什么</strong>”，这一课解决“记下来的东西<strong>怎么存</strong>”。作者在“用户记忆的四种存储格式”一节里，沿 <strong>Simple Notes → Enhanced Notes → JSON Cards → Advanced JSON Cards</strong> 摆了一条递进的阶梯（对应图3-2）。本课唯一要拿下的，是看穿这条阶梯背后那条<strong>贯穿始终的张力——简单性 vs 表达力</strong>：每往上走一格，都在用某种代价换某种能力，没有免费的格式。</p>
+
+<h2>一、四种格式：一条“越来越会记事”的阶梯</h2>
+
+<p>同一条用户信息，可以用不同的粒度和结构来表示。作者给的四种，是按记忆粒度和结构复杂度<strong>递进</strong>排列的——不是四个并列选项，而是一步步“加东西”：</p>
+
+<ul>
+<li><strong>Simple Notes</strong>：每条记忆是一个<strong>最小的、不可再分的事实</strong>（如“用户邮箱：john@example.com”）。开销极低，是 O(1) 操作（耗时固定、不随数据量增长）。代价是信息关联性完全丢失——“在 TechCorp 担任高级工程师，负责推荐系统”会被拆成三条互不相关的原子事实，内在联系被割裂。</li>
+<li><strong>Enhanced Notes</strong>：把每条记忆存成一段<strong>包含完整上下文的自然语言段落</strong>，保留叙事结构与语义完整性，适合“基于我的背景推荐新项目”这类需要细微推断的场景。</li>
+<li><strong>JSON Cards</strong>：采用<strong>三层嵌套结构</strong>（类别→子类别→键值对，如 <code>work.position.title</code>），模拟人类分类认知，支持部分更新（改职位不动公司名），可预测、可扩展。</li>
+<li><strong>Advanced JSON Cards</strong>：在 JSON Cards 之上，每张卡片除事实外，再加 <strong>backstory（获取上下文）、person（主体身份）、relationship（与用户关系）</strong>和时间戳。作者称它是“从信息存储到知识管理的<strong>范式转变</strong>”。</li>
+</ul>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 270" role="img" aria-label="四种记忆存储格式沿简单性到表达力的横轴排列，每种格式标注它牺牲了什么">
+  <!-- baseline axis -->
+  <line class="dgm-edge" x1="55" y1="150" x2="665" y2="150" stroke-width="1.5" marker-end="url(#arw)"/>
+  <text class="dgm-muted" x="55" y="182" font-size="12" text-anchor="start">← 更简单 · 更省</text>
+  <text class="dgm-accent-text" x="665" y="182" font-size="12" text-anchor="end">更有表达力 · 更贵 →</text>
+
+  <!-- Simple Notes -->
+  <circle class="dgm-node" cx="120" cy="150" r="7"/>
+  <text class="dgm-text" x="120" y="112" font-size="13" font-weight="700" text-anchor="middle">Simple Notes</text>
+  <text class="dgm-muted" x="120" y="130" font-size="10.5" text-anchor="middle">原子键值事实</text>
+  <text class="dgm-muted" x="120" y="212" font-size="10.5" text-anchor="middle">牺牲：语义关联</text>
+
+  <!-- Enhanced Notes -->
+  <circle class="dgm-node" cx="300" cy="150" r="7"/>
+  <text class="dgm-text" x="300" y="112" font-size="13" font-weight="700" text-anchor="middle">Enhanced Notes</text>
+  <text class="dgm-muted" x="300" y="130" font-size="10.5" text-anchor="middle">完整上下文段落</text>
+  <text class="dgm-muted" x="300" y="212" font-size="10.5" text-anchor="middle">牺牲：结构化 / 可更新性</text>
+
+  <!-- JSON Cards -->
+  <circle class="dgm-node" cx="480" cy="150" r="7"/>
+  <text class="dgm-text" x="480" y="112" font-size="13" font-weight="700" text-anchor="middle">JSON Cards</text>
+  <text class="dgm-muted" x="480" y="130" font-size="10.5" text-anchor="middle">三层嵌套键值</text>
+  <text class="dgm-muted" x="480" y="212" font-size="10.5" text-anchor="middle">牺牲：灵活性</text>
+
+  <!-- Advanced JSON Cards -->
+  <circle class="dgm-hub" cx="630" cy="150" r="9"/>
+  <text class="dgm-accent-text" x="630" y="112" font-size="13" font-weight="700" text-anchor="middle">Advanced</text>
+  <text class="dgm-accent-text" x="630" y="127" font-size="13" font-weight="700" text-anchor="middle">JSON Cards</text>
+  <text class="dgm-muted" x="630" y="212" font-size="10.5" text-anchor="middle">牺牲：简单性 / 成本</text>
+
+  <defs>
+    <marker id="arw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>图3-2 讲的就是这条轴：从左到右表达力递增、成本递增。四种格式不是“谁更好”，而是各自钉在这条轴的不同位置上，各自放弃了一样东西。</figcaption>
+</figure>
+
+<h2>二、为什么必然有这条张力（深挖“为什么”）</h2>
+
+<p>作者把四种格式并到一起，是为了逼出一句结论：这里没有绝对优劣，只有<strong>简单性与表达力之间的根本权衡</strong>。原文把每种格式“换到了什么、又赔了什么”一句话点破：</p>
+
+<div class="bookquote">
+Simple Notes 选择了极致简单，牺牲语义完整性；Enhanced Notes 选择叙事完整性，牺牲结构化和可更新性；JSON Cards 选择了结构化，牺牲灵活性；Advanced JSON Cards 选择全面性，牺牲简单性。
+<span class="src">——《深入理解 AI Agent》第 3 章</span>
+</div>
+
+<p>为什么这不是“工程师偷懒没做出完美格式”，而是<strong>结构性的</strong>？因为这几个目标本身互相拉扯：要“原子化、可 O(1) 存取”，就必须把一段叙事拆碎，关联随之丢失；要“保留完整叙事”，就没法再精确定位、部分更新某一个字段；要“强结构、可部分更新”，就得预先假设信息能被清晰地归入某一类，而现实里“周末用 Python 开发个人项目”同时是时间偏好、技术偏好和活动类型，硬塞进单一类别就丢了多维性。<strong>你按下一个目标，另一个目标就翘起来</strong>——这才是它被称为“根本张力”的原因。</p>
+
+<p>正因为没有银弹，作者给出的不是“选一个最好的”，而是<strong>混合选型标准</strong>：</p>
+
+<div class="formula">
+<div class="eq"><b>关键且少量</b> <span class="op">→</span> Advanced JSON Cards <span class="op">|</span> <b>大量且非关键</b> <span class="op">→</span> Simple Notes</div>
+<div class="gloss">关键人物关系、核心偏好用 Advanced JSON Cards 保证可检索与消歧；海量普通对话事实用 Simple Notes 压成本。多数生产系统采用混合模式，同一 Agent 内不同类信息走不同路径。</div>
+</div>
+
+<h2>三、Advanced JSON Cards 凭什么能消歧</h2>
+
+<p>阶梯最顶端那一格，值得单独拆开看，因为它解决的是一个前三种都解决不了的真实痛点：<strong>同名实体消歧</strong>。作者的例子——用户有两位“张医生”：一位是自己的牙科医生，一位是父亲的心脏科医生。脱离具体情境，这条信息根本无法被正确理解。</p>
+
+<p>Advanced JSON Cards 的解法是给每条事实挂上三个额外维度：<strong>backstory</strong> 记录“为什么”会存这条信息（获取上下文），<strong>person</strong> 与 <strong>relationship</strong> 建立“为谁”存的实体模型。于是两位“张医生”不再是两条会打架的键值，而是两张各自自洽的卡片：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 250" role="img" aria-label="两张 Advanced JSON Card 用 person、relationship、backstory 字段区分两位同名张医生">
+  <!-- card A -->
+  <rect class="dgm-node" x="30" y="30" width="310" height="190" rx="10"/>
+  <text class="dgm-accent-text" x="50" y="62" font-size="14" font-weight="700">卡片 A · “张医生”</text>
+  <text class="dgm-text" x="50" y="94" font-size="12">person：张医生</text>
+  <text class="dgm-text" x="50" y="120" font-size="12">relationship：本人的牙医</text>
+  <text class="dgm-muted" x="50" y="146" font-size="11.5">backstory：用户自己的</text>
+  <text class="dgm-muted" x="50" y="164" font-size="11.5">牙科门诊主治医生</text>
+  <text class="dgm-muted" x="50" y="198" font-size="11">+ 事实 + 时间戳</text>
+
+  <!-- card B -->
+  <rect class="dgm-node" x="380" y="30" width="310" height="190" rx="10"/>
+  <text class="dgm-accent-text" x="400" y="62" font-size="14" font-weight="700">卡片 B · “张医生”</text>
+  <text class="dgm-text" x="400" y="94" font-size="12">person：张医生</text>
+  <text class="dgm-text" x="400" y="120" font-size="12">relationship：父亲的心脏科医生</text>
+  <text class="dgm-muted" x="400" y="146" font-size="11.5">backstory：父亲就诊时</text>
+  <text class="dgm-muted" x="400" y="164" font-size="11.5">建立的健康档案关联</text>
+  <text class="dgm-muted" x="400" y="198" font-size="11">+ 事实 + 时间戳</text>
+
+  <!-- divider note -->
+  <text class="dgm-muted" x="360" y="242" font-size="11" text-anchor="middle">同名，但 person / relationship / backstory 完全不同 → 不再混淆</text>
+</svg>
+</div>
+<figcaption>当用户说“帮我安排家人的年度体检”，系统靠 relationship 识别所有家庭成员、靠 backstory 了解健康历史。代价是生成和维护成本更高——这正是它“牺牲简单性”的地方。</figcaption>
+</figure>
+
+<div class="pitfall">
+<p><strong>误区一：把“怎么存”和“放哪里 / 存什么”混成一锅。</strong>本章其实同时引入了三套<strong>正交</strong>的分类体系，表3-1 专门把它们一次厘清：记忆<strong>层次</strong>（放哪里）、存储<strong>格式</strong>（怎么存，即本课的四种）、认知<strong>类型</strong>（存什么，情景/语义/程序）。初学者常把它们当成一回事，其实它们可以自由组合——一条“靠窗座位偏好”的语义记忆可以用 Simple Notes 存，一段“先搜直飞→确认座位”的程序记忆也可以用 Advanced JSON Cards 存。选哪种格式看工程需求（简单性 vs 表达力），存哪种类型看业务场景。</p>
+<p><strong>误区二：以为 Advanced JSON Cards 做的消歧和“一词多义”是同一件事。</strong>它做的是<strong>实体消歧</strong>（区分现实中两个同名的张医生，需要维护关于实体本身的知识），不是<strong>词义消歧</strong>（判断“bank”指河岸还是银行，靠上下文感知的嵌入就能解决）。后面 GraphRAG 一节会让这种实体消歧变成图结构的原生能力，这里先把两者的边界记牢。</p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：四种存储格式是同一条“简单性↔表达力”轴上的四个刻度，<strong>每往上一格都要赔一样东西</strong>（关联 / 可更新性 / 灵活性 / 简单性）。所以正确的问题从来不是“哪种最好”，而是“这条信息<strong>关键且少量</strong>吗”——是就用 Advanced JSON Cards 换消歧与可检索，不是就用 Simple Notes 换成本，其余走混合。</p>
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>Advanced JSON Cards</dt>
+<dd>最高表达力的记忆存储格式，每张卡片除事实外还含 backstory（获取上下文）、person（主体身份）、relationship（与用户关系）和时间戳，实现同名实体消歧，代表从信息存储到知识管理的范式转变。<em>避免</em>与普通 JSON Cards 混淆——后者只是三层嵌套分类键值对，不含消歧字段。</dd>
+<dt>用户记忆（User Memory）</dt>
+<dd>针对单个用户 ID 的个性化持久记忆，跨会话提炼出的稳定信息，会被反复改写、合并、淘汰；本质是投入额外算力构建关于用户的简洁预测模型。<em>避免</em>等同于“对话历史”或“轨迹”。</dd>
+<dt>轨迹（Trajectory）</dt>
+<dd>一次 Agent 运行的完整历史记录（用户消息+模型回复+工具结果），按时间顺序 append-only 追加、只增不改，为当前决策提供即时上下文。<em>避免</em>与用户记忆混用——用户记忆是跨会话提炼、可改写的档案，轨迹是单次会话不可变的流水账。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：用户有两位“张医生”（自己的牙医、父亲的心脏科医生）。哪种存储格式能可靠区分？靠什么字段？为什么 Simple Notes 做不到？</summary>
+<div class="answer">
+<p><strong>Advanced JSON Cards</strong>。靠 <strong>person</strong>（主体身份）与 <strong>relationship</strong>（与用户关系）建立实体模型、<strong>backstory</strong> 提供获取上下文来消歧。Simple Notes 是原子键值事实、信息关联被割裂，无法表达“这个张医生是为谁存的”，也就无从区分两位同名医生。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：一句话说清 JSON Cards“牺牲了什么”，以及为什么这个牺牲是结构性的、躲不掉。</summary>
+<div class="answer">
+<p>JSON Cards 选择了结构化（可部分更新、可预测、可扩展），<strong>牺牲的是灵活性</strong>。它的刚性三层结构假设信息能被清晰归入单一类别；可现实里像“周末用 Python 开发个人项目”这样的信息同时涉及时间偏好、技术偏好和活动类型，强制归入一类就丢了多维性。要“强结构”就得先“预设可分类”，二者绑定，所以这个牺牲躲不掉——这正是简单性与表达力根本张力的一个切面。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套项目 <code>chapter3/user-memory/</code> 在统一接口下实现了上述四种记忆模式的记忆生成与检索，运行时改配置即可切换。建议在<strong>实验 3-1</strong> 的三层次评估集上逐一跑一遍，亲手对比同一组测试会话在四种格式下提取出的记忆形态与最终得分：你会看到 Simple Notes 以最低成本通过第一层“基础回忆”，却在需要综合多条信息、区分同名实体的第二、三层频繁失分，而 Advanced JSON Cards 在消歧和跨会话关联上表现最好、代价是记忆维护调用明显更贵更慢。差异在具体例子面前一目了然。完整代码见开源仓库 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>本课的一手来源是书的第 3 章“用户记忆的四种存储格式”一节（<code>book/chapter3.md</code>），配图为图3-2、分类体系见表3-1。延伸阅读推荐 Anthropic 的工程博客 <a href="https://www.anthropic.com/engineering/contextual-retrieval">Contextual Retrieval</a>（本章后半程“上下文感知检索”的原始出处）；记忆能力评估相关可参考 LoCoMo（arXiv:2402.17753）与 Mem0（arXiv:2504.19413）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把四种格式各自“牺牲了什么”逐条过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0017-memory-vs-context-and-selective-extraction.html"><span class="dir">← 上一课</span>记忆不是流水账：会话结束后 Agent 该记住什么</a>
+  <a class="next" href="0019-dense-vs-sparse-hybrid-retrieval.html"><span class="dir">下一课 →</span>稠密 vs 稀疏 vs 重排序：为什么生产级 RAG 要三管齐下</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

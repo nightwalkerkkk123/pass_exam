@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0013 · 把系统提示词当新员工手册：流程驱动而非规则堆砌</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0013 课 · 支柱一(上下文) · 上下文工程 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>把系统提示词当新员工手册：流程驱动，别堆规则</h1>
+
+<p class="lede">这节课只押一个判断：<strong>系统提示词的价值不在“写了多少条规则”，而在“规则以什么结构被送到模型面前”。</strong>作者给的检验标准是——大语言模型是一位聪明但一无所知的<strong>新员工</strong>，如果它读完你的系统提示词还不知道怎么做，Agent 也一样不知道。本课取自第 2 章「提示工程：优化系统提示词」一节，用书里“账单谈判 Agent”的例子把“模糊规则 → 行为不可预测”这条因果讲穿，并给出流程驱动、业务规则细化、few-shot 何时用的判断标准。</p>
+
+<h2>一、系统提示词是什么：Agent 的“员工手册”</h2>
+
+<p>提示工程（Prompt Engineering）的核心对象，是 API 消息列表里那条 <code>role: "system"</code> 的消息——<strong>系统提示词（System Prompt）</strong>。它定义了 Agent 的身份、行为规则、约束条件和工作流程，模型把它视为最高优先级的指令。作者一句话点题：它就是 Agent 的“员工手册”。</p>
+
+<p>作者从四个维度拆解如何写好它，本课先记住前两个作为地基：</p>
+
+<ul>
+<li><strong>语气与风格（“人格”）</strong>：例如 “You MUST answer concisely with fewer than 4 lines”，并要求“不要解释为什么不能做某事”，避免 Agent 陷入冗长的自我辩护。大写的 “NEVER do X” 比 “Please avoid doing X” 更能引起模型注意——但<strong>过度使用会稀释效果</strong>，要留给真正关键的约束。</li>
+<li><strong>结构化（“格式”）</strong>：现代模型对结构化输入高度敏感，因为训练数据里就有大量结构化内容。XML 标签名本身携带语义——<code>&lt;working_directory&gt;</code> 一眼就知道是工作目录，而纯文本“当前目录：/Users/project/src”还要模型自己解析冒号前后的关系。<strong>XML 负责机器可解析的精确语义，Markdown 负责人机共读的组织逻辑</strong>，两者协同成双层结构。</li>
+</ul>
+
+<h2>二、为什么“流程驱动 vs 规则堆砌”是分水岭</h2>
+
+<p>作者提出一条贯穿全章的原则：<strong>对人类降低认知负担的方法，对大语言模型同样有效</strong>——因为模型在训练中学习了人类的语言和思维模式。</p>
+
+<p>试想给新员工一份上百条零散规则、没有流程图也没有优先级的手册：最聪明的人也会困惑——多条规则同时适用时选哪条？没覆盖的情况怎么办？流程驱动的提示词则像一份优秀的培训手册，提供清晰的标准操作流程（SOP）：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 260" role="img" aria-label="左侧散乱无序的规则卡片，右侧编号有序的SOP流程链，两者内容相同但组织不同">
+  <text class="dgm-text" x="150" y="24" font-size="13" font-weight="700" text-anchor="middle">规则堆砌（内容全在，但打乱）</text>
+  <text class="dgm-accent-text" x="560" y="24" font-size="13" font-weight="700" text-anchor="middle">流程驱动（同样内容，编号成 SOP）</text>
+
+  <!-- 左：散乱卡片 -->
+  <g transform="rotate(-7 70 70)"><rect class="dgm-node" x="30" y="52" width="110" height="30" rx="5"/><text class="dgm-muted" x="85" y="71" font-size="10.5" text-anchor="middle">先验证身份</text></g>
+  <g transform="rotate(5 190 66)"><rect class="dgm-node" x="150" y="48" width="110" height="30" rx="5"/><text class="dgm-muted" x="205" y="67" font-size="10.5" text-anchor="middle">大文件流式处理</text></g>
+  <g transform="rotate(4 80 120)"><rect class="dgm-node" x="35" y="104" width="110" height="30" rx="5"/><text class="dgm-muted" x="90" y="123" font-size="10.5" text-anchor="middle">处理退款</text></g>
+  <g transform="rotate(-6 200 128)"><rect class="dgm-node" x="150" y="110" width="110" height="30" rx="5"/><text class="dgm-muted" x="205" y="129" font-size="10.5" text-anchor="middle">校验完整性</text></g>
+  <g transform="rotate(8 90 176)"><rect class="dgm-node" x="45" y="160" width="110" height="30" rx="5"/><text class="dgm-muted" x="100" y="179" font-size="10.5" text-anchor="middle">配置文件先备份</text></g>
+  <g transform="rotate(-4 205 184)"><rect class="dgm-node" x="150" y="168" width="110" height="30" rx="5"/><text class="dgm-muted" x="205" y="187" font-size="10.5" text-anchor="middle">按扩展名分类</text></g>
+  <text class="dgm-accent-text" x="150" y="234" font-size="11.5" text-anchor="middle">模型：哪条先执行？哪条是前置？</text>
+
+  <!-- 中：转化箭头 -->
+  <line class="dgm-edge" x1="290" y1="130" x2="360" y2="130" stroke-width="1.5" marker-end="url(#ar13)"/>
+  <text class="dgm-muted" x="325" y="120" font-size="10" text-anchor="middle">重组</text>
+
+  <!-- 右：有序链 -->
+  <g>
+  <rect class="dgm-node" x="400" y="44" width="320" height="26" rx="5"/><text class="dgm-text" x="416" y="62" font-size="11" text-anchor="start">1 · 验证：文件/身份存在且可访问</text>
+  <rect class="dgm-node" x="400" y="80" width="320" height="26" rx="5"/><text class="dgm-text" x="416" y="98" font-size="11" text-anchor="start">2 · 分类：按扩展名与内容判定类型</text>
+  <rect class="dgm-node" x="400" y="116" width="320" height="26" rx="5"/><text class="dgm-text" x="416" y="134" font-size="11" text-anchor="start">3 · 预处理：配置备份 / 大文件流式</text>
+  <rect class="dgm-node" x="400" y="152" width="320" height="26" rx="5"/><text class="dgm-text" x="416" y="170" font-size="11" text-anchor="start">4 · 执行：按类型跑核心逻辑</text>
+  <rect class="dgm-good-node" x="400" y="188" width="320" height="26" rx="5"/><text class="dgm-text" x="416" y="206" font-size="11" text-anchor="start">5 · 验证：确保处理后文件完整</text>
+  <line class="dgm-edge" x1="560" y1="70" x2="560" y2="80" stroke-width="1.3" marker-end="url(#ar13)"/>
+  <line class="dgm-edge" x1="560" y1="106" x2="560" y2="116" stroke-width="1.3" marker-end="url(#ar13)"/>
+  <line class="dgm-edge" x1="560" y1="142" x2="560" y2="152" stroke-width="1.3" marker-end="url(#ar13)"/>
+  <line class="dgm-edge" x1="560" y1="178" x2="560" y2="188" stroke-width="1.3" marker-end="url(#ar13)"/>
+  </g>
+  <text class="dgm-accent-text" x="560" y="234" font-size="11.5" text-anchor="middle">模型任何时刻都知道自己在第几步</text>
+  <defs>
+    <marker id="ar13" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>两边规则内容<strong>一字不差</strong>，只有组织方式不同：左边遍历都找不到执行顺序，右边编号成流程后，模型随时知道处于哪一步、目标是什么、下一步去哪。这正是消融实验里“只打乱组织”就崩掉的原因。</figcaption>
+</figure>
+
+<p>书里给出的 SOP 范式是一条编号流水线，把上面的规则装进可执行的顺序里：</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">Step 1 · Validation：文件是否存在、可访问？找不到 → 记日志并停止</div>
+  <div class="down">↓</div>
+  <div class="step action">Step 2 · Classification：按扩展名与内容判定文件类型</div>
+  <div class="down">↓</div>
+  <div class="step action">Step 3 · Preprocessing：配置文件 → 备份；大文件(&gt;1MB) → 流式处理</div>
+  <div class="down">↓</div>
+  <div class="step action">Step 4 · Execution：按类型执行核心处理逻辑</div>
+  <div class="down">↓</div>
+  <div class="step terminal">Step 5 · Verification：确保处理后文件完整</div>
+</div>
+<figcaption>SOP 让模型在任何时刻都清楚“我在哪一步”。遇到异常时，它按当前所处阶段决定处理方式，而不是遍历所有规则去找匹配项。</figcaption>
+</figure>
+
+<p>为什么组织方式的威力这么大？作者用消融实验坐实：在 Tau-Bench（航空/零售客服）上，<strong>保留全部规则内容、只打乱组织结构、去掉标题层次</strong>，任务成功率就下降<strong>超过 30%</strong>，Agent 经常违反关键业务规则——比如“先验证身份再处理退款”被拆散后，它有时会跳过身份验证直接退款。（作为对照，同一实验里“去掉工具描述文本”让工具调用错误率增加了 <strong>45%</strong>。）</p>
+
+<h2>三、业务规则细化：账单谈判 Agent 的三种计费模式</h2>
+
+<p>作者说，构建生产级 Agent 时最容易被忽视却最关键的一环，是<strong>业务规则的细化</strong>——这不是技术问题，而是产品设计问题，需要产品经理深度参与。他用一个“帮用户打电话砍账单”的 Agent 举例：产品经理的诉求是“办不成就退款、防止薅羊毛”，于是设计了三种计费模式。</p>
+
+<figure class="diagram">
+<div class="trio">
+  <div class="cell"><div class="role">按省钱提成</div><div class="head">砍价类</div><div class="sub">从省下的钱抽成（如 20%），需要谈判技巧说服商家</div></div>
+  <div class="cell"><div class="role">按服务收 tip</div><div class="head">服务类</div><div class="sub">不涉及省钱的任务（如订餐厅），按复杂度收固定费用</div></div>
+  <div class="cell"><div class="role">预收款</div><div class="head">高难类</div><div class="sub">成功率很低的任务，预收费不可退，过滤不靠谱请求</div></div>
+</div>
+<figcaption>三种模式本身没问题——出问题的是“怎么判断某个任务属于哪一种”。</figcaption>
+</figure>
+
+<p>如果规则模糊成一句“<em>根据任务情况选择合适的计费类型</em>”，Agent 的行为就会极不稳定：“帮我退掉上个月买的衣服”——这算“帮用户省钱”还是“取回本属于他的钱”？“帮我取消 Netflix”——取消让用户未来不再付费，算“省钱”吗？<strong>同样的任务在不同时间会被分到不同的计费模式，业务逻辑变得不可预测。</strong></p>
+
+<p>作者给出的解法，是把决策规则明确<strong>到可执行的程度</strong>：</p>
+
+<ul>
+<li>按提成计费<strong>仅限</strong>“通过谈判降低现有账单”的场景；退款和取消绝对不能按提成。提示词里要直接写死：<code>NEVER use percentage_based_one_time for refunds and service cancellations. Use fixed_fee instead.</code></li>
+<li>成功率按固定流程分步评估，估出的概率<strong>直接映射</strong>到计费模式（如 &gt;60% 用可退款模式、&lt;30% 直接拒绝）。</li>
+<li>金额计算把粒度写死（如通话按每分钟 $0.05、汇总后四舍五入到整美元），并明确“节省只基于现有账单计算”——否则模型会自作聪明：“不砍价明年涨到 $180，我维持 $150 就省了 $30”，把避免未来涨价也算成省钱。</li>
+</ul>
+
+<div class="pitfall">
+<p><strong>初学者最常想错的一步：“模型这么聪明，业务规则模糊点没关系，它会自己判断。”</strong>恰恰相反。作者的设计哲学是：大语言模型的优势在于<strong>遵循复杂指令、从长上下文提取信息</strong>，但<strong>不应在业务规则制定上被赋予过多的自由裁量权</strong>。把“退衣服算不算省钱”这种判断留给模型，等于把系统行为交给掷骰子。好的新员工培训不是“你很聪明，自己看着办”，而是给一套详细 SOP，让员工在明确框架内发挥能力。所以在优秀的 Agent 公司里，提示词一般由<strong>产品经理</strong>设计、基于线上数据迭代；工程师负责把规则准确编码进提示词，<strong>不应擅自决定业务逻辑</strong>。</p>
+</div>
+
+<h2>四、few-shot 何时该给例子——以及它藏着的缓存陷阱</h2>
+
+<p>除了规则和流程，示例（few-shot examples）是系统提示词里另一类重要内容。判断标准很清晰：</p>
+
+<ul>
+<li><strong>该用</strong>：当期望输出<strong>难以用规则精确描述</strong>时——特定风格的文案、结构化报告格式、客服回复的语气分寸——与其堆冗长的文字定义，不如直接给两三个高质量的输入-输出示例，让模型的上下文学习能力“临时学会”这些模式。</li>
+<li><strong>不该用</strong>：对于模型<strong>本来就擅长、规则又容易说清</strong>的任务，示例只是浪费 token。数量也不是越多越好——两三个覆盖边界情况的精选示例，通常胜过十个大同小异的，后者还会稀释模型对规则本身的注意力。</li>
+</ul>
+
+<div class="pitfall">
+<p><strong>一个反直觉的工程陷阱：按请求动态检索“最相关”的 few-shot 示例。</strong>听起来很智能，实则灾难。无论示例放在系统提示词里、还是伪造成首轮 user/assistant 消息，它都处于上下文<strong>靠前的区域</strong>；一旦每次请求都换一批示例，等于每次都改写前缀，<strong>KV Cache 会持续失效</strong>（上一课 0012 讲过：改前缀 = 缓存全废）。所以生产系统通常为<strong>每一类任务</strong>准备一组固定示例，一旦确定就保持字节级稳定，而不是逐请求挑选。</p>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：写系统提示词时，先问自己一句“一个聪明的新员工读完这段，知道该干什么吗？”——把散乱规则重组成<strong>编号 SOP</strong>、把每条业务规则细化到<strong>可执行、无歧义</strong>（模糊即不可预测）、把 few-shot 当作固定的静态前缀而非动态检索项。内容多少是次要的，<strong>组织结构才是成功率的分水岭</strong>。</p>
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>系统提示词（System Prompt）</dt>
+<dd>API 消息列表里那条 <code>role: "system"</code> 的消息，定义 Agent 的身份、行为规则、约束与工作流程，被模型视为最高优先级指令。整个对话通常只有一条，放在消息列表最前面。作者的检验标准：<em>聪明的新员工读完它若还不知道怎么做，Agent 也不知道</em>。</dd>
+<dt>流程驱动 / SOP（标准操作流程）</dt>
+<dd>把系统提示词的规则组织成有优先级、有依赖、有编号步骤的操作流程，让模型任何时刻都知道自己处于哪一步、目标是什么、下一步去哪，而不必遍历所有规则找匹配项。与之相对的是“规则堆砌”——一堆无序、无优先级的规则集合。</dd>
+<dt>Few-shot 示例</dt>
+<dd>系统提示词里给出的少量输入-输出示例。当期望输出难以用规则精确描述时，靠模型的上下文学习能力从示例中临时习得模式，往往胜过等量篇幅的抽象规则。<em>避免</em>按请求动态检索示例——那会破坏 KV Cache 前缀稳定性。</dd>
+<dt>上下文工程（Context Engineering）</dt>
+<dd>系统性设计、组织并向模型提供完成任务所需全部背景信息的工程实践，是 Harness“上下文与工具”层的核心实现；<strong>既是技术问题，更是组织问题</strong>。本课的提示工程只是它的一个切面。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：消融实验里，只是“保留全部规则内容但打乱组织结构、去掉标题层次”，成功率就掉了 30% 以上。为什么内容没少、只是组织乱了，模型表现却灾难性下降？</summary>
+<div class="answer">
+<p>因为模型难以从无序规则集合中识别优先级和依赖关系。像“先验证身份再处理退款”这种有序流程被拆散后，模型不知道哪条先执行、哪条是前置条件，于是有时跳过身份验证直接退款。这印证“对人类友好的信息组织方式对模型同样友好”——流程驱动让模型任何时刻都知道自己在哪一步，而不必遍历所有规则找匹配项。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：账单谈判 Agent 里，为什么“退款和取消服务”绝对不能按“省钱提成”计费？作者要求提示词怎么写死这条规则？</summary>
+<div class="answer">
+<p>因为按提成计费的前提是 Agent 通过<strong>谈判技巧降低现有账单</strong>；而退款/取消只是取回或停止本属于用户的钱，不涉及谈判省钱，若也按比例抽成就是薅羊毛、且分类会随任务措辞漂移。作者要求提示词直接写死一条命令式约束：<code>NEVER use percentage_based_one_time for refunds and service cancellations. Use fixed_fee instead.</code>——把模糊裁量收敛成可执行规则。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套实验 <strong>实验 2-4</strong>（<code>chapter2/prompt-engineering/</code>）：基于 Tau-Bench（航空/零售客服）的提示工程消融实验，沿三个维度量化各要素贡献——<strong>语气风格</strong>（影响有限，模型风格适应力强）、<strong>信息组织随机化</strong>（成功率下降 30%+）、<strong>去掉工具描述</strong>（错误率上升 45%）。它把本课“组织比内容重要”的判断变成可复现的数字。整本书实验都在开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是第 2 章「提示工程：优化系统提示词」一节（<code>book/chapter2.md</code>），配合<strong>实验 2-4</strong> 一起读最踏实——把“语气/结构/组织/内容/few-shot”五个维度串成一条设计清单。作者本人的相关研究可延伸阅读：Li, Bojie &amp; Noah Shi, <em>“Distill, Don’t Retrieve: Inference-Time Context Distillation for LLM Agent Reasoning”</em>（2026，<a href="https://01.me/research/context-distillation">01.me/research/context-distillation</a>），它是本章后半“上下文蒸馏 / Agent 状态栏”一节的量化依据。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你拿自己项目里的一段系统提示词，现场重组成 SOP 试试。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0012-kv-cache-prefix-invariance.html"><span class="dir">← 上一课</span>改一个空格，账单翻倍：KV Cache 为何只认稳定前缀</a>
+  <a class="next" href="0014-skills-progressive-disclosure.html"><span class="dir">下一课 →</span>别把手册全堆桌上：Agent Skills 的三层渐进式披露</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

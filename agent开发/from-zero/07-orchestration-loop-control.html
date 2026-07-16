@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>07 · 编排：什么时候再走一步、什么时候停、能不能并行</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">从零看 mino_server 如何长出一个 Agent · 第 07 课 · 预计 10 分钟 · <a href="06-tool-description-is-prompt.html">← 上一课：工具描述就是 Prompt</a> · <a href="08-reliability-timeout-retry.html">下一课：可靠性自愈 →</a> · <a href="index.html">🏠 门户</a></p>
+
+<h1>编排：什么时候再走一步、什么时候停、能不能并行</h1>
+
+<p class="lede">上一课我们把工具的说明书写好了，大脑终于会挑工具、会填参数了。可它一旦开始干活，问题就来了：一轮想调好几个工具，调完还想再调……<strong>这个循环，到底谁来喊停？一次又能同时开几路？</strong>这节课只讲清楚 agent 循环的"油门与刹车"。</p>
+
+<div class="chain in">
+<p>上一课的大脑，一轮可能同时要求调用好几个工具，调完看了结果还想再调下一批。那么：这个循环要<strong>一直转下去</strong>吗？会不会停不下来、转成死循环？会不会一口气并发太多工具，把下游的浏览器、代码沙箱、搜索服务全给打爆？</p>
+</div>
+
+<h2>一、先打个比方：agent 循环就是"边问边做"的厨房</h2>
+
+<p>想象你是一个<strong>什么都不会、只会照着说做</strong>的帮厨（这就是执行循环的代码），身边站着一位大厨（这就是大模型）。你们的合作方式特别死板，就三句话：</p>
+
+<ul>
+<li>你问大厨："<strong>接下来干啥？</strong>"</li>
+<li>大厨要么说"<strong>去切菜、去烧水</strong>"（这就是"要求调用工具"），要么说"<strong>好了，可以上菜了</strong>"（这就是"不再要任何工具"）。</li>
+<li>你照做，把结果端回去给大厨看，然后<strong>再问一遍</strong>"接下来干啥？"</li>
+</ul>
+
+<p>这一"问一做"就叫<strong>一步（step）</strong>。厨房里的一整顿饭，就是这样一步一步问出来、做出来的。什么时候散伙回家？只有两种情况：<strong>①大厨说"上菜吧"（活干完了）</strong>，或者 <strong>②你们已经来回问了太多次（比如约好最多问 100 次），再问下去就该打烊了，强制收工</strong>。</p>
+
+<p>这个厨房，在 mino_server 里真真切切就是一个 <code>for</code> 循环。它有个很形象的名字——<strong>心跳循环</strong>：只要还在转，agent 就活着；一旦停下，这次对话就结束。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 760 340" role="img" aria-label="agent 心跳循环的一圈：检查余额、压缩上下文、跑一步，然后判断是否结束或回流再转一圈">
+  <!-- 顶部一行：一圈里的三个动作 + 判断 -->
+  <g>
+    <rect class="dgm-node" x="20" y="120" width="130" height="60" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="85" y="146" font-size="13" font-weight="700" text-anchor="middle">检查余额</text>
+    <text class="dgm-muted" x="85" y="164" font-size="10" text-anchor="middle">checkCredits…</text>
+  </g>
+  <g>
+    <rect class="dgm-node" x="180" y="120" width="130" height="60" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="245" y="146" font-size="13" font-weight="700" text-anchor="middle">压缩上下文</text>
+    <text class="dgm-muted" x="245" y="164" font-size="10" text-anchor="middle">summarize</text>
+  </g>
+  <g>
+    <rect class="dgm-accent-node" x="340" y="120" width="180" height="60" rx="8" stroke-width="2"/>
+    <text class="dgm-accent-text" x="430" y="146" font-size="13" font-weight="700" text-anchor="middle">跑一步</text>
+    <text class="dgm-muted" x="430" y="164" font-size="10" text-anchor="middle">runConductorStep</text>
+  </g>
+  <g>
+    <rect class="dgm-link-node" x="560" y="120" width="150" height="60" rx="8" stroke-width="1.5"/>
+    <text class="dgm-text" x="635" y="146" font-size="13" font-weight="700" text-anchor="middle">对话结束了吗？</text>
+    <text class="dgm-muted" x="635" y="164" font-size="10" text-anchor="middle">agent.done?</text>
+  </g>
+  <!-- 横向箭头 -->
+  <line class="dgm-edge" x1="150" y1="150" x2="180" y2="150" stroke-width="1.5"/>
+  <polygon class="dgm-muted" points="180,150 172,146 172,154"/>
+  <line class="dgm-edge" x1="310" y1="150" x2="340" y2="150" stroke-width="1.5"/>
+  <polygon class="dgm-muted" points="340,150 332,146 332,154"/>
+  <line class="dgm-edge" x1="520" y1="150" x2="560" y2="150" stroke-width="1.5"/>
+  <polygon class="dgm-muted" points="560,150 552,146 552,154"/>
+  <!-- 出口①：是 → 停 -->
+  <rect class="dgm-good-node" x="560" y="34" width="150" height="52" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="635" y="56" font-size="13" font-weight="700" text-anchor="middle">停 ✓ 正常完成</text>
+  <text class="dgm-muted" x="635" y="74" font-size="10" text-anchor="middle">return nil</text>
+  <line class="dgm-edge" x1="635" y1="120" x2="635" y2="86" stroke-width="1.5"/>
+  <polygon class="dgm-muted" points="635,86 631,94 639,94"/>
+  <text class="dgm-muted" x="648" y="108" font-size="11" text-anchor="start">是</text>
+  <!-- 出口②：否 → 回流一圈 -->
+  <polyline class="dgm-edge" points="635,180 635,290 85,290 85,180" fill="none" stroke-width="1.5"/>
+  <polygon class="dgm-muted" points="85,180 81,188 89,188"/>
+  <text class="dgm-muted" x="648" y="200" font-size="11" text-anchor="start">否</text>
+  <text class="dgm-accent-text" x="360" y="284" font-size="12" font-weight="700" text-anchor="middle">工具结果塞回消息 · runStepCount++ · 进入下一圈</text>
+</svg>
+</div>
+<figcaption>心跳循环的一圈：<code>streamChat</code> 里的 <code>for</code> 循环（<code>agent.go</code>）每转一圈调一次 <code>runConductorStep</code>；工具结果经 <code>AddToolResult</code> 回流成下一圈的输入，直到某圈 <code>agent.done</code> 为真就 <code>return nil</code>，否则一直转到 <code>maxStepCount</code>。</figcaption>
+</figure>
+
+<p>看图里那个红框 <code>runConductorStep</code>——它就是"一步"的主体：<strong>问一次大模型（拿到这轮回复）→ 执行它要的工具 → 把结果塞回消息</strong>。塞回这一下最关键：工具的输出会被包成一条消息（上一课讲过的 <code>Tool</code> 角色），追加进对话历史。这样下一圈再问大模型时，它就"看得见"上一步工具返回了什么——<strong>这就是循环能滚下去的燃料</strong>：这一步的输出，变成下一步的输入。</p>
+
+<h2>二、什么时候该停？两个出口，一个都不能少</h2>
+
+<p>循环最怕的就是"停不下来"。所以它必须有明确的刹车。mino_server 给了两个出口，正好对应厨房那两种散伙情况：</p>
+
+<div class="keydef">
+<dt>出口①　正常完成（软刹车，大厨说"上菜"）</dt>
+<dd>某一圈里，大模型的回复<strong>不再要求调任何工具</strong>——代码里就是判断这轮回复的工具列表长度 <code>len(ToolCalls) == 0</code>。这说明大脑觉得活干完了，于是把 <code>agent.done</code> 置为 <code>true</code>，循环 <code>return nil</code> 干净收工。</dd>
+<dt>出口②　撞上步数上限（硬刹车，防死循环）</dt>
+<dd>如果大脑<strong>一直有工具要调</strong>、迟迟不说"上菜"，转的圈数达到上限 <code>maxStepCount</code>（默认 <code>defaultMaxStepCount = 100</code>；hooks 可覆写，比如 AnyClaw 场景放宽到 200）还没 <code>done</code>，循环就强制结束，返回一个报错 <code>ErrAgentMaxStepCountReached</code>。这是防止大脑陷入"调工具→再调→再调"死循环、无限烧钱的保险丝。</dd>
+</div>
+
+<p>把这两个出口画成一棵决策树，你就能一眼看清"每一步跑完，循环怎么决定继续还是停"：</p>
+
+<div class="flow">
+  <div class="step decision">一步跑完：大模型这轮回复里，要求调用几个工具？</div>
+  <div class="down">▼</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">== 0 · 不再要工具</div>
+      <div class="step terminal"><strong>出口①</strong><br>agent.done = true<br>→ return nil（正常完成，停）</div>
+    </div>
+    <div class="branch">
+      <div class="label">&gt; 0 · 还要调工具</div>
+      <div class="step action">执行这批工具 → <code>AddToolResult</code> 把结果塞回消息</div>
+      <div class="down">▼</div>
+      <div class="step decision">runStepCount 到上限了吗？<br>（&lt; maxStepCount，默认 100）</div>
+      <div class="down">▼</div>
+      <div class="branches">
+        <div class="branch">
+          <div class="label">没到</div>
+          <div class="step action">runStepCount++<br>↺ 回到循环顶部，再走一步</div>
+        </div>
+        <div class="branch">
+          <div class="label">到了</div>
+          <div class="step action"><strong>出口②</strong><br>强制收工，返回<br><code>ErrAgentMaxStepCountReached</code></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="meta" style="text-align:center">对应 <code>runConductorStep</code>（判 <code>len(ToolCalls)</code>）与 <code>streamChat</code> 的 <code>for</code> 循环条件（<code>runStepCount &lt; maxStepCount</code>）·文件 <code>conductorservice/agent.go</code></p>
+
+<p>注意区分两个词，很多人在这里绕晕：<strong>一步（step）</strong> ≠ <strong>一个工具</strong>。一步是"问一次大模型 + 把它这轮要的<em>全部</em>工具都跑完"。大模型一次可以同时点名好几个工具，这一整批算<strong>同一步</strong>；只有等结果塞回、重新去问大模型，才进入<strong>下一步</strong>。所以 <code>runStepCount</code> 记的是"问了大模型几个回合"，不是"跑了几个工具"。这也解释了为什么上限是 100 步就够用——一步里可能已经并发跑了好几个工具。</p>
+
+<h2>三、一次能同时干几件事？并发闸门：5 和 3</h2>
+
+<p>回到厨房。大厨这一轮如果说"<strong>同时</strong>去切菜、烧水、预热烤箱、洗米、备酱料、摆盘"——六件事一起来。你家帮厨只有几个人，不可能六件事真的同时开工。于是需要一道<strong>闸门</strong>：一次最多放几个进去，多的排队等空位。</p>
+
+<p>为什么要限？因为每个工具背后都是一个真实的下游服务（浏览器实例、代码沙箱、搜索接口）。如果大模型一口气要 20 个工具、后端就真开 20 路并发，下游瞬间被打爆——这就是 chain.in 里担心的"把下游打爆"。mino_server 的做法是：<strong>允许并行，但卡一个上限</strong>。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 760 400" role="img" aria-label="并发闸门：大模型这轮要 6 个工具，闸门一次只放 5 个并发执行，第 6 个排队;含子 agent 时闸收紧到 3">
+  <text class="dgm-muted" x="90" y="24" font-size="12" text-anchor="middle">大模型这轮要 6 个工具</text>
+  <text class="dgm-muted" x="545" y="24" font-size="12" text-anchor="middle">后端并发执行 + 排队</text>
+  <!-- 左：6 个待执行工具 -->
+  <g>
+    <rect class="dgm-node" x="25" y="40" width="120" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="85" y="62" font-size="12" text-anchor="middle">工具 1</text>
+    <rect class="dgm-node" x="25" y="84" width="120" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="85" y="106" font-size="12" text-anchor="middle">工具 2</text>
+    <rect class="dgm-node" x="25" y="128" width="120" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="85" y="150" font-size="12" text-anchor="middle">工具 3</text>
+    <rect class="dgm-node" x="25" y="172" width="120" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="85" y="194" font-size="12" text-anchor="middle">工具 4</text>
+    <rect class="dgm-node" x="25" y="216" width="120" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="85" y="238" font-size="12" text-anchor="middle">工具 5</text>
+    <rect class="dgm-node" x="25" y="260" width="120" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="85" y="282" font-size="12" text-anchor="middle">工具 6</text>
+  </g>
+  <!-- 闸门 -->
+  <rect class="dgm-accent" x="300" y="40" width="12" height="254"/>
+  <text class="dgm-accent-text" x="306" y="312" font-size="12" font-weight="700" text-anchor="middle">并发闸</text>
+  <!-- 右：5 执行 + 1 排队 -->
+  <g>
+    <rect class="dgm-good-node" x="470" y="40" width="150" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="545" y="62" font-size="12" text-anchor="middle">执行中 ①</text>
+    <rect class="dgm-good-node" x="470" y="84" width="150" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="545" y="106" font-size="12" text-anchor="middle">执行中 ②</text>
+    <rect class="dgm-good-node" x="470" y="128" width="150" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="545" y="150" font-size="12" text-anchor="middle">执行中 ③</text>
+    <rect class="dgm-good-node" x="470" y="172" width="150" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="545" y="194" font-size="12" text-anchor="middle">执行中 ④</text>
+    <rect class="dgm-good-node" x="470" y="216" width="150" height="34" rx="6" stroke-width="1.5"/>
+    <text class="dgm-text" x="545" y="238" font-size="12" text-anchor="middle">执行中 ⑤</text>
+    <rect class="dgm-node" x="470" y="260" width="150" height="34" rx="6" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <text class="dgm-muted" x="545" y="282" font-size="12" text-anchor="middle">排队 · 等空位</text>
+  </g>
+  <!-- 直达箭头 T1..T5 -->
+  <line class="dgm-edge" x1="145" y1="57" x2="470" y2="57" stroke-width="1.5"/>
+  <polygon class="dgm-muted" points="470,57 462,53 462,61"/>
+  <line class="dgm-edge" x1="145" y1="101" x2="470" y2="101" stroke-width="1.5"/>
+  <polygon class="dgm-muted" points="470,101 462,97 462,105"/>
+  <line class="dgm-edge" x1="145" y1="145" x2="470" y2="145" stroke-width="1.5"/>
+  <polygon class="dgm-muted" points="470,145 462,141 462,149"/>
+  <line class="dgm-edge" x1="145" y1="189" x2="470" y2="189" stroke-width="1.5"/>
+  <polygon class="dgm-muted" points="470,189 462,185 462,193"/>
+  <line class="dgm-edge" x1="145" y1="233" x2="470" y2="233" stroke-width="1.5"/>
+  <polygon class="dgm-muted" points="470,233 462,229 462,237"/>
+  <!-- 第 6 个被闸拦下，排队 -->
+  <line class="dgm-edge" x1="145" y1="277" x2="470" y2="277" stroke-width="1.5" stroke-dasharray="5 4"/>
+  <polygon class="dgm-muted" points="470,277 462,273 462,281"/>
+  <!-- 主上限标注 -->
+  <rect class="dgm-accent-node" x="220" y="330" width="180" height="46" rx="8" stroke-width="1.5"/>
+  <text class="dgm-accent-text" x="310" y="350" font-size="12" font-weight="700" text-anchor="middle">maxParallelToolCount</text>
+  <text class="dgm-accent-text" x="310" y="368" font-size="13" font-weight="700" text-anchor="middle">= 5</text>
+  <!-- 子 agent 特例标注 -->
+  <rect class="dgm-link-node" x="420" y="330" width="300" height="46" rx="8" stroke-width="1.5"/>
+  <text class="dgm-text" x="570" y="350" font-size="11" text-anchor="middle">这批里只要含一个子 agent 工具，闸收紧到 3</text>
+  <text class="dgm-muted" x="570" y="368" font-size="10" text-anchor="middle">maxParallelSubAgentsToolCount = 3</text>
+</svg>
+</div>
+<figcaption>并发闸门：<code>executeParallelTools</code> 用一个上限为 <code>maxParallelToolCount = 5</code> 的任务池并发跑工具，多出来的排队。若这批里探测到任何子 agent 工具（<code>hasSubAgent</code>），上限降到 <code>maxParallelSubAgentsToolCount = 3</code>。文件 <code>conductorservice/toolcall.go</code>。</figcaption>
+</figure>
+
+<p>两个数字，两条真实规则：</p>
+
+<ul>
+<li><strong>普通工具：一次最多同时跑 5 个</strong>（<code>maxParallelToolCount = 5</code>）。够快，又不至于把下游打爆。</li>
+<li><strong>子 agent 工具：一次最多同时跑 3 个</strong>（<code>maxParallelSubAgentsToolCount = 3</code>）。子 agent 是"派另一个 agent 去做一整件事"，本身极重（它内部又有自己的心跳循环、又要调大模型），所以开太多会拖垮整个系统，闸门收得更紧。</li>
+</ul>
+
+<p>代码里的判断很直白：执行一批可并行工具前，先探一眼这批里有没有子 agent 类任务（<code>hasSubAgent</code>）——<strong>有就用 3，没有就用 5</strong>，然后建一个这个上限的任务池并发跑。注意，这个"并行"是大模型主动要来的：上一课提到，每轮请求都带了 <code>WithEnableParallelToolCalls(true)</code>，允许模型一次吐出多个工具让后端并发执行。不是所有工具都能并行——有些必须串行（比如互相依赖、或会改同一份文件的），它们会被单独分到串行组，一个一个来。</p>
+
+<div class="good">
+<strong>一句话记住这节课</strong>：agent 循环 = <em>问大模型 → 干活 → 结果塞回 → 再问</em>，两个刹车（大模型不再要工具 = 软停；转满 100 步 = 硬停），一道闸（普通并发 5、含子 agent 收到 3）。油门是大模型给的，刹车和闸是工程写死的。
+</div>
+
+<h2>四、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：某次对话里 <code>runStepCount</code> 一路涨到 100，最后循环报了 <code>ErrAgentMaxStepCountReached</code>。这说明大模型在这 100 步里，每一步都做了什么？如果它中途某一步"想通了"，本该发生什么？</summary>
+<div class="answer">
+<p><strong>说明</strong>：这 100 步里<strong>每一步大模型都要求了至少一个工具</strong>（<code>len(ToolCalls) &gt; 0</code>），也就是它<em>从没说过"上菜"</em>，<code>agent.done</code> 一直是 <code>false</code>。于是循环条件 <code>runStepCount &lt; maxStepCount</code> 一直满足地转，直到撞上默认上限 100，触发硬刹车报错退出。</p>
+<p><strong>本该发生的</strong>：只要中途<em>任意一步</em>大模型返回的回复里没有工具调用，<code>runConductorStep</code> 就会把 <code>agent.done</code> 置 <code>true</code>，循环立刻 <code>return nil</code> 干净收工——根本轮不到硬刹车。所以撞上限往往是个信号：要么任务确实太复杂，要么大模型陷进了"反复调同类工具却不收敛"的圈里（这正是下一课要处理的可靠性问题）。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：大模型这一轮同时要求调 8 个工具，其中有 2 个是子 agent 工具。后端这一步实际最多几路并发？为什么不是 5、也不是 8？</summary>
+<div class="answer">
+<p><strong>最多 3 路。</strong>因为 <code>executeParallelTools</code> 在开跑前会先探测这批里有没有子 agent 工具（<code>hasSubAgent</code>）。只要<em>命中哪怕一个</em>，整批的并发上限就从 5 收紧到 <code>maxParallelSubAgentsToolCount = 3</code>——不是"5 个普通的 + 3 个子 agent 分开算"，而是整批一起走 3 这条更保守的闸。8 个工具里先放 3 个进去,其余 5 个排队等空位。</p>
+<p><strong>为什么这么设计</strong>：子 agent 每个都很重（自带完整心跳循环、还要调大模型），一次开 5 个足以拖垮系统；宁可牺牲一点并发度，也要护住下游。这是"可用性优先于速度"的典型取舍。</p>
+</div>
+</details>
+</div>
+
+<div class="chain out">
+<p>刹车装好了、闸门也卡住了——理想情况下循环该稳稳收敛。可真实世界不讲道理：工具会<strong>超时</strong>卡住不返回，会<strong>报错</strong>，大模型还会吐出<strong>语法坏掉的 JSON</strong> 当工具参数。循环一旦撞上这些脏东西，会当场崩掉、还是能自己爬起来接着干？这就是下一课要拆的<strong>可靠性与自愈</strong>。</p>
+</div>
+
+<footer class="lesson-footer">
+<p>这一课你给 agent 装上了油门（大模型要工具）、两个刹车（软停/硬停）和一道并发闸（5 / 3）。下一课 <a href="08-reliability-timeout-retry.html">《可靠性：超时、报错、坏 JSON，Agent 怎么自愈》</a>：看这台机器怎么在故障面前不趴窝，而是回注错误、自己改对重试。读到卡壳，回会话里问你的 AI 老师，可要求 ELI5 或看真实代码。 · <a href="index.html">🏠 返回门户</a></p>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0015 · 给模型装一个状态栏：把隐式状态提炼成可查的显式知识</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0015 课 · 支柱一(上下文) · 上下文工程 · 预计 12 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>给模型装一个状态栏：把隐式状态提炼成可查的显式知识</h1>
+
+<p class="lede">这节课只押一句判断：<strong>上下文窗口是一台只有一半的检索引擎——有检索，没提炼</strong>。它能从上万个 token 里把相关记录捞出来，却从不会自动把它们数一遍、总结成一条结论。<strong>Agent 状态栏</strong>就是补上缺失那一半：把分散的隐式状态提前算好、以键值对形式贴在上下文末尾，让模型“瞥一眼”就知道现在到哪了。位置在第 2 章《上下文工程》讲完 KV Cache、提示工程、Skills 之后，是把前面所有约束（缓存、注意力、末尾注入）收拢到一处的落地机制。</p>
+
+<h2>一、问题：一台只有一半的检索引擎</h2>
+
+<p>作者给了一个很狠的比喻。上下文学习<strong>更像检索而非推理</strong>——模型擅长从已有内容里查找信息，但不擅长主动归纳统计。所以：</p>
+
+<div class="bookquote">
+上下文窗口是一台只有一半的检索引擎。“检索”那一半非常强……但它缺了另一半：没有“提炼层”。任何“关于这些内容的结论”——一共多少条、有没有超标、进展到哪一步——模型每次要用，都得从原始记录里现算一遍。
+<span class="src">——《深入理解 AI Agent》第 2 章</span>
+</div>
+
+<p>书里的实际场景一秒说清代价：系统提示词要求“拨打每个商家不超过 3 次”，但打了 3 次之后，Agent 经常<strong>数不清到底打了几次，又打了第 4 次</strong>，甚至陷入循环反复拨打。根源不是模型笨——是“已经打了几次”这个知识<strong>从没被提炼出来</strong>，而是以原始通话记录的形式散落在 KV Cache 里；模型每次决策都得花思考 token 去重新扫描统计，而“现算一遍”的代价，会随上下文堆积量（记作 N）一起往上涨。</p>
+
+<h2>二、状态栏是什么：贴在末尾的一条 user 消息</h2>
+
+<p>最好的类比是<strong>手机顶部状态栏</strong>：时间、电量、信号——不是 App 的主界面内容，但你随时能瞥一眼掌握设备状态。Agent 状态栏对模型起完全相同的作用：它不属于用户消息、模型输出或工具结果，而是 Agent 框架在上下文<strong>末尾持续注入的状态摘要</strong>——“你已经打了 3 次电话”“当前时间 10:30”“TODO 还剩 2 项”。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 420" role="img" aria-label="手机状态栏类比：与手机顶部的时间电量信号一样，Agent 框架在 messages 列表末尾追加一条 agent_status 的 user 消息，模型即将生成的新 token 的注意力集中射向这几格键值对">
+  <!-- phone status bar motif -->
+  <rect class="dgm-node" x="180" y="26" width="300" height="30" rx="8"/>
+  <text class="dgm-text" x="330" y="46" font-size="13" text-anchor="middle">10:30　🔋 85%　📶　🔔 2</text>
+  <text class="dgm-muted" x="330" y="72" font-size="11.5" text-anchor="middle">📱 手机状态栏：不看主界面，也能一眼掌握设备状态</text>
+  <text class="dgm-accent-text" x="330" y="94" font-size="12" font-weight="700" text-anchor="middle">↓ 同一个道理，搬到模型的上下文里 ↓</text>
+
+  <!-- messages list -->
+  <rect class="dgm-node" x="120" y="112" width="360" height="26" rx="6"/>
+  <text class="dgm-muted" x="134" y="129" font-size="11.5">system　“You are a customer service assistant…”　(前缀·已缓存)</text>
+
+  <rect class="dgm-node" x="120" y="144" width="360" height="26" rx="6"/>
+  <text class="dgm-muted" x="134" y="161" font-size="11.5">user　“帮我取消 Xfinity 套餐”</text>
+
+  <rect class="dgm-node" x="120" y="176" width="360" height="26" rx="6"/>
+  <text class="dgm-muted" x="134" y="193" font-size="11.5">assistant / tool　… 多轮工具调用（3 次通话散落其中）…</text>
+
+  <rect class="dgm-node" x="120" y="208" width="360" height="26" rx="6"/>
+  <text class="dgm-muted" x="134" y="225" font-size="11.5">user　“能不能再打电话催促一下？”</text>
+
+  <!-- highlighted status bar message -->
+  <rect class="dgm-hub" x="120" y="242" width="360" height="96" rx="8"/>
+  <text class="dgm-accent-text" x="134" y="262" font-size="12" font-weight="700">user · &lt;agent_status&gt;（框架自动注入）</text>
+  <text class="dgm-text" x="134" y="284" font-size="12">· phone_call 已调用 3 次（Xfinity: 3/3 max）</text>
+  <text class="dgm-text" x="134" y="304" font-size="12">· Current time: 2025-09-14 10:30:45</text>
+  <text class="dgm-text" x="134" y="324" font-size="12">· TODO: [1] Cancel plan (in_progress)</text>
+
+  <!-- new token node -->
+  <rect class="dgm-node" x="540" y="266" width="150" height="48" rx="10"/>
+  <text class="dgm-text" x="615" y="288" font-size="13" font-weight="700" text-anchor="middle">🧠 即将生成</text>
+  <text class="dgm-muted" x="615" y="306" font-size="11" text-anchor="middle">的新 token</text>
+
+  <!-- attention arrows converging on status cells -->
+  <path class="dgm-edge" d="M540 282 C500 276, 490 284, 482 284" fill="none" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <path class="dgm-edge" d="M540 292 C505 300, 495 304, 482 304" fill="none" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <path class="dgm-edge" d="M540 300 C505 322, 495 324, 482 324" fill="none" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+  <text class="dgm-muted" x="512" y="360" font-size="11" text-anchor="middle">注意力集中射向这几格</text>
+
+  <defs>
+    <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>图2-14 / 图2-15：状态栏在 API 层是<strong>末尾追加的一条 user 消息</strong>，用 <code>&lt;agent_status&gt;</code> 标签包裹。它紧邻模型即将生成的新 token，因此拿到最高的注意力权重；又因为是“追加”而非“修改”，前面已缓存的内容全不受影响。</figcaption>
+</figure>
+
+<p>看图里那条最末的消息：它的 <code>role</code> 是 <code>user</code>，但内容是框架自动生成的元信息。这里要澄清一个极易混淆的点：<strong>这个 user 角色只是 API 协议层面的技术槽位，不等于“来自真实终端用户的输入”</strong>。Harness 只是借用 user 这个消息格式，把系统状态挂到上下文末尾。它跟系统提示词（System Prompt）的分工也很清楚：系统提示词是入职发的<strong>员工手册</strong>，一旦定下不变；状态栏是贴在屏幕边缘的<strong>实时仪表盘</strong>，随任务推进不断更新。</p>
+
+<h2>三、为什么放末尾、为什么用 user 角色（深挖“为什么”）</h2>
+
+<p>这两个选择不是随意的，全都被前面几节的约束逼出来：</p>
+
+<ul>
+<li><strong>为什么不改 system 消息？</strong>因为 KV Cache：修改开头的 system 会让<strong>整个前缀缓存作废</strong>——这正是本章反复警告的“动态时间戳”陷阱。追加到末尾，则只影响最近几轮。</li>
+<li><strong>为什么放末尾有效？</strong>结构化的元信息放在末尾，在空间上更接近即将生成的新 token，因而获得更高注意力权重——一种“强制性的注意力引导”。这也是它绕开了模型不擅长的“长上下文注意力衰减”的原因。</li>
+<li><strong>为什么一定写成键值对？</strong>书里点名：状态要写成 <code>衣物: 9 件（合格 7、次品 2）</code> 这样能一眼定位的键值对，而不是一段大白话。用散文写同样的状态，效果明显更差——模型还得先把散文读一遍、解析出来，等于又回到了“扫描”。</li>
+</ul>
+
+<p>作者和合作者用一个专门基准把这套“提前算好、直接查一眼”的做法量化了一遍（它有个统一名字叫<strong>上下文蒸馏，Context Distillation</strong>，状态栏是它最日常的形态）：三类任务、11 个模型、近 2.4 万次评测。结论很干净——<strong>弱模型补回来的是准确率</strong>（最弱的几个涨 40 到 54 个百分点，一个 2B 本地小模型直接追平不带状态栏的前沿大模型）；<strong>强模型省下来的是效率</strong>（思考量、延迟、花费各降约一个数量级）。最本质的变化是：不带状态栏时思考量随上下文变长而<strong>持续增长</strong>，带上后<strong>基本恒定</strong>——不管上下文堆多长，模型都只是瞥一眼那几格。</p>
+
+<h2>四、更新它的两种实现：一道缓存权衡题</h2>
+
+<p>“追加不破坏缓存”只在<strong>单次注入</strong>时成立。可状态是会变的——下一轮 TODO 完成一项、计数加一次，旧状态消息就过时了。怎么更新？两条路，各有明确代价：</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="状态栏更新的两种实现对比：实现一每轮替换会让替换点之后的缓存失效但上下文只有一份最新状态；实现二持久追加缓存全稳定但旧状态不断堆积">
+  <!-- left panel: replace each turn -->
+  <text class="dgm-accent-text" x="180" y="30" font-size="13" font-weight="700" text-anchor="middle">实现一 · 每轮替换</text>
+  <rect class="dgm-node" x="60" y="46" width="240" height="24" rx="5"/>
+  <text class="dgm-muted" x="72" y="62" font-size="11">system · user · 工具轨迹（静态前缀，稳定）</text>
+  <rect class="dgm-node" x="60" y="76" width="240" height="24" rx="5" opacity="0.45"/>
+  <text class="dgm-muted" x="72" y="92" font-size="11" text-decoration="line-through">旧状态（移除）</text>
+  <rect class="dgm-hub" x="60" y="106" width="240" height="24" rx="5"/>
+  <text class="dgm-text" x="72" y="122" font-size="11">新状态（末尾追加，永远最新）</text>
+  <line class="dgm-edge" x1="60" y1="88" x2="300" y2="88" stroke-width="1.5" stroke-dasharray="3 3"/>
+  <text class="dgm-muted" x="180" y="152" font-size="11" text-anchor="middle">✅ 只有一份、永远最新</text>
+  <text class="dgm-muted" x="180" y="170" font-size="11" text-anchor="middle">⚠️ 替换点之后的缓存失效（仅限末尾几轮）</text>
+
+  <!-- divider -->
+  <line class="dgm-edge" x1="360" y1="40" x2="360" y2="270" stroke-width="1"/>
+
+  <!-- right panel: persistent append -->
+  <text class="dgm-accent-text" x="540" y="30" font-size="13" font-weight="700" text-anchor="middle">实现二 · 持久追加</text>
+  <rect class="dgm-node" x="420" y="46" width="240" height="24" rx="5"/>
+  <text class="dgm-muted" x="432" y="62" font-size="11">system · user · 工具轨迹（静态前缀，稳定）</text>
+  <rect class="dgm-node" x="420" y="76" width="240" height="24" rx="5"/>
+  <text class="dgm-muted" x="432" y="92" font-size="11">状态 t1（旧，保留）</text>
+  <rect class="dgm-node" x="420" y="106" width="240" height="24" rx="5"/>
+  <text class="dgm-muted" x="432" y="122" font-size="11">状态 t2（旧，保留）</text>
+  <rect class="dgm-hub" x="420" y="136" width="240" height="24" rx="5"/>
+  <text class="dgm-text" x="432" y="152" font-size="11">状态 t3（最新，只追加）</text>
+  <text class="dgm-muted" x="540" y="182" font-size="11" text-anchor="middle">✅ 只追加不修改，缓存全稳定</text>
+  <text class="dgm-muted" x="540" y="200" font-size="11" text-anchor="middle">⚠️ 陈旧状态累积占 token，需模型自己认最新一条</text>
+
+  <text class="dgm-accent-text" x="360" y="248" font-size="12" font-weight="700" text-anchor="middle">经验法则</text>
+  <text class="dgm-muted" x="360" y="268" font-size="11" text-anchor="middle">更新频繁 + 轨迹长 → 选实现二；　轨迹短 / 单条状态很大 → 选实现一</text>
+</svg>
+</div>
+<figcaption>Claude Code 的 <code>&lt;system-reminder&gt;</code> 走的就是实现二（历史状态保留在 transcript 里，从不删改）。判据是缓存代价：长轨迹上“每轮替换”反复累积的缓存失效，代价远超陈旧状态占的那点 token。</figcaption>
+</figure>
+
+<h2>五、把它做对的三条经验（最容易栽跟头的地方）</h2>
+
+<p>“提前算好”这件事，<strong>做对和做错是天壤之别</strong>。书里给了三条能直接照着做的经验：</p>
+
+<div class="pitfall">
+<p><strong>最诱人也最错的念头：“再叫一个大模型去读完整段历史、帮我总结出状态栏。”</strong>直觉上这很省事，实际结果恰恰相反。让前沿大模型<strong>一次性</strong>读完整段历史、吐出统计结果，反而在大多数格子上出错，把下游准确率拖得<strong>比根本不用状态栏还低</strong>；而一个 <strong>20 行的正则函数</strong>就能达到“标准答案”级准确度。</p>
+<p>为什么？因为让 LLM 批量统计长历史，等于把“扫描整段上下文做归纳”这个原始难题<strong>原封不动搬了个家</strong>——问题一点没解决。正确姿势是：<strong>能用代码确定性地算就用代码算</strong>；实在要用 LLM，也要<strong>逐条抽取、再由代码汇总，绝不让它一次性批量统计</strong>。</p>
+</div>
+
+<p>另外两条同样是生产红线：</p>
+
+<ul>
+<li><strong>想删原文，先确认状态栏覆盖了所有会被问到的问题。</strong>状态栏是对原始上下文的一次<strong>有损投影</strong>——它只算了“你预想会被问到”的维度。只要有一个问题落到没算过的维度，就会翻车：论文里状态栏只存了“两两组合”的计数、却去问“三者交叉”，只留状态栏时连 Claude 都从 100% 掉到 7.6%——一条像样却答非所问的状态栏，会变成理直气壮带偏模型的“假权威”。所以新增一种问法要当成“改数据库表结构”来对待：要么先给状态栏加字段，要么这次就别删原文。</li>
+<li><strong>把状态栏准确率当一线生产指标来盯。</strong>模型几乎<strong>无条件相信状态栏</strong>——你写“打了 3 次”它就当真是 3 次，既不核对也不重算。这既是它有效的原因，也意味着状态栏一旦写错，错误会<strong>原样</strong>传进最终答案。这也接上了<strong>状态栏投毒</strong>风险：状态栏里的信息越是来自对真实世界的可靠观测越好，绝不能来自可被外部污染的数据源。</li>
+</ul>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：上下文只有“检索”没有“提炼”，Agent 状态栏就是把隐式状态提前算好、以键值对贴在末尾的“提炼层”。它有效有三重根据（提炼隐式状态、末尾操纵注意力、喂进模型自己想不出来的外部观测），但做对的前提也有三条铁律——<strong>用代码维护而非叫大模型总结、删原文前先确认覆盖、把准确率当生产指标盯</strong>。
+</div>
+
+<h2>六、关键定义</h2>
+
+<dl class="keydef">
+<dt>Agent 状态栏（Agent Status Bar）</dt>
+<dd>Agent 框架在上下文末尾以 user 角色消息持续注入的结构化状态摘要（工具计数、当前时间、TODO 等），把分散的隐式状态提炼为可直接检索的显式知识。对应图2-14、图2-15。<em>注意</em>：这里的 user 角色只是 API 协议槽位，不等于“来自真实终端用户的输入”，也不要与系统提示词混淆。</dd>
+<dt>上下文蒸馏（Context Distillation）</dt>
+<dd>“提前算好、直接查一眼”这套做法的统一名称——把需要模型现场归纳统计才能得到的结论提前算好放进上下文；Agent 状态栏是它最日常的形态。<em>避免</em>与模型蒸馏（把知识蒸馏进权重）混淆，这是推理时的上下文层做法。</dd>
+<dt>KV Cache</dt>
+<dd>模型内部优化：缓存前文 token 在注意力机制中已算出的键值对，下一轮只算新增 token，前提是<strong>前缀完全不变</strong>。状态栏“放末尾、用 user 角色、只追加不改 system”的所有设计，都是为了不破坏这段缓存。<em>避免</em>与 API 服务层的 Prompt Cache 混为一谈。</dd>
+</dl>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：有人提议“再叫一个大模型去读完整段历史、帮我总结出状态栏”。为什么论文实验发现这样做反而比根本不用状态栏还糟，而一个 20 行正则函数却能达到标准答案级准确度？</summary>
+<div class="answer">
+<p>因为让 LLM 一次性批量统计长历史，等于把“扫描整段上下文做归纳”这个原始难题原封不动搬了个家——问题一点没解决，还会在多数格子上出错，把下游准确率拖到比不用状态栏更低。状态栏的价值恰恰是绕开模型不擅长的归纳统计：能用代码确定性地算就用代码算（正则计数不会错）；实在要用 LLM 也要逐条抽取、再由代码汇总，绝不让它一次性批量统计。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：状态栏为什么被实现成“末尾追加的一条 user 消息”，而不是把动态信息写进开头的 system 提示词？说出协议和缓存两个层面的原因。</summary>
+<div class="answer">
+<p><strong>缓存层面</strong>：修改开头的 system 消息会让整个前缀的 KV Cache 作废（就是本章批评的“动态时间戳”失效机制）；追加到末尾只影响最近几轮。<strong>协议层面</strong>：借用 user 角色只是 API 的技术槽位选择，用来把框架自动生成的状态挂到上下文最末尾——它紧邻即将生成的新 token，注意力权重最高。它并不代表这条消息来自真实终端用户。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>配套实验直接对着代码跑最有感觉：<strong>实验 2-8</strong> 的 <code>chapter2/system-hint/</code>（agent-status-bar 框架）实现了五种状态栏技术——时间戳跟踪、工具调用计数器、TODO 列表、详细错误信息、系统状态感知，每种可独立开关，能亲眼看到组合使用的涌现效应（如 TODO 让平均迭代从 21 降到 15）。想验证“注意力集中到状态栏那几格”的直觉，再配上 <strong>实验 2-7</strong> 的 <code>chapter2/attention_visualization/</code> 看真实模型的注意力热力图。仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>八、主推资源</h2>
+
+<p>本课量化结论的一手来源是作者本人的研究：Li, Bojie and Noah Shi, <em>Distill, Don't Retrieve: Inference-Time Context Distillation for LLM Agent Reasoning</em>, 2026——<a href="https://01.me/research/context-distillation">01.me/research/context-distillation</a>。它是“Agent 状态栏 / 上下文蒸馏”一节三类任务、11 个模型、近 2.4 万次评测结论的依据。想深挖“为什么状态栏喂进的是模型自己想不出来的信息”，可续读 Li &amp; Shi, <em>Interaction Scaling: Grounding the Third Axis of Test-Time Compute</em>（arXiv:2607.11598, 2026）。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“为什么状态栏一定要用代码维护、一次性叫大模型总结为什么会翻车”重走一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0014-skills-progressive-disclosure.html"><span class="dir">← 上一课</span>别把手册全堆桌上：Agent Skills 的三层渐进式披露</a>
+  <a class="next" href="0016-context-compression-vs-rot.html"><span class="dir">下一课 →</span>装得下却找不到：上下文压缩的两个动机与四条原则</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0002 · 同一个 Agent，三种说法：实现·直觉·学术</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0002 课 · 引言 · 公式与全局 · 预计 10 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>同一个 Agent，三种说法：把公式翻译成强化学习</h1>
+
+<p class="lede">上一课你把 <strong>Agent = LLM + 上下文 + 工具</strong> 刻进了肌肉记忆。这一课只做一件事：把这条公式往上抬一层，接到强化学习（RL）的形式化语言上——<strong>LLM 对应 Policy（策略），上下文对应 Observation Space（观察空间），工具对应 Action Space（动作空间）</strong>。这是作者在引言收尾处（“对熟悉强化学习的读者……”那一段）埋下的一句话，看似只写给 RL 玩家，实则是全书从“直觉”跨到“学术”的那道桥。记住一句话就够：<strong>三种说法对应同一个对象，只是表达层次不同。</strong></p>
+
+<h2>一、三层：一个对象，三套词汇</h2>
+
+<p>作者在引言里其实一口气给了这个公式<strong>三种</strong>讲法，而不是两种。第一课我们讲了前两层：</p>
+
+<ul>
+<li><strong>实现层</strong>——你写代码时真正在拼装的东西：LLM、上下文、工具。</li>
+<li><strong>直觉层</strong>——一秒就懂的身体隐喻：大脑、眼睛、手脚。</li>
+</ul>
+
+<p>这一课补上第三层，也是最“硬”的一层：</p>
+
+<ul>
+<li><strong>学术层</strong>——强化学习的形式化语言：Policy（策略）、Observation Space（观察空间）、Action Space（动作空间）。</li>
+</ul>
+
+<p>关键在于：这三层<strong>不是三样东西，而是同一样东西的三种说法</strong>。上下文、眼睛、观察空间说的是同一件事；工具、手脚、动作空间说的也是同一件事。选哪套词，取决于你此刻是在写代码、在建直觉，还是在跟 RL 的理论对话。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="三层映射表：实现层(LLM/上下文/工具)、直觉层(大脑/眼睛/手脚)、学术层(Policy/Observation Space/Action Space)三行一一对齐">
+  <!-- column headers -->
+  <text class="dgm-muted" x="100" y="30" font-size="12" text-anchor="middle">层次 ↓ / 组件 →</text>
+  <text class="dgm-accent-text" x="245" y="30" font-size="14" font-weight="700" text-anchor="middle">🧠 思考决策</text>
+  <text class="dgm-accent-text" x="415" y="30" font-size="14" font-weight="700" text-anchor="middle">👁 能看到什么</text>
+  <text class="dgm-accent-text" x="605" y="30" font-size="14" font-weight="700" text-anchor="middle">🖐 能做什么</text>
+
+  <!-- row 1: 实现层 -->
+  <text class="dgm-muted" x="50" y="80" font-size="12" font-weight="700" text-anchor="middle">实现层</text>
+  <rect class="dgm-node" x="160" y="52" width="170" height="48" rx="8"/>
+  <text class="dgm-text" x="245" y="82" font-size="15" font-weight="700" text-anchor="middle">LLM</text>
+  <rect class="dgm-node" x="345" y="52" width="140" height="48" rx="8"/>
+  <text class="dgm-text" x="415" y="82" font-size="15" font-weight="700" text-anchor="middle">上下文</text>
+  <rect class="dgm-node" x="535" y="52" width="140" height="48" rx="8"/>
+  <text class="dgm-text" x="605" y="82" font-size="15" font-weight="700" text-anchor="middle">工具</text>
+
+  <!-- row 2: 直觉层 -->
+  <text class="dgm-muted" x="50" y="152" font-size="12" font-weight="700" text-anchor="middle">直觉层</text>
+  <rect class="dgm-node" x="160" y="124" width="170" height="48" rx="8"/>
+  <text class="dgm-text" x="245" y="154" font-size="15" font-weight="700" text-anchor="middle">大脑</text>
+  <rect class="dgm-node" x="345" y="124" width="140" height="48" rx="8"/>
+  <text class="dgm-text" x="415" y="154" font-size="15" font-weight="700" text-anchor="middle">眼睛</text>
+  <rect class="dgm-node" x="535" y="124" width="140" height="48" rx="8"/>
+  <text class="dgm-text" x="605" y="154" font-size="15" font-weight="700" text-anchor="middle">手脚</text>
+
+  <!-- row 3: 学术层 -->
+  <text class="dgm-muted" x="50" y="224" font-size="12" font-weight="700" text-anchor="middle">学术层</text>
+  <rect class="dgm-hub" x="160" y="196" width="170" height="52" rx="8"/>
+  <text class="dgm-accent-text" x="245" y="220" font-size="14" font-weight="700" text-anchor="middle">Policy</text>
+  <text class="dgm-muted" x="245" y="238" font-size="11" text-anchor="middle">策略</text>
+  <rect class="dgm-hub" x="345" y="196" width="140" height="52" rx="8"/>
+  <text class="dgm-accent-text" x="415" y="218" font-size="12.5" font-weight="700" text-anchor="middle">Observation</text>
+  <text class="dgm-muted" x="415" y="236" font-size="11" text-anchor="middle">观察空间</text>
+  <rect class="dgm-hub" x="535" y="196" width="140" height="52" rx="8"/>
+  <text class="dgm-accent-text" x="605" y="220" font-size="14" font-weight="700" text-anchor="middle">Action</text>
+  <text class="dgm-muted" x="605" y="238" font-size="11" text-anchor="middle">动作空间</text>
+
+  <!-- vertical alignment guides -->
+  <line class="dgm-edge" x1="245" y1="100" x2="245" y2="196" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <line class="dgm-edge" x1="415" y1="100" x2="415" y2="196" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <line class="dgm-edge" x1="605" y1="100" x2="605" y2="196" stroke-width="1.2" stroke-dasharray="4 4"/>
+</svg>
+</div>
+<figcaption>三行一一对齐：同一列的三个格子说的是同一件事。竖直虚线提醒你——从上往下读，是同一个组件被换了三套词汇，不是三个东西。核心公式对应引言的图0-1。</figcaption>
+</figure>
+
+<h2>二、为什么要多此一举，再学一套 RL 词汇？</h2>
+
+<p>你可能会问：直觉层的“大脑/眼睛/手脚”已经够用了，为什么作者还要费力接到强化学习上？原因不是炫技，而是<strong>形式化能带来直觉给不了的东西——精确的边界</strong>。</p>
+
+<p>把上下文说成“观察空间”，你立刻得到一个更锋利的问法：<em>这个 Agent 能观察到的信息，边界到底在哪？</em> 把工具说成“动作空间”，你立刻得到另一个锋利的问法：<em>它一共能采取哪些动作，动作集合有多大？</em> “眼睛/手脚”让你有画面感，“观察空间/动作空间”让你能<strong>数得清、界定得了</strong>。这正是作者说的那句——把 Agent 设计“从感觉驱动变成原则驱动”。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 640 190" role="img" aria-label="映射箭头：LLM 映射到 Policy，上下文映射到 Observation Space，工具映射到 Action Space">
+  <rect class="dgm-node" x="30" y="20" width="150" height="40" rx="8"/>
+  <text class="dgm-text" x="105" y="45" font-size="14" font-weight="700" text-anchor="middle">LLM</text>
+  <rect class="dgm-node" x="30" y="75" width="150" height="40" rx="8"/>
+  <text class="dgm-text" x="105" y="100" font-size="14" font-weight="700" text-anchor="middle">上下文</text>
+  <rect class="dgm-node" x="30" y="130" width="150" height="40" rx="8"/>
+  <text class="dgm-text" x="105" y="155" font-size="14" font-weight="700" text-anchor="middle">工具</text>
+
+  <rect class="dgm-hub" x="400" y="20" width="210" height="40" rx="8"/>
+  <text class="dgm-accent-text" x="505" y="45" font-size="13.5" font-weight="700" text-anchor="middle">Policy（策略）</text>
+  <rect class="dgm-hub" x="400" y="75" width="210" height="40" rx="8"/>
+  <text class="dgm-accent-text" x="505" y="100" font-size="12.5" font-weight="700" text-anchor="middle">Observation Space（观察空间）</text>
+  <rect class="dgm-hub" x="400" y="130" width="210" height="40" rx="8"/>
+  <text class="dgm-accent-text" x="505" y="155" font-size="12.5" font-weight="700" text-anchor="middle">Action Space（动作空间）</text>
+
+  <line class="dgm-edge" x1="180" y1="40" x2="396" y2="40" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <line class="dgm-edge" x1="180" y1="95" x2="396" y2="95" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <line class="dgm-edge" x1="180" y1="150" x2="396" y2="150" stroke-width="1.5" marker-end="url(#ar2)"/>
+  <text class="dgm-muted" x="290" y="14" font-size="11" text-anchor="middle">实现层 → 学术层，一一映射</text>
+  <defs>
+    <marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>三条映射，一一对应，没有交叉。作者原话：“三种说法对应同一个对象，只是表达层次不同。”</figcaption>
+</figure>
+
+<p>更大的野心藏在这句映射背后：作者认为<strong>好的设计原则应当“穿越模型的迭代周期”</strong>——因为它们描述的不是某个模型的用法，而是“智能系统与世界交互的基本模式”。强化学习的 Policy / Observation / Action 恰恰就是这样一套<strong>不随模型版本翻篇</strong>的语言。你把 Agent 装进这三个学术格子，明年换了新模型、新框架，格子还在。</p>
+
+<h2>三、边界与易错：这里最容易读岔</h2>
+
+<p>这一段是全课最需要慢下来的地方。引言里埋了两个极易被读者按日常习惯滑过去的坑。</p>
+
+<div class="pitfall">
+<p><strong>坑一：把“思考(reasoning)”和“推理(inference)”混成一个词。</strong> 作者在“如何阅读本书”里专门立了一条术语约定，因为这两个英文词直译都容易变成“推理”：</p>
+<ul>
+<li><strong>思考 = reasoning</strong>：模型展开中间推导、“想”的过程——思维链（Chain-of-Thought）、思考模型、思考 token、思考过程，一律叫“思考”。</li>
+<li><strong>推理 = inference</strong>：模型的前向计算与部署运行——推理时、推理成本、推理栈、推理时扩展，一律叫“推理”。</li>
+</ul>
+<p>如果你把两者都读成“推理”，后面第六、七章一整套关于“思考模型”和“推理成本”的讨论就会糊成一团。<strong>还有一个例外</strong>要记住：<em>逻辑推理、多跳推理、空间推理、时序推理</em> 以及“推理游戏”，是已经在中文固化的复合词，作者<strong>保留</strong>“推理”二字，指的是一般的演绎推断，不是上面那个 inference 的技术义。别看到“推理”就往 inference 上套。</p>
+</div>
+
+<div class="pitfall">
+<p><strong>坑二：以为“上下文 = 眼睛”的类比是严丝合缝的。</strong> 作者自己就打了补丁：“眼睛”只是粗略类比——上下文<strong>不只</strong>是环境信息和对话历史，<strong>还包含工具定义</strong>。也就是说，Agent “看到”的信息里，也包括“它有哪些手脚可用”。所以在学术层它对应的是 <strong>Observation Space（观察空间）</strong>这个更准的词：模型能感知到的<strong>一切</strong>信息。别把它窄化成“prompt”或“对话历史”。</p>
+</div>
+
+<div class="pitfall">
+<p><strong>顺带一个方向性的坑（作者反复强调）：实践在前，命名在后。</strong> 不是 Anthropic 这些公司先发明了 Skill / harness / loop engineering 这些名词、大家才跟着做；而是<strong>大量 Agent 早就在这么做了，才被事后提炼、命名</strong>。所以别把“学术层的词”当成“先有理论再有实践”的证据——RL 映射也是对既有做法的<strong>事后翻译</strong>，不是它的源头。</p>
+</div>
+
+<h2>四、宏观背景：这层映射为什么值得单独一课</h2>
+
+<p>因为它是全书“从直觉到学术”的接口。作者在引言明说：“这三个词各自的含义远比字面意思丰富得多，第一章将从实践出发逐一拆解，并<strong>建立从直觉理解到学术概念的完整映射</strong>。” 本课押的正是这句话的骨架——先把三层对齐的框架立起来，第一章才好往里填肉。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：LLM / 上下文 / 工具（实现层）＝ 大脑 / 眼睛 / 手脚（直觉层）＝ Policy / Observation Space / Action Space（学术层）——<strong>同一个对象，三种表达层次，一一对应</strong>。想写代码用第一套，想建直觉用第二套，想界定边界、跟理论对话用第三套。三套词随手互译，你就真正握住了这条公式。</p>
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>上下文（Context）</dt>
+<dd>Agent 的“眼睛”，是模型能感知到的<strong>一切</strong>信息，不仅包含环境信息和对话历史，还包含工具定义等内容；对应 RL 的观察空间（Observation Space）。<em>避免</em>仅理解为“对话历史”或“prompt”。</dd>
+<dt>工具（Tools）</dt>
+<dd>Agent 的“手脚”，决定 Agent 能做什么事情（搜索网页、调用 API、操作数据库等）；对应 RL 的动作空间（Action Space）。<em>避免</em>混同为普通函数调用。</dd>
+<dt>思考（reasoning）</dt>
+<dd>本书统一译法，指模型展开中间推导“想”的过程，包括思维链（Chain-of-Thought）、思考模型、思考 token、思考过程。<em>避免</em>译作“推理”。</dd>
+<dt>推理（inference）</dt>
+<dd>本书统一译法，指模型的前向计算与部署运行，如推理时、推理成本、推理栈、推理时扩展。<em>避免</em>与 reasoning“思考”混用。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：在强化学习语言中，上下文和工具分别对应什么？</summary>
+<div class="answer">
+<p>上下文对应 <strong>Observation Space（观察空间）</strong>，工具对应 <strong>Action Space（动作空间）</strong>，LLM 对应 <strong>Policy（策略）</strong>。三种说法（实现 / 直觉 / 学术）对应同一个对象，只是表达层次不同。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：本书为什么要把 reasoning 译成“思考”、把 inference 译成“推理”，而不是都叫“推理”？又有哪些词是保留“推理”的例外？</summary>
+<div class="answer">
+<p>因为 reasoning（模型展开中间推导、“想”的过程）和 inference（模型的前向计算与部署运行）是两个不同概念，直译都容易变成“推理”，会让读者无法区分。用两个不同中文词，就是为了避免“推理”一词同时承载两个含义。<strong>例外</strong>是几个已在中文固化的复合词：逻辑推理、多跳推理、空间推理、时序推理，以及“推理游戏”这类日常用法——它们保留“推理”二字，指一般的演绎推断，不是 inference 的技术义。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本课属引言，没有独立配套代码。但整本书的实验都放在开源仓库里，编号格式为“实验 X-Y”（X 为章节号、Y 为章节内序号），并用 ★／★★／★★★ 标注难度——<strong>强烈建议边读边跑</strong>：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。这三层映射会在第一章被逐一拆解并做实验坐实，届时你可以亲手验证：改动“观察空间”（喂给模型的信息）或“动作空间”（可用工具集合），Agent 的行为会怎样随之改变。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源就是书的<strong>引言</strong>本身，尤其是“<strong>Agent = LLM + 上下文 + 工具</strong>”那三段（实现 / 直觉 / 学术三层）与“如何阅读本书”里的术语约定，值得逐字读一遍。作者在这里还引用了强化学习之父 <strong>Richard Sutton</strong> 关于宇宙演化四阶段（尘埃→恒星→生命→智能体）的观点，把 Agent 定位为能自举、自我进化的全新存在。想补强底层大模型基础的读者，作者推荐《图解大模型》（图灵出版）作为互补读物。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“观察空间”和“动作空间”这两个 RL 词各自过一遍具体例子。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0001-agent-core-formula.html"><span class="dir">← 上一课</span>Agent 核心公式：大脑+眼睛+手脚</a>
+  <a class="next" href="0003-practice-before-naming.html"><span class="dir">下一课 →</span>实践在前，命名在后</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

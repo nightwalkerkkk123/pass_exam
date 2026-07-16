@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0007 · eval 是新的 CI：统计性 ≠ 确定性</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0007 课 · 预计 12 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>eval 是新的 CI：统计性 ≠ 确定性</h1>
+
+<p class="lede">你已经有了正确的地图："eval ≈ CI"。这个类比帮你想到"回归测试""判分""通过率"，方向没错。这节课只做一件事：带你走进 <code>cmd/memory_eval</code> 的真实代码，指出这条类比在四个地方漏水——那四个地方，是服务端世界里根本不存在、只有 Agent 世界才冒出来的现象。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node stable"><span class="n-title">clearAllMemory</span><span class="n-sub">+ sleep 60s 等 MQ 删向量</span></div>
+  <span class="arrow">→</span>
+  <div class="node stable"><span class="n-title">写 MEMORY.md</span><span class="n-sub">+ sleep 5s 等索引</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">/new 重载记忆</span><span class="n-sub">createChat</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">真实 Conductor 回复</span><span class="n-sub">claude-sonnet-4-5·会漂</span></div>
+  <span class="arrow">→</span>
+  <div class="node volatile"><span class="n-title">llmJudge 打分</span><span class="n-sub">gemini-2.5-flash·会漂</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">PASS / FAIL</span><span class="n-sub">阈值 0.6</span></div>
+</div>
+<figcaption>一条用例的端到端流水线。绿=确定性/可复现的准备段，红=不确定的两处（被测模型的回复、模型裁判的评分）。对应 <code>runner.go</code>：<code>runAll</code> 循环里 <code>runCase</code>（内部 <code>sendAndCollect</code> 取回复）返回后，再调 <code>scorer.go:score</code> 打分。</figcaption>
+</figure>
+
+<h2>一、先承认类比对的部分</h2>
+
+<p>把 <code>memory_eval</code> 当成 memory 子系统的<strong>回归测试</strong>，是完全正确的起点。它固定一组输入、跑被测系统、给输出判分，通过率退步就报警——这套骨架和 CI 一模一样。</p>
+
+<p>但先看清它<strong>不是</strong>什么。它不是 <code>go test</code>，不测单函数。它是一个独立的命令行程序：<code>go build -o output/memory_eval</code>，入口 <code>cmd/memory_eval/main.go</code> 整个只有一行实质代码——</p>
+
+<pre><code>func main() {
+	if err := eval.Run(context.Background()); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+}</code></pre>
+<p class="meta"><code>cmd/memory_eval/main.go:11-15</code></p>
+
+<p><code>eval.Run</code>（<code>runner.go:49</code>）做的事，服务端工程师一眼就懂：读配置 → <code>loadDataset</code> 反序列化数据集 → <code>filterCases</code> 过滤 → 建 gateway 客户端 → <code>runAll</code> 串行跑批。真正会打脸的，是"跑批"里每一条到底在干什么。</p>
+
+<h2>二、四个漏水点</h2>
+
+<h3>漏水点 1：被测对象不确定</h3>
+
+<div class="leak">
+CI 里被测的是<strong>你的确定性代码</strong>：同一输入进函数，一万次出同一个值。<code>memory_eval</code> 打的却是<strong>真实的 Conductor 对话</strong>——它建独立 chat、发 <code>/new</code> 让 AI 从 VFS 重载 <code>MEMORY.md</code>、再发真正的 <code>user_message</code>，然后轮询等回复（<code>sendAndCollect</code>）。被测的是 <code>claude-sonnet-4-5</code>，同一句话两次跑，回复可能不同，甚至调用不同的工具。测试的输入端就已经不可复现了。
+</div>
+
+<p>这还带来一个 CI 里没有的成本结构：为保证用例间隔离，每条用例先 <code>clearAllMemory</code>，再<strong>硬 sleep 60 秒</strong>等消息队列把向量索引异步删干净——</p>
+
+<pre><code>	// Clear all existing memory before each test case for isolation
+	if err := r.clearAllMemory(); err != nil { ... }
+
+	// Wait for vector index deletion to complete (MQ event processing has delay)
+	vectorDeleteWait := 60 * time.Second
+	...
+	time.Sleep(vectorDeleteWait)</code></pre>
+<p class="meta"><code>cmd/memory_eval/eval/runner.go:110-121</code></p>
+
+<p>单条用例 = 60s 删向量 + 5s 等索引传播 + 两轮 gateway 往返 + 一次裁判 HTTP，耗时以分钟计。<code>eval</code> 天生是<strong>慢速的持续观测</strong>，不是 CI 里那种秒级红绿。（顺带一提：<code>config.go</code> 定义了 <code>concurrency</code> 字段且默认 1，但 <code>runAll</code> 是纯串行 <code>for</code> 循环，从未用它——所以它现在就是顺序跑。）</p>
+
+<h3>漏水点 2：判分器本身是一个模型</h3>
+
+<div class="leak">
+CI 的判分是一行 <code>assertEqual</code>：确定、廉价、可复现。<code>memory_eval</code> 的判分核心却是<strong>另一次模型调用</strong>。<code>score</code>（<code>scorer.go:33</code>）算三个分量：<code>containsScore</code>（确定性子串匹配）、<code>toolCallScore</code>（是否调了写文件工具）、<code>llmJudge</code>（现场 POST 给 <code>gemini-2.5-flash</code>，要它只回 <code>{score, reasoning}</code> 的 JSON，解析出 0.0–1.0）。裁判是模型，裁判的输出也会漂。
+</div>
+
+<p>三个分量怎么合成一个分？看 <code>weightedScore</code>——这是全课最该盯住的十行代码：</p>
+
+<pre><code>func (s *scorer) weightedScore(category string, detail scoreDetail) float64 {
+	switch category {
+	case "recall":
+		return detail.ContainsScore*0.3 + detail.LLMJudgeScore*0.7
+	case "store":
+		return detail.ToolCallScore*0.5 + detail.LLMJudgeScore*0.5
+	case "update":
+		return detail.ToolCallScore*0.4 + detail.LLMJudgeScore*0.6
+	case "rejection":
+		return detail.ContainsScore*0.2 + detail.LLMJudgeScore*0.8</code></pre>
+<p class="meta"><code>cmd/memory_eval/eval/scorer.go:333-343</code></p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">recall（召回）</span><div class="track" style="display:flex">
+    <div class="val base" style="width:30%">contains .3</div>
+    <div class="val write" style="width:70%">judge .7</div>
+  </div></div>
+  <div class="row"><span class="lbl">store（存储）</span><div class="track" style="display:flex">
+    <div class="val read" style="width:50%">tool .5</div>
+    <div class="val write" style="width:50%">judge .5</div>
+  </div></div>
+  <div class="row"><span class="lbl">update（更新）</span><div class="track" style="display:flex">
+    <div class="val read" style="width:40%">tool .4</div>
+    <div class="val write" style="width:60%">judge .6</div>
+  </div></div>
+  <div class="row"><span class="lbl">rejection（拒绝）</span><div class="track" style="display:flex">
+    <div class="val base" style="width:20%">contains .2</div>
+    <div class="val write" style="width:80%">judge .8</div>
+  </div></div>
+</div>
+<figcaption>红=LLM 裁判（统计性），灰=子串匹配、绿=工具调用（确定性）。<code>recall</code> 里 70%、<code>rejection</code> 里 80% 的分来自现场模型裁判——最终分因此是浮点数，不是布尔。为什么不全靠字符串相等？因为"语义对不对""有没有幻觉"这种事，<code>==</code> 判不了。</figcaption>
+</figure>
+
+<p>为什么用跨厂商的 <code>gemini-2.5-flash</code> 给 <code>claude-sonnet-4-5</code> 的输出打分，而不是自己评自己？为了避开<strong>自评偏袒</strong>——同家模型给自己打分容易手软。这本身就是一个 CI 里不存在的设计决策：你得担心"裁判可不可信"。</p>
+
+<h3>漏水点 3：PASS 是"阈值化"，不是"断言成立"</h3>
+
+<div class="leak">
+CI 里一条 <code>assert</code> 挂了，build 就红——判定是<strong>二值</strong>的，成立或不成立。<code>memory_eval</code> 的 PASS 是在一个<strong>连续分布上切一刀</strong>：
+</div>
+
+<pre><code>		status := "PASS"
+		if result.Score &lt; 0.6 {
+			status = "FAIL"
+		}
+		fmt.Printf("[%s] %s (%.2f) - %s\n", status, tc.ID, result.Score, tc.Description)</code></pre>
+<p class="meta"><code>cmd/memory_eval/eval/runner.go:91-95</code></p>
+
+<p>0.6 是一个人为选的阈值，不是自然分界。为什么不要求 <code>score == 1.0</code> 的精确相等？因为分数是个混合浮点量：<code>contains_all</code> 按 <em>matched/total</em> 给部分分，裁判给 0.0–1.0，还可能兜底成 0.5。在这种量上谈"精确相等"没有意义——你能做的只是选一个阈值把分布切成 pass/fail 两桶。阈值本身是可调的政策，不是真理。</p>
+
+<h3>漏水点 4：产出是统计量，且判分链路可降级</h3>
+
+<div class="leak">
+CI 的产出是一个比特：build 红或绿。<code>memory_eval</code> 的产出是<strong>一批用例的统计聚合</strong>——每类的均分与通过率：
+</div>
+
+<pre><code>		avg := sum / float64(len(catRes))
+		r.Categories[cat] = categoryStats{
+			Count:    len(catRes),
+			AvgScore: avg,
+			PassRate: float64(pass) / float64(len(catRes)),
+		}</code></pre>
+<p class="meta"><code>cmd/memory_eval/eval/report.go:60-65</code></p>
+
+<p>更彻底的漏水在这里：判分链路是<strong>软逻辑，可以降级</strong>。没有裁判 API key 时，<code>llmJudge</code> 不报错，而是直接兜底成 0.5——</p>
+
+<pre><code>	if s.cfg.apiKey == "" {
+		return 0.5, "LLM judge skipped (no API key)"
+	}</code></pre>
+<p class="meta"><code>cmd/memory_eval/eval/scorer.go:196-198</code></p>
+
+<p>0.5，既不通过也不失败。断言的世界里根本没有"0.5 通过"这种状态——<code>assert</code> 不会因为"环境没配好"就给你半分。这一行把 eval 和 CI 的本质差异钉死了：eval 度量的是一个<strong>会漂移的分布</strong>，CI 断言的是一个<strong>确定的事实</strong>。</p>
+
+<figure class="diagram">
+<div class="flow">
+  <div class="step decision">一次判定，最终产物是什么？</div>
+  <div class="down">│</div>
+  <div class="branches">
+    <div class="branch">
+      <div class="label">CI（assert）</div>
+      <div class="step action">assertEqual(psm, "lark.mino.server")</div>
+      <div class="down">↓</div>
+      <div class="step terminal">bool → build 红 / 绿<br>二值、可复现</div>
+    </div>
+    <div class="branch">
+      <div class="label">eval（weightedScore）</div>
+      <div class="step action">float score ∈ [0, 1]</div>
+      <div class="down">↓</div>
+      <div class="step action">阈值 0.6 分桶 → pass / fail</div>
+      <div class="down">↓</div>
+      <div class="step">AvgScore + PassRate<br>分布、会漂、还能兜底 0.5</div>
+    </div>
+  </div>
+</div>
+<figcaption>左：CI 一条断言直达红绿。右：eval 每条先出浮点分（<code>weightedScore</code>），阈值分桶（<code>runner.go:92</code>），再聚合成通过率分布（<code>report.go:60-65</code>）。</figcaption>
+</figure>
+
+<h2>三、但他们没有丢掉 CI 式的确定性</h2>
+
+<div class="good">
+注意一个容易看漏的克制：CI 那套<strong>没有被抛弃</strong>，只是被降权了。<code>containsScore</code> 那层纯确定性的子串断言（<code>contains_all</code>/<code>contains_any</code>/<code>not_contains</code>）仍然在跑，只是权重被压到 0.2–0.3。为什么留着？因为对"关键实体有没有出现"这种事，字符串精确匹配又快又可复现，是最靠谱的信号。真正判不了的是"语义对不对""有没有幻觉"——那部分才交给裁判。<strong>确定性能判的继续用断言，判不了的才上统计。</strong>
+</div>
+
+<p>所以正确的心智模型不是"用 eval 替换 CI"，而是"在确定性断言之外，叠一层统计性判分来覆盖语义与幻觉"。这也解释了数据集里 <code>expected</code> 为什么同时长着两种字段：确定性的 <code>contains_all</code>/<code>should_call_write_file</code>，和统计性的 <code>judge_prompt</code>/<code>exact_answer</code>（<code>dataset.go:10-32</code>）。</p>
+
+<h2>四、数据集：eval 度量的是一个分布</h2>
+
+<p>默认数据集 <code>memory_eval_cases.json</code> 共 28 条，四类构成如下。跑批就是对这 28 条各出一个浮点分，再聚合成"每类通过率"——你盯的是这条分布线的移动（<em>通过率漂移</em>），不是某一条的对错。</p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">recall 召回 · 12</span><div class="track"><div class="val out" style="width:100%">12 条（43%）</div></div></div>
+  <div class="row"><span class="lbl">store 存储 · 8</span><div class="track"><div class="val out" style="width:67%">8 条（29%）</div></div></div>
+  <div class="row"><span class="lbl">update 更新 · 4</span><div class="track"><div class="val out" style="width:33%">4 条（14%）</div></div></div>
+  <div class="row"><span class="lbl">rejection 拒绝 · 4</span><div class="track"><div class="val out" style="width:33%">4 条（14%）</div></div></div>
+</div>
+<figcaption><code>memory_eval_cases.json</code>：28 条，其中 20 条 <code>requires_vector=true</code>。在 BOE 环境用 <code>-skip-vector</code> 会跳掉那 20 条，只剩 8 条可跑。<code>rejection</code> 类考的是"不许幻觉"——正确行为是拒绝或不作答。</figcaption>
+</figure>
+
+<p>还有两套需要用 <code>-dataset</code> 显式选用的替代集：<code>locomo_recall_cases.json</code>（57 条，含 15 条对抗/实体混淆的 rejection）与 <code>locomo_store_cases.json</code>（15 条，用 <code>should_call_write_file</code> + 十几个关键词 + 长 <code>judge_prompt</code> 评存储覆盖率）。它们不与默认集同跑。<em>（别把它们和 <code>memory_eval_suite/</code> 里那套并行的 Python 实现搞混——后者基于 LoCoMo、用 Token F1/Recall 打分、35 个 QA pair，是另一套东西，评分指标都不一样。）</em></p>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>eval（评估集）</dt>
+<dd>一组固定输入 + 判分逻辑，用来持续观测模型输出质量。与单元测试的根本差异：判分是<strong>统计性</strong>的（浮点分布 + 阈值分桶），不是确定性 <code>assert</code>。</dd>
+<dt>判分器（scorer）</dt>
+<dd>把模型输出映射成分数的逻辑。<code>memory_eval</code> 用三类合成：确定性的包含匹配（<code>containsScore</code>）、代码判分（<code>toolCallScore</code>，是否调对工具）、模型裁判（<code>llmJudge</code>）。<em>载体</em>：<code>cmd/memory_eval/eval/scorer.go</code>。</dd>
+<dt>LLM-as-judge（模型裁判）</dt>
+<dd>用一个 LLM 给另一个 LLM 的输出打分。核心风险是裁判可信度与自评偏差；<code>memory_eval</code> 用<strong>跨厂商</strong>的 <code>gemini-2.5-flash</code> 评 <code>claude-sonnet-4-5</code> 来规避偏袒。</dd>
+<dt>通过率漂移（pass-rate drift）</dt>
+<dd>同一 eval 集的通过率随模型/prompt/代码变化而移动，是 Agent 系统的"回归信号"。你监控的是 <code>AvgScore</code> 与 <code>PassRate</code> 这条线，不是单条用例的红绿。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：把 <code>recall_fact_001</code>（问"我的项目 PSM 是什么"，期望回复含 <code>lark.mino.server</code>）用 <code>memory_eval</code> 连跑两次，两次的最终 <code>score</code> 一定相等吗？结合具体代码说。</summary>
+<div class="answer">
+<p><strong>不一定相等。</strong>最终分 = <code>weightedScore("recall") = ContainsScore*0.3 + LLMJudgeScore*0.7</code>（<code>scorer.go:336-337</code>）。其中 <code>ContainsScore</code> 是对回复做子串匹配（命中 <code>lark.mino.server</code> 即 1），这层是确定性的；但占 <strong>70%</strong> 的 <code>LLMJudgeScore</code> 是现场调 <code>gemini-2.5-flash</code> 打出来的，而且被测的 <code>claude-sonnet-4-5</code> 回复本身也会变。所以那 0.7 的部分两次很可能不同，最终浮点分会漂。这正是为什么要看 <code>PassRate</code>/<code>AvgScore</code>（<code>report.go:60-65</code>）这个分布量，而不是把一次跑当成 <code>assert</code>。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：为什么 PASS 被定义成 <code>score &gt;= 0.6</code>（<code>runner.go:92</code>），而不是 <code>score == 1.0</code> 的精确相等？</summary>
+<div class="answer">
+<p>因为分数是一个连续的混合浮点量：既有按 <em>matched/total</em> 给部分分的关键词匹配，又有 0.0–1.0 的裁判分，还可能在无 key 时兜底成 0.5（<code>scorer.go:196-198</code>）。像"不许幻觉""语义有没有覆盖十几条应捕获的观察"这种判据，用字符串精确相等根本判不了。0.6 只是把一个分布切成 pass/fail 桶的<strong>政策阈值</strong>——eval 度量的是通过率这个统计量，不是给出唯一正确答案的证明。这就是"eval ≈ CI"这条类比最深的漏水处：CI 断言二值事实，eval 阈值化一个分布。</p>
+</div>
+</details>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源，值得完整读一遍：<a href="https://hamel.dev/blog/posts/evals/">Your AI Product Needs Evals — Hamel Husain</a>。带着一个问题去读：文章反复强调"先做错误分析（error analysis），别先堆基础设施"——回到 <code>memory_eval</code>，它落盘的完整 JSON 报告（含每条的 <code>Response</code>、<code>ToolCalls</code>、<code>JudgeReasoning</code>）和 <code>results/index.html</code> 人工翻看界面，正是"人工看几十条真实输出"的地基。<strong>eval 不是先证明正确，而是先看清楚在哪里错。</strong></p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让我带你打开 <code>cmd/memory_eval/eval/</code> 逐行读。下一课：<em>判分器的三条腿——contains / toolcall / judge 各自能判什么、判不了什么</em>。</p>
+</footer>
+</main>
+</body>
+</html>

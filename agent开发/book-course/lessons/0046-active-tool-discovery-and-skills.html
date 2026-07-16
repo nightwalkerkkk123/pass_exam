@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0046 · 工具爆炸了怎么选：主动发现 vs Skills 按需查阅</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0046 课 · 进阶应用 · 自我进化 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>工具爆炸了怎么选：主动发现 vs Skills 按需查阅</h1>
+
+<p class="lede">本课只拿下一件事：当可用工具从十几个涨到<strong>成百上千</strong>，为什么“把所有工具的 schema 一次性塞进 system prompt”会失效，以及书里给出的两条解法各自省掉了什么、又付出了什么。这是第 8 章「主动工具发现」一节（在 8.5 之后、「从工具使用者到工具创造者」之前）的正面战场。记住：<strong>找到工具</strong>和后一节的<strong>创造工具</strong>是两件事，本课只管前者。</p>
+
+<h2>一、问题：全量注入为什么会“塞爆”上下文</h2>
+
+<p>所有从经验中学习的机制都有一个前提——Agent 得先有<strong>合适的工具</strong>才能干活。工具少的时候，传统做法很省事：把所有工具的 schema 一次性写进系统提示词。但作者把话说得很直接：当工具数量上千，这种做法<strong>迅速失效</strong>。</p>
+
+<p>为什么？不是内存不够，而是<strong>上下文被“工具说明书”塞满，模型的选择精度随之下降</strong>。第四章讲过的检索式预筛选（按语义相似度先筛出一批候选工具）能缓解，却有一个内在局限：它按用户的<strong>初始查询</strong>做<strong>一次性</strong>匹配。可像“Debug the file”这类看似简单的请求，实际会牵出文件访问、代码分析、命令执行等多步骤、跨领域的工具链——<strong>任务开始时根本无法预见所有需求</strong>。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 300" role="img" aria-label="三种工具发现方式对比：左全量注入塞爆上下文导致选择精度下降，中主动发现走服务器级到工具级两层语义路由，右Skills从薄目录逐层查阅">
+  <!-- Panel A: full injection -->
+  <text class="dgm-text" x="120" y="28" font-size="14" font-weight="700" text-anchor="middle">① 全量注入</text>
+  <rect class="dgm-node" x="36" y="44" width="168" height="88" rx="6"/>
+  <line class="dgm-muted" x1="52" y1="64" x2="188" y2="64" stroke-width="6" opacity="0.5"/>
+  <line class="dgm-muted" x1="52" y1="80" x2="188" y2="80" stroke-width="6" opacity="0.5"/>
+  <line class="dgm-muted" x1="52" y1="96" x2="188" y2="96" stroke-width="6" opacity="0.5"/>
+  <line class="dgm-muted" x1="52" y1="112" x2="188" y2="112" stroke-width="6" opacity="0.5"/>
+  <text class="dgm-muted" x="120" y="150" font-size="10.5" text-anchor="middle">上千 schema 全进 system</text>
+  <line class="dgm-edge" x1="120" y1="156" x2="120" y2="184" stroke-width="1.5" marker-end="url(#a46)"/>
+  <rect class="dgm-node" x="60" y="188" width="120" height="42" rx="8"/>
+  <text class="dgm-text" x="120" y="207" font-size="12" text-anchor="middle">模型</text>
+  <text class="dgm-muted" x="120" y="223" font-size="10.5" text-anchor="middle">选择精度 ↓</text>
+
+  <!-- Panel B: active discovery -->
+  <text class="dgm-text" x="360" y="28" font-size="14" font-weight="700" text-anchor="middle">② 主动发现 · 两层路由</text>
+  <rect class="dgm-node" x="286" y="44" width="148" height="34" rx="8"/>
+  <text class="dgm-text" x="360" y="65" font-size="11.5" text-anchor="middle">Agent 声明缺口</text>
+  <line class="dgm-edge" x1="360" y1="78" x2="360" y2="98" stroke-width="1.5" marker-end="url(#a46)"/>
+  <rect class="dgm-node" x="286" y="100" width="148" height="30" rx="8"/>
+  <text class="dgm-text" x="360" y="119" font-size="11.5" text-anchor="middle">服务器级匹配</text>
+  <line class="dgm-edge" x1="360" y1="130" x2="360" y2="148" stroke-width="1.5" marker-end="url(#a46)"/>
+  <rect class="dgm-accent-node" x="286" y="150" width="148" height="34" rx="8"/>
+  <text class="dgm-accent-text" x="360" y="171" font-size="11.5" text-anchor="middle">工具级匹配 → 注入</text>
+  <text class="dgm-muted" x="360" y="206" font-size="10.5" text-anchor="middle">依赖离线嵌入索引</text>
+
+  <!-- Panel C: skills -->
+  <text class="dgm-text" x="600" y="28" font-size="14" font-weight="700" text-anchor="middle">③ Skills · 按需查阅</text>
+  <rect class="dgm-node" x="512" y="44" width="176" height="34" rx="8"/>
+  <text class="dgm-text" x="600" y="60" font-size="11" text-anchor="middle">薄目录 name+description</text>
+  <text class="dgm-muted" x="600" y="73" font-size="9.5" text-anchor="middle">数百 token</text>
+  <line class="dgm-edge" x1="600" y1="78" x2="600" y2="98" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a46)"/>
+  <rect class="dgm-node" x="532" y="100" width="136" height="30" rx="8"/>
+  <text class="dgm-text" x="600" y="119" font-size="11.5" text-anchor="middle">读 sub-skill</text>
+  <line class="dgm-edge" x1="600" y1="130" x2="600" y2="148" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#a46)"/>
+  <rect class="dgm-node" x="512" y="150" width="176" height="34" rx="8"/>
+  <text class="dgm-text" x="600" y="171" font-size="11.5" text-anchor="middle">顺引用读脚本 / 子文档</text>
+  <text class="dgm-muted" x="600" y="206" font-size="10.5" text-anchor="middle">grep · 读文件，无需向量索引</text>
+
+  <defs>
+    <marker id="a46" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>同一个问题的三种答法。①把工具当“说明书”一次读完，塞爆上下文；②“声明—语义匹配—动态注入”，按需精准投喂，但要养一套索引基础设施；③把发现变成“翻工具书”，靠通用文件阅读逐层查。对应书中图8-3（层次化工具匹配）。</figcaption>
+</figure>
+
+<h2>二、解法一：主动发现——从“被动选择”到“主动声明”</h2>
+
+<p>更进一步的思路，是让 Agent 从被动接受者变成<strong>主动发现者</strong>：在执行过程中意识到能力缺口时，主动用自然语言声明“我需要什么能力”，系统再动态匹配并注入。代表工作是 <strong>MCP-Zero</strong>——系统提示词里不预置任何工具 schema，Agent 在思考中生成结构化请求块（如“GitHub 服务器：搜索仓库并返回元数据”），系统通过<strong>服务器级 → 工具级的两层语义路由</strong>从数千候选中匹配注入。论文报告：在约 2800 个工具上，比全量注入<strong>节省约 98% 的 token</strong>。</p>
+
+<p>工程上更常见的等价方案，是系统提示词里只保留少数基础工具（web search、code interpreter），外加一个“工具搜索工具”，Agent 用自然语言描述需求即可检索并加载——Anthropic 在 Claude API 中提供的 <strong>Tool Search Tool</strong> 即属此类。两者的共同点都是：<strong>Agent 声明缺口、系统按需注入</strong>。</p>
+
+<h3>为什么要分“两层”？</h3>
+
+<p>高效匹配的关键，在于工具组织本身就有层次结构。在 MCP 等协议里，工具按<strong>服务器</strong>分组（类似手机上的 App，每个 App 提供一组相关功能）。于是匹配可以分两层：先按能力描述定位相关服务器，再在服务器内匹配具体工具——把搜索空间从“数千个工具”缩小成“<strong>数十个服务器 × 每个服务器数十个工具</strong>”，既省算力，也减少跨领域的语义混淆。这依赖一个<strong>离线构建、支持增量更新的嵌入索引</strong>；若两层匹配的候选相似度都低于阈值，就应明确返回“未找到”，让 Agent 改写需求重试、用基础工具手工实现，或干脆去创造一个新工具（那是下一节的事）。</p>
+
+<h3>动态加载的隐藏代价：KV Cache</h3>
+
+<p>主动发现有一个微妙的工程代价：动态加载工具会<strong>破坏 KV Cache</strong>。如果把工具列表放进 system prompt，每加载一个新工具就使整段缓存失效。破解思路与第二章讨论 Skill 注入位置时一致——<strong>把会变动的部分（新工具的完整 schema）作为 user 消息追加到对话末尾</strong>，让 system prompt 前缀保持稳定、KV Cache 完全复用，只在 Agent 状态栏维护一份简短的工具名列表。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 180" role="img" aria-label="KV Cache优化：把稳定的基础工具放system前缀保住缓存命中，把变动的新工具schema作为user消息追加到对话末尾">
+  <rect class="dgm-hub" x="20" y="46" width="196" height="60" rx="8"/>
+  <text class="dgm-accent-text" x="118" y="72" font-size="12" font-weight="700" text-anchor="middle">system：基础工具</text>
+  <text class="dgm-muted" x="118" y="90" font-size="10.5" text-anchor="middle">稳定前缀</text>
+  <text class="dgm-muted" x="118" y="128" font-size="10.5" text-anchor="middle">KV Cache 命中 ✓</text>
+
+  <line class="dgm-edge" x1="216" y1="76" x2="244" y2="76" stroke-width="1.5" marker-end="url(#b46)"/>
+  <rect class="dgm-node" x="244" y="46" width="180" height="60" rx="8"/>
+  <text class="dgm-text" x="334" y="80" font-size="12" text-anchor="middle">对话历史（user/assistant）</text>
+
+  <line class="dgm-edge" x1="424" y1="76" x2="452" y2="76" stroke-width="1.5" marker-end="url(#b46)"/>
+  <rect class="dgm-accent-node" x="452" y="46" width="228" height="60" rx="8"/>
+  <text class="dgm-accent-text" x="566" y="72" font-size="12" font-weight="700" text-anchor="middle">末尾追加：新工具 schema</text>
+  <text class="dgm-muted" x="566" y="90" font-size="10.5" text-anchor="middle">变动部分放这里（作为 user 消息）</text>
+  <text class="dgm-muted" x="566" y="128" font-size="10.5" text-anchor="middle">只有它随需要变化</text>
+
+  <defs>
+    <marker id="b46" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>对应书中图8-4。变动的东西越靠后，前面能复用的缓存越多。把新工具 schema 追加到末尾，system 前缀纹丝不动，缓存整段复用。</figcaption>
+</figure>
+
+<p>但这里有个<strong>前提</strong>要盯住：在主流 function-calling API 中，合法工具集由请求的 <code>tools</code> 参数决定——模型<strong>无法调用</strong>“只出现在对话文本里、却不在 <code>tools</code> 参数中”的工具。因此这套模式依赖框架或 API 的专门支持（如前述 Tool Search Tool）。此外，动态工具环境对模型能力要求更高：能力较弱的模型既难以理解“工具定义出现在上下文中间”这种非标准位置，也容易生成非法调用格式（JSON 括号不匹配、参数缺失），往往要通过强化学习专门训练（详见第七章）。</p>
+
+<div class="pitfall">
+<p><strong>误区一：“检索预筛选”就等于“主动发现”。</strong>不是。第四章的检索式预筛选是按用户<strong>初始查询</strong>做<strong>一次性</strong>匹配，任务一开始就把候选定死；而主动发现是在<strong>执行过程中随需要多次触发</strong>——Agent 走到哪、发现缺什么，才声明什么。“Debug the file”能牵出文件访问、代码分析、命令执行一整串工具，这些在开局那一刻是预见不到的。把两者划等号，就会以为“开头筛一次”足够了。</p>
+<p><strong>误区二：“上下文够长，全塞进去让模型自己挑就行。”</strong>恰恰相反。作者点明：上下文被工具 schema 塞满时，模型<strong>选择精度会下降</strong>。实验 8-4 里，4B 模型面对 50K+ token 的全量注入，指令遵循严重退化，甚至“忘记”列表中的某些工具。多≠好。</p>
+</div>
+
+<h2>三、解法二：Skills——把“发现工具”变成“翻工具书”</h2>
+
+<p>近来更流行的一种思路来自 <strong>Skills</strong> 机制。第二章从上下文工程角度介绍过它的<strong>渐进式披露</strong>（Progressive Disclosure）；这里换个角度，把它当成一种工具发现范式来看。它和上一节最大的不同，是<strong>不再需要那套“嵌入索引 + 语义匹配”的基础设施</strong>。</p>
+
+<p>像 MCP 这样的协议倾向于把工具的完整 schema 一次性摆在模型面前（要么全量注入、要么靠检索预筛先选出一批）；Skills 则相反：Agent 启动时只看到一份<strong>薄薄的目录</strong>——每个 skill 的 <code>name</code> 与 <code>description</code>（合计数百 token）。当<strong>当前上下文</strong>真的需要某种能力时，模型才去读对应的 sub-skill，并顺着其中的引用再往下一层，读取具体的脚本或子文档。“发现”由模型在上下文里的<strong>实际需要</strong>驱动，而不是在任务开始时对初始查询做一次性预匹配。</p>
+
+<div class="bookquote">
+没有人会把一本工具书或整个维基百科从第一页读到最后一页，而是顺着索引和目录，按当下的需要一个词条、一个词条地精确查阅。
+<span class="src">——《深入理解 AI Agent》第 8 章「主动工具发现」</span>
+</div>
+
+<p>关键在这句：<strong>Agent 靠通用的文件阅读能力（<code>grep</code>、读取文件）翻阅 skill 目录即可</strong>，既不必维护向量索引，也不必把“发现工具”单独建模成一次特殊的语义检索。上一节那一整套“主动声明—语义匹配—动态注入”虽然有效，工程上却相当繁琐：要离线维护嵌入索引、处理 KV Cache 失效、依赖特定 API 支持、还要为弱模型做专门训练。它们共同的前提，是把每个工具都当成一份<strong>面向模型的正式定义</strong>，先注册、再检索、再注入。Skills 换了一种更轻、也更省心的思路——用到哪条查哪条。</p>
+
+<p>那 Skills 场景下 KV Cache 怎么办？加载一个 sub-skill，本质上就是往上下文里插入一段内容，同样可以用第二章的“注入位置”方法把它放到末尾、复用前缀。但 Skills 有个新特点：<strong>同一批 skill 会被反复、且在不同位置加载</strong>（跨会话、跨用户）。若每次都随对话历史从头 prefill，成本不小。第二章末尾介绍的“可编辑、可组合的 KV Cache”正是为此而生：把每个 skill 的 KV 表示<strong>预编译并缓存一次</strong>，之后用 RoPE 重定位“粘贴”到任意上下文位置，以 O(L) 而非 O(L²) 的代价拼接进来。这样 skill 就从“一段每次都要重新 prefill 的文本”，升级为“一个可复用、可组合的缓存对象”。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：工具一多，全量注入必然塌方——因为塞满上下文会拉低模型的选择精度。两条解法的分水岭是<strong>要不要养一套检索基础设施</strong>：主动发现走“声明→两层语义路由→动态注入”，精准但要维护嵌入索引、处理 KV Cache、依赖特定 API；Skills 走“薄目录→逐层查阅”，靠通用文件阅读（grep、读文件）就够，省掉了向量索引和“把发现单独建模成一次语义检索”这一整层工程。判断该用哪种，先问一句：你手上有没有、愿不愿意养那套索引？
+</div>
+
+<h2>四、关键定义</h2>
+
+<dl class="keydef">
+<dt>主动工具发现（Active Tool Discovery）</dt>
+<dd>Agent 执行中意识到能力缺口时，用自然语言声明需求，系统按<strong>服务器级 → 工具级</strong>两层语义路由动态匹配并注入工具 schema。<em>区别于</em>第四章的“一次性检索预筛选”——主动发现是执行过程中随需要<strong>多次触发</strong>。</dd>
+<dt>渐进式披露（Progressive Disclosure）</dt>
+<dd>Skills 机制启动时只暴露每个 skill 的 <code>name</code> 与 <code>description</code>（数百 token），需要时才逐层读取 sub-skill 及脚本子文档。<em>不要</em>说成“检索”——它由模型上下文中的实际需要驱动，靠通用文件阅读而非向量索引。</dd>
+<dt>检索式预筛选（第四章）</dt>
+<dd>按用户<strong>初始查询</strong>的语义相似度，先筛出一批候选工具。缓解了全量注入的塞爆问题，但只做<strong>一次性</strong>匹配，无法覆盖任务中途才浮现的跨领域工具链需求。</dd>
+</dl>
+
+<h2>五、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：把上千个工具的完整 schema 一次性注入 system prompt 有什么问题？Skills 的渐进式披露相比“主动发现 + 语义匹配”省掉了什么基础设施？</summary>
+<div class="answer">
+<p>全量注入会用“工具说明书”塞满上下文，模型的<strong>选择精度随之下降</strong>（实验 8-4 中，4B 模型在 50K+ tokens 下指令遵循严重退化）。主动发现（如 MCP-Zero）用<strong>服务器级 → 工具级</strong>两层语义路由按需注入，但工程上要<strong>离线维护嵌入索引、处理 KV Cache 失效、依赖特定 API 支持</strong>。Skills 则靠<strong>通用的文件阅读能力（grep、读文件）</strong>顺着目录一层层查阅，不必维护向量索引、也不必把“发现工具”单独建模成一次语义检索——更省心。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：层次化匹配把搜索空间从什么缩小到了什么？如果两层匹配的候选相似度都低于阈值，系统应该怎么办？</summary>
+<div class="answer">
+<p>把搜索空间从“<strong>数千个工具</strong>”缩小为“<strong>数十个服务器 × 每个服务器数十个工具</strong>”——先按能力描述定位相关服务器，再在服务器内匹配具体工具。若两层候选相似度都低于阈值，应<strong>明确返回“未找到”</strong>，让 Agent 改写需求重试、用基础工具手工实现，或干脆创造一个新工具。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p><strong>实验 8-4 ★★★ 主动工具发现</strong>：用 Qwen3-4B 访问前面构建的 MCP 服务器里的 120+ 工具。<strong>对照组</strong>把全部工具 schema 一次性注入 system prompt（超 50K tokens），4B 模型在这么长的上下文下指令遵循严重退化（该选 Yahoo Finance 却错选 Web Search，或“忘记”某些工具导致任务失败）；<strong>实验组</strong>只在 system prompt 保留 <code>web_search</code>、<code>code_interpreter</code> 和一个 <code>discover_tools</code> 元工具，按需检索并把新工具定义追加为 user message。预期：准确率与任务完成率显著提升——主动发现尤其让<strong>小参数量模型</strong>在上百工具的场景下保持可用。配套代码见开源仓库 <a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a> 的 chapter8。</p>
+</div>
+
+<h2>六、主推资源</h2>
+
+<p>一手来源是书的第 8 章「主动工具发现」一节本身，配套图8-3（层次化工具匹配）、图8-4（KV Cache 优化）与实验 8-4。深入两条解法的原始工作：<strong>MCP-Zero</strong>（Fei, X., et al. <em>MCP-Zero: Active Tool Discovery for Autonomous LLM Agents.</em> arXiv:2506.01056, 2025）给出“主动声明 + 两层语义路由”的完整方法；Skills 的写法可参考 <strong>Anthropic Skill Creator</strong>（<a href="https://github.com/anthropics/skills/blob/main/skill-creator/SKILL.md">github.com/anthropics/skills</a>）。本章“最小预定义、最大自我进化”原则出自 <strong>Alita</strong>（Qiu, J., et al. <em>Alita: Generalist Agent Enabling Scalable Agentic Reasoning with Minimal Predefinition and Maximal Self-Evolution.</em> arXiv:2505.20286, 2025），可作为下一节“工具创造者”的铺垫来读。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把“检索预筛 / 主动发现 / Skills”三者的边界再逐个过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0045-system-prompt-learning.html"><span class="dir">← 上一课</span>系统提示学习：从一个边界案例就改一条明文规则</a>
+  <a class="next" href="0047-voice-latency-waterfall.html"><span class="dir">下一课 →</span>语音 Agent 为什么慢：延迟瀑布与排队论</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

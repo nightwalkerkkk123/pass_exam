@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0013 · 从"跑几条 case"到评测体系：多层评判与类型分层</title>
+<link rel="stylesheet" href="../assets/style.css">
+<link rel="stylesheet" href="../assets/diagram.css">
+</head>
+<body>
+<main>
+<p class="meta">Agent 开发 · 第 0013 课 · 预计 13 分钟 · <a href="../MISSION.md">Mission</a> · <a href="../RESOURCES.md">Resources</a></p>
+
+<h1>从"跑几条 case"到评测体系：多层评判与类型分层</h1>
+
+<p class="lede">你在 <a href="0007-eval-is-the-new-ci.html">0007</a> 学会了把 eval 当回归测试，在 <a href="0008-scorers-and-judge-trust.html">0008</a> 学会了不信任那把叫 <code>llmJudge</code> 的尺子。这两节都在"<strong>一个 eval 程序内部</strong>"打转。这节课把镜头拉远一档：一个能跑分的程序，离一套<strong>能持续把不稳定行为收敛成可发布质量</strong>的评测体系，还差三样东西——类型分层、多层评判、闭环运营。这节先讲前两样。</p>
+
+<figure class="diagram">
+<div class="pipeline">
+  <div class="node"><span class="n-title">执行用例</span><span class="n-sub">跑被测 Agent</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">采集 Trace</span><span class="n-sub">执行轨迹</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">运行 Scorer</span><span class="n-sub">评分器</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">生成报告</span><span class="n-sub">通过率/明细</span></div>
+  <span class="arrow">→</span>
+  <div class="node"><span class="n-title">根因归类</span><span class="n-sub">badcase 分流</span></div>
+</div>
+<figcaption>评测的<strong>底层骨架可以跨系统复用</strong>——这五步对客服 Agent、Coding Agent、检索 Agent 都一样。真正要按业务定制的只有两件事：<strong>评什么</strong>（指标）和<strong>怎么判</strong>（判据）。骨架复用、判据定制，是理解整套评测体系的第一把钥匙。</figcaption>
+</figure>
+
+<h2>一、先承认 0007 那张地图对的部分</h2>
+
+<p>"eval ≈ CI"给了你一副正确的骨架：固定输入、跑被测系统、判分、通过率退步就报警。这套流程本身没错，上面那条五步流水线就是它的放大版。</p>
+
+<p>但 CI 有一个深到你不会去质疑的<strong>免费假设</strong>：被测的是确定性代码，<code>f(x)</code> 跑一万次出同一个值，所以"跑通一次"约等于"永远跑通"。Agent 把这个假设整个掀翻——它的输入（用户表达不可穷举）、输出（模型有随机性）、状态（多轮对话累积上下文，工具调用还改系统状态）三个维度全是开放的。于是从 Demo 到生产，真正要跨的是三道门槛：</p>
+
+<dl class="keydef">
+<dt>① 非确定性（non-determinism）</dt>
+<dd>同样输入不一定同样输出。"这条 Prompt 我跑通了"只是<strong>一次采样</strong>，不是一个可复现的事实。</dd>
+<dt>② 黑盒化（opacity）</dt>
+<dd>模型内部决策过程不透明。结果对不对你能看到，<strong>它为什么这么答、中间走没走对</strong>你看不到——除非你主动把 Trace 采下来。</dd>
+<dt>③ 错误级联放大（error cascade）</dt>
+<dd>多步链路里前一步的小偏差，会在后续被放大成错误结论。单看终点，你甚至不知道错从哪一步开始。</dd>
+</dl>
+
+<div class="leak">
+CI 世界里，"同一 Prompt 跑通一次"就足以让你安心发布——因为断言是二值且可复现的。Agent 世界里这句话直接失效：跑通一次不代表稳定可用；你改个模型、改句 Prompt、改个工具参数，都可能把原来好用的场景悄悄改坏，而且<strong>不容易第一时间发现</strong>。所以"跑几条 case 感觉还行"不是评测，是自我安慰。评测必须<strong>嵌入研发流程持续运转</strong>，而不是上线前人工抽查一把。
+</div>
+
+<h2>二、最阴险的一种失败：假阳性</h2>
+
+<p>三道门槛里，级联放大会催生一个 CI 从不需要担心的物种——<strong>假阳性（false positive）</strong>：最终答案看起来对，但执行路径已经偏离或带风险。</p>
+
+<p>举个客服场景：用户问"我这个已发货的订单能退款吗"，Agent 回答"可以的，我帮您处理退款"。<em>答案文本读起来完全正确、礼貌、通顺</em>——如果你的判据只看最终回复，这条稳稳 PASS。但如果它<strong>根本没调订单查询工具</strong>、没确认订单其实已签收、没走"已发货需先协商"的 SOP，那么这条在生产里就是一颗定时炸弹：过程错了，只是这次运气好没爆。</p>
+
+<div class="leak">
+CI 里不存在"假阳性"这种东西——断言成立就是成立，过程和结果是同一件事。Agent 里<strong>结果对 ≠ 过程对</strong>：一条 badcase 可以带着完美的最终答案通过你所有只看输出的判据。这逼出一个 0007/0008 都还没触及的结论：<strong>光评 Outcome 不够，必须同时评 Trace（过程）</strong>。评判从"一个分数"变成了"多个层次"。
+</div>
+
+<h2>三、类型不分，评测结果基本不可用</h2>
+
+<p>第二样缺的东西是<strong>类型分层</strong>。Agent 的系统形态差异极大——问答型、任务执行型、对话型、Coding 型——不能用一套"万能指标"评所有系统。骨架（那五步）可以复用，但"评什么、怎么判"必须按类型重写。</p>
+
+<p>还有一层容易被忽略的粒度：随着 Agent 越来越多地通过 <strong>Skill</strong> 完成工具调用、数据处理、报告生成，Skill 本身也得单独测评，而且要问一串很具体的问题：</p>
+
+<table>
+<thead><tr><th>Skill 评测维度</th><th>要回答的问题</th></tr></thead>
+<tbody>
+<tr><td>该不该触发</td><td>这个 Skill 在这个场景下应该被调起吗？（漏触发 / 误触发）</td></tr>
+<tr><td>触发后流程对不对</td><td>调起之后，内部步骤顺序、分支走对了吗？</td></tr>
+<tr><td>工具参数对不对</td><td>传给下游工具的字段、取值、结构正确吗？</td></tr>
+<tr><td>产物可不可用</td><td>最终生成的报告 / 文件 / 动作是业务能直接用的吗？</td></tr>
+<tr><td>异常能不能降级</td><td>输入异常、工具失败、边界条件下，它稳得住、退得回吗？</td></tr>
+</tbody>
+</table>
+
+<p>记住这张表——它会在后面每一节以不同形态复现：数据集设计（0015）按"触发/核心逻辑/产物/异常"组织用例，评分（0016）按这几维给 Skill 打分，根因定位（0017）按这几维定责。<strong>"该不该触发 → 流程对不对 → 产物好不好 → 异常稳不稳"是贯穿全系列的一条线。</strong></p>
+
+<h2>四、对话 Agent 的四层评判（本课核心）</h2>
+
+<p>把类型分层落到最常见的一类——<strong>对话 Agent</strong>（客服、营销、导购、售后）。它们通过多轮对话面向用户，于是额外背上一堆问答型 Agent 没有的评测难点：上下文要连贯、用户会中途切换目标、情绪要回应、搞不定还得能转人工接管。</p>
+
+<p>这类系统最容易踩的坑，是<strong>只平均每轮的分数</strong>。看下面这段会话——四轮单独看，每轮都"答得还行"：</p>
+
+<figure class="diagram">
+<div class="bars">
+  <div class="row"><span class="lbl">Turn 1 · 问候</span><div class="track"><div class="val read" style="width:85%">0.85 还行</div></div></div>
+  <div class="row"><span class="lbl">Turn 2 · 查订单</span><div class="track"><div class="val read" style="width:80%">0.80 还行</div></div></div>
+  <div class="row"><span class="lbl">Turn 3 · 解释规则</span><div class="track"><div class="val read" style="width:82%">0.82 还行</div></div></div>
+  <div class="row"><span class="lbl">Turn 4 · 收尾</span><div class="track"><div class="val read" style="width:88%">0.88 还行</div></div></div>
+  <div class="row"><span class="lbl">↓ Session 整体</span><div class="track"><div class="val write" style="width:100%">FAIL · 用户的退款问题根本没解决</div></div></div>
+</div>
+<figcaption>每轮平均 0.84，看着漂亮；但整段会话<strong>没有解决用户的核心诉求</strong>——四轮都在礼貌地绕圈。轮平均分是"局部通顺"，会话成败是"全局有没有达成目标"，两者可以完全脱钩。</figcaption>
+</figure>
+
+<div class="leak">
+"把每个测试的分加起来求平均"这个在 CI 里天经地义的聚合，用在对话 Agent 上会系统性地骗你：一段每轮都及格、最终没解决问题的会话，轮平均分会给它一个好看的分数，而它其实是彻底的失败。对话评测<strong>不能只看单轮，必须把"整段会话是否解决问题"作为主评判对象</strong>。
+</div>
+
+<p>正确做法是<strong>同时看四个层次</strong>，而不是把它们压成一个平均数：</p>
+
+<table>
+<thead><tr><th>层次</th><th>看什么</th><th>回答的问题</th></tr></thead>
+<tbody>
+<tr><td><strong>Turn</strong> 单轮</td><td>这一轮的回复质量</td><td>这句答得对不对、得不得体？</td></tr>
+<tr><td><strong>Session</strong> 整段会话</td><td>整段对话的最终达成</td><td>用户带着的问题，最后解决了吗？</td></tr>
+<tr><td><strong>Trace</strong> 执行轨迹</td><td>中间调了哪些工具、走了哪条 SOP</td><td>过程对不对？（专抓假阳性）</td></tr>
+<tr><td><strong>Outcome</strong> 最终结果</td><td>系统状态 / 产物的真实变化</td><td>退款单真的发起了吗？数据库真的变了吗？</td></tr>
+</tbody>
+</table>
+
+<p>四层各自独立、缺一不可：Turn 抓局部质量，Session 抓全局达成，Trace 抓过程正确性（假阳性的克星），Outcome 抓真实副作用。<strong>0007/0008 里的 memory_eval，主要活在 Turn 和 Outcome 两层——这恰好暴露了它作为"体系"的缺口。</strong></p>
+
+<h2>五、落到你的项目：mino 的 memory_eval 处在哪一格</h2>
+
+<div class="good">
+<strong>诚实映射（严格区分"mino 真有"和"方法论层、mino 未实现"）：</strong>
+<p>mino 的 <code>cmd/memory_eval</code> <strong>有</strong>那条五步骨架——执行用例（<code>runner.go</code> 的 <code>runAll/runCase</code>）、采集回复与 <code>ToolCalls</code>（<code>sendAndCollect</code>）、运行三维 Scorer（<code>scorer.go:score</code>）、聚合成通过率报告（<code>report.go:60-65</code> 的 <code>AvgScore/PassRate</code>）。这部分是真实存在、0007/0008 已逐符号核实的。</p>
+<p>但对照这节课的三样体系能力，它<strong>还没长出</strong>的部分同样清楚，且都属于"方法论层、mino 未实现"：</p>
+<ul>
+<li><strong>类型分层</strong>：它只评一种能力（memory 的 recall/store/update/rejection），不是一个多类型评测框架。</li>
+<li><strong>多层评判</strong>：每条用例是<em>隔离单轮</em>（<code>clearAllMemory</code> → 写 <code>MEMORY.md</code> → <code>/new</code> → 一条 <code>user_message</code>，见 0007 流水线），天然没有 Session 层的多轮评判。它评到 Turn + Outcome，缺 Session。<em>这不是缺陷，是"memory eval"的合理边界；但一旦你要评客服这类多轮对话 Agent，四层里缺的那两层就得自己补上。</em></li>
+<li><strong>多次运行一致性</strong>：它是纯串行、每条只跑一次（0007 已指出 <code>concurrency</code> 字段定义了却没用），没有"同任务跑 N 次看连续成功率"的统计——那是下一课 0014 的主题。</li>
+</ul>
+<p>把话说死会犯 0008 里那种病，所以这里只下一个可核实的结论：<strong>mino 有评测程序的骨架，还没有评测体系的分层与统计。</strong>本系列接下来五节，讲的正是"从骨架长成体系"缺的那几块。</p>
+</div>
+
+<h2>六、关键定义</h2>
+
+<dl class="keydef">
+<dt>评测体系（eval system）</dt>
+<dd>不是"出分工具"，而是把"不稳定的智能行为"持续收敛成"可发布的工程质量"的闭环流程：执行→采集→评分→报告→根因→修复→回归。核心价值是把问题<strong>稳定转化为可执行修复</strong>，嵌入研发流程而非上线前抽查。</dd>
+<dt>骨架复用 / 判据定制</dt>
+<dd>五步流水线（执行用例→采集 Trace→运行 Scorer→报告→根因归类）跨系统通用；"评什么（指标）、怎么判（判据）"必须按 Agent 类型与业务重写。</dd>
+<dt>假阳性（false positive）</dt>
+<dd>最终回复看起来正确，但执行路径偏离或带风险的用例。只看 Outcome 会漏判，必须叠加 Trace（过程）评估才能抓到。</dd>
+<dt>四层评判（Turn / Session / Trace / Outcome）</dt>
+<dd>对话 Agent 的评判必须并行看四层：单轮质量 / 整段会话是否解决问题 / 执行轨迹是否正确 / 真实结果是否达成。<strong>严禁只用轮平均分代替 Session 判定。</strong></dd>
+</dl>
+
+<h2>七、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：一段客服会话共 5 轮，每轮 <code>llmJudge</code> 都打了 0.9，轮平均分 0.9 非常漂亮。但用户想改的收货地址到最后一轮也没改成。这段会话该判 PASS 还是 FAIL？为什么这暴露了"轮平均分"的根本缺陷？</summary>
+<div class="answer">
+<p><strong>判 FAIL。</strong>评判对象错了：轮平均分度量的是<strong>Turn 层</strong>（每一句答得好不好），而这段会话的成败取决于<strong>Session 层</strong>（用户带来的"改地址"诉求最终有没有达成）。两层可以完全脱钩——每轮都礼貌、通顺、局部正确（0.9），整段却在原地打转、没解决问题。</p>
+<p>根本缺陷在于：把多轮对话的质量<strong>压成一个平均标量</strong>，会丢掉"整体是否达成目标"这个唯一真正重要的信号。正确做法是让 Session 成为主评判对象，Turn 分只作辅助诊断（帮你定位是哪一轮开始跑偏）。这也是为什么对话 Agent 必须四层并行评，而不是四层求平均。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：你的判据只检查"最终回复是否包含正确政策解释"。一条用例：Agent 没查订单状态就直接说"已为您确认，可以退款"，而这单其实已签收、按规则不该无条件退。回复文本完全正确，判据给了 PASS。这是什么问题？该加哪一层评判来抓它？</summary>
+<div class="answer">
+<p>这是<strong>假阳性</strong>：结果（回复文本）看起来对，但<strong>执行路径</strong>错了——跳过了"先查订单状态"这个必需步骤，是靠运气没爆的风险行为。</p>
+<p>只看 Outcome/Turn 层的判据抓不到它，因为文本本身没毛病。要抓它必须加<strong>Trace（执行轨迹）层</strong>评判：检查该调的订单查询工具调了没、SOP 顺序对不对、有没有违反"已发货需先协商"的硬规则。这正是"结果对 ≠ 过程对"，也是把 Trace 单列成一层的全部理由。（顺带：这就是 0017 根因定位要处理的典型 badcase。）</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q3（延伸）：有人说"评测骨架都一样，那我写一套通用指标评所有 Agent 不就行了？"用这节课的逻辑反驳。</summary>
+<div class="answer">
+<p>混淆了"骨架"和"判据"两层。<strong>骨架</strong>（执行用例→采集 Trace→运行 Scorer→报告→根因归类）确实跨系统通用，可以复用；但<strong>"评什么、怎么判"必须按类型定制</strong>——检索 Agent 评召回质量、对话 Agent 评 Session 达成与情绪回应、Coding Agent 评代码能否编译通过，指标和判据根本不是一回事。用一套"万能指标"评所有系统，结果基本不可用：要么指标对多数类型不适用，要么被迫抽象到"响应成功率"这种无信息量的粒度。正确姿势是<strong>复用骨架、定制判据</strong>，Skill 密集的系统还要在类型指标下再挂一组 Skill 子指标（该不该触发/流程/参数/产物/降级）。</p>
+</div>
+</details>
+</div>
+
+<h2>八、承上启下</h2>
+
+<p>这节课把"一个 eval 程序"抬升成"一套评测体系"的雏形，立了两根柱子：<strong>类型分层</strong>（骨架复用、判据定制、Skill 单独评）和<strong>多层评判</strong>（Turn/Session/Trace/Outcome，抓假阳性靠 Trace）。但我们还欠一个关键问题没答：既然单跑一次只是采样，那到底<strong>跑几次、怎么统计、拿什么当上线门槛</strong>？"至少一次成功"和"连续成功"差在哪，一个通过率的提升到底是真进步还是随机噪声？——这就是下一课的全部内容。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求 ELI5、ELI14，或让我带你把 mino 的 <code>cmd/memory_eval/eval/runner.go</code> 摊开，对照这节的"四层评判"看它到底评了哪两层。下一课：<em>0014 指标体系与统计门禁——P0/P1/P2 门禁、至少一次 vs 连续成功率、以及"这个提升是真的吗"的统计检验</em>。</p>
+</footer>
+</main>
+</body>
+</html>

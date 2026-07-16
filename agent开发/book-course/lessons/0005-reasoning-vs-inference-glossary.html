@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0005 · 「思考」还是「推理」：一个被中文合并的区分</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0005 课 · 引言 · 公式与全局 · 预计 9 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>「思考」还是「推理」：一个被中文合并的区分</h1>
+
+<p class="lede">这节课只拿下一件事：<strong>reasoning 和 inference 是两个不同的概念，本书刻意用两个不同的中文词把它们分开</strong>——reasoning 译作「思考」，inference 译作「推理」。它藏在引言最后的「一个术语约定」里，看起来只是译者的小注脚，实则是你读完整本书都要带着的一副眼镜。读错这一个词，后面「思考模型」和「推理成本」会在你脑子里糊成一团。</p>
+
+<h2>一、问题：中文「推理」一个词，扛了两件事</h2>
+
+<p>作者在引言里点破了根源：「有些英文技术词直译成中文会产生歧义。」最麻烦的一个，就是 reasoning 和 inference——它们在英文里泾渭分明，可直译过来都能落到「推理」这两个字上。于是同一个中文词，被迫同时承载两个毫不相干的概念：</p>
+
+<ul>
+<li><strong>reasoning</strong>：模型<strong>展开中间推导、「想」的过程</strong>——思维链（Chain-of-Thought）、思考型模型（如 OpenAI o 系列、DeepSeek-R1）、思考 token、思考过程。</li>
+<li><strong>inference</strong>：模型的<strong>前向计算与部署运行</strong>——推理时、推理成本、推理栈、推理时扩展。</li>
+</ul>
+
+<p>作者的原话把动机说得很干脆：用两个不同的中文词，「是为了避免『推理』一词同时承载两个概念、让读者无法区分」。所以本书的处置方案是一条硬约定——<strong>reasoning 一律译「思考」，inference 一律译「推理」</strong>。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 720 340" role="img" aria-label="中文推理一词分裂为两支:左支思考对应reasoning,右支推理对应inference;底部列出保留旧译的例外词">
+  <!-- top node -->
+  <rect class="dgm-hub" x="270" y="18" width="180" height="52" rx="10"/>
+  <text class="dgm-accent-text" x="360" y="42" font-size="14" font-weight="700" text-anchor="middle">中文「推理」一词</text>
+  <text class="dgm-muted" x="360" y="60" font-size="11" text-anchor="middle">一个词，两件事</text>
+
+  <!-- split edges -->
+  <path class="dgm-edge" d="M300 70 C230 96, 175 100, 165 118" fill="none" stroke-width="1.5" marker-end="url(#ar5)"/>
+  <path class="dgm-edge" d="M420 70 C490 96, 545 100, 555 118" fill="none" stroke-width="1.5" marker-end="url(#ar5)"/>
+
+  <!-- left branch: 思考 -->
+  <rect class="dgm-good-node" x="40" y="120" width="250" height="52" rx="8"/>
+  <text class="dgm-text" x="165" y="144" font-size="14" font-weight="700" text-anchor="middle">思考 = reasoning</text>
+  <text class="dgm-muted" x="165" y="162" font-size="11" text-anchor="middle">「想」的过程</text>
+  <text class="dgm-muted" x="165" y="198" font-size="11.5" text-anchor="middle">思维链(CoT) · 思考模型</text>
+  <text class="dgm-muted" x="165" y="216" font-size="11.5" text-anchor="middle">思考 token · 思考过程</text>
+
+  <!-- right branch: 推理 -->
+  <rect class="dgm-node" x="430" y="120" width="250" height="52" rx="8"/>
+  <text class="dgm-text" x="555" y="144" font-size="14" font-weight="700" text-anchor="middle">推理 = inference</text>
+  <text class="dgm-muted" x="555" y="162" font-size="11" text-anchor="middle">前向计算与部署</text>
+  <text class="dgm-muted" x="555" y="198" font-size="11.5" text-anchor="middle">推理时 · 推理成本</text>
+  <text class="dgm-muted" x="555" y="216" font-size="11.5" text-anchor="middle">推理栈 · 推理时扩展</text>
+
+  <!-- exceptions box -->
+  <rect class="dgm-node" x="120" y="256" width="480" height="64" rx="8" stroke-dasharray="5 4"/>
+  <text class="dgm-accent-text" x="360" y="280" font-size="12.5" font-weight="700" text-anchor="middle">例外 · 沿用旧译，保留「推理」二字</text>
+  <text class="dgm-muted" x="360" y="302" font-size="11.5" text-anchor="middle">逻辑推理 · 多跳推理 · 空间推理 · 时序推理 · 「推理游戏」</text>
+  <defs>
+    <marker id="ar5" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>一个中文词分裂成两支：左边「思考」是模型在想，右边「推理」是模型在跑。底部虚线框里是几个已经固化、沿用旧译的例外——它们仍写「推理」，但指的是「演绎推断」的一般含义，不是 inference 的技术义。</figcaption>
+</figure>
+
+<h2>二、为什么这样设计：约定是给读者省认知，不是给译者找麻烦</h2>
+
+<p>你可能会问：区分两个词，真有必要单立一条规矩吗？有。设想没有这条约定，你读到这样两句话：「这个模型的<strong>推理</strong>能力很强」和「这个模型的<strong>推理</strong>成本很高」——同一个词，前一句夸的是它会想（reasoning 强），后一句说的是它跑起来贵（inference 贵），二者甚至可能<strong>反向相关</strong>：越爱「想」的模型，往往「跑」得越贵。混用一个词，读者根本分不清作者在说哪件事。</p>
+
+<p>作者的处理是把区分<strong>前置到译法层面</strong>：不指望你每次都靠上下文去猜，而是让「思考／推理」两个字本身就携带区分。你一看到「思考模型」「思考 token」，就知道话题是模型在展开中间推导；一看到「推理时」「推理栈」，就知道话题切到了工程部署。这正是本书「把设计从『感觉驱动』变成『原则驱动』」这一总基调在术语层的落地——连用词都不留给感觉去猜。</p>
+
+<figure class="diagram">
+<div class="formula">
+<div class="eq">reasoning <span class="op">→</span> 思考（在想）　　inference <span class="op">→</span> 推理（在跑）</div>
+<div class="gloss">看到中文，先反查它对应哪个英文，再判断话题是「想」还是「跑」</div>
+</div>
+<figcaption>把这条映射刻进肌肉记忆：本书里「思考」永远指 reasoning，「推理」永远指 inference（例外词除外）。</figcaption>
+</figure>
+
+<h2>三、边界：有几个词「破例」，仍写「推理」</h2>
+
+<p>约定不是一刀切。作者明确留了一组<strong>例外</strong>：几个已经在中文里固化的复合词——<strong>逻辑推理、多跳推理、空间推理、时序推理</strong>，以及「推理游戏」这类日常用法——本书沿用习惯译法，保留「推理」二字。它们指的是「演绎推断」的一般含义，<strong>既不是 inference 的技术义，也不必被强行改成「思考」</strong>。请你根据语境理解。</p>
+
+<div class="pitfall">
+<p><strong>初学者最常见的两种误读：</strong></p>
+<p>（1）按日常习惯把 reasoning 和 inference <strong>都读成「推理」</strong>，于是错失了作者刻意制造的区分——读到「思考模型」时甚至觉得译得别扭，想把它「纠正」回「推理模型」。恰恰相反：那个「思考」是作者精心选的，动它就丢了信息。</p>
+<p>（2）矫枉过正，看到「多跳推理」「逻辑推理」也去套「inference＝推理」的规则，怀疑作者是不是没统一。其实这几个是<strong>白名单里的例外</strong>，走的是「演绎推断」的一般含义，和「推理成本」里的 inference 是两回事。规则有例外，才说明它是一条经过打磨的约定，而不是机械替换。</p>
+</div>
+
+<h2>四、宏观背景：这只是全书「术语先立规矩」的一个缩影</h2>
+
+<p>为什么一本讲架构的书，要在引言里花一整段抠一个译名？因为它是作者方法论的预演。整本书反复主张<strong>用科学的方法论去做工程</strong>——而科学的第一步，就是把概念定义清楚、不让一个词漂移。作者在同一处还补了一句总纲：「其他关键术语，正文会在首次出现处给出中英文对照。」这条课上你正在经历的，就是这套「术语纪律」的样板。</p>
+
+<p>往前一步看，这条约定也解释了本书的一个书名细节：把会「想」的模型叫「思考模型」「思考者」，而不是随大流叫「推理模型」。当你带着这副眼镜去读第七章（模型后训练）里满篇的「思考 token」「推理成本」时，才不会把「让模型更会想」和「让模型跑得更省」这两件截然不同的事搅在一起。</p>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：本书里，<strong>「思考」＝reasoning（模型在想）</strong>，<strong>「推理」＝inference（模型在跑）</strong>，二者是两个概念、绝不混用；唯一的例外是「逻辑／多跳／空间／时序推理」和「推理游戏」这几个固化词，它们保留「推理」二字但取「演绎推断」的一般义。读到任何一个「推理」，先问一句：这里到底是在说想，还是在说跑？</p></div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>思考（reasoning）</dt>
+<dd>本书统一译法，指模型展开中间推导、「想」的过程，包括思维链（Chain-of-Thought）、思考模型、思考 token、思考过程。<em>避免</em>译作「推理」。</dd>
+<dt>推理（inference）</dt>
+<dd>本书统一译法，指模型的前向计算与部署运行，如推理时、推理成本、推理栈、推理时扩展。<em>避免</em>与 reasoning「思考」混用。</dd>
+<dt>上下文（Context）</dt>
+<dd>Agent 的「眼睛」，是模型能感知到的一切信息，不仅包含环境信息和对话历史，还包含工具定义等内容；对应 RL 的观察空间（Observation Space）。<em>避免</em>仅理解为「对话历史」或「prompt」。</dd>
+<dt>whisper coding（口述式协作）</dt>
+<dd>向语音 Agent 口述提纲，经「口述—调研—讨论—修改」循环迭代产出内容的工作方式——这本书本身就是这么做出来的。<em>避免</em>简单等同为语音输入。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：本书为什么把 reasoning 译为「思考」、inference 译为「推理」？有哪些保留「推理」二字的例外？</summary>
+<div class="answer">
+<p>因为中文「推理」一词会同时承载两个概念、让读者无法区分：<strong>reasoning</strong> 指模型展开中间推导、「想」的过程（思维链、思考模型、思考 token、思考过程），<strong>inference</strong> 指模型的前向计算与部署运行（推理时、推理成本、推理栈、推理时扩展）。用两个不同的中文词就是为了把这两件事分开。例外是几个已在中文固化的复合词：<strong>逻辑推理、多跳推理、空间推理、时序推理</strong>，以及「推理游戏」，沿用习惯译法保留「推理」二字，指的是「演绎推断」的一般义，而非 inference 的技术义。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：读到「这个模型的推理成本很高」和「这个思考模型很擅长长链条推导」，这两句里对应的英文分别是哪个词？</summary>
+<div class="answer">
+<p>第一句「推理成本」对应 <strong>inference</strong>（前向计算与部署运行，属于工程/成本话题）；第二句「思考模型」「推导」对应 <strong>reasoning</strong>（模型展开中间推导、「想」的过程）。两句话题不同：一个说模型跑起来多贵，一个说模型多会想。这正是本书要用两个中文词分开它们的原因。</p>
+</div>
+</details>
+</div>
+
+<div class="experiment">
+<p>本课属引言里的术语约定，没有独立配套代码；但整本书的实验都在开源仓库里，<strong>强烈建议边读边跑</strong>：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。作者提到，很多设计直觉「需要在动手调试的过程中才能真正建立起来」——比如你亲手跑一个思考模型，看它把「思考 token」一段段吐出来时，「思考(reasoning)」这个词会瞬间从定义变成直觉。</p>
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课的一手来源是书的<strong>引言</strong>本身（<code>book/introduction.md</code>），尤其是结尾「如何阅读本书」里的「一个术语约定」一段，请完整读一遍。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。若想系统补大模型基础（Transformer、预训练与微调等），作者推荐《图解大模型》（图灵出版），与本书的 Agent 工程视角互补。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师随手举几个句子，考你「这里的『推理』到底是 reasoning 还是 inference」。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0004-pine-reverse-engineered-principles.html"><span class="dir">← 上一课</span>Pine 倒逼出的三条早期实践</a>
+  <a class="next" href="0006-agent-equals-brain-eyes-hands.html"><span class="dir">下一课 →</span>一个公式看懂 Agent：大脑+眼睛+手脚</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>

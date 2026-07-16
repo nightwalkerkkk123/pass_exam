@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>0033 · 别把答案一次性喂给 Agent：渐进式信息透露</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="../../assets/style.css">
+<link rel="stylesheet" href="../../assets/diagram.css">
+<link rel="stylesheet" href="../assets/book.css">
+</head>
+<body>
+<main>
+<p class="meta">深入理解 AI Agent · 精读课 · 第 0033 课 · 支柱三(模型) · Agent 评估 · 预计 11 分钟 · <a href="../index.html">门户</a> · <a href="../MISSION.md">Mission</a> · <a href="../GLOSSARY.md">术语表</a></p>
+
+<h1>别把答案一次性喂给 Agent：渐进式信息透露</h1>
+
+<p class="lede">这节课只押一件事：<strong>渐进式信息透露（Progressive Information Disclosure）</strong>——它是第 6 章「人机交互型评估环境」一节里，作者点名的「人机交互型评估与传统 benchmark 的<strong>根本区别</strong>」。搞懂它，你就明白了为什么 τ-bench 要专门再拉一个 LLM 来扮演一个「话说一半」的用户，以及这么做到底在考察 Agent 的哪块肌肉。</p>
+
+<h2>一、是什么：把需求分几口喂，而不是一次性倒出来</h2>
+
+<p>先看它落在书里的哪个位置。第 6 章把评估环境分成两种范式（对应图6-2）：<strong>工具调用型</strong>和<strong>人机交互型</strong>。前者像 Verifiers 框架那样，Agent 调用预定义工具、用可执行标准（测试是否通过、答案是否匹配）来验证，不依赖人；后者要面对一个绕不开的难题——<strong>如何在自动化环境中模拟真实用户</strong>。</p>
+
+<figure class="diagram">
+<div class="trio" style="grid-template-columns:1fr 1fr">
+  <div class="cell"><div class="role">工具调用型</div><div class="head">🔧 测状态变更</div><div class="sub">Agent 调工具 → 用可执行标准验证（测试过没过、答案对没对），考察<strong>行动正确性</strong></div></div>
+  <div class="cell"><div class="role">人机交互型</div><div class="head">💬 测沟通策略</div><div class="sub">Agent 要澄清模糊表达、向用户确认，考察是否<strong>引导用户完成认知/决策变化</strong></div></div>
+</div>
+<figcaption>图6-2 · 两种评估范式的分工。工具调用型问「是否完成了可观测的状态变更」，人机交互型问「是否引导用户完成了认知或决策上的变化」。渐进式信息透露是后者的核心原则。</figcaption>
+</figure>
+
+<p>作者的观察很朴素：<strong>现实中用户很少能一上来就清晰描述需求</strong>。他们往往只会说「我的航班好像有问题」「网络连不上了」。所以评估里定了一条硬规矩——<strong>绝不能一开始就把模拟用户的所有信息暴露给 Agent</strong>，信息要按需、渐进地在对话中透露。这就是「渐进式信息透露」。</p>
+
+<h2>二、怎么做：用另一个 LLM 照着固定脚本演用户</h2>
+
+<p>τ-bench 的解决方案叫<strong>用户模拟（User Simulation）</strong>：用另一个 LLM 扮演用户，根据预定义指令与 Agent 对话——逐步透露必要信息、回应询问，任务完成后发出终止信号。提示词里明确要求模拟用户「不要一次性透露所有信息，只提供当前步骤必要的内容」「不要编造指令中未提供的信息」。</p>
+
+<p>下面是书里给出的一个 6 轮渐进式信息透露对话示例（用户模拟器按<strong>固定脚本</strong>行动）。注意看每一轮：用户手里其实早就攥着全部答案，但闸门只在 Agent 问对问题时才开一格。</p>
+
+<figure class="diagram">
+<div class="svg-wrap">
+<svg viewBox="0 0 700 430" role="img" aria-label="6轮对话流程：Agent 逐轮追问，用户按脚本逐格透露信息，中间的信息闸门随轮次一格一格打开">
+  <!-- header labels -->
+  <text class="dgm-muted" x="150" y="26" font-size="12.5" font-weight="700" text-anchor="middle">🤖 Agent 追问</text>
+  <text class="dgm-muted" x="415" y="26" font-size="12.5" font-weight="700" text-anchor="middle">🧑 用户模拟器（按脚本透露）</text>
+  <text class="dgm-muted" x="640" y="26" font-size="12.5" font-weight="700" text-anchor="middle">信息闸门</text>
+
+  <!-- Row 0: opening -->
+  <rect class="dgm-node" x="255" y="40" width="320" height="34" rx="8"/>
+  <text class="dgm-text" x="270" y="61" font-size="12.5">「我的航班有个问题。」</text>
+
+  <!-- Row 1: agent -->
+  <rect class="dgm-node" x="20" y="86" width="260" height="34" rx="8"/>
+  <text class="dgm-text" x="34" y="107" font-size="12.5">「请问是哪个航班？」</text>
+  <!-- Row 1: user -->
+  <rect class="dgm-accent-node" x="255" y="132" width="320" height="34" rx="8"/>
+  <text class="dgm-accent-text" x="270" y="153" font-size="12.5">「Delta 123，明早旧金山飞纽约。」</text>
+
+  <!-- Row 2: agent -->
+  <rect class="dgm-node" x="20" y="178" width="260" height="34" rx="8"/>
+  <text class="dgm-text" x="34" y="199" font-size="12.5">「具体是什么问题？」</text>
+  <!-- Row 2: user -->
+  <rect class="dgm-accent-node" x="255" y="224" width="320" height="34" rx="8"/>
+  <text class="dgm-accent-text" x="270" y="245" font-size="12.5">「飞行时间太长，我想改签。」</text>
+
+  <!-- Row 3: agent -->
+  <rect class="dgm-node" x="20" y="270" width="260" height="34" rx="8"/>
+  <text class="dgm-text" x="34" y="291" font-size="12.5">「对新航班有什么偏好吗？」</text>
+  <!-- Row 3: user -->
+  <rect class="dgm-accent-node" x="255" y="316" width="320" height="34" rx="8"/>
+  <text class="dgm-accent-text" x="270" y="337" font-size="12.5">「下午的航班都行。」</text>
+
+  <!-- gate track -->
+  <rect class="dgm-node" x="612" y="40" width="56" height="310" rx="6" fill="none"/>
+  <!-- gate cells filling progressively -->
+  <rect class="dgm-accent" x="616" y="132" width="48" height="30" rx="4"/>
+  <rect class="dgm-accent" x="616" y="224" width="48" height="30" rx="4"/>
+  <rect class="dgm-accent" x="616" y="316" width="48" height="30" rx="4"/>
+  <text class="dgm-muted" x="640" y="378" font-size="10.5" text-anchor="middle">每问对</text>
+  <text class="dgm-muted" x="640" y="392" font-size="10.5" text-anchor="middle">一次</text>
+  <text class="dgm-muted" x="640" y="406" font-size="10.5" text-anchor="middle">才开一格</text>
+
+  <!-- flow arrows down -->
+  <path class="dgm-edge" d="M415 74 L415 130" fill="none" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#ar33)"/>
+  <path class="dgm-edge" d="M150 120 L150 176" fill="none" stroke-width="1.5" marker-end="url(#ar33)"/>
+  <path class="dgm-edge" d="M415 166 L415 222" fill="none" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#ar33)"/>
+  <path class="dgm-edge" d="M150 212 L150 268" fill="none" stroke-width="1.5" marker-end="url(#ar33)"/>
+  <path class="dgm-edge" d="M415 258 L415 314" fill="none" stroke-width="1.5" stroke-dasharray="4 4" marker-end="url(#ar33)"/>
+  <defs>
+    <marker id="ar33" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" class="dgm-accent"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+<figcaption>信息闸门随「Agent 问对一次」逐格打开。用户模拟器遵循一个固定脚本（<strong>已知信息 + 透露规则</strong>）：既保证评估可复现，又还原了真实用户「话说一半」的渐进式表达。</figcaption>
+</figure>
+
+<p>为什么非要「固定脚本」？因为用户模拟本身要在<strong>真实性和可控性之间权衡</strong>——行为要接近真实用户（表达模糊、信息不完整、偶尔情绪波动），但又必须遵循剧本，否则每跑一次结果都不一样，评估就没法复现。脚本＝已知信息＋透露规则，正是这个平衡点。</p>
+
+<div class="bookquote">
+关键设计原则是渐进式信息透露，这是人机交互型评估与传统基准测试的根本区别……绝不能一开始就把模拟用户的所有信息暴露给 Agent，信息应按需、渐进地在对话中透露。
+<span class="src">——《深入理解 AI Agent》第 6 章</span>
+</div>
+
+<h2>三、为什么这样设计：主动澄清本身就是要考的能力</h2>
+
+<p>这是本课最该深挖的「为什么」。传统 benchmark 大多一开始就把完整需求全盘托出——但那等于替 Agent 把最难的一步做掉了。<strong>Agent 需要通过主动提问来澄清需求，这个过程本身就是能力的重要体现。</strong>如果用户开口就把「Delta 123 / 想改签 / 下午都行」一次性说全，Agent 不问一句也能猜对答案，评估就测不出「谁更会追问」——区分度归零。</p>
+
+<p>再往深一层：τ-bench 的检查是<strong>组件级、多维度</strong>的——一面查数据库最终状态对不对（如预订记录变成「已取消」），一面查 Agent 在对话里有没有输出必要的关键信息（如退款金额、到账时间，靠搜索特定字符串验证）。这套「双重验证」同时考操作准确性和沟通有效性。可到了任务层面，它们最终汇总成<strong>零或一的二元奖励</strong>：全部检查通过才得 1 分，任何一项不过就是 0 分。好处是便于统计 Pass^k 这类可靠性指标；代价是「操作准确但漏掉某个非关键字段」和「完全失败」拿到同样的 0 分。</p>
+
+<h2>四、演进：τ²-bench 补了什么——双控环境</h2>
+
+<p>改进版 <strong>τ²-bench</strong> 的核心增量不在评分粒度，而在两点。一是<strong>双控环境（Dual-Control）</strong>：不再只有 Agent 一方能调工具，<strong>用户模拟器也能操作同一个共享环境</strong>——比如 Agent 指导用户切换飞行模式，用户这一下真的改变了环境状态。这更贴近技术支持这类「需要用户动手配合」的场景。二是更精确的任务规范与组合式任务生成：成功条件歧义更少、具体任务实例可以参数化批量生成。</p>
+
+<p>作者还点了 τ-bench 初版的三处毛病，正好反衬渐进式透露为什么要做扎实：用户指令过于简单（Agent 能猜对答案）、成功条件不够精确（导致误判）、用户模拟器过于机械。τ²-bench 的对症下药之一，就是「更真实的用户模拟器行为规范：渐进式信息透露、自然的情绪波动」。</p>
+
+<div class="pitfall">
+<p><strong>初学者最容易想歪的地方</strong>：把「渐进式信息透露」当成「就是多轮对话嘛」。不是。多轮对话只描述了「聊了好几个来回」，而渐进式信息透露的要害在<strong>信息按脚本受控释放</strong>——用户手里明明有全部答案，却被规则约束着一格一格放。少了这层「受控」，你要么退回一次性给全（考不出追问能力），要么让模拟用户随机乱答（评估不可复现）。</p>
+<p>连带的第二个坑：以为「双控环境」只是「对话更长」。双控的本质是<strong>用户侧也能真正改变共享环境状态</strong>，于是验证多出一维——Agent 必须通过工具调用观察到用户那一下操作的结果，再据此继续排查。这是「谁能动手」的变化，不是「聊几轮」的变化。</p>
+</div>
+
+<div class="experiment">
+<p>配套实验 <strong>实验 6-1 ★</strong>：运行 τ²-bench 并对比 τ-bench 的演进——深入阅读任务定义文件（每个任务含<strong>已知信息 + 任务指令 + 成功条件</strong>），观察用户模拟器与 Agent 的多轮对话，分析政策违规、信息遗漏、过度转接人工等典型失败模式（对应图6-3 τ²-bench 评估架构）。想动手看排名机制那一侧，仓库里还有 <code>chapter6/elo-leaderboard/</code>（用 Chatbot Arena 真实盲选数据构建 Elo/Bradley-Terry 排行榜）和 <code>chapter6/android-world/</code>（AndroidWorld 上 t3a Agent 的真实评估报告，练从 benchmark 报告诊断结构性短板）。开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+</div>
+
+<h2>五、关键定义</h2>
+
+<dl class="keydef">
+<dt>渐进式信息透露（Progressive Information Disclosure）</dt>
+<dd>人机交互型评估的核心原则：不一开始把模拟用户的全部信息暴露给 Agent，而按需、渐进地在对话中透露，考察 Agent 主动澄清需求的能力。<em>避免</em>把它当成简单的多轮对话——关键在信息按脚本受控释放。</dd>
+<dt>双控环境（Dual-Control）</dt>
+<dd>τ²-bench 引入的机制：不再只有 Agent 一方能调用工具，用户模拟器也能操作同一共享环境（如用户切换飞行模式真正改变环境状态），更贴近技术支持等需用户动手配合的场景。</dd>
+<dt>数据泄漏（Data Contamination）</dt>
+<dd>评估数据被纳入模型训练数据的现象，导致评估测的是记忆力而非泛化能力；防范手段含答案独特性、动态参数生成、时间新鲜度、canary GUID 等。<em>避免</em>简称为「过拟合」——泄漏特指评估题进了训练集。</dd>
+</dl>
+
+<h2>六、自测题</h2>
+
+<div class="quiz">
+<details>
+<summary>Q1：传统 benchmark 一开始就给出完整需求，而 τ-bench 让模拟用户只说「我的航班有个问题」。这个设计差异是为了考察 Agent 的什么能力？为什么用固定脚本很重要？</summary>
+<div class="answer">
+<p>为了考察 Agent <strong>主动提问、澄清模糊需求</strong>的能力——现实用户很少一上来就说清需求，主动澄清本身就是核心能力。<strong>固定脚本（已知信息 + 透露规则）</strong>保证评估可复现，同时模拟真实用户的渐进式表达。若一开始暴露全部信息，Agent 不需提问就能猜对，评估就失去了区分度。</p>
+</div>
+</details>
+</div>
+
+<div class="quiz">
+<details>
+<summary>Q2：τ-bench 的检查明明是「组件级、多维度」的，为什么最终只给一个 0 或 1 的分数？这样做的好处和代价各是什么？</summary>
+<div class="answer">
+<p>因为在任务层面，所有组件级检查（数据库最终状态是否正确、对话中是否输出了退款金额/到账时间等关键信息）被汇总为<strong>二元奖励</strong>：全部通过才得 1 分，任何一项不过就是 0 分。<strong>好处</strong>：便于统计 Pass^k 这类可靠性指标。<strong>代价</strong>：「操作准确但漏掉某个非关键字段」与「完全失败」得到相同的分数，丢失了细粒度区分。</p>
+</div>
+</details>
+</div>
+
+<div class="good">
+<strong>本课唯一要带走的判断</strong>：人机交互型评估的分水岭是「谁掌握答案、什么时候放」——渐进式信息透露让模拟用户攥着全部信息、按固定脚本一格一格放，逼 Agent 用「主动追问」自己把需求挖出来；这才是它区别于传统 benchmark 的根本，也是它真正在测的那块能力。
+</div>
+
+<h2>七、主推资源</h2>
+
+<p>本课一手来源是本书<strong>第 6 章「人机交互型评估环境」一节</strong>（<code>book/chapter6.md</code>），τ-bench / τ²-bench 与 6 轮对话示例都出自这里。本章还会用到 Scale AI 的 <em>Rubrics as Rewards</em>（Rubric 四准则出处，见下一课 0034）；配对比较部分引用 LMSYS 论文 <em>Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena</em>、<a href="https://chat.lmsys.org/">Chatbot Arena（chat.lmsys.org）</a> 与 Bradley-Terry 模型（这些 URL 来自配套项目 README，原文正文未直接给出）。配套开源仓库：<a href="https://github.com/bojieli/ai-agent-book">github.com/bojieli/ai-agent-book</a>。</p>
+
+<footer class="lesson-footer">
+<p>有任何不清楚的地方，回到会话里问你的 AI 老师——可以要求用 ELI5 / ELI14 讲，或让老师带你把「固定脚本 = 已知信息 + 透露规则」这层受控释放先过一遍。</p>
+<nav class="lesson-nav">
+  <a class="prev" href="0032-model-plus-harness-swap-vs-ablation.html"><span class="dir">← 上一课</span>评估到底在评什么：模型替换实验 vs 消融实验</a>
+  <a class="next" href="0034-rubric-four-principles-and-veto.html"><span class="dir">下一课 →</span>用 Rubric 给开放式任务打分：四准则与一票否决</a>
+</nav>
+</footer>
+</main>
+</body>
+</html>
