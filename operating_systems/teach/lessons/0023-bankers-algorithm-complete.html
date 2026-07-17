@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 23 课 · 银行家算法（4矩阵 + 安全性 + 资源请求）· 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e;
+    --okbg:#f1f9f4; --badbg:#fdf0ef; --gold:#c8951a; --goldbg:#fff8e8;
+    /* 四矩阵专用色 */
+    --c-max:#7b3f8a;       /* 紫 */
+    --c-max-bg:#f5ebf9;
+    --c-alloc:#1f5d8a;     /* 蓝 */
+    --c-alloc-bg:#eef5fb;
+    --c-need:#a85d00;      /* 橙 */
+    --c-need-bg:#fff3e0;
+    --c-avail:#1f6f43;     /* 绿 */
+    --c-avail-bg:#e8f3ec;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.78; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:38px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:27px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14.5px}
+  h2{font-size:21px; margin:40px 0 12px; border-left:5px solid var(--accent); padding-left:12px}
+  h3{font-size:16px; margin:22px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:24px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px; font-weight:700}
+  .callout{border:1px solid var(--line); border-left:5px solid var(--accent); background:var(--soft);
+    padding:13px 17px; border-radius:5px; margin:16px 0; font-size:15px}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  td.num{font-variant-numeric:tabular-nums}
+  td.r{color:var(--ok); font-weight:700}
+  td.s{color:var(--bad); font-weight:700}
+
+  /* 矩阵通用表格 */
+  .mat{border-collapse:collapse; width:100%; margin:10px 0 14px; font-size:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,.04); border-radius:6px; overflow:hidden}
+  .mat th,.mat td{border:1px solid var(--line); padding:9px 12px; text-align:center}
+  .mat td.num{font-variant-numeric:tabular-nums; font-weight:600}
+  .mat th.rc{background:#f0f0eb; color:#333; font-size:13px}
+  .mat td.rh{font-weight:700; text-align:left; padding-left:14px}
+  .mat td.tot{background:#fafaf6; font-weight:700}
+
+  /* 4矩阵配色 */
+  .mat-max    th.tit{background:var(--c-max);    color:#fff}
+  .mat-max    td.rh{background:var(--c-max-bg);  color:var(--c-max)}
+  .mat-alloc  th.tit{background:var(--c-alloc);  color:#fff}
+  .mat-alloc  td.rh{background:var(--c-alloc-bg);color:var(--c-alloc)}
+  .mat-need   th.tit{background:var(--c-need);   color:#fff}
+  .mat-need   td.rh{background:var(--c-need-bg); color:var(--c-need)}
+  .mat-avail  th.tit{background:var(--c-avail);  color:#fff}
+  .mat-avail  td.rh{background:var(--c-avail-bg);color:var(--c-avail)}
+
+  /* 矩阵对比网格：4 个并排 */
+  .grid4{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin:14px 0}
+  @media (max-width:680px){.grid4{grid-template-columns:1fr}}
+
+  /* 标签 */
+  .tag{display:inline-block; padding:2px 9px; border-radius:11px; font-size:12px; font-weight:700;
+    color:#fff; letter-spacing:.03em; vertical-align:middle; margin-right:4px}
+  .tag.pur{background:var(--c-max)}
+  .tag.blu{background:var(--c-alloc)}
+  .tag.ora{background:var(--c-need)}
+  .tag.grn{background:var(--c-avail)}
+
+  /* 流程图 */
+  .flow{display:flex; flex-direction:column; align-items:stretch; gap:8px; margin:18px 0}
+  .fnode{border:2px solid var(--line); border-radius:9px; padding:11px 16px; background:#fff; font-size:15px;
+    position:relative; transition:.2s}
+  .fnode b{color:var(--accent)}
+  .fnode.q{border-color:var(--warn); background:#fff8ee}
+  .fnode.yn{border-color:var(--accent); background:var(--soft)}
+  .fnode.y{border-color:var(--ok); background:var(--okbg)}
+  .fnode.n{border-color:var(--bad); background:var(--badbg)}
+  .farrow{text-align:center; color:var(--muted); font-size:18px; line-height:1; user-select:none}
+
+  /* 可视化：Work 金库 */
+  .stage{border:1px solid var(--line); border-radius:12px; background:#fff; padding:18px;
+    margin:18px 0; box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .vault{display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; margin:6px 0 14px}
+  .vault-box{display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-width:120px; padding:12px 18px; border-radius:12px; background:linear-gradient(160deg,#fff8e8,#ffeec0);
+    border:2px solid var(--gold)}
+  .vault-box .lbl{font-size:12.5px; color:var(--warn); font-weight:700}
+  .vault-num{font-size:38px; font-weight:800; color:var(--gold); line-height:1.1; font-variant-numeric:tabular-nums}
+  .vault-box .unit{font-size:11.5px; color:var(--muted)}
+  .vault.bump{animation:bump .45s ease}
+  @keyframes bump{0%{transform:scale(1)}35%{transform:scale(1.12)}100%{transform:scale(1)}}
+
+  .procs{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px}
+  .pcard{border:1px solid var(--line); border-radius:9px; padding:11px 13px; background:#fcfcfb; transition:.25s}
+  .pcard.active{border-color:var(--accent); box-shadow:0 0 0 3px var(--soft); background:#fff}
+  .pcard.done{border-color:var(--ok); background:var(--okbg); opacity:.88}
+  .pcard.stuck{border-color:var(--bad); background:var(--badbg)}
+  .ptop{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:7px}
+  .pname{font-weight:700; font-size:16px}
+  .pbadge{font-size:11.5px; padding:2px 8px; border-radius:20px; background:#eee; color:var(--muted)}
+  .pcard.done .pbadge{background:var(--ok); color:#fff}
+  .pcard.active .pbadge{background:var(--accent); color:#fff}
+  .pcard.stuck .pbadge{background:var(--bad); color:#fff}
+  .pmeta{display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); margin-top:5px}
+  .pmeta b{color:var(--ink)}
+
+  .ctrls{display:flex; gap:9px; flex-wrap:wrap; margin:13px 0 4px}
+  button.btn{font-family:inherit; font-size:14.5px; font-weight:600; padding:9px 16px; border-radius:7px;
+    border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; transition:.15s}
+  button.btn:hover{filter:brightness(1.07)}
+  button.btn.ghost{background:#fff; color:var(--accent)}
+  button.btn:disabled{opacity:.4; cursor:not-allowed}
+
+  .logbox{margin-top:11px; background:#0f2230; color:#cfe6f5; border-radius:8px; padding:11px 14px;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13px; line-height:1.7; min-height:42px; white-space:pre-wrap}
+  .logbox .g{color:#7fd99a} .logbox .y{color:#ffd87a} .logbox .r{color:#ff9a90}
+  .verdict{margin-top:12px; font-size:16px; font-weight:700; padding:11px 15px; border-radius:8px; display:none}
+  .verdict.show{display:block}
+  .verdict.safe{background:var(--okbg); border:1px solid var(--ok); color:var(--ok)}
+  .verdict.unsafe{background:var(--badbg); border:1px solid var(--bad); color:var(--bad)}
+
+  /* 自测题 */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:9px; padding:15px 17px; margin:16px 0}
+  .qq{font-weight:600; margin-bottom:9px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:9px 13px; margin:6px 0; cursor:pointer; font-size:14.5px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:9px; padding:9px 12px; border-radius:6px; font-size:13.5px; line-height:1.65}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+
+  /* 口诀卡 */
+  .cheat{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin:12px 0}
+  .ccard{border:1px solid var(--line); border-radius:9px; padding:11px 14px; background:#fff;
+    border-left:5px solid var(--accent)}
+  .ccard b{color:var(--accent); display:block; margin-bottom:4px}
+
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:14px; font-size:13px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">操作系统期末冲刺 · 死锁避免 · Ch3 · 完整版</div>
+  <h1>第 23 课 · 银行家算法（4 矩阵 + 安全性检查 + 资源请求流程）</h1>
+  <div class="sub">20 分钟把「四张矩阵 + 安全性算法 + 资源请求算法」一次装完，能独立做计算大题。</div>
+</header>
+
+<div class="callout">
+  <b>一句话：</b>银行家算法 = 借钱前先<b class="hl">预演</b>一遍还款路径——能还清就借，还不清就拒绝（让进程等）。<br>
+  <b>本质：</b>属于死锁的「<b>避免</b>」（不是预防！），允许 4 个死锁条件存在，但<b>运行时动态绕开</b>可能死锁的局面。
+</div>
+
+<!-- ============ 第二节 ============ -->
+<h2>一、死锁处理的 4 个层次（先认清"避免"在哪一层）</h2>
+<table>
+  <tr><th>层次</th><th>做法</th><th>代表方法</th><th>代价</th></tr>
+  <tr><td><b>预防</b></td><td>设计阶段破坏 4 条件之一</td><td>一次性申请全部资源 / 按序申请</td><td>资源利用率低</td></tr>
+  <tr><td><b>避免 ✅</b></td><td>运行时算账，绕开死锁</td><td><b>银行家算法</b></td><td>每次分配都要算，开销大</td></tr>
+  <tr><td><b>检测</b></td><td>允许死锁发生，事后检测</td><td>资源分配图化简</td><td>需要检测机制</td></tr>
+  <tr><td><b>解除</b></td><td>检测到死锁后处理</td><td>撤销进程 / 资源抢占</td><td>损失已做的工作</td></tr>
+</table>
+<div class="callout warn">
+  <b>考试最爱问的选择：</b>"银行家算法是<b>避免</b>死锁，<b>不是预防</b>。"——避免和预防一字之差，<b>避免</b>不破坏任何条件，<b>预防</b>破坏条件。默写三遍。
+</div>
+
+<!-- ============ 第三节 ============ -->
+<h2>二、4 个核心矩阵（必背 + 必算）</h2>
+<p>银行家算法一切运算都围绕这 <b>4 张表</b>。每一张都用<b>「行=进程，列=资源类型」</b>的格式（多资源时列变多）。</p>
+
+<div class="grid4">
+
+  <table class="mat mat-max">
+    <tr><th colspan="4" class="tit"><span class="tag pur">① Max</span> 最大需求矩阵</th></tr>
+    <tr><th class="rc">进程</th><th>A</th><th>B</th><th>C</th></tr>
+    <tr><td class="rh">P0</td><td class="num">7</td><td class="num">5</td><td class="num">3</td></tr>
+    <tr><td class="rh">P1</td><td class="num">3</td><td class="num">2</td><td class="num">2</td></tr>
+    <tr><td class="rh">P2</td><td class="num">9</td><td class="num">0</td><td class="num">2</td></tr>
+    <tr><td class="rh">P3</td><td class="num">2</td><td class="num">2</td><td class="num">2</td></tr>
+    <tr><td class="rh">P4</td><td class="num">4</td><td class="num">3</td><td class="num">3</td></tr>
+  </table>
+
+  <table class="mat mat-alloc">
+    <tr><th colspan="4" class="tit"><span class="tag blu">② Allocation</span> 已分配矩阵</th></tr>
+    <tr><th class="rc">进程</th><th>A</th><th>B</th><th>C</th></tr>
+    <tr><td class="rh">P0</td><td class="num">0</td><td class="num">1</td><td class="num">0</td></tr>
+    <tr><td class="rh">P1</td><td class="num">2</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td class="rh">P2</td><td class="num">3</td><td class="num">0</td><td class="num">2</td></tr>
+    <tr><td class="rh">P3</td><td class="num">2</td><td class="num">1</td><td class="num">1</td></tr>
+    <tr><td class="rh">P4</td><td class="num">0</td><td class="num">0</td><td class="num">2</td></tr>
+  </table>
+
+  <table class="mat mat-need">
+    <tr><th colspan="4" class="tit"><span class="tag ora">③ Need</span> 还需矩阵（算出来！）</th></tr>
+    <tr><th class="rc">进程</th><th>A</th><th>B</th><th>C</th></tr>
+    <tr><td class="rh">P0</td><td class="num">7</td><td class="num">4</td><td class="num">3</td></tr>
+    <tr><td class="rh">P1</td><td class="num">1</td><td class="num">2</td><td class="num">2</td></tr>
+    <tr><td class="rh">P2</td><td class="num">6</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td class="rh">P3</td><td class="num">0</td><td class="num">1</td><td class="num">1</td></tr>
+    <tr><td class="rh">P4</td><td class="num">4</td><td class="num">3</td><td class="num">1</td></tr>
+  </table>
+
+  <table class="mat mat-avail">
+    <tr><th colspan="4" class="tit"><span class="tag grn">④ Available</span> 系统剩余（向量）</th></tr>
+    <tr><th class="rc">资源</th><th>A</th><th>B</th><th>C</th></tr>
+    <tr><td class="rh">数量</td><td class="num">3</td><td class="num">3</td><td class="num">2</td></tr>
+  </table>
+
+</div>
+
+<div class="callout ok">
+  <b>必背公式：</b><code>Need = Max − Allocation</code>　（按行按列<b>逐个减</b>，不是减总数！）<br>
+  例：P1 行：<code>Need = (3,2,2) − (2,0,0) = (1,2,2)</code>。每行都这么算，5 行 3 列共 15 次减法。
+</div>
+
+<h3>为什么是这 4 个？一张图说清</h3>
+<table>
+  <tr><th>矩阵</th><th>回答的问题</th><th>谁给的</th></tr>
+  <tr><td><span class="tag pur">Max</span></td><td>进程<b>总共</b>最多要多少？</td><td>题目直接给</td></tr>
+  <tr><td><span class="tag blu">Allocation</span></td><td>进程<b>已经拿走</b>多少？</td><td>题目直接给</td></tr>
+  <tr><td><span class="tag ora">Need</span></td><td>进程<b>还差多少</b>才能开工？</td><td><code>Max − Allocation</code> 算出</td></tr>
+  <tr><td><span class="tag grn">Available</span></td><td>系统金库<b>还剩</b>多少？</td><td>题目给，或 = 系统总量 − ΣAllocation</td></tr>
+</table>
+
+<!-- ============ 第四节 ============ -->
+<h2>三、安全性算法（找安全序列）</h2>
+<p>有了 4 张表，银行家算法第一步：判断<b>当前状态</b>是不是「<b>安全</b>」——能找到一条顺序让所有进程都顺利跑完。</p>
+
+<div class="callout warn">
+  <ol style="margin:4px 0 0">
+    <li>设两个变量：<code>Work = Available</code>（手头钱），所有进程 <code>Finish = false</code>。</li>
+    <li>从所有 <code>Finish = false</code> 的进程里，<b>找一个</b>满足 <code>Need ≤ Work</code>（每一类资源都 ≤）。</li>
+    <li>假设它<b>跑完了</b> → 它会还回占用的全部资源 → <code>Work = Work + Allocation</code>，<code>Finish = true</code>。回到第 2 步。</li>
+    <li><b>所有进程 Finish = true</b> → <b>安全</b>（记下完成顺序 = <b>安全序列</b>）；中途找不到 → <b>不安全</b>。</li>
+  </ol>
+</div>
+
+<div class="callout">
+  <b>「Need ≤ Work」的向量比较：</b>必须<b>每个分量都 ≤</b>，不能只看总和。<br>
+  例：Need = (1,2,2) 与 Work = (3,3,2) → 1≤3, 2≤3, 2≤2 ✅；如果 Need = (1,2,2) 与 Work = (3,1,5) → B 类 2>1 ❌。
+</div>
+
+<h3>动手跑一遍（P0–P4 例题）</h3>
+<p>点 <b>「下一步 ▶」</b> 模拟安全性算法。看 Work（金库）怎么滚雪球：</p>
+
+<div class="stage" id="stage">
+  <div class="vault" id="vault">
+    <div class="vault-box">
+      <span class="lbl">🏦 Work（手头）</span>
+      <span class="vault-num" id="work">(3,3,2)</span>
+      <span class="unit">向量 (A,B,C)</span>
+    </div>
+  </div>
+  <div class="procs" id="procs"></div>
+  <div class="ctrls">
+    <button class="btn" id="step">下一步 ▶</button>
+    <button class="btn ghost" id="reset">↺ 重来</button>
+  </div>
+  <div class="logbox" id="log">点「下一步」，算法开始找 Need ≤ Work 的进程……</div>
+  <div class="verdict" id="verdict"></div>
+</div>
+
+<div class="callout ok">
+  <b>滚雪球关键观察：</b>第一次 Work=(3,3,2)，看上去 P0 还要 (7,4,3)、P2 还要 (6,0,0)、P4 还要 (4,3,1) 都喂不饱——但<b>P1 只需 (1,2,2) ≤ (3,3,2)</b>，先喂它！它还回 (2,0,0)，Work 变 (5,3,2)。<b>原本喂不饱的 P3 现在只需 (0,1,1) 也能喂了。</b>雪球就滚起来了。
+</div>
+
+<!-- ============ 第五节 ============ -->
+<h2>四、资源请求算法（重点！请求来了怎么判）</h2>
+<p>上面是"看现状安不安全"。这一节是"进程 Pi <b>真的来要资源了</b>，银行家要不要给？"——这是<b>考试大题</b>的标准问法。</p>
+<p>设进程 <code>Pi</code> 发出请求向量 <code>Request_i</code>（例：Request₁ = (1,0,2) 表示要 1 个 A、0 个 B、2 个 C）。银行家按下面 5 步判断：</p>
+
+<div class="flow">
+  <div class="fnode"><b>第①步：预判能不能给</b><br>
+    如果 <code>Request_i ≤ Need_i</code>（它要的不超过它声明的最大值）→ 继续；否则报错「<b>超过最大需求</b>」，拒绝。</div>
+  <div class="farrow">↓</div>
+  <div class="fnode"><b>第②步：预判金库够不够</b><br>
+    如果 <code>Request_i ≤ Available</code>（金库现有量 ≥ 它要的）→ 继续；否则「<b>等</b>」，进程阻塞（资源不够，现在分不了）。</div>
+  <div class="farrow">↓</div>
+  <div class="fnode"><b>第③步：试探性分配（假装已经给了）</b><br>
+    修改四个数据结构：
+    <code>Available = Available − Request_i</code>；
+    <code>Allocation_i = Allocation_i + Request_i</code>；
+    <code>Need_i = Need_i − Request_i</code>。</div>
+  <div class="farrow">↓</div>
+  <div class="fnode q"><b>第④步：跑安全性算法</b><br>
+    用第三节的方法，看试探分配后系统是否<b>仍安全</b>（能找到安全序列）。</div>
+  <div class="farrow">↓</div>
+  <div class="fnode y"><b>第⑤步 a：安全 → 真分配</b><br>
+    把第③步的修改<b>真正生效</b>，进程 Pi 拿到资源，继续运行。</div>
+  <div class="farrow">或</div>
+  <div class="fnode n"><b>第⑤步 b：不安全 → 撤回，恢复原状</b><br>
+    把第③步的修改<b>回滚</b>（Available、Allocation、Need 全部还原），Pi 继续<b>等待</b>。</div>
+</div>
+
+<div class="callout warn">
+  <b>核心逻辑（记住一句话）：</b>"先试着给 → 跑安全性算法 → 安全就真给，不安全就撤销、不给、让它等。"<br>
+  <b>试探性分配 + 安全性检查 = 银行家算法的灵魂</b>，比单看「金库够不够」多一道闸。
+</div>
+
+<h3>对比：安全性算法 vs 资源请求算法</h3>
+<table>
+  <tr><th></th><th>安全性算法</th><th>资源请求算法</th></tr>
+  <tr><td><b>触发时机</b></td><td>（被动）任何分配前 + 主动体检</td><td>（主动）进程 Pi 发出 Request 时</td></tr>
+  <tr><td><b>输入</b></td><td>当前 4 张矩阵</td><td>当前 4 张矩阵 + Request_i 向量</td></tr>
+  <tr><td><b>核心动作</b></td><td>反复找 Need ≤ Work 的进程</td><td>试探性分配 → 调用安全性算法</td></tr>
+  <tr><td><b>输出</b></td><td>「安全」+ 安全序列 / 「不安全」</td><td>「真分配」/ 「撤回+等待」</td></tr>
+  <tr><td><b>一句话</b></td><td>看现状<b>能不能找到安全序列</b></td><td>假装给了之后<b>还能不能找到安全序列</b></td></tr>
+</table>
+
+<!-- ============ 第六节 ============ -->
+<h2>五、计算例题（P1 申请 Request₁ = (1,0,2)）</h2>
+<p>接着上面 P0–P4 的初始状态（Work/Available = (3,3,2)）。现在 P1 提出申请 Request₁ = (1,0,2)。问：能否分配？</p>
+
+<h3>第①步：Request₁ ≤ Need₁ 吗？</h3>
+<p>Need₁ = (1,2,2)，Request₁ = (1,0,2)。逐分量：1≤1 ✅, 0≤2 ✅, 2≤2 ✅ → <span class="r">通过</span>。</p>
+
+<h3>第②步：Request₁ ≤ Available 吗？</h3>
+<p>Available = (3,3,2)，Request₁ = (1,0,2)。逐分量：1≤3 ✅, 0≤3 ✅, 2≤2 ✅ → <span class="r">通过</span>，可以试探。</p>
+
+<h3>第③步：试探性分配（修改 4 个数据）</h3>
+<table class="mat mat-alloc">
+  <tr><th colspan="4" class="tit">Allocation（试探后）</th></tr>
+  <tr><th class="rc">进程</th><th>A</th><th>B</th><th>C</th></tr>
+  <tr><td class="rh">P0</td><td class="num">0</td><td class="num">1</td><td class="num">0</td></tr>
+  <tr><td class="rh">P1</td><td class="num"><b>3</b></td><td class="num"><b>0</b></td><td class="num"><b>2</b></td></tr>
+  <tr><td class="rh">P2</td><td class="num">3</td><td class="num">0</td><td class="num">2</td></tr>
+  <tr><td class="rh">P3</td><td class="num">2</td><td class="num">1</td><td class="num">1</td></tr>
+  <tr><td class="rh">P4</td><td class="num">0</td><td class="num">0</td><td class="num">2</td></tr>
+</table>
+<table class="mat mat-need">
+  <tr><th colspan="4" class="tit">Need（试探后，P1 行更新）</th></tr>
+  <tr><th class="rc">进程</th><th>A</th><th>B</th><th>C</th></tr>
+  <tr><td class="rh">P0</td><td class="num">7</td><td class="num">4</td><td class="num">3</td></tr>
+  <tr><td class="rh">P1</td><td class="num"><b>0</b></td><td class="num"><b>2</b></td><td class="num"><b>0</b></td></tr>
+  <tr><td class="rh">P2</td><td class="num">6</td><td class="num">0</td><td class="num">0</td></tr>
+  <tr><td class="rh">P3</td><td class="num">0</td><td class="num">1</td><td class="num">1</td></tr>
+  <tr><td class="rh">P4</td><td class="num">4</td><td class="num">3</td><td class="num">1</td></tr>
+</table>
+<table class="mat mat-avail">
+  <tr><th colspan="4" class="tit">Available（试探后）</th></tr>
+  <tr><th class="rc">资源</th><th>A</th><th>B</th><th>C</th></tr>
+  <tr><td class="rh">数量</td><td class="num"><b>2</b></td><td class="num"><b>3</b></td><td class="num"><b>0</b></td></tr>
+</table>
+
+<h3>第④步：跑安全性算法</h3>
+<p>Work = Available = (2,3,0)。逐个检查：</p>
+<table>
+  <tr><th>步</th><th>Work</th><th>挑中谁（Need ≤ Work）</th><th>跑完后 Work += Allocation</th></tr>
+  <tr><td>1</td><td>(2,3,0)</td><td>P1：Need (0,2,0) ≤ ✅</td><td>(2+3, 3+0, 0+2) = (5,3,2)</td></tr>
+  <tr><td>2</td><td>(5,3,2)</td><td>P3：Need (0,1,1) ≤ ✅</td><td>(5+2, 3+1, 2+1) = (7,4,3)</td></tr>
+  <tr><td>3</td><td>(7,4,3)</td><td>P4：Need (4,3,1) ≤ ✅</td><td>(7+0, 4+0, 3+2) = (7,4,5)</td></tr>
+  <tr><td>4</td><td>(7,4,5)</td><td>P2：Need (6,0,0) ≤ ✅</td><td>(7+3, 4+0, 5+2) = (10,4,7)</td></tr>
+  <tr><td>5</td><td>(10,4,7)</td><td>P0：Need (7,4,3) ≤ ✅</td><td>(10+0, 4+1, 7+0) = (10,5,7)</td></tr>
+</table>
+<p>全部完成 → <b>系统仍安全</b>，安全序列 <code>P1 → P3 → P4 → P2 → P0</code>。</p>
+
+<h3>第⑤步：真正分配</h3>
+<div class="callout ok">
+  <b>结论：P1 的请求可以满足。</b>把第③步试探的修改<b>真正生效</b>，P1 拿到 (1,0,2) 资源，继续运行；其他进程按安全序列等待。
+</div>
+
+<div class="callout bad">
+  <b>反例（考试最爱挖坑）：</b>如果 Request₁ = (1,0,3) 呢？第①步：Need₁ 的 C 分量只有 2，但请求 3 个 C，3&gt;2 → <b>超过最大需求</b>，<b>第①步就直接拒绝</b>，不用进第②步。<br>
+  <b>记住：</b>Request &gt; Need → 报错；Request ≤ Need 但 Request &gt; Available → 让它等；只有两步都通过才进入第③步试探。
+</div>
+
+<!-- ============ 第七节 ============ -->
+<h2>六、必背三句（默写 3 遍）</h2>
+<div class="cheat">
+  <div class="ccard"><b>① 公式</b><code>Need = Max − Allocation</code>，按行按列逐个减。</div>
+  <div class="ccard"><b>② 安全性算法</b>找 Need ≤ Work → 它跑完 Work += Allocation → 重复，全 Finish = true 则安全。</div>
+  <div class="ccard"><b>③ 资源请求 5 步</b>① Request≤Need → ② Request≤Available → ③ 试探分配 → ④ 跑安全性算法 → ⑤ 安全真给/不安全撤销等。</div>
+  <div class="ccard"><b>④ 归属</b>银行家算法 = 死锁<b>避免</b>，<b>不是预防</b>（避免不破坏条件，预防才破坏）。</div>
+</div>
+
+<!-- ============ 第八节 ============ -->
+<h2>七、自测 5 题（做错回第二节）</h2>
+
+<div class="quiz" id="q1"><div class="qq">Q1. 银行家算法属于死锁处理的哪一层？</div>
+  <button class="opt" data-ok="0">预防（破坏 4 条件之一）</button>
+  <button class="opt" data-ok="1">避免（运行时算账，不破坏条件）</button>
+  <button class="opt" data-ok="0">检测（资源分配图化简）</button>
+  <button class="opt" data-ok="0">解除（撤销进程）</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q2"><div class="qq">Q2. Need 矩阵怎么算？</div>
+  <button class="opt" data-ok="0">Allocation − Max</button>
+  <button class="opt" data-ok="1">Max − Allocation（按行按列逐个分量相减）</button>
+  <button class="opt" data-ok="0">把 Max 和 Allocation 各列求和再相减</button>
+  <button class="opt" data-ok="0">Available 减去 Allocation</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q3"><div class="qq">Q3. 安全性算法第③步「它跑完后 Work = Work + Allocation」为什么是 + Allocation 而不是 + Need？</div>
+  <button class="opt" data-ok="0">两个都行，教材随便写的</button>
+  <button class="opt" data-ok="1">因为它<b>还回的是已占用的资源</b>（= Allocation），不是它「还需要」的（= Need）</button>
+  <button class="opt" data-ok="0">因为 Need 是它没拿到的，还不回来</button>
+  <button class="opt" data-ok="0">因为 Need 是向量，Allocation 是标量，不能加</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q4"><div class="qq">Q4. 资源请求算法第①步「Request_i ≤ Need_i」不通过，意味着？</div>
+  <button class="opt" data-ok="0">金库不够，进程进入等待</button>
+  <button class="opt" data-ok="0">试探性分配失败</button>
+  <button class="opt" data-ok="1">进程要的资源超过自己声明的最大值（编程错误/异常），立即拒绝</button>
+  <button class="opt" data-ok="0">系统进入不安全状态</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q5"><div class="qq">Q5. 资源请求算法的第⑤步：试探性分配之后跑安全性算法，发现<b>不安全</b>，应该？</div>
+  <button class="opt" data-ok="0">强行分配，反正只是试探</button>
+  <button class="opt" data-ok="0">永久拒绝该进程的全部后续请求</button>
+  <button class="opt" data-ok="1">撤回试探性的修改（4 个数据全部还原），让 Pi 继续等待</button>
+  <button class="opt" data-ok="0">撤销所有进程，重启系统</button>
+  <div class="fb"></div></div>
+
+<footer>
+  <p>📌 <b>做题套路（考场上 5 分钟一道大题）：</b><br>
+  ① 算出 Need（5×3=15 次减法，2 分钟）；<br>
+  ② 安全性算法：从 Work=Available 开始，找 Need≤Work → 圈出 → Work+=Allocation → 重复。能全找完=安全+序列；找不到=不安全；<br>
+  ③ 资源请求：5 步走完，重点第③步改数据、第④步跑安全性、第⑤步真分配还是撤回。</p>
+  <p>来源：汤小丹《计算机操作系统》第四版 Ch3 §3.6.4 银行家算法（P0–P4，A/B/C 三类资源例题）。</p>
+  <p>配套：<code>operating_systems/teach/lessons/0015-bankers-algorithm.html</code>（单资源版）、<code>0016-bankers-algorithm-visual.html</code>（动手可视化）；练习见 <code>exams/ch03-test.html</code>。</p>
+</footer>
+
+</div>
+
+<script>
+// ============ 数据：P0-P4，3 类资源（A/B/C）============
+function makeProcs(){
+  return [
+    {name:"P0", max:[7,5,3], alloc:[0,1,0], finish:false},
+    {name:"P1", max:[3,2,2], alloc:[2,0,0], finish:false},
+    {name:"P2", max:[9,0,2], alloc:[3,0,2], finish:false},
+    {name:"P3", max:[2,2,2], alloc:[2,1,1], finish:false},
+    {name:"P4", max:[4,3,3], alloc:[0,0,2], finish:false},
+  ];
+}
+function vecMinus(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];}
+function vecAdd(a,b){return [a[0]+b[0],a[1]+b[1],a[2]+b[2]];}
+function vecLe(a,b){return a[0]<=b[0]&&a[1]<=b[1]&&a[2]<=b[2];}
+function fmt(v){return "("+v.join(",")+")";}
+function need(p){return vecMinus(p.max, p.alloc);}
+
+function renderProcs(containerId, procs, opts){
+  opts = opts || {};
+  var box = document.getElementById(containerId);
+  box.innerHTML = "";
+  procs.forEach(function(p){
+    var n = need(p);
+    var cls = "pcard";
+    if(p.finish) cls += " done";
+    else if(opts.activeName === p.name) cls += " active";
+    else if(opts.stuck) cls += " stuck";
+    var badge = p.finish ? "✓ 已完成" : (opts.activeName===p.name ? "◀ 选中" : "等待中");
+    var html = ''
+      + '<div class="'+cls+'">'
+      +   '<div class="ptop"><span class="pname">'+p.name+'</span><span class="pbadge">'+badge+'</span></div>'
+      +   '<div class="pmeta"><span>Max <b>'+fmt(p.max)+'</b></span></div>'
+      +   '<div class="pmeta"><span>已分配 <b>'+fmt(p.alloc)+'</b></span></div>'
+      +   '<div class="pmeta"><span>还需 <b style="color:var(--c-need)">'+fmt(n)+'</b></span></div>'
+      + '</div>';
+    box.insertAdjacentHTML("beforeend", html);
+  });
+}
+
+var A = {};
+function initA(){
+  A.procs = makeProcs();
+  A.work = [3,3,2];
+  A.seq = [];
+  A.pending = null;
+  A.over = false;
+  document.getElementById("work").textContent = fmt(A.work);
+  document.getElementById("log").innerHTML = '点「下一步」，算法开始找 Need ≤ Work 的进程……';
+  var v=document.getElementById("verdict"); v.className="verdict"; v.textContent="";
+  document.getElementById("step").disabled=false;
+  renderProcs("procs", A.procs, {});
+}
+
+document.getElementById("step").addEventListener("click", function(){
+  if(A.over) return;
+  if(A.pending){
+    // 让选中的进程跑完、还钱
+    var p = A.pending; A.pending=null;
+    var before = A.work.slice();
+    p.finish = true;
+    A.work = vecAdd(A.work, p.alloc);
+    A.seq.push(p.name);
+    renderProcs("procs", A.procs, {});
+    document.getElementById("work").textContent = fmt(A.work);
+    document.getElementById("log").innerHTML =
+      '<span class="g">'+p.name+' 跑完！</span>还回 Allocation = '+fmt(p.alloc)+
+      ' → Work = '+fmt(before)+' + '+fmt(p.alloc)+' = <span class="y">'+fmt(A.work)+'</span>。安全序列片段：'+A.seq.join(" → ");
+    if(A.procs.every(function(x){return x.finish;})){
+      A.over=true; document.getElementById("step").disabled=true;
+      var v=document.getElementById("verdict"); v.className="verdict show safe";
+      v.textContent="✅ 全部完成 → 系统安全！安全序列：" + A.seq.join(" → ");
+    }
+    return;
+  }
+  // 找一个 Need ≤ Work 的未完成进程
+  var cand = null;
+  for(var i=0;i<A.procs.length;i++){
+    var p = A.procs[i];
+    if(!p.finish && vecLe(need(p), A.work)){ cand = p; break; }
+  }
+  if(!cand){
+    A.over=true; document.getElementById("step").disabled=true;
+    renderProcs("procs", A.procs, {stuck:true});
+    var v=document.getElementById("verdict"); v.className="verdict show unsafe";
+    v.textContent="❌ 没有进程的 Need ≤ Work → 系统不安全！";
+    return;
+  }
+  A.pending = cand;
+  renderProcs("procs", A.procs, {activeName:cand.name});
+  document.getElementById("log").innerHTML =
+    'Work = <span class="y">'+fmt(A.work)+'</span>。扫一遍各进程 Need，找到 <b>'+cand.name+'</b>：Need = '+fmt(need(cand))+
+    ' ≤ '+fmt(A.work)+' ✅ 喂得饱！再点一次「下一步」让它跑完。';
+});
+document.getElementById("reset").addEventListener("click", initA);
+
+// ============ 自测题 ============
+var FB={
+  q1:{good:'对！避免：允许条件存在，但运行时算账绕开死锁；预防：破坏条件。',bad:'银行家算法属于「避免」。预防是设计阶段破坏 4 条件之一（如一次性申请全部资源）。'},
+  q2:{good:'对！Need = Max − Allocation，且要按行按列逐个分量相减，不能用列总和减。',bad:'是 Max − Allocation（按行按列逐分量）。例：P1 = (3,2,2) − (2,0,0) = (1,2,2)。'},
+  q3:{good:'对！进程还回的是它<b>已占用</b>的资源（=Allocation），不是它还<b>需要</b>的资源（=Need）。Need 是它从来还没拿到的。',bad:'是 + Allocation：进程跑完把<b>已占用的</b>资源还回金库。Need 是它还<b>没拿到</b>的，根本不在它手上，谈不上还。'},
+  q4:{good:'对！这是程序员的 bug——它声明最多只要这么多，怎么要更多？直接报错拒绝。',bad:'Request > Need 意味着「声明 5 个但要 10 个」，是程序员的错误，应立即拒绝；让进程等是 Request ≤ Need 但 Request > Available 的情况。'},
+  q5:{good:'对！撤回所有试探性修改（Available、Allocation、Need 全部还原），进程 Pi 继续等待，过段时间再重新请求。',bad:'不安全时要把试探的数据还原，进程 Pi 等着。强行分配就会真的进入不安全状态（可能死锁）；撤销全部进程太极端。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      if(ok)q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+
+// 初始化
+initA();
+</script>
+</body>
+</html>

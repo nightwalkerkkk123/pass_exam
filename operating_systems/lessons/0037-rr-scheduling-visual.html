@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 37 课 · RR 时间片轮转：剩多少跑多少 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#b03a2e; --soft:#fff5f3; --ok:#1f6f43; --warn:#a85d00;
+    --qbg:#eef5fb; --qline:#1f5d8a;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Source Han Sans CN",sans-serif;
+    color:var(--ink); background:var(--bg);
+    line-height:1.75; font-size:16px;
+  }
+  .wrap{max-width:920px; margin:0 auto; padding:40px 28px 80px}
+  header.lesson-head{
+    border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:28px;
+  }
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:28px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{
+    font-size:20px; margin:36px 0 12px;
+    border-left:4px solid var(--accent); padding-left:10px;
+  }
+  h3{font-size:16px; margin:18px 0 8px; color:var(--accent)}
+  p{margin:8px 0}
+  ul,ol{padding-left:22px}
+  li{margin:4px 0}
+  code,kbd{
+    font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    font-size:14px; background:#efece6; padding:1px 5px; border-radius:3px;
+  }
+  pre{
+    background:#fff; border:1px solid var(--line);
+    padding:12px 14px; border-radius:6px; overflow-x:auto;
+    font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    font-size:13.5px; line-height:1.65;
+  }
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top}
+  th{background:#f0ede5; font-weight:600}
+  tr:nth-child(even) td{background:#fbfaf6}
+  .callout{
+    border:1px solid var(--line); border-left:4px solid var(--accent);
+    background:var(--soft); padding:12px 14px; border-radius:4px;
+    margin:14px 0;
+  }
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok  {border-left-color:var(--ok);   background:#f1f9f4}
+  .callout.q   {border-left-color:var(--qline); background:var(--qbg)}
+  .q{
+    background:#fff; border:1px solid var(--line); border-radius:6px;
+    padding:12px 14px; margin:14px 0;
+  }
+  .q b{color:var(--accent)}
+  .q .ans{
+    margin-top:8px; padding:8px 12px; background:#f1f9f4;
+    border-left:3px solid var(--ok); border-radius:3px;
+    font-size:14.5px;
+  }
+  .q .ans b{color:var(--ok)}
+
+  /* ===== 甘特图 ===== */
+  .gantt-wrap{overflow-x:auto; margin:16px 0}
+  table.gantt{
+    font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    font-size:12px; border-collapse:collapse; width:max-content; min-width:100%;
+  }
+  table.gantt th, table.gantt td{
+    width:34px; min-width:34px; max-width:34px;
+    text-align:center; padding:5px 2px; border:1px solid var(--line);
+    white-space:nowrap;
+  }
+  table.gantt th:first-child, table.gantt td:first-child{
+    width:60px; min-width:60px; max-width:60px;
+    background:#f0ede5; font-weight:600;
+  }
+  table.gantt th{background:#f0ede5; font-weight:500; color:var(--muted)}
+  table.gantt td.A{background:#fde2dd}
+  table.gantt td.B{background:#dde7f5}
+  table.gantt td.C{background:#e3efe6}
+  table.gantt td.D{background:#fff0d6}
+  table.gantt td.E{background:#f3e8f7}
+  table.gantt td.idle{background:#fff; color:var(--muted)}
+  table.gantt td.divider{border-left:2px solid var(--ink)}
+  /* 高亮格 */
+  td.hi{outline:3px solid var(--accent); outline-offset:-3px; font-weight:700}
+
+  /* ===== 队列图 ===== */
+  .queue{
+    display:flex; gap:6px; align-items:center;
+    padding:10px 12px; background:#fff; border:1px solid var(--line);
+    border-radius:6px; margin:10px 0; flex-wrap:wrap;
+  }
+  .queue .lbl{font-size:13px; color:var(--muted); margin-right:6px}
+  .qbox{
+    width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+    border-radius:6px; font-weight:700; font-size:15px;
+    border:1px solid rgba(0,0,0,.08);
+  }
+  .qbox.A{background:#fde2dd; color:#8a1c11}
+  .qbox.B{background:#dde7f5; color:#1f3a5f}
+  .qbox.C{background:#e3efe6; color:#1f4f37}
+  .qbox.D{background:#fff0d6; color:#7a4a00}
+  .qbox.E{background:#f3e8f7; color:#5a3f70}
+  .qbox.run{outline:3px solid var(--accent); outline-offset:-3px}
+  .arrow{margin:0 2px; color:var(--muted)}
+  .qhead{font-weight:700; color:var(--accent); margin-right:2px}
+  .qtail{margin-left:auto; font-size:12px; color:var(--muted)}
+
+  /* 时间步对比卡 */
+  .steps{margin:14px 0}
+  .step{
+    border:1px solid var(--line); border-radius:6px; padding:10px 14px;
+    margin:10px 0; background:#fff;
+  }
+  .step .head{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:6px;
+  }
+  .step .head b{color:var(--accent); font-size:15px}
+  .step .head .meta{font-size:13px; color:var(--muted)}
+  .step p{margin:4px 0; font-size:14.5px}
+
+  /* 完成时间对比 */
+  table.comp td.finish{font-weight:700; color:var(--accent)}
+
+  footer.lesson-foot{
+    margin-top:60px; padding-top:14px; border-top:1px solid var(--line);
+    color:var(--muted); font-size:13px;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  @media print{
+    body{background:#fff; font-size:13px}
+    .wrap{padding:12mm; max-width:none}
+    h2{break-after:avoid}
+    table,.q,.gantt-wrap,.step{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 37 课 · 期末冲刺</div>
+  <h1>RR 时间片轮转：剩多少跑多少</h1>
+  <div class="sub">目标：把 RR 的 4 步走法、「剩多少跑多少」、完成时间的读法、q 大小的影响，一次讲透。配套数据：A=3 / B=6 / C=4 / D=2 / E=5，全部时刻 0 到达，q=2。</div>
+</header>
+
+<h2>1. 一句话：RR 在干嘛？</h2>
+<p><b>RR（Round-Robin，时间片轮转）</b> = 把 CPU 时间切成一段一段（每段叫一个「时间片」<code>q</code>），每个进程轮流上 CPU 跑 <b>最多 q 分钟</b>，时间一到就<b>强制打断</b>送回队尾。</p>
+
+<div class="callout">
+<b>类比：</b>老师给 5 个学生每人发 1 张发言卡（最多讲 2 分钟）。讲不完也掐断，把麦克风递给下一个人。<br>
+<b>特点：</b>公平、响应快，但<b>周转时间不是最短</b>（因为反复打断，进程要等很多轮）。
+</div>
+
+<h2>2. 4 步走法（背下来）</h2>
+<ol>
+  <li><b>就绪队列按 FCFS 排</b>：<code>[A, B, C, D, E]</code></li>
+  <li><b>调度队首</b>上 CPU</li>
+  <li>让它跑 <b>min(剩余, q)</b> 分钟</li>
+  <li>没跑完 → 送回<b>队尾</b>；跑完 → 撤出</li>
+</ol>
+
+<div class="callout warn">
+<b>关键公式：</b>每次上 CPU 的实际时间 = <code>min(剩余时间, q)</code><br>
+• 剩 ≤ q → 一次跑完（剩多少跑多少，<b>主动让出</b>，不是被时间片打断）<br>
+• 剩 &gt; q → 跑满 q 分钟（<b>被时间片打断</b>，送回队尾）
+</div>
+
+<h2>3. 一步步走：看队列变化</h2>
+<p>用题目里的 5 个进程（A=3 / B=6 / C=4 / D=2 / E=5，q=2）演示。每一步记录：<b>谁在跑 / 跑多久 / 剩多少 / 队列怎么动</b>。</p>
+
+<div class="steps">
+
+<div class="step">
+  <div class="head"><b>步 1 · 0-2</b><span class="meta">A 上 CPU</span></div>
+  <div class="queue">
+    <span class="lbl">运行:</span>
+    <div class="qbox A run">A</div>
+    <span class="arrow">→</span>
+    <span class="lbl">就绪队列:</span>
+    <span class="qhead">[</span>
+    <div class="qbox B">B</div><div class="qbox C">C</div><div class="qbox D">D</div><div class="qbox E">E</div>
+    <span class="qtail">]</span>
+  </div>
+  <p>A 剩 3 &gt; q=2 → 跑满 2 分钟，剩 1 分钟 → <b>送回队尾</b>。队列变成 <code>[B, C, D, E, A]</code>。</p>
+</div>
+
+<div class="step">
+  <div class="head"><b>步 2 · 2-4</b><span class="meta">B 上 CPU</span></div>
+  <div class="queue">
+    <span class="lbl">运行:</span>
+    <div class="qbox B run">B</div>
+    <span class="arrow">→</span>
+    <span class="lbl">就绪队列:</span>
+    <span class="qhead">[</span>
+    <div class="qbox C">C</div><div class="qbox D">D</div><div class="qbox E">E</div><div class="qbox A">A</div>
+    <span class="qtail">]</span>
+  </div>
+  <p>B 剩 6 &gt; q=2 → 跑满 2 分钟，剩 4 → 送回队尾。队列 <code>[C, D, E, A, B]</code>。</p>
+</div>
+
+<div class="step">
+  <div class="head"><b>步 3 · 4-6</b><span class="meta">C 上 CPU</span></div>
+  <p>C 剩 4 &gt; 2 → 跑 2，剩 2 → 送回队尾。队列 <code>[D, E, A, B, C]</code>。</p>
+</div>
+
+<div class="step">
+  <div class="head"><b>步 4 · 6-8</b><span class="meta">D 上 CPU</span></div>
+  <p>D 剩 2 = q → 正好跑完 2 分钟 → <b>撤出！</b>（完成时刻 = 8）队列 <code>[E, A, B, C]</code>。</p>
+</div>
+
+<div class="step">
+  <div class="head"><b>步 5 · 8-10</b><span class="meta">E 上 CPU</span></div>
+  <p>E 剩 5 &gt; 2 → 跑 2，剩 3 → 送回队尾。队列 <code>[A, B, C, E]</code>。</p>
+</div>
+
+<div class="step" style="border-left:4px solid var(--accent); background:#fff5f3">
+  <div class="head"><b>步 6 · 10-11 ⭐</b><span class="meta">A 第二次上 CPU</span></div>
+  <div class="queue">
+    <span class="lbl">运行:</span>
+    <div class="qbox A run">A</div>
+    <span class="arrow">→</span>
+    <span class="lbl">就绪队列:</span>
+    <span class="qhead">[</span>
+    <div class="qbox B">B</div><div class="qbox C">C</div><div class="qbox E">E</div>
+    <span class="qtail">]</span>
+  </div>
+  <p>A 剩 <b>1 分钟</b> ≤ q=2 → <b style="color:var(--accent)">「剩多少跑多少」</b>：只跑 1 分钟就跑完 → 主动让出 → <b>撤出！</b>（完成时刻 = 11）</p>
+  <p style="color:var(--accent); font-weight:600">这就是为什么 10-11 这一格只有 1 个 A、紧接着就是 B，而不是 2 个 A。</p>
+</div>
+
+<div class="step">
+  <div class="head"><b>步 7-11 · 11-20</b><span class="meta">剩余进程轮流跑</span></div>
+  <p>剩下 B（剩 4）/ C（剩 2）/ E（剩 3）继续按 min(剩, q) 跑：</p>
+  <ul>
+    <li>11-13 B 跑 2（剩 2）</li>
+    <li>13-15 C 跑 2（剩 0，完成！时刻 = 15）</li>
+    <li>15-17 E 跑 2（剩 1）</li>
+    <li>17-19 B 跑 2（剩 0，完成！时刻 = 19）</li>
+    <li>19-20 E 跑 1（剩 0，完成！时刻 = 20）——<b>「剩多少跑多少」第二次出现</b></li>
+  </ul>
+</div>
+
+</div>
+
+<h2>4. 完整甘特图</h2>
+<p>把上面 11 步画成时间轴。注意红框圈出的两个 <b>「剩多少跑多少」</b> 时刻。</p>
+
+<div class="gantt-wrap">
+<table class="gantt">
+  <tr><th>时间</th>
+    <td>0</td><td>1</td><td>2</td><td>3</td><td>4</td><td>5</td><td>6</td><td>7</td><td>8</td><td>9</td>
+    <td>10</td><td>11</td><td>12</td><td>13</td><td>14</td>
+    <td>15</td><td>16</td><td>17</td><td>18</td><td>19</td><td>20</td>
+  </tr>
+  <tr><th>CPU</th>
+    <td class="A">A</td><td class="A">A</td>
+    <td class="B">B</td><td class="B">B</td>
+    <td class="C">C</td><td class="C">C</td>
+    <td class="D">D</td><td class="D">D</td>
+    <td class="E">E</td><td class="E">E</td>
+    <td class="A hi">A</td>
+    <td class="B">B</td><td class="B">B</td>
+    <td class="C">C</td><td class="C">C</td>
+    <td class="E">E</td><td class="E">E</td>
+    <td class="B">B</td><td class="B">B</td>
+    <td class="B hi">B</td>
+    <td class="E hi">E</td>
+  </tr>
+</table>
+</div>
+
+<p>红框高亮：<b>10-11</b>（A 只跑 1 分钟）、<b>18-19</b>（B 跑满 2 分钟，<b>但 19-20 是 E「剩多少跑多少」</b>，所以 19 这一格单独画 E）。</p>
+
+<h2>5. 完成时间：怎么读？</h2>
+<div class="callout q">
+<b>完成时间 = 进程最后一次跑完的那个时间格的<b>右边界</b>。</b><br>
+不是「跑完时看钟表是几点」——直接看甘特图，<b>最后一次占用格子的右边界数字</b>。
+</div>
+
+<table class="comp">
+  <tr><th>进程</th><th>最后一次占用</th><th class="finish">完成时间</th><th>怎么读</th></tr>
+  <tr><td><b style="color:#8a1c11">A</b></td><td>10-11</td><td class="finish">11</td><td>右边界是 11</td></tr>
+  <tr><td><b style="color:#1f3a5f">B</b></td><td>17-19（注意：18-19 也是 B）</td><td class="finish">19</td><td>最后一次跑完的右边界</td></tr>
+  <tr><td><b style="color:#1f4f37">C</b></td><td>13-15</td><td class="finish">15</td><td>右边界是 15</td></tr>
+  <tr><td><b style="color:#7a4a00">D</b></td><td>6-8</td><td class="finish">8</td><td>D 只跑了一轮</td></tr>
+  <tr><td><b style="color:#5a3f70">E</b></td><td>19-20</td><td class="finish">20</td><td>「剩多少跑多少」的最后一格</td></tr>
+</table>
+
+<h2>6. 周转时间 + 带权周转时间</h2>
+<table>
+  <tr><th>进程</th><th>完成</th><th>服务</th><th>到达</th><th>T = 完成 − 到达</th><th>W = T ÷ 服务</th></tr>
+  <tr><td>A</td><td>11</td><td>3</td><td>0</td><td><b>11</b></td><td>3.67</td></tr>
+  <tr><td>B</td><td>19</td><td>6</td><td>0</td><td><b>19</b></td><td>3.17</td></tr>
+  <tr><td>C</td><td>15</td><td>4</td><td>0</td><td><b>15</b></td><td>3.75</td></tr>
+  <tr><td>D</td><td>8</td><td>2</td><td>0</td><td><b>8</b></td><td><b style="color:var(--warn)">4.00</b></td></tr>
+  <tr><td>E</td><td>20</td><td>5</td><td>0</td><td><b>20</b></td><td><b style="color:var(--warn)">4.00</b></td></tr>
+  <tr><th colspan="4">平均</th><th style="color:var(--ok); font-weight:700">14.6</th><th style="color:var(--ok); font-weight:700">3.72</th></tr>
+</table>
+
+<div class="callout warn">
+<b>D 为什么 W=4 那么高？</b>D 服务时间才 2 分钟（全场最短），但它在队列里等了 6 分钟才被第一次调度（0-6 期间都是别人在跑）。<b>短作业 + 排队久 = W 大</b>。这是 RR 的代价之一。
+</div>
+
+<h2>7. RR vs FCFS vs SJF：三方对比</h2>
+<p>用同一组数据（A=3 / B=6 / C=4 / D=2 / E=5），看 3 个算法的差异：</p>
+
+<table>
+  <tr><th>算法</th><th>平均 T</th><th>平均 W</th><th>响应速度</th><th>谁最爽 / 谁最惨</th></tr>
+  <tr><td><b>FCFS</b></td><td>12.0</td><td>3.45</td><td>差（D 等 13 分钟）</td><td>先到的爽；短作业惨</td></tr>
+  <tr style="background:#f1f9f4">
+    <td><b>SJF</b></td><td><b style="color:var(--ok)">10.0</b></td><td><b style="color:var(--ok)">2.21</b></td><td>中</td><td>短作业爽；长作业可能饥饿</td>
+  </tr>
+  <tr>
+    <td><b>RR (q=2)</b></td><td>14.6</td><td>3.72</td><td><b style="color:var(--ok)">最快</b></td><td>每个进程响应都快；整体周转变慢</td>
+  </tr>
+</table>
+
+<div class="callout">
+<b>金句（必背）：</b><br>
+• <b>SJF 的平均周转时间最短</b>（批处理系统首选）<br>
+• <b>RR 的响应时间最快</b>（分时系统首选，比如 Windows / Linux 桌面）<br>
+• FCFS <b>最简单但最不公平</b>
+</div>
+
+<h2>8. 时间片 q 的影响</h2>
+<table>
+  <tr><th>q 大小</th><th>后果</th><th>类比</th></tr>
+  <tr>
+    <td><b>q 太大</b>（&gt; 最长服务时间）</td>
+    <td>每个进程一次跑完 → <b>退化成 FCFS</b></td>
+    <td>老师让每人讲 1 小时，结果只有 3 个人能讲完</td>
+  </tr>
+  <tr>
+    <td><b>q 太小</b>（如 q=1ms）</td>
+    <td>切换太频繁 → <b>切换开销爆炸</b>，CPU 都花在切上下文，真正干活的时间反而少</td>
+    <td>老师每秒切一次学生，结果一堂课 50 分钟只讲了 3 分钟内容</td>
+  </tr>
+  <tr style="background:#f1f9f4">
+    <td><b>q 合适</b>（≈ 10-100 ms）</td>
+    <td>响应快 + 开销小</td>
+    <td>老师让每人讲 2 分钟，大家都能发言，整体推进顺利</td>
+  </tr>
+</table>
+
+<div class="callout warn">
+<b>考试陷阱：</b>题里如果说「q 设得非常大」→ 答「退化为 FCFS」，<b>不是</b>「退化为 SJF」！RR 和 SJF 没关系。
+</div>
+
+<h2>9. 自测（做再看答案）</h2>
+
+<div class="q">
+<b>Q1</b>（口述）RR 的 4 步走法是什么？
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+1) 就绪队列按 FCFS 排；2) 取队首上 CPU；3) 跑 min(剩, q)；4) 没完送队尾，完则撤出。
+</div>
+</details>
+</div>
+
+<div class="q">
+<b>Q2</b>（口述）「剩多少跑多少」什么时候触发？触发了会怎样？
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+进程剩余时间 ≤ q 时触发。只跑剩余的那些分钟就主动让出 CPU，<b>不会被时间片打断</b>，<b>也不送回队尾</b>，而是<b>直接撤出</b>。
+</div>
+</details>
+</div>
+
+<div class="q">
+<b>Q3</b>（看图）看上面甘特图，<b>C 的完成时间</b>是多少？怎么读出来的？
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+C 完成时间 = <b>15</b>。C 最后一次占用是 13-15 这一段（正好 2 分钟跑满），右边界是 15。
+</div>
+</details>
+</div>
+
+<div class="q">
+<b>Q4</b>（选择）RR 时间片 q 设得非常大，会退化成？
+<br>A. FCFS &nbsp; B. SJF &nbsp; C. 优先级调度 &nbsp; D. 多级反馈队列
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+<b>A. FCFS</b>。q 太大 → 每个进程一次跑完 → 没人被切换 → 按到达顺序 = FCFS。注意<b>不是 SJF</b>，RR 永远按到达顺序排队，不会主动挑短作业。
+</div>
+</details>
+</div>
+
+<div class="q">
+<b>Q5</b>（计算）如果 RR 改成 q=4，重新跑同样的数据（A=3/B=6/C=4/D=2/E=5），D 的完成时间变成多少？
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+q=4 时：<br>
+• 0-3 A 跑完（剩 0 ≤ 4，完成！时刻 = 3）<br>
+• 3-7 B 跑 4（剩 2）→ 送队尾<br>
+• 7-9 C 跑 2（剩 2 ≤ 4，跑完！时刻 = 9）<br>
+• 9-11 D 跑 2（剩 0，完成！时刻 = <b>11</b>）<br>
+• 11-15 E 跑 4（剩 1）<br>
+• 15-17 B 跑 2（剩 0，完成！时刻 = 17）<br>
+• 17-18 E 跑 1（剩 0，完成）<br><br>
+<b>D 完成时间 = 11</b>。q 变大 → 每个人能跑更久 → D 不用排那么多次。
+</div>
+</details>
+</div>
+
+<div class="q">
+<b>Q6</b>（口述）RR 和 SJF 相比，最大的 trade-off 是什么？什么场景下选 RR？
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+RR 平均周转时间比 SJF 长（因为反复打断、等待多），但<b>响应时间最快</b>、最公平。<br>
+场景：<b>分时系统</b>（如 Windows / Linux 桌面）—— 用户多、每个用户都要快速看到反馈，宁可牺牲一点周转也要保证响应。
+</div>
+</details>
+</div>
+
+<footer class="lesson-foot">
+<a href="0002-scheduling-algorithms.html">← 第 2 课 · 调度算法 4 件套（含 RR 走法详细版）</a> ·
+<a href="0001-overview-and-question-map.html">第 1 课</a> ·
+<a href="../teach/lessons/0013-concepts-round3-scheduling.html">概念扫雷 ③</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0037-rr-scheduling-visual.html"</code>
+<br>
+<a href="../MISSION.md">MISSION.md</a> ·
+<a href="../GLOSSARY.md">GLOSSARY.md</a> ·
+<a href="../NOTES.md">NOTES.md</a>
+</footer>
+
+</div>
+</body>
+</html>

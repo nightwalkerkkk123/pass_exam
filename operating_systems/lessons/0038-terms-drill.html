@@ -1,0 +1,1267 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 38 课 · OS 名词排障扫盲 · 操作系统期末冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e;
+    --okbg:#f1f9f4; --badbg:#fdf0ef; --warnbg:#fff8ee;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Source Han Sans CN",sans-serif;
+    color:var(--ink); background:var(--bg);
+    line-height:1.75; font-size:16px;
+  }
+  .wrap{max-width:980px; margin:0 auto; padding:40px 28px 80px}
+  header.lesson-head{
+    border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:24px;
+  }
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:28px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{
+    font-size:22px; margin:36px 0 12px;
+    border-left:5px solid var(--accent); padding-left:12px;
+    color:var(--accent);
+  }
+  h3{font-size:17px; margin:22px 0 10px; color:var(--accent)}
+  p{margin:8px 0}
+  code,kbd{
+    font-family:"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    font-size:13.5px; background:#efece6; padding:1px 5px; border-radius:3px;
+  }
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top}
+  th{background:#f0ede5; font-weight:600}
+  tr:nth-child(even) td{background:#fbfaf6}
+
+  /* ===== 名词卡 ===== */
+  .term-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));
+    gap:12px; margin:14px 0 26px;
+  }
+  .term{
+    background:#fff; border:1px solid var(--line); border-radius:8px;
+    padding:12px 14px; transition:.15s; cursor:pointer;
+    border-left:4px solid var(--accent);
+    position:relative;
+  }
+  .term:hover{transform:translateY(-2px); box-shadow:0 4px 12px rgba(0,0,0,.06)}
+  .term .cn{font-weight:700; font-size:16px; color:var(--ink)}
+  .term .en{
+    font-family:"SF Mono",Menlo,monospace; font-size:12.5px;
+    color:var(--accent); margin-left:6px; font-weight:500;
+  }
+  .term .pill{
+    display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px;
+    background:var(--soft); color:var(--accent); margin-top:6px;
+  }
+  .term .body{
+    margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);
+    font-size:13.5px; color:var(--ink);
+  }
+  .term .body.collapsed{display:none}
+  .term .body p{margin:4px 0}
+  .term .body .why{
+    color:var(--ok); font-weight:600;
+  }
+  .term .body .confuse{
+    color:var(--warn); margin-top:6px;
+    padding:6px 8px; background:var(--warnbg); border-radius:4px;
+    font-size:12.5px;
+  }
+  .term .body .confuse::before{content:"⚠ "; font-weight:700}
+
+  /* 章节索引 */
+  .toc{
+    background:#fff; border:1px solid var(--line); border-radius:8px;
+    padding:14px 18px; margin:14px 0 28px;
+  }
+  .toc ol{margin:6px 0; padding-left:22px; columns:2; column-gap:24px}
+  .toc li{margin:3px 0; font-size:14px}
+  .toc a{color:var(--accent); text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+
+  /* 顶部进度条 */
+  .progress{
+    position:sticky; top:0; background:var(--ink); color:#fff;
+    padding:10px 16px; border-radius:0 0 8px 8px; margin-bottom:20px;
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:14px; z-index:10;
+  }
+  .progress .bar{
+    flex:1; height:6px; background:#444; border-radius:3px;
+    margin:0 12px; overflow:hidden;
+  }
+  .progress .bar > div{
+    height:100%; background:var(--ok); width:0; transition:.25s;
+  }
+  .progress .toggle{cursor:pointer; user-select:none; padding:3px 10px;
+    border-radius:4px; background:var(--accent); font-size:13px}
+
+  .q{
+    background:#fff; border:1px solid var(--line); border-radius:6px;
+    padding:12px 14px; margin:10px 0;
+  }
+  .q b{color:var(--accent)}
+  .q .ans{
+    margin-top:8px; padding:8px 12px; background:#f1f9f4;
+    border-left:3px solid var(--ok); border-radius:3px;
+    font-size:14.5px;
+  }
+  .q .ans b{color:var(--ok)}
+
+  footer.lesson-foot{
+    margin-top:60px; padding-top:14px; border-top:1px solid var(--line);
+    color:var(--muted); font-size:13px;
+  }
+  a{color:var(--accent); text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  @media print{
+    body{background:#fff; font-size:13px}
+    .wrap{padding:12mm; max-width:none}
+    h2{break-after:avoid}
+    .term,.q,.toc{break-inside:avoid}
+    .term .body.collapsed{display:block !important}
+    .progress{position:static}
+  }
+</style>
+</head>
+<body>
+
+<div class="progress">
+  <span>📚 名词排障</span>
+  <div class="bar"><div id="bar"></div></div>
+  <span id="count">0 / 0 已展开</span>
+  <span class="toggle" onclick="toggleAll()">🔓 一键展开/收起</span>
+</div>
+
+<div class="wrap">
+
+<header class="lesson-head">
+  <div class="eyebrow">第 38 课 · 期末冲刺 · 名词排障</div>
+  <h1>OS 名词排障扫盲（7 大模块 · 110+ 词条）</h1>
+  <div class="sub">用法：随便点一张卡 → 看见「白话释义 / 为什么重要 / 易混点」。卡右上角的「✓」是打卡按钮，打过的会变绿。底部有 6 道排障自测。配套：第 2 课调度、第 5-9 章 lesson。</div>
+</header>
+
+<div class="callout" style="border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 14px; border-radius:4px; margin:14px 0">
+<b>排障说明：</b>这张网页<b>不是</b>字典，不是用来从头学的——是用来「扫你到底认不认识」的。建议快速浏览，把<b>看到卡面但想不起释义</b>的词记下来，那就是你的真盲区。
+</div>
+
+<h2>📋 章节索引</h2>
+<div class="toc">
+<ol>
+  <li><a href="#ch1">Ch1 · 操作系统引论</a></li>
+  <li><a href="#ch2">Ch2 · 进程与线程</a></li>
+  <li><a href="#ch3">Ch3 · 处理机调度与死锁</a></li>
+  <li><a href="#ch4">Ch4 · 存储器管理</a></li>
+  <li><a href="#ch5">Ch5 · 虚拟存储器</a></li>
+  <li><a href="#ch6">Ch6 · 设备与文件管理</a></li>
+  <li><a href="#ch7">Ch7 · 系统接口与保护</a></li>
+  <li><a href="#qa">📝 排障自测题（6 道）</a></li>
+</ol>
+</div>
+
+<!-- =================== Ch1 =================== -->
+<h2 id="ch1">Ch1 · 操作系统引论</h2>
+<div class="term-grid">
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">操作系统</span><span class="en">Operating System, OS</span>
+  <div class="pill">基础</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>夹在程序和硬件之间、主动管 4 样硬件资源的店长（系统软件）。</p>
+    <p class="why">为什么重要：</p>整个学科的对象。考试第一题就问「什么是 OS」。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">4 大硬件资源</span><span class="en">Hardware Resources</span>
+  <div class="pill">基础</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>CPU（计算）、内存（临时工作台）、磁盘（永久仓库）、I/O 设备（键盘/鼠标/网卡）—— OS 要主动管的对象。</p>
+    <p class="why">为什么重要：</p>整本书的 4 大模块就是这 4 个的对应管理（进程/存储/文件/IO）。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">4 大抽象</span><span class="en">Abstractions</span>
+  <div class="pill">基础</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>OS 给程序员的 4 个接口：进程（CPU 抽象）、虚拟地址空间（内存抽象）、文件（磁盘抽象）、read/write/open/close（IO 抽象）。</p>
+    <p class="why">为什么重要：</p>填空/简答「OS 给用户提供什么接口」= 答这 4 个。
+    <div class="confuse">硬件 ≠ 抽象：硬件是 OS「管」的对象；抽象是 OS「给」程序员的接口。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">并发</span><span class="en">Concurrency</span>
+  <div class="pill">Ch1</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>宏观同时、微观交替。单核 CPU 快速切换进程让多任务看起来同时跑。</p>
+    <p class="why">为什么重要：</p>操作系统四大基本特征之首。
+    <div class="confuse">vs 并行：并行是多核真正同时；单核 OS <b>只有并发，没有并行</b>。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">并行</span><span class="en">Parallelism</span>
+  <div class="pill">Ch1</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>多个 CPU/多核真的同时执行不同任务。</p>
+    <p class="why">为什么重要：</p>硬件能力，不是 OS 特征。
+    <div class="confuse">很多人把「并发」「并行」写反。判断：核心数 &gt; 1 才可能并行。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">共享</span><span class="en">Sharing</span>
+  <div class="pill">Ch1</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>多个进程共用一套资源（CPU、内存、打印机）。</p>
+    <p class="why">为什么重要：</p>OS 四大特征之一，需要互斥/同步机制保护。
+    <div class="confuse">vs 并发：并发讲「同时推进」，共享讲「同时占用」。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">虚拟</span><span class="en">Virtual</span>
+  <div class="pill">Ch1</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>1 台电脑看起来像 N 台（虚拟内存、虚拟机）。</p>
+    <p class="why">为什么重要：</p>OS 四大特征之一。虚拟存储是 Ch5 整章主题。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">异步</span><span class="en">Asynchronism</span>
+  <div class="pill">Ch1</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>程序不知道下一步何时发生（走走停停）。</p>
+    <p class="why">为什么重要：</p>OS 四大特征之一。进程走走停停但结果应该一样。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">系统调用</span><span class="en">System Call</span>
+  <div class="pill">Ch1 / Ch7</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>用户程序请求 OS 服务的唯一合法通道（open/read/write/fork/exec）。</p>
+    <p class="why">为什么重要：</p>用户态 ↔ 核心态切换的入口。考试必考。
+    <div class="confuse">vs 库函数：库函数（如 printf）<b>内部会</b>触发系统调用，但本身不是。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">用户态 / 核心态</span><span class="en">User Mode / Kernel Mode</span>
+  <div class="pill">Ch1 / Ch7</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>用户态 = 普通程序，受限不能碰硬件；核心态 = OS 内核，可访问一切。</p>
+    <p class="why">为什么重要：</p>系统调用会触发「用户态 → 核心态 → 用户态」切换。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">中断</span><span class="en">Interrupt</span>
+  <div class="pill">Ch1 / IO</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>设备「敲 CPU 脑袋」说「我干完了」。</p>
+    <p class="why">为什么重要：</p>IO 控制方式里「中断驱动」是高频考点。
+    <div class="confuse">vs 系统调用：中断是<b>异步</b>（设备主动），系统调用是<b>同步</b>（程序主动）。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">特权指令</span><span class="en">Privileged Instruction</span>
+  <div class="pill">Ch7</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>只能在核心态执行的指令（修改 PSW、启动 IO）。</p>
+    <p class="why">为什么重要：</p>解释「为什么必须有用户态/核心态区分」的标准答案。
+  </div>
+</div>
+
+</div>
+
+<!-- =================== Ch2 =================== -->
+<h2 id="ch2">Ch2 · 进程与线程</h2>
+<div class="term-grid">
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">进程</span><span class="en">Process</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>程序的一次执行（菜谱 vs 正在做的菜）。</p>
+    <p class="why">为什么重要：</p>资源分配的基本单位（必背）。
+    <div class="confuse">vs 程序：程序是静态代码；进程是动态执行。开 2 个 QQ = 1 程序 2 进程。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">线程</span><span class="en">Thread</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>进程里的一条执行流。1 进程可有多线程（浏览器 1 个 UI + 1 个下载 + ...）。</p>
+    <p class="why">为什么重要：</p>CPU 调度的基本单位（必背金句）。
+    <div class="confuse">vs 进程：线程共享进程的地址空间，所以切换开销小、通信方便，但一个挂可能全挂。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">PCB</span><span class="en">Process Control Block</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>进程的学生档案（PID/状态/PC/寄存器/内存/IO）。</p>
+    <p class="why">为什么重要：</p>「进程存在的唯一标志」必背句。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">进程三状态</span><span class="en">Ready / Running / Blocked</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>就绪（差 CPU）、运行（在 CPU 上）、阻塞（等 IO 或信号量）。</p>
+    <p class="why">为什么重要：</p>状态转换图必画必考。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">挂起</span><span class="en">Suspend</span>
+  <div class="pill">Ch2</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>进程被 swap 到磁盘，内存里没有。带「就绪挂起」「阻塞挂起」两个子状态。</p>
+    <p class="why">为什么重要：</p>七状态模型 = 三状态 + 挂起。中级调度就是管挂起的。
+    <div class="confuse">vs 阻塞：阻塞还在内存里（保留 PCB），挂起连 PCB 都被踢到磁盘。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">临界资源</span><span class="en">Critical Resource</span>
+  <div class="pill">Ch2</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>一段时间只许一个进程用的资源（打印机、共享变量）。</p>
+    <p class="why">为什么重要：</p>PV 互斥问题的源头。
+    <div class="confuse">vs 临界区：临界资源是「东西」；临界区是「访问它的代码段」。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">临界区</span><span class="en">Critical Section</span>
+  <div class="pill">Ch2</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>访问临界资源的那段代码。</p>
+    <p class="why">为什么重要：</p>PV 写法的核心：「把临界区夹在 P(mutex) 和 V(mutex) 之间」。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">互斥</span><span class="en">Mutual Exclusion</span>
+  <div class="pill">Ch2</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>「不能同时做」—— 一段时间只一个进程进临界区。</p>
+    <p class="why">为什么重要：</p>PV 互斥信号量初值 = 1。
+    <div class="confuse">vs 同步：互斥是「不能同时」，同步是「必须先后」。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">同步</span><span class="en">Synchronization</span>
+  <div class="pill">Ch2</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>「必须按顺序做」—— 进程 B 等 A 完成才跑。</p>
+    <p class="why">为什么重要：</p>同步信号量初值 = 0，由前置进程 V 触发。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">信号量</span><span class="en">Semaphore</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>一个整数计数器，表示可用资源数。P 减、V 加。</p>
+    <p class="why">为什么重要：</p>进程同步的核心工具，PV 是必会必写的操作。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">P 操作</span><span class="en">wait / P / down</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>S=S-1；若 S&lt;0 则进程阻塞排队。申请资源。</p>
+    <p class="why">为什么重要：</p>口诀「P 减 V 加，P 进 V 出」必背。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">V 操作</span><span class="en">signal / V / up</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>S=S+1；若 S≤0 则唤醒一个等待者。释放资源。</p>
+    <p class="why">为什么重要：</p>和 P 成对出现。
+    <div class="confuse">P/V 不是单纯加减：关键在「&lt;0 排队睡、唤醒等的人」。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">互斥信号量 mutex</span><span class="en">Mutex</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>初值 = 1 的信号量（一把钥匙），用于互斥访问临界区。</p>
+    <p class="why">为什么重要：</p>P/V 必须成对、夹住临界区。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">生产者-消费者</span><span class="en">Producer-Consumer</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>三信号量模板：mutex=1, empty=n, full=0。</p>
+    <p class="why">为什么重要：</p>PV 经典题之首。口诀：「P 顺序要命（资源在前 mutex 在后）、V 顺序随意」。
+    <div class="confuse">先 P(mutex) 再 P(empty) = 死锁（攥钥匙等空位）。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">读者-写者</span><span class="en">Readers-Writers</span>
+  <div class="pill">Ch2</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>多个读者可同时读，但写者必须独占。读者优先/写者优先/公平 3 种变体。</p>
+    <p class="why">为什么重要：</p>PV 第二经典题。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">哲学家就餐</span><span class="en">Dining Philosophers</span>
+  <div class="pill">Ch2</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>5 个哲学家 5 根筷子，每人要两把才吃。演示死锁与解决（限制 4 人、奇偶拿法、资源分级）。</p>
+    <p class="why">为什么重要：</p>死锁章节经典案例。
+  </div>
+</div>
+
+</div>
+
+<!-- =================== Ch3 =================== -->
+<h2 id="ch3">Ch3 · 处理机调度与死锁</h2>
+<div class="term-grid">
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">处理机调度</span><span class="en">CPU Scheduling</span>
+  <div class="pill">Ch3</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>就绪队列里很多进程，决定「让谁先用 CPU」。</p>
+    <p class="why">为什么重要：</p>Ch3 整章主题。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">三级调度</span><span class="en">3-Level Scheduling</span>
+  <div class="pill">Ch3</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>高级（作业调度）→ 中级（内存调度，挂起/激活）→ 低级（进程调度，分配 CPU）。</p>
+    <p class="why">为什么重要：</p>简答题「调度分哪几层」的标准答案。
+    <div class="confuse">常考的是低级调度（= 进程调度）。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">周转时间</span><span class="en">Turnaround Time, T</span>
+  <div class="pill">核心公式</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>T = 完成时间 − 到达时间。进程从进系统到离开总耗时。</p>
+    <p class="why">为什么重要：</p>调度题 80% 都要算这个。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">带权周转时间</span><span class="en">Weighted Turnaround, W</span>
+  <div class="pill">核心公式</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>W = T / 服务时间。&gt;1 越亏，越接近 1 越爽。</p>
+    <p class="why">为什么重要：</p>SJF 的目标就是让 W 最小（平均 W 最小）。
+    <div class="confuse">W 不是「加权」，是「带权」= 除以服务时间。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">响应时间</span><span class="en">Response Time</span>
+  <div class="pill">Ch3</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>首次得到 CPU 的时刻 − 到达时间（不是完成！）。</p>
+    <p class="why">为什么重要：</p>分时系统的关键指标。
+    <div class="confuse">vs 周转时间：响应只看「首次」，周转看「整个完成」。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">FCFS</span><span class="en">First-Come First-Served</span>
+  <div class="pill">先来先服务</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>按到达顺序排。简单公平，但短作业会等长作业。</p>
+    <p class="why">为什么重要：</p>调度算法 baseline。
+    <div class="confuse">非抢占。一旦开始就要跑完或阻塞。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">SJF / SJF（非抢占）</span><span class="en">Shortest Job First</span>
+  <div class="pill">短作业优先</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>谁的服务时间短，谁先跑。</p>
+    <p class="why">为什么重要：</p>金句「SJF 是使系统平均周转时间最短的算法」。
+    <div class="confuse">vs SRTN：SJF 非抢占（一旦跑就不打断）；SRTN 抢占（来了更短的就把当前踢下去）。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">SRTN</span><span class="en">Shortest Remaining Time Next</span>
+  <div class="pill">最短剩余时间优先</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>SJF 的抢占版——有新进程剩余时间更短就踢掉当前。</p>
+    <p class="why">为什么重要：</p>抢占式调度常考。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">HRRN</span><span class="en">Highest Response Ratio Next</span>
+  <div class="pill">高响应比优先</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>响应比 = 1 + 等待/服务。最高者优先，兼顾长短。</p>
+    <p class="why">为什么重要：</p>不会饥饿（SJF 的长作业饥饿的解药）。
+    <div class="confuse">响应比 = (等待 + 服务) / 服务 = 1 + 等待/服务。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">RR</span><span class="en">Round-Robin</span>
+  <div class="pill">时间片轮转</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>每个进程跑一个时间片 q，时间到就送队尾。</p>
+    <p class="why">为什么重要：</p>分时系统标配。响应快但平均周转不是最短。
+    <div class="confuse">q 太大 → 退化成 FCFS（不是 SJF！）；q 太小 → 切换开销爆炸。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">时间片 q</span><span class="en">Time Quantum</span>
+  <div class="pill">Ch3</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>RR 里每个进程最多连续跑 q 分钟。</p>
+    <p class="why">为什么重要：</p>q 的取值是选择题陷阱（退化方向、切换开销）。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">抢占式调度</span><span class="en">Preemptive</span>
+  <div class="pill">Ch3</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>OS 能强行打断当前进程，把 CPU 让给别人。</p>
+    <p class="why">为什么重要：</p>RR/SRTN 是抢占；FCFS/SJF/HRRN 是非抢占。
+    <div class="confuse">vs 非抢占：非抢占意味着<b>一旦开始就要跑完或阻塞</b>。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">优先级调度</span><span class="en">Priority Scheduling</span>
+  <div class="pill">Ch3</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>谁优先级高谁先跑。</p>
+    <p class="why">为什么重要：</p>实时系统常用。问题：低优先级饥饿。
+    <div class="confuse">解法 = Aging：等越久优先级越高。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">多级反馈队列 MFQ</span><span class="en">Multilevel Feedback Queue</span>
+  <div class="pill">Ch3</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>多个优先级队列，时间片大小不同；进程用完时间片就降级。</p>
+    <p class="why">为什么重要：</p>通用调度算法首选（兼顾长短作业、不用预知服务时间）。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">饥饿</span><span class="en">Starvation</span>
+  <div class="pill">Ch3</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>某个进程长期得不到服务。</p>
+    <p class="why">为什么重要：</p>SJF（长作业）、SSTF（远处磁道）、优先级（低优先级）都会饥饿。
+    <div class="confuse">vs 死锁：饥饿是「永远等不到但还在等」；死锁是「互相等、永远不动」。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">死锁</span><span class="en">Deadlock</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>进程互相等对方手里的资源，谁都不动。</p>
+    <p class="why">为什么重要：</p>Ch3 后半整章 + 银行家算法。
+    <div class="confuse">vs 饥饿：死锁是「环形等待」，饥饿是「单方面等不到」。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">死锁 4 必要条件</span><span class="en">4 Necessary Conditions</span>
+  <div class="pill">必背</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>互斥 + 请求和保持 + 不可剥夺 + 循环等待。四个<b>同时</b>满足才死锁。</p>
+    <p class="why">为什么重要：</p>死锁预防就是破坏其中之一。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">银行家算法</span><span class="en">Banker's Algorithm</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>分配资源前<b>假装分配</b>，检查是否存在安全序列。有则分，无则拒。</p>
+    <p class="why">为什么重要：</p>死锁避免的标志算法，15-20 分计算大题。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">安全序列 / 安全状态</span><span class="en">Safe Sequence / State</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>存在一个进程完成顺序让所有进程都能完成 = 安全；否则 = 不安全（不一定死锁但有风险）。</p>
+    <p class="why">为什么重要：</p>银行家算法每一步都要找安全序列。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">Available / Max / Allocation / Need</span><span class="en">Banker Data Structures</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>银行家四件套：Available=当前可用，Max=最大需求，Allocation=已分配，Need=还需要的（=Max−Allocation）。</p>
+    <p class="why">为什么重要：</p>做题先把这 4 个矩阵抄出来。
+  </div>
+</div>
+
+</div>
+
+<!-- =================== Ch4 =================== -->
+<h2 id="ch4">Ch4 · 存储器管理</h2>
+<div class="term-grid">
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">逻辑地址 vs 物理地址</span><span class="en">Logical / Physical Address</span>
+  <div class="pill">Ch4 基础</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>逻辑地址 = 程序「以为自己」用的地址（从 0 开始）；物理地址 = 内存里真实的位置。</p>
+    <p class="why">为什么重要：</p>地址转换是分页/分段的前提。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">地址重定位</span><span class="en">Address Relocation</span>
+  <div class="pill">Ch4</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>把逻辑地址「翻译」成物理地址。</p>
+    <p class="why">为什么重要：</p>静态重定位（装入时一次定）/ 动态重定位（运行时换）。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">连续分配</span><span class="en">Contiguous Allocation</span>
+  <div class="pill">Ch4</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>每个进程占一段连续的内存空间。</p>
+    <p class="why">为什么重要：</p>产生外部碎片。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">内部碎片 vs 外部碎片</span><span class="en">Internal / External Fragmentation</span>
+  <div class="pill">Ch4</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>内部碎片 = 分给你的但没用完；外部碎片 = 没分出去但太零碎用不了。</p>
+    <p class="why">为什么重要：</p>分页有内部碎片、连续分配有外部碎片。考试必背对照。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">首次适应 FF</span><span class="en">First Fit</span>
+  <div class="pill">Ch4</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>从低地址找第一个够大的空闲块分配。</p>
+    <p class="why">为什么重要：</p>分配算法基线。优点：低地址优先，保留大块。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">最佳适应 BF</span><span class="en">Best Fit</span>
+  <div class="pill">Ch4</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>找<b>最小但够用</b>的空闲块。保留大块，但碎片更小更零碎。</p>
+    <p class="why">为什么重要：</p>名字陷阱——「最佳」其实最差（产生大量小碎片）。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">最坏适应 WF</span><span class="en">Worst Fit</span>
+  <div class="pill">Ch4</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>挑最大的空闲块切出去用。碎片较大但易复用。</p>
+    <p class="why">为什么重要：</p>和 BF 对照。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">分页</span><span class="en">Paging</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>把程序和内存都切成同样大小的块。程序叫<b>页</b>，内存叫<b>页框（块）</b>。</p>
+    <p class="why">为什么重要：</p>现代 OS 的内存管理基础。地址结构 = 页号 + 页内偏移。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">页框 / 物理块</span><span class="en">Frame</span>
+  <div class="pill">Ch4</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>物理内存里和页同样大小的一块。</p>
+    <p class="why">为什么重要：</p>页 → 页框 的映射是分页的核心。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">页表</span><span class="en">Page Table</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>记录「页号 → 页框号」对应关系的表。</p>
+    <p class="why">为什么重要：</p>查页表 = 地址转换。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">页内偏移 W</span><span class="en">Offset within Page</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>页里的位置（低几位地址直接就是偏移）。</p>
+    <p class="why">为什么重要：</p>逻辑地址 = 页号 × 页大小 + 偏移 = 页号 + 偏移。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">快表 TLB</span><span class="en">Translation Lookaside Buffer</span>
+  <div class="pill">Ch4</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>页表的 cache，存最近用过的页号→页框号。</p>
+    <p class="why">为什么重要：</p>有效访问时间 EAT 的算式里有它。
+    <div class="confuse">快表命中时 EAT ≈ 访存 + TLB 访问（1 次访存 + 1 次查 TLB）。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">分段</span><span class="en">Segmentation</span>
+  <div class="pill">Ch4</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>按程序<b>逻辑结构</b>（代码段、数据段、栈段）划分，每段长度不等。</p>
+    <p class="why">为什么重要：</p>和分页对比的常考对比表。
+    <div class="confuse">vs 分页：分页固定大小（一维）、分段按逻辑（二维）；分页内部碎片、分段外部碎片。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">段页式</span><span class="en">Segment-Paging</span>
+  <div class="pill">Ch4</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>先分段、再在段内分页。既有段的逻辑性、又有页的灵活性。</p>
+    <p class="why">为什么重要：</p>理论上最完整。
+  </div>
+</div>
+
+</div>
+
+<!-- =================== Ch5 =================== -->
+<h2 id="ch5">Ch5 · 虚拟存储器</h2>
+<div class="term-grid">
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">虚拟存储器</span><span class="en">Virtual Memory</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>程序感觉内存很大，实际只有部分在内存、其余在磁盘。</p>
+    <p class="why">为什么重要：</p>Ch5 整章主题。三个机制：部分装入 + 请求调入 + 页面置换。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">局部性原理</span><span class="en">Locality</span>
+  <div class="pill">Ch5</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>程序倾向于用「刚才用过的」和「附近的」数据。</p>
+    <p class="why">为什么重要：</p>虚拟存储能 work 的根本原因。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">时间局部性 vs 空间局部性</span><span class="en">Temporal / Spatial</span>
+  <div class="pill">Ch5</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>时间 = 刚访问的很快再用（循环变量 i）；空间 = 附近地址很可能也用（数组）。</p>
+    <p class="why">为什么重要：</p>简答题必背。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">缺页中断 / 缺页</span><span class="en">Page Fault</span>
+  <div class="pill">核心</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>要访问的页不在内存，要从磁盘调入（慢，一次 IO）。</p>
+    <p class="why">为什么重要：</p>缺页率 = 缺页次数 / 总访问次数。所有置换算法都在优化这个数。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">页面置换</span><span class="en">Page Replacement</span>
+  <div class="pill">Ch5</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>内存满了、又要调新页，淘汰一个旧页。</p>
+    <p class="why">为什么重要：</p>虚拟存储的关键环节。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">OPT</span><span class="en">Optimal (Belady)</span>
+  <div class="pill">最佳置换</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>淘汰「将来最久用不到」的页。理论最优。</p>
+    <p class="why">为什么重要：</p>所有算法的基准（天花板），但需预知未来 → <b>不可实现</b>。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">FIFO</span><span class="en">First-In First-Out</span>
+  <div class="pill">先进先出</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>淘汰「最早进入内存」的页（看出生）。</p>
+    <p class="why">为什么重要：</p>最简单。唯一会犯 Belady 异常的常用算法。
+    <div class="confuse">vs LRU：FIFO 看「进入时刻」，LRU 看「上次使用时刻」。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">LRU</span><span class="en">Least Recently Used</span>
+  <div class="pill">最近最久未用</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>淘汰「最久没访问」的页（看露面）。</p>
+    <p class="why">为什么重要：</p>效果好，无 Belady 异常。堆栈类算法。
+    <div class="confuse">vs FIFO：判据是「上次露面」，不是「出生顺序」。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">Clock 算法</span><span class="en">Clock / NRU</span>
+  <div class="pill">Ch5</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>LRU 的近似——每页有访问位（0/1），扫到 0 就淘汰，扫到 1 就清 0 继续找。</p>
+    <p class="why">为什么重要：</p>实现简单、效果接近 LRU，OS 实际在用。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">Belady 异常</span><span class="en">Belady's Anomaly</span>
+  <div class="pill">Ch5</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>物理块增多、缺页率反而升高。</p>
+    <p class="why">为什么重要：</p><b>只有 FIFO 会犯</b>，LRU/OPT 是堆栈类不会犯。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">抖动</span><span class="en">Thrashing</span>
+  <div class="pill">Ch5</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>缺页太频繁，大把时间花在换页、真正执行时间很少。</p>
+    <p class="why">为什么重要：</p>CPU 利用率下降、磁盘 IO 爆满。
+    <div class="confuse">原因：物理块太少 / 进程太多 / 工作集装不下。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">工作集</span><span class="en">Working Set</span>
+  <div class="pill">Ch5</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>进程在某段时间窗口内实际访问的页面集合。</p>
+    <p class="why">为什么重要：</p>分配的物理块 ≥ 工作集大小 → 不抖动。
+  </div>
+</div>
+
+</div>
+
+<!-- =================== Ch6 =================== -->
+<h2 id="ch6">Ch6 · 设备与文件管理</h2>
+<div class="term-grid">
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">DMA</span><span class="en">Direct Memory Access</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>让 DMA 控制器代替 CPU 在设备和内存间搬数据。</p>
+    <p class="why">为什么重要：</p>CPU 不再一字节一字节搬，释放 CPU 给别的活。
+    <div class="confuse">vs 中断驱动：中断驱动每个字节都要 CPU 介入；DMA 整块数据 CPU 只介入 1 次。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">通道</span><span class="en">I/O Channel</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>专门负责 IO 的「小 CPU」，能执行 IO 指令。DMA 的升级版。</p>
+    <p class="why">为什么重要：</p>大型机/主机用。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">缓冲区 / 缓冲</span><span class="en">Buffer</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>内存里临时存放 IO 数据的区域。</p>
+    <p class="why">为什么重要：</p>缓和 CPU（快）和 IO 设备（慢）速度差。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">SPOOLing</span><span class="en">Simultaneous Peripheral Operations On-Line</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>假脱机。把独占设备（打印机）改造成逻辑共享（先存磁盘输出井、由 spool 进程一个个打）。</p>
+    <p class="why">为什么重要：</p>把「独占」伪装成「共享」。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">文件控制块 FCB</span><span class="en">File Control Block</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>文件的档案（名字/大小/位置/权限/时间）。</p>
+    <p class="why">为什么重要：</p>目录项的实质。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">inode</span><span class="en">Index Node</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>UNIX/Linux 里的文件元数据（属性 + 数据块位置）。</p>
+    <p class="why">为什么重要：</p>文件名不在 inode 里（目录项才存名字 → inode 号）。
+    <div class="confuse">vs 目录项：目录项是「名字 → inode 号」的映射；inode 是「inode 号 → 文件本身」的映射。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">连续分配</span><span class="en">Contiguous Allocation (File)</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>文件占连续磁盘块（顺序访问快、外部碎片、扩展难）。</p>
+    <p class="why">为什么重要：</p>三种文件分配方式之一。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">链接分配</span><span class="en">Linked Allocation</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>文件块用指针串起来（无外部碎片、扩展容易，但只能顺序访问）。</p>
+    <p class="why">为什么重要：</p>三种之一。FAT 是它的改进版（指针集中到一张表）。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">索引分配</span><span class="en">Indexed Allocation</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>建索引块记录所有磁盘块号（支持随机访问、扩展易，但小文件浪费索引块）。</p>
+    <p class="why">为什么重要：</p>UNIX inode 用这个。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">混合索引</span><span class="en">Multi-level Indexed</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>inode 里前 N 个是直接地址，再后面挂一级、二级、三级间接索引。</p>
+    <p class="why">为什么重要：</p>UNIX 用，小文件省索引块、大文件能扩展。
+    <div class="confuse">最大文件 = D×B + N×B + N²×B + N³×B（N=B/A）。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">空闲链表法</span><span class="en">Free Linked List</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>把所有空闲块用指针串成一条链。</p>
+    <p class="why">为什么重要：</p>简单但分配/回收都要遍历整条链。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">位示图 / 位图</span><span class="en">Bitmap</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>用一串 0/1 表示磁盘块空闲与否（1 位 = 1 块）。</p>
+    <p class="why">为什么重要：</p>位运算找空闲块快、紧凑。
+    <div class="confuse">计算公式：块号 b → 字号 j = b/n，字内位 k = b%n（n 是字长）。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">成组链接法</span><span class="en">Group Linking</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>空闲块每 N 个一组，组间链接；S.free 栈只存当前一组，其余藏在每组最后一块的肚子里。</p>
+    <p class="why">为什么重要：</p>UNIX/Linux 实际用法。两条边界规则必背。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">寻道 / 寻道时间</span><span class="en">Seek Time</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>磁头从当前磁道移到目标磁道的时间。</p>
+    <p class="why">为什么重要：</p>磁盘访问 3 部分时间中最大头。
+    <div class="confuse">磁盘访问时间 = 寻道 + 旋转延迟 + 传输。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">旋转延迟</span><span class="en">Rotational Latency</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>磁头到了磁道后，等盘片转到正确扇区的时间。平均 = 半圈。</p>
+    <p class="why">为什么重要：</p>7200 RPM → 平均旋转延迟 ≈ 4.17 ms。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">FCFS（磁盘）</span><span class="en">FCFS Disk</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>按请求到达顺序处理磁盘请求。</p>
+    <p class="why">为什么重要：</p>磁盘调度基线。公平但磁头来回折腾。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">SSTF</span><span class="en">Shortest Seek Time First</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>每次挑离磁头当前位置最近的请求。</p>
+    <p class="why">为什么重要：</p>寻道短，但两端请求会饥饿。
+    <div class="confuse">不是「挑数字最小的」，是「离当前最近的」。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">SCAN（电梯算法）</span><span class="en">SCAN / Elevator</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>磁头沿一个方向走，处理沿途请求，<b>走到最后一个请求就掉头</b>（汤小丹口径：不走到磁盘边缘）。</p>
+    <p class="why">为什么重要：</p>避免饥饿，常见题。
+    <div class="confuse">vs CSCAN：CSCAN 单向扫、到头<b>直接跳回</b>另一端（跳回那段距离要算）。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">CSCAN</span><span class="en">Circular SCAN</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>单向扫描，到一端后直接跳回另一端从头扫。等待时间均匀。</p>
+    <p class="why">为什么重要：</p>跳回的距离必须算进总寻道（教材例题常漏）。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">磁臂粘着 / 磁头粘着</span><span class="en">Arm Stickiness</span>
+  <div class="pill">Ch6</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>磁头粘在一个磁道附近反复服务，新请求来了但磁头不挪。</p>
+    <p class="why">为什么重要：</p>N-SCAN / FSCAN 解法。
+  </div>
+</div>
+
+</div>
+
+<!-- =================== Ch7 =================== -->
+<h2 id="ch7">Ch7 · 系统接口与保护</h2>
+<div class="term-grid">
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">陷入 / trap</span><span class="en">Trap</span>
+  <div class="pill">Ch7</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>用户程序主动触发的「我需要 OS 服务」信号，进入核心态。</p>
+    <p class="why">为什么重要：</p>系统调用的机制核心。
+    <div class="confuse">vs 中断：中断是设备<b>异步</b>触发；trap 是程序<b>同步</b>触发。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">系统调用号</span><span class="en">Syscall Number</span>
+  <div class="pill">Ch7</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>每个系统调用有个编号（如 read=3, write=4），OS 用它分发到对应服务。</p>
+    <p class="why">为什么重要：</p>系统调用过程「传号 → 跳表 → 执行」的中段。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">访问控制矩阵</span><span class="en">Access Control Matrix</span>
+  <div class="pill">Ch7</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>行 = 用户，列 = 资源，每格 = 该用户对该资源的权限。</p>
+    <p class="why">为什么重要：</p>理论上完整，但稀疏矩阵浪费空间。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">访问控制表 ACL</span><span class="en">Access Control List</span>
+  <div class="pill">Ch7</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>每个资源附带一张表，列出谁能干啥（按列存）。</p>
+    <p class="why">为什么重要：</p>Windows NTFS 用。
+    <div class="confuse">vs 能力表：能力表是按行存（每用户一张表列他能干啥）。</div>
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">能力表 Capability</span><span class="en">Capability List</span>
+  <div class="pill">Ch7</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>每个用户持一张表，列出他能访问哪些资源 + 权限。</p>
+    <p class="why">为什么重要：</p>UNIX 风格。
+  </div>
+</div>
+
+<div class="term" onclick="this.classList.toggle('hit')">
+  <span class="cn">保护域</span><span class="en">Protection Domain</span>
+  <div class="pill">Ch7</div>
+  <div class="body collapsed">
+    <p><b>白话：</b>一组「能访问的资源 + 权限」的集合（用户态、核心态是两个不同域）。</p>
+    <p class="why">为什么重要：</p>解释用户态/核心态的另一种视角。
+  </div>
+</div>
+
+</div>
+
+<!-- =================== 排障自测 =================== -->
+<h2 id="qa">📝 排障自测（6 题）</h2>
+<p style="color:var(--muted); font-size:14px">用下面 6 题检验你扫盲后的真实掌握度。能立刻答出来的 → 绿；想 10 秒以上 → 橙；想不起来 → 红，回去翻对应章节。</p>
+
+<div class="q">
+<b>Q1</b>（口述）「周转时间 T」「带权周转时间 W」「响应时间」三个公式分别是什么？W 越大说明什么？
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+T = 完成时间 − 到达时间；W = T ÷ 服务时间；响应时间 = 首次得到 CPU 时刻 − 到达时间。<br>
+<b>W 越大</b>说明进程「等得久 / 跑得短」，越亏。SJF 就是要让平均 W 最小。
+</div>
+</details>
+</div>
+
+<div class="q">
+<b>Q2</b>（选择）FIFO 和 LRU 都淘汰「最老的页」，对吗？
+<br>A. 对，都是最老的 &nbsp; B. 错，FIFO 看「进入内存最早」，LRU 看「最久没访问」
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+<b>B</b>。金句：「<b>FIFO 看出生，LRU 看露面</b>」。LRU 淘汰的是「最久没被访问」，命中会续命（重置时间）；FIFO 不管你用没用，进入最早就踢。
+</div>
+</details>
+</div>
+
+<div class="q">
+<b>Q3</b>（口述）死锁的 4 个必要条件是什么？举一个会破坏「循环等待」的具体做法。
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+<b>互斥 + 请求和保持 + 不可剥夺 + 循环等待</b>。<br>
+破坏循环等待：给资源排编号，所有进程<b>只能按编号从小到大申请</b>（资源有序分配法）—— 这样不可能形成环。
+</div>
+</details>
+</div>
+
+<div class="q">
+<b>Q4</b>（计算）RR 算法 q=4 跑 A=3/B=6/C=4/D=2/E=5，D 的完成时间是多少？
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+q=4 → A 0-3 跑完（剩 0，<b>时刻=3</b>）→ B 3-7 跑 4（剩 2，送队尾）→ C 7-9 跑 2（剩 0，<b>时刻=9</b>）→ D 9-11 跑 2（剩 0，<b>时刻=11</b>）。<br>
+<b>D 完成时间 = 11</b>。q 变大 → 每人能跑更久 → D 不用排那么多次。
+</div>
+</details>
+</div>
+
+<div class="q">
+<b>Q5</b>（口述）分页有内部碎片还是外部碎片？分段呢？连续分配呢？
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+分页 → <b>内部碎片</b>（最后一块常装不满）；分段 → <b>外部碎片</b>（段长不等）；连续分配 → <b>外部碎片</b>。
+</div>
+</details>
+</div>
+
+<div class="q">
+<b>Q6</b>（口述）DMA 和「中断驱动 IO」的本质区别是什么？
+<details style="margin-top:6px"><summary>▸ 答案</summary>
+<div class="ans">
+<b>中断驱动</b>每个字节都要 CPU 介入（设备每完成一字节就中断一次）；<br>
+<b>DMA</b>让 DMA 控制器整块搬数据，<b>CPU 只在开始和结束时介入</b>两次 → 解放 CPU。适合磁盘/网卡等高速设备。
+</div>
+</details>
+</div>
+
+<footer class="lesson-foot">
+<a href="0001-overview-and-question-map.html">← 第 1 课 · 考点地图</a> ·
+<a href="0002-scheduling-algorithms.html">第 2 课 · 调度</a> ·
+<a href="0005-paging-fundamentals.html">第 5 课 · 分页</a> ·
+<a href="0006-page-replacement.html">第 6 课 · 页面置换</a> ·
+<a href="0007-disk-scheduling.html">第 7 课 · 磁盘调度</a> ·
+<a href="0008-io-system.html">第 8 课 · IO</a> ·
+<a href="0009-mixed-index.html">第 9 课 · 混合索引</a> ·
+<a href="0012-process-thread-deadlock.html">第 12 课 · 死锁</a>
+<br>
+打开命令（macOS 终端）：<code>open "/Users/wangzihao/Code/pass_exam/operating_systems/lessons/0038-terms-drill.html"</code>
+<br>
+<a href="../teach/GLOSSARY.md">teach/GLOSSARY.md</a> · <a href="../MISSION.md">MISSION.md</a>
+</footer>
+
+</div>
+
+<script>
+  // 进度统计
+  var total = document.querySelectorAll('.term').length;
+  document.getElementById('count').textContent = '0 / ' + total + ' 已打卡';
+  function update() {
+    var hit = document.querySelectorAll('.term.hit').length;
+    var pct = total ? Math.round(hit * 100 / total) : 0;
+    document.getElementById('bar').style.width = pct + '%';
+    document.getElementById('count').textContent = hit + ' / ' + total + ' 已打卡 (' + pct + '%)';
+  }
+  document.querySelectorAll('.term').forEach(function(t){
+    t.addEventListener('click', function(){
+      // 点击名字/英文也展开
+      var body = t.querySelector('.body');
+      if (body && body.classList.contains('collapsed')) {
+        body.classList.remove('collapsed');
+      } else if (body) {
+        body.classList.add('collapsed');
+      }
+      setTimeout(update, 50);
+    });
+    // 鼠标悬停自动展开（不打卡）
+    t.addEventListener('mouseenter', function(){
+      var body = t.querySelector('.body');
+      if (body) body.classList.remove('collapsed');
+    });
+  });
+  // 全开/全收
+  function toggleAll(){
+    var bodies = document.querySelectorAll('.term .body');
+    var anyCollapsed = Array.from(bodies).some(b => b.classList.contains('collapsed'));
+    bodies.forEach(b => b.classList.toggle('collapsed', !anyCollapsed ? true : false));
+  }
+</script>
+
+</body>
+</html>

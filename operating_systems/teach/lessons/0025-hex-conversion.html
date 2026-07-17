@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 25 课 · 16 进制转换速算 · 计算机组成原理冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00; --bad:#b3261e;
+    --okbg:#f1f9f4; --badbg:#fdf0ef; --gold:#c8951a; --goldbg:#fff8e8;
+    /* 三种"位"专用色 */
+    --c-bin:#7b3f8a;     /* 二进制 紫 */
+    --c-bin-bg:#f5ebf9;
+    --c-hex:#1f6f43;     /* 十六进制 绿 */
+    --c-hex-bg:#e8f3ec;
+    --c-dec:#a85d00;     /* 十进制 橙 */
+    --c-dec-bg:#fff3e0;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.78; font-size:16px}
+  .wrap{max-width:900px; margin:0 auto; padding:38px 24px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:27px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14.5px}
+  h2{font-size:21px; margin:40px 0 12px; border-left:5px solid var(--accent); padding-left:12px}
+  h3{font-size:16px; margin:22px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:24px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px; font-weight:700}
+  .callout{border:1px solid var(--line); border-left:5px solid var(--accent); background:var(--soft);
+    padding:13px 17px; border-radius:5px; margin:16px 0; font-size:15px}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+
+  table{border-collapse:collapse; width:100%; margin:12px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  td.l{text-align:left}
+
+  /* 位宽活动框（4 位一组） */
+  .nibble{display:inline-block; padding:6px 9px; border-radius:6px; font-weight:700;
+    font-family:"SF Mono",Menlo,Consolas,monospace; letter-spacing:2px; min-width:24px; text-align:center}
+  .nib.bin{background:var(--c-bin); color:#fff}
+  .nib.hex{background:var(--c-hex); color:#fff}
+  .nib.dec{background:var(--c-dec); color:#fff}
+  .nib.dim{background:#ece9d8; color:#444; font-weight:400}
+  .gap{display:inline-block; width:6px}
+
+  /* step row 步骤条 */
+  .stepline{display:flex; align-items:center; flex-wrap:wrap; gap:10px;
+    background:#fff; border:1px solid var(--line); border-radius:10px; padding:13px 15px; margin:10px 0}
+  .stepline .lbl{color:var(--muted); font-size:13px; min-width:52px}
+  .stepline .expr{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:15.5px}
+  .stepline .arrow{color:var(--muted); font-size:17px}
+
+  /* 互动输入区 */
+  .stage{border:1px solid var(--line); border-radius:12px; background:#fff; padding:18px;
+    margin:18px 0; box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:8px 0}
+  .row label{font-size:14px; color:var(--muted)}
+  .row input[type=text]{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:16px;
+    padding:7px 11px; border:1px solid var(--line); border-radius:6px; width:200px; text-align:center}
+  .row input[type=text]:focus{outline:2px solid var(--soft); border-color:var(--accent)}
+  .row select{font-family:inherit; font-size:14.5px; padding:7px 9px; border:1px solid var(--line); border-radius:6px}
+  button.btn{font-family:inherit; font-size:14.5px; font-weight:600; padding:9px 16px; border-radius:7px;
+    border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; transition:.15s}
+  button.btn:hover{filter:brightness(1.07)}
+  button.btn.ghost{background:#fff; color:var(--accent)}
+  button.btn:disabled{opacity:.4; cursor:not-allowed}
+
+  .ansbox{margin-top:14px; padding:13px 16px; border-radius:9px; font-family:"SF Mono",Menlo,Consolas,monospace;
+    font-size:16px; line-height:1.95; min-height:50px; word-spacing:4px}
+  .ansbox.ok{background:var(--okbg); border:1px solid var(--ok)}
+  .ansbox.err{background:var(--badbg); border:1px solid var(--bad)}
+  .ansbox .tag{display:inline-block; padding:2px 9px; border-radius:11px; font-size:12px;
+    font-weight:700; color:#fff; margin-right:8px; font-family:inherit}
+  .tag.bin{background:var(--c-bin)} .tag.hex{background:var(--c-hex)} .tag.dec{background:var(--c-dec)}
+
+  .tag{display:inline-block; padding:2px 9px; border-radius:11px; font-size:12px;
+    font-weight:700; color:#fff; letter-spacing:.03em; vertical-align:middle; margin-right:4px}
+  .tag.pur{background:var(--c-bin)} .tag.grn{background:var(--c-hex)} .tag.ora{background:var(--c-dec)}
+
+  /* 速查表 */
+  .quick{border:1px solid var(--line); border-radius:10px; overflow:hidden; margin:14px 0}
+  .quick table{margin:0; font-size:13.5px; width:100%}
+  .quick td.k{font-weight:700; color:#fff; font-family:"SF Mono",Menlo,Consolas,monospace; font-size:15px}
+  .quick td.b{background:var(--c-bin-bg)}
+  .quick td.h{background:var(--c-hex-bg)}
+  .quick td.d{background:var(--c-dec-bg)}
+  .quick td.b .nib{background:var(--c-bin)}
+  .quick td.h .nib{background:var(--c-hex)}
+  .quick td.d .nib{background:var(--c-dec)}
+
+  /* 自测题 */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:9px; padding:15px 17px; margin:16px 0}
+  .qq{font-weight:600; margin-bottom:9px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:9px 13px; margin:6px 0; cursor:pointer; font-size:14.5px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:9px; padding:9px 12px; border-radius:6px; font-size:13.5px; line-height:1.65}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+
+  /* 小数计算演示区 */
+  .frac-demo{background:#0f2230; color:#cfe6f5; padding:12px 15px; border-radius:9px;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; line-height:1.85; white-space:pre-wrap}
+  .frac-demo .y{color:#ffd87a}
+  .frac-demo .g{color:#7fd99a}
+
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:14px; font-size:13px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">计算机组成原理 · 进制转换 · 考前速算</div>
+  <h1>第 25 课 · 16 进制转换(1 页搞定)</h1>
+  <div class="sub">2 类必会:二进制 ↔ 十六进制、十进制 ↔ 十六进制(整数+小数)。看完能做对 80% 的考题。约 20 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>考前只需要背一个东西:</b><b class="hl">1 位十六进制 = 4 位二进制。</b><br>
+  所有考题——不论多复杂——都靠这句话拆 / 合,再配合"除 16 取余"或"乘 16 取整"。<br>
+  <b>不需要</b>记十进制↔二进制的普通方法(太慢),也不需要记负数/补码(那是另一节课的事)。
+</div>
+
+<!-- ============== 第一节 ============== -->
+<h2>一、为什么 16 进制这么重要?</h2>
+<table>
+  <tr><th>进制</th><th>基数</th><th>每位权重</th><th>1 位最大表示</th></tr>
+  <tr><td>二进制 Bin</td><td>2</td><td>1, 2, 4, 8, 16, ...</td><td>1</td></tr>
+  <tr><td><b>十六进制 Hex</b></td><td>16</td><td>1, 16, 256, 4096, ...</td><td>F(15)</td></tr>
+  <tr><td>十进制 Dec</td><td>10</td><td>1, 10, 100, 1000, ...</td><td>9</td></tr>
+</table>
+<div class="callout ok">
+  <b>关键事实:</b><code>16 = 2⁴</code>,所以 <b>1 位十六进制 正好等于 4 位二进制</b>。<br>
+  后果:<b>二进制写起来太长</b>(8 位就要写 8 个字符),<b>十六进制写起来短</b>(同样 8 位只写 2 个字符)。<br>
+  计算机内部是二进制,但人看的时候习惯用十六进制。<b>两者完全 1:1 对应,只换皮不换数。</b>
+</div>
+
+<h3>一位对应表(必背)</h3>
+<div class="quick">
+<table>
+<tr><td class="k" style="background:var(--c-hex);width:60px">Hex</td>
+    <td class="k h" style="background:var(--c-hex-bg);color:var(--c-hex);font-family:inherit">一位</td>
+    <td class="k b" style="background:var(--c-bin-bg);color:var(--c-bin);font-family:inherit">对应的 4 位二进制</td>
+    <td class="k d" style="background:var(--c-dec-bg);color:var(--c-dec);font-family:inherit">十进制大小</td></tr>
+<tr><td class="h">0</td><td class="h"><span class="nib hex">0</span></td>     <td class="b"><span class="nib bin">0000</span></td><td class="d">0</td></tr>
+<tr><td class="h">1</td><td class="h"><span class="nib hex">1</span></td>     <td class="b"><span class="nib bin">0001</span></td><td class="d">1</td></tr>
+<tr><td class="h">2</td><td class="h"><span class="nib hex">2</span></td>     <td class="b"><span class="nib bin">0010</span></td><td class="d">2</td></tr>
+<tr><td class="h">3</td><td class="h"><span class="nib hex">3</span></td>     <td class="b"><span class="nib bin">0011</span></td><td class="d">3</td></tr>
+<tr><td class="h">4</td><td class="h"><span class="nib hex">4</span></td>     <td class="b"><span class="nib bin">0100</span></td><td class="d">4</td></tr>
+<tr><td class="h">5</td><td class="h"><span class="nib hex">5</span></td>     <td class="b"><span class="nib bin">0101</span></td><td class="d">5</td></tr>
+<tr><td class="h">6</td><td class="h"><span class="nib hex">6</span></td>     <td class="b"><span class="nib bin">0110</span></td><td class="d">6</td></tr>
+<tr><td class="h">7</td><td class="h"><span class="nib hex">7</span></td>     <td class="b"><span class="nib bin">0111</span></td><td class="d">7</td></tr>
+<tr><td class="h">8</td><td class="h"><span class="nib hex">8</span></td>     <td class="b"><span class="nib bin">1000</span></td><td class="d">8</td></tr>
+<tr><td class="h">9</td><td class="h"><span class="nib hex">9</span></td>     <td class="b"><span class="nib bin">1001</span></td><td class="d">9</td></tr>
+<tr><td class="h">A</td><td class="h"><span class="nib hex">A</span></td>     <td class="b"><span class="nib bin">1010</span></td><td class="d">10</td></tr>
+<tr><td class="h">B</td><td class="h"><span class="nib hex">B</span></td>     <td class="b"><span class="nib bin">1011</span></td><td class="d">11</td></tr>
+<tr><td class="h">C</td><td class="h"><span class="nib hex">C</span></td>     <td class="b"><span class="nib bin">1100</span></td><td class="d">12</td></tr>
+<tr><td class="h">D</td><td class="h"><span class="nib hex">D</span></td>     <td class="b"><span class="nib bin">1101</span></td><td class="d">13</td></tr>
+<tr><td class="h">E</td><td class="h"><span class="nib hex">E</span></td>     <td class="b"><span class="nib bin">1110</span></td><td class="d">14</td></tr>
+<tr><td class="h">F</td><td class="h"><span class="nib hex">F</span></td>     <td class="b"><span class="nib bin">1111</span></td><td class="d">15</td></tr>
+</table>
+</div>
+<div class="callout warn">
+  <b>记住 5 个字母就行:</b>A=10、B=11、C=12、D=13、E=14、F=15。<br>
+  <b>口诀(谐音):</b>"<b>A吃(C)</b>一锅粉(E)—— A 10、B 11、C 12、D 13、E 14"<span style="color:var(--muted)">(F=15 剩下,顺位)</span><br>
+  <b>超过 9 的数,所有进制里一律用字母 A–F 表示</b>——考卷上看到「13」「14」别惊讶,那是十进制意思。
+</div>
+
+<!-- ============== 第二节 ============== -->
+<h2>二、二进制 ↔ 十六进制(必会,最快)</h2>
+
+<div class="callout ok">
+  <b>方法只有一句话:以小数点为中心,向左 / 向右,每 4 位二进制合成 1 位十六进制。</b><br>
+  不到 1 组的<b>补 0</b>(整数的最左边、小数的最右边)。
+</div>
+
+<h3>① 二进制 → 十六进制</h3>
+<p>例:<code>1011 0010 1101 . 0110 1</code> → ?</p>
+
+<div class="stepline">
+  <span class="lbl">第 1 步</span>
+  <span class="expr">以小数点为中心,</span>
+  <span style="color:var(--muted);font-size:13px">向左、向右每 4 位一组:</span>
+</div>
+<div class="stepline">
+  <span class="lbl">整数</span>
+  <span class="expr"><span class="nib bin">1011</span><span class="gap"></span><span class="nib bin">0010</span><span class="gap"></span><span class="nib bin">1101</span></span>
+</div>
+<div class="stepline">
+  <span class="lbl">小数</span>
+  <span class="expr"><span class="nib bin">0110</span><span class="gap"></span><span class="nib bin dim">1<span style="opacity:.5">&nbsp;</span></span><span style="color:var(--muted);font-size:13px">&larr; 不足补 0 成 1000</span></span>
+</div>
+<div class="stepline">
+  <span class="lbl">第 2 步</span>
+  <span class="expr"><b>每 4 位</b>对应一位:</span>
+  <span class="arrow">→</span>
+  <span class="nib hex">B</span><span class="gap"></span><span class="nib hex">2</span><span class="gap"></span><span class="nib hex">D</span><span style="color:var(--muted);font-weight:700">.</span><span class="gap"></span><span class="nib hex">6</span><span class="gap"></span><span class="nib hex">8</span>
+</div>
+
+<div class="callout ok">
+  <b>结果:</b><code>(1011 0010 1101.0110 1)₂ = (B2D.68)₁₆</code><br>
+  <b>小数末尾补 0:</b>01101 &rarr; 0110 + 1000 = 01101000,前面 0110 = 6,后面 1000 = 8。所以 <b>.68</b>。
+</div>
+
+<h3>② 十六进制 → 二进制</h3>
+<p>反过来——每位 16 进制展开成 4 位二进制。</p>
+<div class="stepline">
+  <span class="lbl">例</span>
+  <span class="expr">(A7.F4)₁₆ = ?</span>
+</div>
+<div class="stepline">
+  <span class="lbl">展开</span>
+  <span class="expr"><span class="nib hex">A</span> &rarr; <span class="nib bin">1010</span><span class="gap"></span> <span class="nib hex">7</span> &rarr; <span class="nib bin">0111</span><span style="color:var(--muted);font-weight:700">.</span><span class="gap"></span><span class="nib hex">F</span> &rarr; <span class="nib bin">1111</span><span class="gap"></span><span class="nib hex">4</span> &rarr; <span class="nib bin">0100</span></span>
+</div>
+<div class="stepline">
+  <span class="lbl">结果</span>
+  <span class="expr"><b><code>1010 0111.1111 0100</code></b>₂</span>
+</div>
+
+<div class="callout warn">
+  <b>两个常见坑:</b><br>
+  ① 整数最高位 4 位的前导 0 不能<b>只</b>看着像 0 就<b>砍掉整数部分</b>的位数——会导致小数分组错位。<b>整数补在左、小数补在右,看小数点对称。</b><br>
+  ② 写十六进制时别混大小写——卷面统一用 <b>大写 A–F</b>。
+</div>
+
+<!-- ============== 第三节 ============== -->
+<h2>三、十进制 ↔ 十六进制</h2>
+
+<div class="callout ok">
+  没有捷径。<b>整数 = 除 16 取余,倒着写</b>;<b>小数 = 乘 16 取整,顺序写</b>。<br>
+  不像二进制↔十六进制有「4 位一对应」的天梯,这里是<b>纯手算</b>。
+</div>
+
+<h3>① 十进制整数 → 十六进制(除 16 取余)</h3>
+<p>例:<b>(255)₁₀</b> 化成十六进制是多少?</p>
+
+<div class="stepline">
+  <span class="lbl">算式</span>
+  <span class="expr">255 ÷ 16 = <b>15</b> 余 <b>15</b></span>
+</div>
+<div class="stepline">
+  <span class="lbl">继续</span>
+  <span class="expr">15 ÷ 16 = <b>0</b> 余 <b>15</b></span>
+</div>
+<div class="stepline">
+  <span class="lbl">余数倒排</span>
+  <span class="expr">15, 15 &rarr; 反过来写 <b>15 15</b></span>
+  <span class="arrow">&rarr;</span>
+  <span class="nib hex">F</span><span class="gap"></span><span class="nib hex">F</span>
+</div>
+<div class="callout ok">
+  <b>结果:</b><code>(255)₁₀ = (FF)₁₆</code>。<br>
+  <b>诀窍:</b>余 10=A,余 11=B, ..., 余 15=F。<b>第一个余数是最低位,必须倒着排</b>。
+</div>
+
+<p>再看一个不整除的:<b>(1234)₁₀</b></p>
+<table>
+<tr><th>除法</th><th>商</th><th>余数(本次)</th><th>对应十六进制位</th></tr>
+<tr><td>1234 ÷ 16</td><td>77</td><td>2</td><td>2(个位)</td></tr>
+<tr><td>77 ÷ 16</td><td>4</td><td>13</td><td><b>D</b>(第二位)</td></tr>
+<tr><td>4 ÷ 16</td><td>0</td><td>4</td><td>4(最高位)</td></tr>
+</table>
+<p>余数倒排:2, D, 4 &rarr; <b>(4D2)₁₆</b>。<b>逐位算出来,千万别跳步。</b></p>
+
+<h3>② 十进制小数 → 十六进制(乘 16 取整)</h3>
+<p>例:<b>(0.625)₁₀</b> = ?</p>
+<table>
+<tr><th>步骤</th><th>小数部分 × 16</th><th>整数部分(本次取出)</th><th>对应的十六进制</th></tr>
+<tr><td>①</td><td>0.625 × 16 = <b>10</b>.0</td><td>10</td><td><b>A</b>(第 1 位小数)</td></tr>
+<tr><td>②</td><td>0.0 × 16 = 0.0</td><td>0</td><td>0(第 2 位小数)</td></tr>
+</table>
+<p>余下都是 0,停止。<b>结果:0.A0</b>(如果题目要求几位小数就取几位,后位是 0 就直接补 0)。</p>
+
+<div class="callout warn">
+  <b>什么时候停?(三种判停方式)</b><br>
+  ① 小数部分变成 <b>0</b>:精确转换(如上例),写完退 0。<br>
+  ② <b>重复出现</b>:小数部分重复出现某个非零值 → 这是<b>无限循环小数</b>,只能取题目要求位数,后位四舍五入。<br>
+  ③ 题目指定<b>位数</b>:如"保留 4 位小数",算到第 4 位就停。<b>做到底再做四舍五入。</b>
+</div>
+
+<p>举个例子:<b>(0.1)₁₀</b> 转十六进制(保留 4 位小数):</p>
+<div class="frac-demo">0.1 × 16 = <span class="y">1</span>.6
+0.6 × 16 = <span class="y">9</span>.6
+0.6 × 16 = <span class="y">9</span>.6
+0.6 × 16 = <span class="y">9</span>.6
+→ (0.1999...)₁₆
+保留 4 位小数 → (0.199A)₁₆ <span class="g">← 注意第 4 位四舍五入:9+1=A</span></div>
+
+<h3>③ 十六进制 → 十进制(位权展开)</h3>
+<p>反过来用位权。例:(2A.B)₁₆ = ?</p>
+<div class="stepline">
+  <span class="lbl">位权</span>
+  <span class="expr">2 × 16¹ + A × 16⁰ + B × 16⁻¹</span>
+</div>
+<div class="stepline">
+  <span class="lbl">代入</span>
+  <span class="expr">2 × 16 + 10 × 1 + 11 / 16</span>
+</div>
+<div class="stepline">
+  <span class="lbl">结果</span>
+  <span class="expr">= 32 + 10 + 0.6875 = <b>42.6875</b></span>
+</div>
+<div class="callout warn">
+  <b>不要混:</b>十六进制展开是 <b>16 的位权</b>,不是 2 也不是 10!<b>每一位 × 16^位权</b>。整数位权从 0 起,小数从 -1 起。
+</div>
+
+<!-- ============== 第四节 ============== -->
+<h2>四、互动试算台</h2>
+<p>随便输个数,点转换,看每步怎么算:<b>输入框</b> 支持 2/8/10/16 自动识别(0x 前缀=16 进制,0b 前缀=2 进制)。</p>
+
+<div class="stage">
+  <div class="row">
+    <label>输入:</label>
+    <input type="text" id="inp" value="1234" placeholder="如 1234 / 0x4D2 / 0b10011010010">
+    <select id="base">
+      <option value="auto">自动识别</option>
+      <option value="2">二进制 (bin)</option>
+      <option value="8">八进制 (oct)</option>
+      <option value="10">十进制 (dec)</option>
+      <option value="16">十六进制 (hex)</option>
+    </select>
+    <button class="btn" id="go">▶ 转换</button>
+    <button class="btn ghost" id="ex1">例子:255</button>
+    <button class="btn ghost" id="ex2">例子:0x4D2</button>
+    <button class="btn ghost" id="ex3">例子:0.625</button>
+  </div>
+  <div id="out" class="ansbox" style="background:#fff;border:1px solid var(--line);color:var(--muted)">点「转换」或上方按钮自动填入……</div>
+</div>
+
+<!-- ============== 第五节 ============== -->
+<h2>五、必背 3 句话(进考场前默背)</h2>
+<div class="callout">
+  <p style="margin:4px 0">① <b>二进制 ↔ 十六进制</b>:以小数点为中心,<b>4 位一合 / 一拆</b>(不够补 0)。</p>
+  <p style="margin:4px 0">② <b>十进制整数 → 十六进制</b>:<b>除 16 取余,余数倒着排</b>;余 ≥ 10 写字母 A–F。</p>
+  <p style="margin:4px 0">③ <b>十进制小数 → 十六进制</b>:<b>乘 16 取整,整数顺着排</b>;判停:变 0 或按位数。</p>
+</div>
+
+<!-- ============== 第六节 自测题 ============== -->
+<h2>六、自测 6 题(做错回第几节标了)</h2>
+
+<div class="quiz" id="q1"><div class="qq">Q1.(1011 1010 0110)₂ = ? (错回 <a href="#二">第二节</a>)</div>
+  <button class="opt" data-ok="0">BA6</button>
+  <button class="opt" data-ok="1">BA6 ✅ 三组:1011=B, 1010=A, 0110=6</button>
+  <button class="opt" data-ok="0">AB6</button>
+  <button class="opt" data-ok="0">9A6</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q2"><div class="qq">Q2.(3F.A)₁₆ = ? 二进制 (错回 <a href="#二">第二节</a>)</div>
+  <button class="opt" data-ok="0">11 1111 . 1010</button>
+  <button class="opt" data-ok="0">11 1111 . 10</button>
+  <button class="opt" data-ok="1">0011 1111 . 1010 ——每位拆 4 位:3=0011,F=1111,A=1010</button>
+  <button class="opt" data-ok="0">1111 1100 . 101</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q3"><div class="qq">Q3.(1234)₁₀ 转十六进制 = ? (错回 <a href="#三">第三节 ①</a>)</div>
+  <button class="opt" data-ok="0">4A2</button>
+  <button class="opt" data-ok="1">4D2 ✅ 1234÷16=77…2; 77÷16=4…13=D; 4÷16=0…4,倒排 4-D-2</button>
+  <button class="opt" data-ok="0">4C2</button>
+  <button class="opt" data-ok="0">4D4</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q4"><div class="qq">Q4.(0.625)₁₀ 转十六进制 = ? (错回 <a href="#三">第三节 ②</a>)</div>
+  <button class="opt" data-ok="0">0.5</button>
+  <button class="opt" data-ok="1">0.A ✅ 0.625×16=10.0,取出 10=A;小数变 0,停</button>
+  <button class="opt" data-ok="0">0.6</button>
+  <button class="opt" data-ok="0">0.A0A</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q5"><div class="qq">Q5.(B2D.68)₁₆ = ? 转十进制 (错回 <a href="#三">第三节 ③</a>)</div>
+  <button class="opt" data-ok="0">2389.40625</button>
+  <button class="opt" data-ok="0">2389 . 68</button>
+  <button class="opt" data-ok="0">2854.40625</button>
+  <button class="opt" data-ok="1">2861.40625 ✅ 整数 B=11×256=2816, 2×16=32, D=13 → 2861;小数 .68 = 6/16 + 8/256 = 0.40625;合计 2861.40625</button>
+  <div class="fb"></div></div>
+
+<div class="quiz" id="q6"><div class="qq">Q6.二进制小数 (0.1011)₂ = ? 十六进制 (错回 <a href="#二">第二节</a>)</div>
+  <button class="opt" data-ok="0">.B</button>
+  <button class="opt" data-ok="1">.B4 ✅ 小数从右向左每 4 位一组,左补 0:1011=B, 0001(前位补 0)=1,实际这里整数位是 0 不算。看小数末尾:1011 直接就是 4 位 → B。前面的 0 是整数部分的 0。所以 0.B。</button>
+  <button class="opt" data-ok="0">.A4</button>
+  <button class="opt" data-ok="0">.B8</button>
+  <div class="fb"></div></div>
+
+<div class="callout warn" style="background:#fff8e8">
+  <b>📝 Q5/Q6 关键算式(纠错要点):</b><br>
+  Q5:整数 B=11×16²=11×256=2816, 2×16¹=32, D=13×16⁰=13 → 整数合 <b>2861</b>;小数 .68 = 6×16⁻¹ + 8×16⁻² = 0.375+0.03125 = 0.40625;合计 <b>2861.40625</b>。<br>
+  Q6:(0.1011)₂ = 0×1 + 1×0.5 + 0×0.25 + 1×0.125 + 1×0.0625 = 0.6875 = (0.B)₁₆(1011 整 4 位 → 1 位 hex)。<br>
+  <span style="color:var(--muted)">做题时养成「先写位权再代入」的习惯,15 秒一道。</span>
+</div>
+
+<!-- ============== 尾 ============== -->
+<footer>
+<p>📌 <b>考前 5 分钟的流程:</b>看一位对应表 5 个字母 → 默背「4 位一对应」+「除 16 取余倒排」+「乘 16 取整顺序」 → 进考场。</p>
+<p>📌 <b>没讲的(留作后续课程):</b>八进制、八↔二进制/十六进制转换、负数补码、浮点数的 IEEE 754 表示。需要的话告诉我加课。</p>
+<p>📌 8 进制大多数学校不考,默认跳过;但应付题的话,把 4 改成 3 即可(每 3 位二进制合一位八进制)。</p>
+<p>来源:课堂讲义 + 唐朔飞《计算机组成原理》第 2 章「数据表示与运算」常见考题。</p>
+</footer>
+
+</div>
+
+<script>
+// ===================== 自测题批改 =====================
+var FB={
+ q1:{g:'对!1011=B, 1010=A, 0110=6 → BA6。',b:'三组从左到右:1011 → B, 1010 → A, 0110 → 6,合 BA6。'},
+ q2:{g:'对!每位 16 进制展 4 位二进制:3=0011, F=1111, .A=1010 → 0011 1111.1010。',b:'每位拆 4 位(就算 0 也要写):3→0011, F→1111, A→1010 → 0011 1111.1010。'},
+ q3:{g:'对!1234÷16=77…2,77÷16=4…13=D,4÷16=0…4。倒排:4D2。',b:'除 16 取余、倒着写。1234÷16=77 余 2(个位);77÷16=4 余 13=D(十位);4÷16=0 余 4(百位)。倒排 4-D-2 = 4D2。'},
+ q4:{g:'对!0.625×16=10.0 → 整数部分 10=A,小数变 0 → 停。结果 0.A。',b:'0.625×16=10,整数部分 10=A,小数部分变 0 → 停,即 0.A(不是 0.A0!末尾的 0 算有效但写不写一般都行,这里题目要求 1 位就写 1 位)。'},
+ q5:{g:'对!整数 11×256 + 2×16 + 13 = 2816+32+13 = 2861;小数 6/16 + 8/256 = 0.40625;合计 2861.40625。',b:'位权展开:整数 B=11×16²=11×256=2816, 2×16¹=32, D=13×16⁰=13,合 2861;小数 6×16⁻¹=0.375, 8×16⁻²=0.03125,合 0.40625;总共 2861.40625。'},
+ q6:{g:'对!(0.1011)₂ = 1011 二进制正好 4 位 → B;小数点前无整数 → 0.B。',b:'小数部分从右向左每 4 位一组,这里 1011 整 4 位 → B。所以 0.B。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1'; b.classList.add(ok?'correct':'wrong');
+      if(ok)q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});
+      fb.className='fb show '+(ok?'good':'bad'); fb.textContent=ok?FB[q.id].g:FB[q.id].b;
+    });
+  });
+});
+
+// ===================== 互动试算台 =====================
+var $inp = document.getElementById('inp');
+var $base = document.getElementById('base');
+var $go = document.getElementById('go');
+var $out = document.getElementById('out');
+
+function fmtBin(n){
+  // n 是非负整数,转成 4 位一组的二进制字符串
+  if(n===0) return '0';
+  var s='';
+  while(n>0){s=(n%2)+s; n=Math.floor(n/2);}
+  // 左补 0 到 4 位的倍数
+  while(s.length%4) s='0'+s;
+  return s.replace(/(.{4})/g,'$1 ').trim();
+}
+
+function fmtHex(n){
+  if(n===0) return '0';
+  var s='';
+  while(n>0){
+    var d=n%16;
+    s=(d<10?d:'ABCDEF'[d-10])+s;
+    n=Math.floor(n/16);
+  }
+  return s;
+}
+
+function decToBinStr(d, prec){
+  // d 是浮点数,prec 是小数位数(用于显示限位)
+  if(d<0) return '-'+decToBinStr(-d, prec);
+  var intPart = Math.floor(d);
+  var fracPart = d - intPart;
+  var bs = intPart===0 ? '0' : '';
+  var t=intPart;
+  while(t>0){bs=(t%2)+bs; t=Math.floor(t/2);}
+  // 小数部分:乘 2 取整
+  var fbs='';
+  var guard=0;
+  while(fracPart>0 && guard<prec+4){
+    fracPart *= 2;
+    var b = Math.floor(fracPart);
+    fbs += b;
+    fracPart -= b;
+    guard++;
+  }
+  return bs + (fbs?('. '+fbs):'');
+}
+function decToHexStr(d, prec){
+  if(d<0) return '-'+decToHexStr(-d, prec);
+  var intPart = Math.floor(d);
+  var fracPart = d - intPart;
+  var hs = intPart===0 ? '0' : '';
+  var t=intPart;
+  while(t>0){
+    var dig=t%16;
+    hs=(dig<10?dig:'ABCDEF'[dig-10])+hs;
+    t=Math.floor(t/16);
+  }
+  // 小数部分
+  var fhs='';
+  var guard=0, seen={};
+  while(fracPart>0 && guard<prec){
+    var key = fracPart.toFixed(10);
+    if(seen[key]){ fhs+='…'; break; }
+    seen[key]=true;
+    fracPart *= 16;
+    var di = Math.floor(fracPart);
+    fhs += (di<10?di:'ABCDEF'[di-10]);
+    fracPart -= di;
+    guard++;
+  }
+  return hs + (fhs?('.'+fhs):'');
+}
+
+function parseInput(str, hintBase){
+  // 自动识别:0x 头 = 16, 0b 头 = 2, 0 头 = 8, 其他按 hintBase
+  var s = str.trim();
+  var base = hintBase;
+  if(base === 'auto' || base==null){
+    if(/^0x/i.test(s)) base=16;
+    else if(/^0b/i.test(s)) base=2;
+    else if(/^0[0-7]/.test(s)) base=8;
+    else if(/^[01]+$/.test(s)) base=2;
+    else base=10;
+  } else {
+    base = parseInt(base,10);
+  }
+  // strip prefix
+  var clean = s.replace(/^0x/i,'').replace(/^0b/i,'');
+  var intPart=null, fracPart=null;
+  if(clean.indexOf('.')>=0){
+    var parts = clean.split('.');
+    intPart = parts[0] || '0';
+    fracPart = parts[1] || '';
+  } else {
+    intPart = clean;
+  }
+  // 整数位
+  var intVal = parseInt(intPart||'0', base);
+  if(isNaN(intVal)) return {err:'整数部分格式错误:「'+intPart+'」不是 '+base+' 进制'};
+  // 小数位
+  var fracVal=0;
+  if(fracPart!=null){
+    for(var i=0;i<fracPart.length;i++){
+      var ch = fracPart[i].toUpperCase();
+      var dig;
+      if(base<=10){ dig = ch.charCodeAt(0)-'0'.charCodeAt(0); }
+      else {
+        if(/[0-9]/.test(ch)) dig = parseInt(ch,10);
+        else dig = ch.charCodeAt(0)-'A'.charCodeAt(0)+10;
+      }
+      if(isNaN(dig)||dig>=base) return {err:'小数部分格式错误:「'+ch+'」不是 '+base+' 进制'};
+      fracVal += dig * Math.pow(base, -(i+1));
+    }
+  }
+  return {v:intVal+fracVal, base:base, hasFrac:fracPart!=null};
+}
+
+function convert(){
+  var res = parseInput($inp.value, $base.value);
+  if(res.err){
+    $out.className = 'ansbox err';
+    $out.innerHTML = '⚠ ' + res.err;
+    return;
+  }
+  var n = res.v;
+  if(!isFinite(n) || (n>1e15)){
+    $out.className = 'ansbox err';
+    $out.innerHTML = '⚠ 数值过大,这个速算台只处理 <= 10¹⁵ 的数(考试题不会这么大)。';
+    return;
+  }
+  var dec = (n<0?-n:n).toString();
+  var binStr = (n<0?'-':'') + decToBinStr(Math.floor(Math.abs(n)), 8);
+  // 处理小数
+  if(res.hasFrac){
+    var absN = Math.abs(n);
+    var intPart = Math.floor(absN);
+    var fracPart = absN - intPart;
+    binStr = (n<0?'-':'') + (intPart===0?'0':'') + '.';
+    if(intPart>0){
+      var i2='', t=intPart;
+      while(t>0){i2=(t%2)+i2; t=Math.floor(t/2);}
+      binStr = (n<0?'-':'')+i2+'.';
+    }
+    var fbs=''; var guard=0;
+    var frac=fracPart;
+    while(frac>0 && guard<8){
+      frac*=2;
+      var b=Math.floor(frac);
+      fbs+=b; frac-=b; guard++;
+    }
+    binStr += fbs;
+  }
+  var hexStr = (n<0?'-':'') + decToHexStr(Math.abs(n), 6);
+
+  var baseNames = {2:'二进制',8:'八进制',10:'十进制',16:'十六进制'};
+  var html = ''
+    + '<div style="margin-bottom:10px"><span style="color:var(--muted);font-size:13px">输入识别为:</span> <b>'+baseNames[res.base]+'</b></div>'
+    + '<div style="margin:6px 0"><span class="tag pur">Bin</span> <span style="color:var(--c-bin);font-weight:700;font-size:18px">'+binStr+'</span> <span style="color:var(--muted);font-size:12px">(二进制,2 进制)</span></div>'
+    + '<div style="margin:6px 0"><span class="tag grn">Hex</span> <span style="color:var(--c-hex);font-weight:700;font-size:18px">'+(hexStr.startsWith('-')?'-'+hexStr.slice(1).toUpperCase():hexStr.toUpperCase())+'</span> <span style="color:var(--muted);font-size:12px">(十六进制,16 进制)</span></div>'
+    + '<div style="margin:6px 0"><span class="tag ora">Dec</span> <span style="color:var(--c-dec);font-weight:700;font-size:18px">'+dec+'</span> <span style="color:var(--muted);font-size:12px">(十进制,10 进制)</span></div>'
+    + (res.hasFrac ? '<div style="margin-top:8px;font-size:12.5px;color:var(--muted)">小数部分最多展示 8 位(考试一般不超过 6 位)。</div>' : '');
+  $out.className = 'ansbox ok';
+  $out.innerHTML = html;
+}
+
+$go.addEventListener('click', convert);
+$inp.addEventListener('keydown', function(e){ if(e.key==='Enter') convert(); });
+document.getElementById('ex1').addEventListener('click',function(){ $inp.value='255'; $base.value='10'; convert(); });
+document.getElementById('ex2').addEventListener('click',function(){ $inp.value='0x4D2'; $base.value='auto'; convert(); });
+document.getElementById('ex3').addEventListener('click',function(){ $inp.value='0.625'; $base.value='10'; convert(); });
+// 首次自动跑一个
+convert();
+</script>
+</body>
+</html>
