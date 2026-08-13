@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 3 课 · TCP 四次挥手与为什么 TIME_WAIT 等 2MSL · 网络面试冲刺</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef; --code:#272b33; --codefg:#e6e3d8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  pre{background:var(--code); color:var(--codefg); border-radius:8px; padding:14px 16px; overflow-x:auto;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:13.5px; line-height:1.7; margin:12px 0}
+  pre .c{color:#7d8590; font-style:italic}
+  pre .k{color:#c678dd}
+  pre .f{color:#61afef}
+  pre .y{color:#e0a45e}
+  pre .r{color:#e06c75}
+  pre .g{color:#98c379}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:#fff8ee}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .big{font-size:15px}
+  blockquote{margin:18px 0; padding:14px 18px; border-left:4px solid var(--ink); background:#f2f0ea; border-radius:0 6px 6px 0; font-size:15px}
+  blockquote b{color:var(--accent)}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  .reveal{cursor:pointer; color:var(--accent); font-weight:600; user-select:none; font-size:14px}
+  .hidden{display:none}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">计算机网络面试冲刺 · 传输层 · TCP 连接管理</div>
+  <h1>第 3 课:TCP 四次挥手与 TIME_WAIT 为什么等 2MSL</h1>
+  <div class="sub">一句话定位:挥手要四次是因为<b>全双工</b>;等 2MSL 是<b>数学最坏上界</b>,不是经验值。约 16 分钟。</div>
+</header>
+
+<div class="callout big">
+  这一课只解决<b class="hl">一个数字的来源</b>:为什么 TIME_WAIT 偏偏等 <b>2 倍 MSL</b>,不是 1 倍、不是 3 倍。
+  它不是拍脑袋调出来的经验值,而是把"最后那个 ACK 可能丢"这一最坏情况推到底,算出来的<b>严谨上界</b>。
+  你只要能把这条因果链在面试现场讲一遍,这道题就稳了。
+</div>
+
+<h2>一、直觉类比:握手像"接通电话",挥手像"挂电话"</h2>
+
+<p>先用打电话把两件事的形状记牢,再看为什么次数不一样。</p>
+
+<div class="pv" style="display:flex; gap:14px; flex-wrap:wrap; margin:14px 0">
+  <div style="flex:1; min-width:260px; border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:#fff">
+    <div style="font-weight:700; font-size:16px; margin-bottom:6px; color:var(--accent)">建立连接 · 三次握手</div>
+    <p style="margin:4px 0">你:<b>"喂?"</b>(SYN)</p>
+    <p style="margin:4px 0">对方:<b>"喂,我也在。"</b> —— 把"收到你的喂"和"我也想连"合并成<span class="hl">一句</span>(SYN+ACK)</p>
+    <p style="margin:4px 0">你:<b>"好。"</b>(ACK) → 接通</p>
+    <p class="sub" style="margin-top:6px">三句就够,因为对方<b>本来就想接</b>,两件事能合并。</p>
+  </div>
+  <div style="flex:1; min-width:260px; border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:#fff">
+    <div style="font-weight:700; font-size:16px; margin-bottom:6px; color:var(--warn)">断开连接 · 四次挥手</div>
+    <p style="margin:4px 0">你:<b>"我说完了。"</b>(FIN)</p>
+    <p style="margin:4px 0">对方:<b>"好,我听到了。"</b>(ACK) —— 但<b style="color:var(--warn)">对方可能还有话要说!</b></p>
+    <p style="margin:4px 0">……(对方继续讲)……</p>
+    <p style="margin:4px 0">对方:<b>"我也说完了。"</b>(FIN)</p>
+    <p style="margin:4px 0">你:<b>"好。"</b>(ACK) → 挂断</p>
+    <p class="sub" style="margin-top:6px">四句才够,因为"我收到你的 FIN"和"我也想挂"<span class="hl">分不开</span>。</p>
+  </div>
+</div>
+
+<h2>二、核心问题:为什么挥手要四次、握手只要三次?</h2>
+
+<p>差别只在<b>一句话能不能合并</b>。</p>
+
+<table>
+  <tr><th>阶段</th><th>被动方收到请求后</th><th>能否合并</th><th>结果</th></tr>
+  <tr>
+    <td><b>握手</b>(收到 SYN)</td>
+    <td>要回"同意"+ 自己"也想连"</td>
+    <td><b style="color:var(--ok)">能</b> —— 两件事同时成立</td>
+    <td>合并成 <code>SYN+ACK</code>,三次握手</td>
+  </tr>
+  <tr>
+    <td><b>挥手</b>(收到 FIN)</td>
+    <td>要回"收到"+ 自己"也想断"</td>
+    <td><b style="color:var(--bad)">不能</b> —— 收到 FIN 时往往<b>还有数据要发</b></td>
+    <td>ACK 和自己的 FIN <b>分两个包</b>,四次挥手</td>
+  </tr>
+</table>
+
+<div class="callout warn big">
+  ⚠ <b>一句话记死:</b>握手时服务器把"同意"和"我也想连"<b>合并</b>成 SYN+ACK;
+  挥手时被动方收到 FIN 往往<b>还有数据要发</b>,所以 ACK 和自己的 FIN <b>不能合并</b>,必须分两个包。
+  <b>这就是"四次"的根因。</b>根因不是什么"TCP 设计冗余",是<b>全双工</b>——两个方向各自独立关闭。
+</div>
+
+<h2>三、四次挥手状态机(把时序图画出来)</h2>
+
+<pre>
+主动方(客户端)                              被动方(服务器)
+ESTABLISHED                                 ESTABLISHED
+    │                                           │
+    │ ─────────── <span class="r">FIN</span> ───────────────────────▶ │   <span class="c">① 我说完了(主动关闭)</span>
+<span class="y">FIN_WAIT_1</span>                                <span class="y">CLOSE_WAIT</span>
+    │                                           │
+    │ ◀─────────── <span class="f">ACK</span> ───────────────────────  │   <span class="c">② 好,收到了(但服务器可能还在发数据)</span>
+<span class="y">FIN_WAIT_2</span>   <span class="c">(半关闭:我不发了,还能收)</span>        │
+    │                                           │
+    │ ◀─────────── <span class="r">FIN</span> ───────────────────────  │   <span class="c">③ 我也说完了</span>
+<span class="y">TIME_WAIT</span>                                 <span class="y">LAST_ACK</span>
+    │                                           │
+    │ ─────────── <span class="f">ACK</span> ───────────────────────▶ │   <span class="c">④ 好,再见</span>
+    │                                           │
+   <span class="k">等 2MSL</span>                                  <span class="g">CLOSED</span>
+    │
+<span class="g">CLOSED</span>
+</pre>
+
+<p class="sub">两个方向各自走一遍"FIN → ACK",所以是四次。注意 FIN_WAIT_2 是<b>半关闭</b>状态:主动方不再发数据了,但<b>还能收</b>服务器没发完的数据。</p>
+
+<h2>四、两个最容易考的状态(服务器怕的是哪个?)</h2>
+
+<div class="callout bad big">
+  🚨 <b>CLOSE_WAIT —— 服务器最怕这个</b><br>
+  出现在<b>被动方</b>收到 FIN 之后、应用层调用 <code>close()</code> 之前。
+  也就是说:内核已经知道对方要断了,但<b>你的应用程序还没 close()</b>,连接就一直卡在 CLOSE_WAIT。
+  <b>服务器上出现大量 CLOSE_WAIT = 应用 bug</b>(忘了关连接、句柄泄漏)。看到这个先查代码,不是调内核参数能救的。
+</div>
+
+<div class="callout warn big">
+  ⏱ <b>TIME_WAIT —— 出现在主动关闭方</b><br>
+  主动方发完最后的 ACK(第 ④ 步)后进入,等 <b>2MSL</b> 才真正 CLOSED。
+  它是<b>正常的、主动方才有的</b>状态。<b>注意别和 CLOSE_WAIT 搞反</b>:<br>
+  —— <b>CLOSE_WAIT</b>:被动方、应用没关、<b>异常堆积</b> → 服务器怕。<br>
+  —— <b>TIME_WAIT</b>:主动方、等 2MSL、<b>正常现象</b> → 客户端怕(短连接打爆会耗尽端口)。
+</div>
+
+<div class="callout">
+  <b>记一句话防搞反:</b>"<b>服务器怕 CLOSE_WAIT,不是 TIME_WAIT</b>。" 因为服务器通常是被动方,被动方才会卡在 CLOSE_WAIT。
+</div>
+
+<h2>五、为什么 TIME_WAIT 要等 2MSL —— 两个原因</h2>
+
+<p>先把 MSL 这个词认清楚:<b>MSL(Maximum Segment Lifetime)= 一个 TCP 报文在网络中最长能活多久</b>。超过这个时间,报文一定已经在网络中消亡,不会再被收到。</p>
+
+<div class="callout">
+  <b>原因一:保证最后的 ACK 能送到对方。</b><br>
+  主动方发出的最后一个 ACK(第 ④ 步)<b>可能丢</b>。如果丢了,被动方会<b>超时重发 FIN</b>。
+  主动方必须<b>还活着</b>(还在 TIME_WAIT)才能再回一次 ACK,否则被动方永远收不到确认,卡在 LAST_ACK 重发到死。
+</div>
+
+<div class="callout">
+  <b>原因二:让本次连接的"迷途报文"在网络中消亡。</b><br>
+  本次连接里可能有些走丢的旧报文还在网络里乱飘。如果不等一段时间就立刻用<b>相同的四元组</b>(源IP、源端口、目的IP、目的端口)建新连接,
+  旧报文可能被当成新连接的数据,造成<b>数据错乱</b>。等 2MSL,旧报文一定已死,不污染新连接。
+</div>
+
+<h2>六、2 倍 MSL 的推导(本课的灵魂)</h2>
+
+<div class="callout warn big">
+  这是面试官真正想听的那段。别背结论,<b>把这条时间线讲出来</b>。
+</div>
+
+<pre>
+<span class="c">假设主动方发完最后 ACK 的那一刻开始计时:</span>
+
+t=0      客户端发出最后的 ACK(<span class="k">开始等待</span>)
+         │   <span class="r">⚠ 万一这个 ACK 丢了?</span>
+         │
+t=1 MSL  丢的 ACK 最长飘到这时<b>消亡</b>;(这段时间内)服务器没等到 → <span class="y">超时重发 FIN</span>
+         │
+t=2 MSL  重发的 FIN 最长再花 1 MSL <b>飘回客户端</b>
+         │   → 客户端若还活着,就能再回一次 ACK
+
+<span class="g">结论:2 MSL = (ACK 最长存活 1) + (重发 FIN 最长传输 1)</span>
+</pre>
+
+<div class="callout ok big">
+  🔑 <b>把这个加法拆开记:</b><br>
+  第一段 1 MSL —— <b>给丢的 ACK 留的最长存活时间</b>(万一它丢了,这段时间内服务器会发现并重发 FIN)。<br>
+  第二段 1 MSL —— <b>给重发的 FIN 飘回客户端留的最长传输时间</b>(只要它在这段内到达,客户端还活着,就能再补一个 ACK)。<br>
+  两段加起来,恰好覆盖了"最后 ACK 丢了 + 对方重发 FIN"这一<b>最坏情况</b>。<b>所以取 2 倍。</b>
+</div>
+
+<div class="callout bad big">
+  ⚠ <b>千万别搞混这两件事(用户踩过的坑):</b><br>
+  —— <b>"取 2 倍"</b>是<b>严谨的数学推导</b>(最坏上界),不是经验值。<br>
+  —— <b>MSL 的具体数值</b>(Linux 默认 30 秒,所以 2MSL ≈ 60 秒)<b>才是工程经验</b>。<br>
+  面试官问"2MSL 是怎么来的",答"<b>最坏情况下 ACK 丢失 + FIN 重发各占 1 MSL 推出来的上界</b>",不要答"经验调参值"。
+</div>
+
+<h2>七、三个容易混的词:MSL / TTL / RTT</h2>
+
+<table>
+  <tr><th>名词</th><th>在哪一层</th><th>衡量什么</th><th>大白话</th></tr>
+  <tr>
+    <td><b>MSL</b></td>
+    <td>TCP(传输层)</td>
+    <td>一个 TCP 报文<b>最长存活时间</b></td>
+    <td>报文最多还能活几秒</td>
+  </tr>
+  <tr>
+    <td><b>TTL</b></td>
+    <td>IP(网络层)</td>
+    <td>报文最多能经过的<b>路由器跳数</b></td>
+    <td>还能转手几次(每过一台路由器减 1,减到 0 就丢)</td>
+  </tr>
+  <tr>
+    <td><b>RTT</b></td>
+    <td>端到端</td>
+    <td>一个包<b>往返一趟</b>的实测时延</td>
+    <td>来回一趟实际花多久(动态测量,用于调超时)</td>
+  </tr>
+</table>
+<p class="sub">记法:MSL 管"时间活多久",TTL 管"跳数走多远",RTT 是"实测来回多久"。TIME_WAIT 用的是 MSL,跟 TTL 没有直接换算关系。</p>
+
+<h2>八、轮到你了(4 道选择题)</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq">Q1. 为什么 TCP 挥手要四次,而握手只要三次?</div>
+  <button class="opt" data-ok="0">因为挥手时 ACK 比握手时大,要拆成两个包</button>
+  <button class="opt" data-ok="1">因为被动方收到 FIN 时往往还有数据要发,ACK 和自己的 FIN 不能合并;握手时服务器把"同意"和"我也想连"合并成了 SYN+ACK</button>
+  <button class="opt" data-ok="0">因为挥手时不允许捎带,握手时允许捎带</button>
+  <button class="opt" data-ok="0">因为 TCP 协议规定挥手必须四次,没有特别原因</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq">Q2. <b>TIME_WAIT</b> 状态出现在哪一侧?</div>
+  <button class="opt" data-ok="0">被动关闭方(通常是服务器)</button>
+  <button class="opt" data-ok="1">主动关闭方(发起 FIN 的那一侧)</button>
+  <button class="opt" data-ok="0">两边都会出现</button>
+  <button class="opt" data-ok="0">只有负载均衡器上会出现</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq">Q3. "等 2 倍 MSL" 里的 2 倍是怎么算出来的?</div>
+  <button class="opt" data-ok="0">MSL 的 2 倍是个经验调参值,工程上跑着最稳</button>
+  <button class="opt" data-ok="0">一次挥手两个方向各算 1 MSL,加起来 2 倍</button>
+  <button class="opt" data-ok="1">最坏情况下:丢的 ACK 最长存活 1 MSL,加上对方重发的 FIN 最长再花 1 MSL 飘回来,共 2 MSL</button>
+  <button class="opt" data-ok="0">TCP 报文最大能活 2 MSL,所以等 2 MSL</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq">Q4. 如果 TIME_WAIT 只等 <b>1 MSL</b> 就关闭,最可能出什么问题?</div>
+  <button class="opt" data-ok="0">服务器会卡在 CLOSE_WAIT 不释放</button>
+  <button class="opt" data-ok="1">对方重发的 FIN 飘回来时客户端已经关闭,没法再回 ACK,对方会一直重发 FIN、卡在 LAST_ACK</button>
+  <button class="opt" data-ok="0">客户端会立刻进入 CLOSED,没有任何副作用</button>
+  <button class="opt" data-ok="0">握手会变成三次变两次</button>
+  <div class="fb"></div>
+  <span class="reveal" onclick="document.getElementById('s4').classList.toggle('hidden')">▸ 看推导</span>
+  <div id="s4" class="hidden">
+    <p>1 MSL 只够覆盖"ACK 丢失消亡"这一段。<b>不够</b>对方重发的 FIN 再飘回来(那还要再花最长 1 MSL)。
+    所以客户端可能正好在 t=1 MSL 时关闭,而对方重发的 FIN 在 t=1.x MSL 才到 —— 这时客户端已不在,没人回 ACK,对方只能不断重发 FIN,直到放弃,连接异常终止。</p>
+  </div>
+</div>
+
+<h2>九、面试速记口诀</h2>
+
+<blockquote>
+<b>全双工 → 四次挥手</b>(ACK 和自己的 FIN 不能合并)。<br>
+<b>TIME_WAIT 在主动关闭方</b>,等 <b>2MSL</b>。<br>
+原因两条:① 让<b>旧报文消亡</b>,不污染同四元组的新连接;② <b>保最后那个 ACK</b> 能补上。<br>
+<b>2MSL = ACK 存活 1 + 重发 FIN 飘回 1</b>,是数学最坏上界,不是经验值。
+</blockquote>
+
+<div class="callout warn big">
+  <b>临场一句话版(被追问时直接甩):</b><br>
+  "因为 TCP 是全双工,两个方向各关一次,所以四次;主动方发完最后 ACK 后进 TIME_WAIT,
+  等 2MSL 是为了在最坏情况下 —— 最后那个 ACK 丢了 —— 还能接住对方重发的 FIN 再补一个 ACK,
+  这个 2 是 ACK 最长存活 1 MSL 加 FIN 重发最长传输 1 MSL 推出来的上界。"
+</div>
+
+<h2>十、下一步</h2>
+
+<div class="callout ok">
+  回到对话里,先<b>开口复述</b>这段推导(别只看):<br>
+  ① <b>挥手为什么四次</b>(和握手三次对比,关键词:全双工、不能合并)。<br>
+  ② <b>TIME_WAIT 在哪一侧、为什么等 2MSL</b>(把"ACK 丢 + FIN 重发"的时间线讲一遍)。<br>
+  ③ <b>服务器怕的是哪个状态</b>(CLOSE_WAIT,不是 TIME_WAIT,为什么)。
+</div>
+
+<p class="sub">
+  本课是网络系列的第三节。复习链路:<br>
+  → <a href="0001-http-evolution.html">第 1 课:HTTP/1.1 → 2 → 3 演进(各代解决的队头阻塞)</a><br>
+  → <a href="0002-https-tls-handshake.html">第 2 课:HTTPS 完整握手与 TLS 1.3 为什么砍到 1-RTT</a><br>
+  → <b>综合验证题(回去想):</b>用浏览器<b>首次</b>访问一个 <code>HTTP/1.1 + TLS 1.2</code> 的网站,
+  从开始到收到第一个有效字节,要走<b>几个 RTT</b>?(答案:<b>4 个</b> —— TCP 握手 1 + TLS 1.2 握手 2 + HTTP 请求往返 1。
+  想清楚这 4 个 RTT 各自对应哪一节课讲的内容,就说明三节课串起来了。)
+</p>
+
+<footer>
+  <p>📌 <b>本课核心:</b>"2" 不是拍脑袋,是<b>最坏情况推到底</b>。下次被问 2MSL,讲时间线,别讲结论。</p>
+  <p>🙋 卡在状态机或推导上<b>直接问我</b>,别硬背。</p>
+  <p>来源:谢希仁《计算机网络》第 8 版 · TCP 连接管理章节;RFC 793 §3.5(Connection Establishment / Termination)。</p>
+</footer>
+
+</div>
+<script>
+var FB={
+  q1:{good:'对!这就是"四次"的根因:全双工下,被动方收到 FIN 时往往还有数据要发,ACK 和自己的 FIN 不能合并成同一个包;而握手时服务器把"同意+我也想连"合并成了 SYN+ACK,所以只要三次。','bad':'关键在"能不能合并"。握手时服务器把"同意"和"我也想连"合并成 SYN+ACK,所以三次;挥手时被动方收到 FIN 往往还有数据要发,ACK 和自己的 FIN 不能合并,必须分两个包,所以四次。根因是全双工。'},
+  q2:{good:'对!TIME_WAIT 出现在主动关闭方(发起第一个 FIN 的那一侧),是正常状态。被动方卡的是 CLOSE_WAIT。','bad':'TIME_WAIT 在"主动关闭方"——也就是发出第一个 FIN 的那一侧。被动方收到 FIN 后卡的是 CLOSE_WAIT(那是应用没 close 的异常)。别搞反。'},
+  q3:{good:'完美。2 MSL = 丢的 ACK 最长存活 1 MSL + 对方重发的 FIN 最长再花 1 MSL 飘回来。是数学最坏上界,不是经验值。','bad':'2 MSL 是这样推出来的:万一最后的 ACK 丢了,它最长存活 1 MSL 消亡(这段时间服务器会发现并重发 FIN),重发的 FIN 最长再花 1 MSL 飘回客户端——加起来 2 MSL 才能保证客户端还活着、能补 ACK。这是最坏上界,不是经验调参。'},
+  q4:{good:'对!1 MSL 只够 ACK 消亡那一段,不够重发的 FIN 再飘回客户端。客户端若已关闭,对方就再也收不到 ACK,只能不断重发 FIN 直到放弃,连接异常终止。','bad':'1 MSL 只覆盖"丢的 ACK 消亡"这一段,不够对方重发的 FIN 再飘回来(还要再花最长 1 MSL)。客户端可能正好关掉,对方重发的 FIN 到了没人回 ACK,卡在 LAST_ACK 不断重发。所以要等 2 MSL。'}
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>
