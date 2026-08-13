@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 1 课 · HTTP/1.1 → 2 → 3 演进：每一代治一种队头阻塞 · 计算机网络面试</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef; --warnbg:#fff8ee;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:22px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top}
+  th{background:#eaf1f6; font-weight:600; text-align:center}
+  tr:nth-child(even) td{background:#f7fafc}
+  td.center{text-align:center}
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft); padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:var(--warnbg)}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  blockquote{margin:18px 0; padding:14px 18px; border-left:4px solid var(--ink); background:#fff; font-size:15.5px}
+  blockquote .k{color:var(--accent); font-weight:600}
+  .meta{color:var(--muted); font-size:13px; font-style:italic}
+  .arrow{color:var(--accent); font-weight:700}
+  /* quiz */
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .quiz .qq .tag{display:inline-block; background:var(--accent); color:#fff; font-size:12px; font-weight:700;
+    padding:1px 7px; border-radius:3px; margin-right:6px; vertical-align:middle}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px; font-family:inherit;
+    transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent)}
+  footer .nx{display:inline-block; margin:6px 12px 6px 0; padding:8px 14px; border:1px solid var(--accent);
+    border-radius:6px; background:#fff; color:var(--accent); text-decoration:none; font-weight:600}
+  footer .nx:hover{background:var(--soft)}
+  @media(max-width:520px){.wrap{padding:28px 16px 70px} h1{font-size:22px} h2{font-size:18px} table{font-size:13px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">计算机网络面试 · HTTP 三件套 ①</div>
+  <h1>第 1 课：HTTP/1.1 → HTTP/2 → HTTP/3 演进</h1>
+  <div class="sub">目标：这节课结束，你能按时间顺序讲清每一代治好了哪种<b>队头阻塞</b>、又留下了什么新坑。约 18 分钟。</div>
+</header>
+
+<div class="callout">
+  <b>一句话定位：</b>HTTP 每一代都在治<b class="hl">队头阻塞</b>（Head-of-Line Blocking，HOL），只是治的<b>层级不同</b>——
+  应用层 <span class="arrow">→</span> TCP 层 <span class="arrow">→</span> 彻底根治。<br>
+  能讲清这条因果链，是面试里 HTTP 这块拿分的关键。
+</div>
+
+<h2>一、直觉类比（一个故事贯穿三代）</h2>
+<p>把<b>TCP 连接</b>想成超市的<b>收银通道</b>，把<b>请求/响应</b>想成<b>顾客</b>。三代 HTTP 就是这家超市收银区的三次改造：</p>
+
+<div class="callout warn">
+  <b>① HTTP/1.1 —— 只有一个收银台，一人买一车</b><br>
+  前面那位顾客买了一整购物车东西（= 一个大响应体正在传），你只买一瓶水（= 一个很小的请求），
+  也得在后面<b>干等他结完账</b>。<span class="meta">这就是「应用层队头阻塞」。</span>
+</div>
+
+<div class="callout">
+  <b>② HTTP/2 —— 收银台改成<b>传送带</b>，商品拆成贴编号的小盒子</b><br>
+  每个顾客的商品不再一整车上货，而是被打包成一连串<b>贴了编号（stream id）的小盒子</b>，
+  所有顾客的盒子<b>一起丢上传送带、交替发送</b>。谁的盒子先到谁就先拼装，不用等别人。<br>
+  <span class="meta">这就是「多路复用」。但注意：传送带只有<b>一条</b>。</span>
+</div>
+
+<div class="callout ok">
+  <b>③ HTTP/3 —— 把<b>单一传送带拆成一排独立快递通道</b></b><br>
+  每个顾客走自己的独立通道。A 通道上有个盒子掉地上了（= 丢包），
+  <b>只影响 A 通道</b>，B、C、D 通道照传不误。<br>
+  <span class="meta">这就是 QUIC：流与流之间互不拖累。</span>
+</div>
+
+<p class="sub">记住这个故事，下面每一节技术细节都能对应回这里。</p>
+
+
+<h2>二、HTTP/1.1：应用层队头阻塞</h2>
+
+<p>HTTP/1.1 默认每个 TCP 连接在同一时刻<b>只能服务一个请求</b>——前一个响应没传完，下一个请求就不能开始。这就是<b>应用层队头阻塞</b>：排在队头的请求一旦慢，后面全堵。</p>
+
+<h3>怎么硬扛的？</h3>
+<ul>
+  <li><b>浏览器对同域名开 6 条并发 TCP 连接</b>。6 条线各跑一个请求，把堵车摊薄。这是<b>治标</b>：连接开多了，每个都要 TCP 握手 + TLS 握手，开销大，而且<b>每条连接内部该堵还是堵</b>。</li>
+  <li><code>keep-alive</code>：让一条 TCP 连接可以连续发多个请求，免去重复握手。<b>但它只是打补丁</b>——这些请求<b>仍然得一个一个串行</b>，队头阻塞一点没少。</li>
+</ul>
+
+<div class="callout warn">
+  <b>面试官爱追问：管道化（pipelining）为什么没救成？</b><br>
+  HTTP/1.1 有个 pipeline 特性，允许「连发多个请求」。但它<b>要求响应必须按请求顺序返回</b>——
+  第一个响应慢，后面的就算算好了也得排队等。队头阻塞没解决，还引入了新问题，所以<b>现实中几乎没人开</b>。
+</div>
+
+
+<h2>二、HTTP/2：二进制分帧 + 多路复用</h2>
+
+<p>HTTP/2 不再是纯文本协议，而是把每个请求/响应拆成一个个<b>二进制帧（frame）</b>，每个帧带一个 <code>stream id</code> 标明它属于哪个流。多个流的帧<b>在同一条 TCP 连接里交替传输</b>，到了对端再按 id 重新拼装。</p>
+
+<p>这就是<b class="hl">多路复用（multiplexing）</b>：<b>一条 TCP 连接</b>同时承载无数个并发请求，互不等待。</p>
+
+<div class="callout ok">
+  <b>解决了什么：</b>
+  <ul style="margin:6px 0 0">
+    <li><b>连接数 6 → 1</b>。一个域名只用一条 TCP 连接，省掉了 5 次重复握手。</li>
+    <li><b>应用层队头阻塞被治好</b>：大请求和小请求的帧交替上链路，小请求不用再等大请求传完。</li>
+    <li><b>HPACK</b>：头部压缩，重复的 <code>Host</code>、<code>User-Agent</code> 等只传一次索引，省带宽。</li>
+  </ul>
+</div>
+
+<div class="callout warn">
+  <b>顺带一提：Server Push 已废弃。</b>HTTP/2 曾允许服务器主动推送资源（如 CSS/JS），但实践中
+  <b>客户端缓存难以配合、容易推多余内容</b>，主流浏览器已移除支持。知道它存在过即可，别再当优点讲。
+</div>
+
+
+<h2>三、HTTP/2 的遗留坑：TCP 层队头阻塞</h2>
+
+<p>多路复用治好了<b>应用层</b>的队头阻塞，却<b>把所有流塞进了同一条 TCP 连接</b>——这埋下了新的雷：</p>
+
+<div class="callout bad">
+  <b>TCP 层队头阻塞（TCP-layer HOL）：</b><br>
+  TCP 的契约是<b>「字节流必须按序交付给应用」</b>。HTTP/2 的所有 stream 共用这一条 TCP，
+  一旦第 <code>N</code> 个字节丢了，TCP 即使已经收到了 <code>N+1, N+2...</code>，
+  也<b>会扣住这些后续字节不交给上层</b>，直到 <code>N</code> 重传成功。<br><br>
+  于是：<b>一个丢包，卡住整条连接里所有流</b>——包括那些根本没丢包的流。多路复用越是把流量集中到一条连接，
+  这个放大效应就越明显。
+</div>
+
+<p class="sub">类比回传送带：传送带卡了一下（丢包），所有顾客的盒子全停，因为传送带要求<b>严格按顺序</b>出货。</p>
+
+
+<h2>四、HTTP/3：换 QUIC，流独立可靠</h2>
+
+<p>既然坑出在 TCP 本身，HTTP/3 的解法很激进：<b>不用 TCP 了</b>，改用基于 <b>UDP</b> 的 <b class="hl">QUIC</b> 协议。</p>
+
+<h3>QUIC 的三把刀</h3>
+<ul>
+  <li><b>流独立可靠（核心）</b>：QUIC 在一条连接里维护多个 stream，<b>每个 stream 自己管自己的序号和重传</b>。stream A 丢包，只重传 A 的数据，<b>B、C 照常按序交付给应用</b>。<b>TCP 层队头阻塞被根治。</b></li>
+  <li><b>握手 + 加密合并，省 RTT</b>：QUIC 把「传输层握手」和「TLS 加密握手」<b>揉在一起</b>。首次连接 <b>1 RTT</b> 完成（TLS 1.3 over TCP 通常要 1 RTT + TCP 的 1 RTT = 2 RTT）；对曾连过的服务器还能 <b>0-RTT</b> 直接带数据发出去。</li>
+  <li><b>连接迁移</b>：连接的标识不再是「IP + 端口」，而是一个 <code>Connection ID</code>。你从 WiFi 切到 4G，IP 变了，<b>连接不断</b>，视频不会断流。</li>
+</ul>
+
+<div class="callout bad">
+  <b>澄清最大误区（必考）：</b>HTTP/3 用 UDP <b>≠ 不可靠</b>。<br>
+  原生 UDP 确实不管丢包——但 <b>QUIC 在 UDP 之上自己实现了一套可靠传输</b>（序号、确认、重传、拥塞控制）。
+  说白了：<b>把 TCP 的可靠机制搬到应用层重做了一遍，但做成了「按流独立」，不再一刀切卡所有数据。</b><br>
+  所以「HTTP/3 用 UDP 会不会丢数据」——<b>不会，QUIC 保可靠</b>。
+</div>
+
+<div class="callout">
+  <b>面试加分点：首次访问要几个 RTT？（推导，别背结论）</b><br>
+  从「发起连接」到「拿到首字节」，从第一个包开始数：
+  <ul style="margin:6px 0 0">
+    <li><b>HTTP/2（TCP + TLS 1.2）</b>：TCP 握手 1 RTT + TLS 1.2 握手 2 RTT + HTTP 请求/响应 1 RTT = <b>4 RTT</b>。</li>
+    <li><b>HTTP/3（QUIC）</b>：握手与 TLS 合并 <b>1 RTT</b> + HTTP 请求/响应 1 RTT = <b>2 RTT</b>（0-RTT 模式甚至能 1 RTT 带数据返回）。</li>
+  </ul>
+  这就是为什么 QUIC 的握手合并对移动端弱网价值巨大。
+</div>
+
+
+<h2>五、三代对比小表格</h2>
+
+<table>
+  <tr>
+    <th>版本</th>
+    <th>核心痛点</th>
+    <th>解法</th>
+    <th>遗留问题</th>
+  </tr>
+  <tr>
+    <td class="center"><b>HTTP/1.1</b></td>
+    <td><b>应用层队头阻塞</b>：一个慢请求堵住同连接后续请求</td>
+    <td>浏览器对同域名开 <b>6 条并发 TCP</b> 连接硬扛；<code>keep-alive</code> 复用连接（打补丁，仍串行）</td>
+    <td>6 条仍不够；连接内串行；头部明文重复</td>
+  </tr>
+  <tr>
+    <td class="center"><b>HTTP/2</b></td>
+    <td>应用层 HOL 没根治干净 + 连接数浪费</td>
+    <td><b>二进制分帧 + 多路复用</b>：一条 TCP 跑多个 stream，连接数 <b>6→1</b>；HPACK 头部压缩</td>
+    <td><b>TCP 层队头阻塞</b>：一个丢包卡死整条连接所有流</td>
+  </tr>
+  <tr>
+    <td class="center"><b>HTTP/3</b></td>
+    <td>TCP 层队头阻塞（HTTP/2 的遗留坑）</td>
+    <td>换 <b>QUIC（UDP）</b>：流独立可靠；握手 + TLS 合并省 RTT；连接迁移</td>
+    <td>UDP 在部分企业防火墙/弱网被阻，实践中会 fall back 回 TCP</td>
+  </tr>
+</table>
+
+<div class="callout ok">
+  <b>看这张表的正确姿势：</b>每一行的「遗留问题」就是下一行要治的「核心痛点」。<br>
+  因果链是<b>连续</b>的：1.1 的痛点催生 2 的解法，2 的解法又催生 3 的解法。面试时把这层<b>递进关系</b>讲出来，比罗列特性值钱得多。
+</div>
+
+
+<h2>六、自测题（先自己做，再点选项看解释）</h2>
+
+<div class="quiz" id="q1">
+  <div class="qq"><span class="tag">Q1</span>假设浏览器对某域名<b>只开了 1 条 TCP 连接</b>（HTTP/1.1）。你先请求一个大视频文件，紧接着请求一个极小的 favicon。会发生什么？</div>
+  <button class="opt" data-ok="0">两个请求同时返回，互不影响</button>
+  <button class="opt" data-ok="1">favicon 必须等大视频传完，才能开始返回</button>
+  <button class="opt" data-ok="0">favicon 会先返回，因为它体积小、传得快</button>
+  <button class="opt" data-ok="0">浏览器会自动拒绝第二个请求直到第一个完成</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq"><span class="tag">Q2</span>用上 HTTP/2 后，浏览器要从一个域名拿 <b>50 张图片</b>，需要开几条 TCP 连接？</div>
+  <button class="opt" data-ok="0">50 条，每张图一条连接</button>
+  <button class="opt" data-ok="0">6 条，和 HTTP/1.1 的并发上限一样</button>
+  <button class="opt" data-ok="0">取决于图片总大小</button>
+  <button class="opt" data-ok="1">1 条就够，多个流在一条连接里多路复用</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq"><span class="tag">Q3</span>HTTP/2 已经多路复用了，为什么<b>还会</b>发生队头阻塞？</div>
+  <button class="opt" data-ok="0">因为 HTTP/2 根本不支持并发请求</button>
+  <button class="opt" data-ok="1">因为所有流共用一条 TCP，TCP 强制字节按序交付，一个丢包会卡住整条连接所有流</button>
+  <button class="opt" data-ok="0">因为浏览器把每个流限制为最多 6 个</button>
+  <button class="opt" data-ok="0">因为 HPACK 压缩出错了</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq"><span class="tag">Q4</span>HTTP/3 基于 UDP。原生 UDP 不可靠，那 HTTP/3 怎么保证数据不丢？</div>
+  <button class="opt" data-ok="0">HTTP/3 本身不保证可靠，丢了就丢了</button>
+  <button class="opt" data-ok="0">由上层应用（如浏览器）自己写重传逻辑</button>
+  <button class="opt" data-ok="0">不可靠时自动 fall back 到 TCP 重传</button>
+  <button class="opt" data-ok="1">QUIC 协议在 UDP 之上自己实现了可靠传输（序号、确认、重传）</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q5">
+  <div class="qq"><span class="tag">Q5 · 反向题</span>关于 HTTP 演进，下列说法<b>错误</b>的是？（先圈出题干关键词再读选项）</div>
+  <button class="opt" data-ok="0">HTTP/1.1 的 keep-alive 只是复用 TCP 连接的补丁，没真正解决队头阻塞</button>
+  <button class="opt" data-ok="0">HTTP/2 用一条 TCP 连接服务多个请求，连接数从 6 降到 1</button>
+  <button class="opt" data-ok="1">HTTP/2 彻底消除了所有层级的队头阻塞</button>
+  <button class="opt" data-ok="0">HTTP/3 的 QUIC 让每个流独立可靠，丢包只影响出错的那个流</button>
+  <div class="fb"></div>
+</div>
+
+
+<h2>七、面试速记口诀</h2>
+
+<blockquote>
+  <span class="k">1.1 应用层 HOL</span> —— 一个慢请求堵住后续；浏览器多开 6 条 TCP 连接硬扛。<br><br>
+  <span class="arrow">→</span> <span class="k">2 多路复用</span>治好了<b>应用层</b> HOL，却因所有流共跑一条 TCP，引入了 <span class="k">TCP 层 HOL</span>（一个丢包卡死全部流）。<br><br>
+  <span class="arrow">→</span> <span class="k">3 换 QUIC（UDP）</span>，流独立可靠，握手 + TLS 合并省 RTT，<b>根治</b>。
+</blockquote>
+
+<p class="sub">一句话版：每一代都在治队头阻塞，只是从「应用层」下探到「TCP 层」，最后换传输协议彻底根治。</p>
+
+
+<h2>八、通关条件</h2>
+<div class="callout ok">
+  <b>请用你自己的话，回到对话里讲一遍这条因果链：</b><br>
+  「HTTP/2 解决了 HTTP/1.1 的什么问题？为什么 HTTP/2 自己又会引入新的队头阻塞？HTTP/3 是怎么治的？」<br>
+  能讲清这条链，这一课才算过——然后我们进 HTTPS 握手。
+</div>
+
+
+<footer>
+  <p><b>下一步：</b></p>
+  <p>
+    <a class="nx" href="0002-https-tls-handshake.html">第 2 课 · HTTPS 与 TLS 握手 →</a>
+    <a class="nx" href="0003-tcp-fin-2msl.html">第 3 课 · TCP 四次挥手与 2MSL →</a>
+  </p>
+  <p class="sub">这两节是 HTTP 的左邻右舍：HTTPS 解决「传输安全」，TCP 挥手解释「连接怎么干净地断开」。
+  三节连起来，就是面试里 HTTP/HTTPS/TCP 三件套的主干。</p>
+  <p class="sub">🙋 任何不懂的地方，直接在对话里追问——可以要求 ELI5 / ELI14 / ELII 任意一种讲法。</p>
+</footer>
+
+</div>
+
+<script>
+var FB={
+  q1:{
+    good:'对!这就是「应用层队头阻塞」的典型现象:同一条连接里,前面的请求没传完,后面的小请求就得干等——哪怕它本可以瞬间完成。',
+    bad:'错。HTTP/1.1 一条连接同一时刻只服务一个请求,前一个大响应没传完,后面的小请求连开始都开始不了。这正是队头阻塞的定义。'
+  },
+  q2:{
+    good:'对!HTTP/2 的多路复用让一条 TCP 连接同时跑无数个流。50 张图片在同一条连接里交替传输,无需再开多条连接。',
+    bad:'错。HTTP/2 的核心价值就是「一条连接服务多个请求」(多路复用)。50 张图共享同一条 TCP 连接里的 50 个 stream 即可,连接数从 6 降到 1。'
+  },
+  q3:{
+    good:'对!问题不在 HTTP/2 本身,而在它底下的 TCP。所有 stream 共用一条 TCP,TCP 强制字节按序交付,一个丢包就会让已经到达的后续字节全部被扣住,整条连接的所有流都卡住。这叫 TCP 层队头阻塞。',
+    bad:'错。HTTP/2 应用层是支持并发的。问题在底下:所有流共用一条 TCP 连接,TCP 要求字节严格按序交付,一个丢包就会卡住整条连接上所有流——这是 TCP 层队头阻塞。'
+  },
+  q4:{
+    good:'对!QUIC 不是「裸 UDP」,而是在 UDP 之上自己实现了可靠传输(序号、确认、重传、拥塞控制)。所以 HTTP/3 用 UDP 不等于会丢数据。',
+    bad:'错。原生 UDP 确实不可靠,但 QUIC 在 UDP 之上自己实现了可靠传输机制(序号+确认+重传)。HTTP/3 的可靠性由 QUIC 保证,不需要应用层操心,更不会 fall back 到 TCP。'
+  },
+  q5:{
+    good:'对!这一条是错的:HTTP/2 只治好了「应用层」队头阻塞,却因为所有流共跑一条 TCP 而引入了「TCP 层」队头阻塞。所以「彻底消除所有层级」是错的。审题成功!',
+    bad:'注意题干问的是「错误」的那一项。正确描述是 A/B/D,错误的是「HTTP/2 彻底消除了所有层级的队头阻塞」——它没治 TCP 层 HOL。先圈题干关键词再读选项,是这类反向题的保命习惯。'
+  }
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>

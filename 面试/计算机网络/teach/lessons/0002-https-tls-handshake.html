@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>第 2 课 · HTTPS 完整握手 + TLS 1.3 精简 · 计算机网络面试</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --muted:#666; --line:#e5e5e5; --bg:#fafaf7;
+    --accent:#1f5d8a; --soft:#eef5fb; --ok:#1f6f43; --warn:#a85d00;
+    --bad:#b3261e; --okbg:#f1f9f4; --badbg:#fdf0ef; --warnbg:#fff8ee;
+    --note:#5b3a8a; --notebg:#f4f0fb;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    color:var(--ink); background:var(--bg); line-height:1.75; font-size:16px}
+  .wrap{max-width:820px; margin:0 auto; padding:40px 28px 90px}
+  header.h{border-bottom:2px solid var(--ink); padding-bottom:14px; margin-bottom:8px}
+  .eyebrow{color:var(--accent); font-weight:600; letter-spacing:.05em; font-size:13px}
+  h1{font-size:26px; margin:6px 0 8px}
+  .sub{color:var(--muted); font-size:14px}
+  h2{font-size:20px; margin:36px 0 12px; border-left:4px solid var(--accent); padding-left:10px}
+  h3{font-size:16px; margin:20px 0 8px; color:var(--accent)}
+  p{margin:10px 0}
+  ul,ol{padding-left:22px} li{margin:6px 0}
+  code{font-family:"SF Mono",Menlo,Consolas,monospace; font-size:14px; background:#e9eef2; padding:1px 5px; border-radius:3px}
+  b.hl, strong.hl{background:#fff3cd; padding:0 3px; border-radius:3px}
+  table{border-collapse:collapse; width:100%; margin:14px 0; font-size:14px}
+  th,td{border:1px solid var(--line); padding:8px 10px; text-align:center; vertical-align:middle}
+  th{background:#eaf1f6; font-weight:600}
+  td.l, th.l{text-align:left}
+  pre.seq{background:#0f1f2e; color:#dce8f3; font-family:"SF Mono",Menlo,Consolas,monospace;
+    font-size:13px; line-height:1.55; padding:14px 16px; border-radius:6px; overflow-x:auto; margin:14px 0}
+  pre.seq .c{color:#7fb4e6}      /* 注释 */
+  pre.seq .r{color:#e8a87c}      /* RTT 标记 */
+  pre.seq .k{color:#9be38b; font-weight:600}  /* 关键消息 */
+  pre.seq .a{color:#f4d35e}      /* 算法/密钥相关 */
+  .callout{border:1px solid var(--line); border-left:4px solid var(--accent); background:var(--soft);
+    padding:12px 16px; border-radius:4px; margin:16px 0}
+  .callout.warn{border-left-color:var(--warn); background:var(--warnbg)}
+  .callout.ok{border-left-color:var(--ok); background:var(--okbg)}
+  .callout.bad{border-left-color:var(--bad); background:var(--badbg)}
+  .callout.note{border-left-color:var(--note); background:var(--notebg)}
+  .callout.q{border-left-color:var(--warn); background:var(--warnbg)}
+  .big{font-size:15.5px}
+  blockquote.mnemonic{
+    margin:18px 0; padding:14px 18px; border-left:4px solid var(--ink);
+    background:#fff; font-size:15.5px; color:#333; font-style:normal
+  }
+  blockquote.mnemonic b{color:var(--accent)}
+  .quiz{background:#fff; border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin:18px 0}
+  .quiz .qq{font-weight:600; margin-bottom:10px}
+  .quiz .qq .tag{display:inline-block; background:var(--accent); color:#fff; font-size:12px;
+    padding:1px 7px; border-radius:10px; margin-right:6px; font-weight:600; vertical-align:middle}
+  .opt{display:block; width:100%; text-align:left; border:1px solid var(--line); background:#fff;
+    border-radius:6px; padding:10px 13px; margin:7px 0; cursor:pointer; font-size:15px;
+    font-family:inherit; transition:.12s}
+  .opt:hover{border-color:var(--accent); background:var(--soft)}
+  .opt.correct{border-color:var(--ok); background:var(--okbg); font-weight:600}
+  .opt.wrong{border-color:var(--bad); background:var(--badbg)}
+  .fb{display:none; margin-top:10px; padding:10px 13px; border-radius:6px; font-size:14px}
+  .fb.show{display:block}
+  .fb.good{background:var(--okbg); border:1px solid var(--ok)}
+  .fb.bad{background:var(--badbg); border:1px solid var(--bad)}
+  footer{margin-top:50px; border-top:1px solid var(--line); padding-top:16px; font-size:13.5px; color:var(--muted)}
+  footer a{color:var(--accent); text-decoration:none}
+  footer a:hover{text-decoration:underline}
+  .pill{display:inline-block; font-size:12px; padding:1px 7px; border-radius:10px;
+    background:var(--soft); color:var(--accent); border:1px solid #cfe0ee; font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="h">
+  <div class="eyebrow">计算机网络 · 安全 · 第 2 课</div>
+  <h1>HTTPS 完整握手 &amp; TLS 1.3 为什么砍到 1 RTT</h1>
+  <div class="sub">
+    <strong>HTTPS = HTTP + TLS</strong>。核心一句话:<strong class="hl">混合加密</strong>——
+    非对称商量密钥,对称传数据。约 20 分钟。
+  </div>
+</header>
+
+<!-- ============ 2. 直觉类比 ============ -->
+<h2>一、先建直觉:明信片 vs 加密信封</h2>
+<table>
+  <tr><th style="width:50%">HTTP(明信片)</th><th>HTTPS(加密信封)</th></tr>
+  <tr>
+    <td class="l">
+      你的请求/响应是<b>明文写在明信片上</b>。每个经手人——路由器、运营商、咖啡店 WiFi、中间黑客——
+      <b>都能看,也都能悄悄改</b>(换成假页面、插广告、劫持跳转)。
+    </td>
+    <td class="l">
+      给明信片套一个<b>只有收件人能拆的加密信封</b>。经手人只能看到"有封信寄给谁",
+      <b>看不到内容,改一个字收件人也能发现</b>(有完整性校验)。
+    </td>
+  </tr>
+</table>
+<div class="callout">
+  HTTPS 干两件事:<b>加密(看不到)+ 完整性(改不了)+ 身份认证(不是假的)</b>。
+  前两个靠 TLS 的密码学,第三个靠<strong class="hl">数字证书</strong>。
+</div>
+
+<!-- ============ 3. 为什么必须混合加密 ============ -->
+<h2>二、为什么必须"混合"加密?</h2>
+<p>这是整堂课的"根问题"。两种加密各有硬伤,谁单独上都崩:</p>
+<table>
+  <tr>
+    <th class="l">维度</th>
+    <th>对称加密<br><span class="sub">(AES)</span></th>
+    <th>非对称加密<br><span class="sub">(RSA / ECDHE)</span></th>
+  </tr>
+  <tr>
+    <td class="l"><b>密钥</b></td>
+    <td>双方<b>同一个</b>密钥</td>
+    <td>公钥/私钥<b>一对</b></td>
+  </tr>
+  <tr>
+    <td class="l"><b>速度</b></td>
+    <td><b style="color:var(--ok)">极快</b>(硬件加速,适合大流量)</td>
+    <td><b style="color:var(--bad)">慢 100~1000 倍</b>(大数运算)</td>
+  </tr>
+  <tr>
+    <td class="l"><b>硬伤</b></td>
+    <td><b style="color:var(--bad)">密钥怎么安全传过去?</b><br>明文传等于没加密</td>
+    <td><b style="color:var(--bad)">太慢</b>,传一个网页<br>能把 CPU 跑满</td>
+  </tr>
+</table>
+<div class="callout ok big">
+  🎯 <b>解法(混合加密):</b>
+  <ul style="margin:6px 0 0">
+    <li><b>非对称加密</b>只干一件小事——<strong class="hl">商量出一个会话密钥</strong>(对称密钥)。</li>
+    <li><b>对称加密</b>用这个密钥,加解密后面<b>所有真实数据</b>。</li>
+    <li>慢的非对称只用一次(握手),快的对称干重活(传数据)。</li>
+  </ul>
+</div>
+
+<!-- ============ 4. 数字证书 ============ -->
+<h2>三、数字证书:验身份,不是加密数据</h2>
+<div class="callout warn big">
+  ⚠️ <b>最大误区(面试常坑):证书不是用来加密数据的。</b>
+  证书的作用是<strong class="hl">证明"这个公钥真的是这个网站的"</strong>,也就是<b>防冒充</b>。
+</div>
+<p><b>没有证书会怎样?</b> 你连 <code>taobao.com</code>,黑客中间插一脚,把自己的公钥塞给你,
+你还以为这是淘宝的公钥,用它加密 → 黑客用自己私钥解开。这叫<b>中间人攻击(MITM)</b>。</p>
+
+<table>
+  <tr><th class="l" style="width:34%">角色</th><th class="l">在 HTTPS 里的类比</th></tr>
+  <tr>
+    <td class="l"><b>CA(证书颁发机构)</b></td>
+    <td class="l"><b>公证处</b>。淘宝把"我是 taobao.com、我的公钥是 XXX"提交给 CA,CA 核验身份后用自己的<b>私钥</b>给这段信息<b>签名</b>,签完的就是证书。</td>
+  </tr>
+  <tr>
+    <td class="l"><b>证书</b></td>
+    <td class="l">一个经公证处盖章的"身份证 + 公钥"组合。<b>内容是明文,但盖了 CA 的防伪章(签名)</b>。</td>
+  </tr>
+  <tr>
+    <td class="l"><b>浏览器内置 CA 公钥</b></td>
+    <td class="l">操作系统/浏览器出厂自带一批<b>根 CA 的公钥</b>。这是"信任的起点"——你信的不是网站,是<b>预装的 CA</b>。</td>
+  </tr>
+</table>
+<div class="callout note">
+  <b>验签流程(简化):</b> 服务器发来证书 → 浏览器用<b>内置的 CA 公钥</b>验证书上的签名 →
+  签名有效 → 证明这证书<b>真是 CA 盖的</b>,里面的公钥<b>真是这网站的</b> → 才敢用它。
+</div>
+
+<!-- ============ 5. TLS 1.2 完整握手 ============ -->
+<h2>四、TLS 1.2 完整握手(2 个 RTT)</h2>
+<p>下面是时序图。<span class="pill">1 个 RTT = 一次一来一回</span>。握手要让双方<b>算出同一个会话密钥</b>才能开聊。</p>
+<pre class="seq">          <span class="r">┌─────────── RTT 1(谈判 + 服务器亮身份)──────────┐</span>
+Client ── <span class="k">ClientHello</span> ──────────────────>  Server    <span class="c">// 我支持这些算法 + 随机数A</span>
+Client <── <span class="k">ServerHello</span> ──────────────────   Server    <span class="c">// 选定算法 + 随机数B</span>
+       <── <span class="a">证书(服务器公钥,CA 签名)</span> ──   Server    <span class="c">// 先亮身份证</span>
+       <── <span class="a">ServerKeyExchange</span> ─────────   Server    <span class="c">// DHE:额外发 DH 参数</span>
+       <── ServerHelloDone ───────────   Server
+          <span class="r">┌─────────── RTT 2(客户端交钥匙 + 收尾)──────────┐</span>
+Client ── <span class="a">ClientKeyExchange</span> ───────────>  Server    <span class="c">// RSA:用公钥加密预主密钥</span>
+       ──                                   <span class="c">// DHE:发自己的 DH 公钥</span>
+Client ── ChangeCipherSpec ─────────>  Server
+Client ── <span class="k">Finished</span>(<b>加密</b>) ──────────>  Server
+Client <── ChangeCipherSpec ─────────   Server
+       <── <span class="k">Finished</span>(<b>加密</b>) ───────────   Server
+          <span class="c">// 至此双方用 随机数A + 随机数B + 预主密钥 算出同一个会话密钥</span></pre>
+
+<div class="callout note">
+  <b>会话密钥怎么"凑"出来的?</b> 双方各持三样东西——<b>随机数 A(客户端)、随机数 B(服务器)、预主密钥</b>。
+  前两个握手时明文互发(防重放),第三个靠密钥交换保密传(RSA 加密 或 DHE)。
+  三者喂进同一段 KDF → <b>双方算出完全相同的会话密钥</b>。这段叫"密钥导出"。
+</div>
+
+<!-- ============ 6. 为什么 TLS 1.2 必须 2 RTT ============ -->
+<h2>五、为什么 TLS 1.2 必须要 2 个 RTT?</h2>
+<div class="callout q big">
+  🤔 <b>关键追问:</b> 为什么不能把 RTT 2 的 <code>ClientKeyExchange</code> 合进 RTT 1 的 <code>ClientHello</code> 一起发?
+</div>
+<p><b>答:客户端的密钥交换消息"卡在服务器先发的东西"上,没法提前发。</b></p>
+<ul>
+  <li><b>RSA 密钥交换:</b> 客户端要用<b>服务器的公钥</b>加密预主密钥——而这把公钥在<b>服务器证书里</b>。
+    证书是 RTT 1 服务器<b>才发过来</b>的。客户端没收到证书前,根本不知道往哪加密。</li>
+  <li><b>DHE 密钥交换:</b> 客户端要先拿到<b>服务器的 DH 参数</b>(<code>ServerKeyExchange</code> 里),
+    才能算出自己的 DH 公钥。这参数也是 RTT 1 服务器<b>才发过来</b>的。</li>
+</ul>
+<div class="callout warn">
+  <b>一句话:</b> 客户端的密钥交换素材 <b>依赖服务器先发来的证书/DH 参数</b>,
+  存在<b>数据依赖</b> → 必须一来一回 → <b>多花一个 RTT</b>。这是协议设计的天花板,不是网络慢。
+</div>
+
+<!-- ============ 7. TLS 1.3 砍到 1 RTT ============ -->
+<h2>六、TLS 1.3 怎么砍到 1 个 RTT?</h2>
+<div class="callout ok big">
+  💡 <b>核心洞察:安全精简 和 握手提速 是<b class="hl">同一件事</b>。</b>
+</div>
+<p><b>第一步:大扫除。</b> TLS 1.3 把所有不安全的算法都删了——</p>
+<ul>
+  <li><b style="color:var(--bad)">删 RSA 密钥交换</b>(没有前向安全性,见第七节)</li>
+  <li><b style="color:var(--bad)">删 CBC 模式</b>(容易遭 padding oracle 攻击)</li>
+  <li><b style="color:var(--bad)">删 SHA-1 / MD5</b>(哈希可碰撞)</li>
+  <li><b style="color:var(--ok)">只保留 (EC)DHE</b> 做密钥交换 + AEAD 做加密。</li>
+</ul>
+<p><b>第二步:算法空间变小 → 客户端能"预判"。</b></p>
+<table>
+  <tr><th class="l" style="width:50%">TLS 1.2(算法多)</th><th class="l">TLS 1.3(算法少)</th></tr>
+  <tr>
+    <td class="l">
+      支持 RSA / DHE / 各种组合…<br>
+      客户端<b>猜不到</b>服务器会选哪个 →<br>
+      <b style="color:var(--bad)">不敢提前发密钥素材</b><br>
+      (万一服务器选了 RSA,塞 DH 参数就白塞了)
+    </td>
+    <td class="l">
+      只剩 <strong class="hl">(EC)DHE</strong> 这一类 →<br>
+      客户端<b>几乎确定</b>服务器会选 ECDHE →<br>
+      <b style="color:var(--ok)">直接把密钥素材(key_share)<br>塞进 ClientHello 一起发</b>
+    </td>
+  </tr>
+</table>
+<p><b>第三步:数据依赖被解除 → 省 1 个 RTT。</b> 客户端不再等服务器的证书/DH 参数,
+第一发就把自己的 DH 公钥送出去。服务器收到,立刻能算出会话密钥,回包里把"证书 + Finished"全带回来。</p>
+
+<pre class="seq">          <span class="r">┌─────────────── RTT 1(就这一个)───────────────┐</span>
+Client ── <span class="k">ClientHello</span> ──────────────>  Server
+       ── <span class="a">key_share(自己的 DH 公钥)</span>   <span class="c">// 素材提前塞!关键</span>
+          <span class="c">// 服务器收到已能算出会话密钥</span>
+Client <── <span class="k">ServerHello</span> ──────────────   Server
+       <── <span class="a">{EncryptedExtensions}</span> ──   <span class="c">// 后面全是加密的</span>
+       <── <span class="a">{Certificate}</span> ──────────   <span class="c">// 证书也加密传</span>
+       <── <span class="k">{Finished}</span> ─────────────   Server
+Client ── <span class="k">{Finished}</span> ──────────────>  Server
+       ── <b>应用数据(可同发)</b> ────>           <span class="c">// 握手完,马上传 HTTP</span></pre>
+<div class="callout ok">
+  对比:TLS 1.2 要 <b>2 RTT</b> 才到第一个应用数据;TLS 1.3 只要 <b>1 RTT</b>。<br>
+  省下来的那一来一回,在弱网(比如 200ms RTT 的移动网络)上 = <b>省 200ms 首字节</b>。
+</div>
+
+<!-- ============ 8. 前向安全性 ============ -->
+<h2>七、前向安全性:为什么 RSA 被删</h2>
+<div class="callout note big">
+  🔐 <b>前向安全性(Forward Secrecy):</b> 即使服务器<b>长期私钥以后被泄露</b>,
+  <b>过去已经抓到的握手流量也无法被解密</b>。
+</div>
+<table>
+  <tr><th class="l" style="width:34%">密钥交换</th><th class="l">私钥泄露后,历史流量会怎样?</th></tr>
+  <tr>
+    <td class="l"><b>RSA 密钥交换</b></td>
+    <td class="l">
+      预主密钥是用<b>服务器公钥</b>加密的。黑客如果之前抓了包,等私钥泄露 →
+      <b style="color:var(--bad)">用私钥解出预主密钥 → 历史流量全部裸奔</b>。<br>
+      <b>没有前向安全性 → 被 TLS 1.3 删掉。</b>
+    </td>
+  </tr>
+  <tr>
+    <td class="l"><b>(EC)DHE</b></td>
+    <td class="l">
+      <strong class="hl">每次握手都生成一对临时 DH 密钥</strong>,握手完就丢。
+      会话密钥只依赖这对临时密钥,<b>跟服务器长期私钥无关</b>。<br>
+      黑客拿到长期私钥 → 解不了旧的 DH 临时私钥(已销毁) →
+      <b style="color:var(--ok)">历史流量依然安全</b>。<b>有前向安全性。</b>
+    </td>
+  </tr>
+</table>
+<div class="callout warn">
+  <b>关键:</b>"前向"指的是"保护<b>过去</b>"。临时密钥是一次性的,用完即焚,
+  所以即便"现在的钥匙"被攻破,"过去的信"也烧不回来了。
+</div>
+
+<!-- ============ 9. 0-RTT ============ -->
+<h2>八、0-RTT:第一个包就带数据(但有坑)</h2>
+<p> TLS 1.3 还有个可选加速:<strong class="hl">0-RTT 恢复</strong>。条件是你<b>最近连过这个服务器</b>。</p>
+<div class="callout note">
+  <b>机制:</b> 第一次握手后,服务器发一个 <b>Session Ticket(PSK)</b> 给客户端。
+  下次重连时,客户端<b>第一个包就带上 PSK + 应用数据</b>——不等握手完成。
+  <span class="pill">真正"零"往返开销</span>
+</div>
+<div class="callout bad">
+  ⚠️ <b>但 0-RTT 有重放(Replay)风险,不能随便用!</b>
+  <ul style="margin:6px 0 0">
+    <li>攻击者可以<b>截获这个 0-RTT 请求,原样重发</b>给服务器。服务器分不清这是真请求还是重放。</li>
+    <li>所以 0-RTT <b>只能用于幂等请求</b>——比如 <code>GET</code>(读多少次都一样)。</li>
+    <li><b style="color:var(--bad)">绝对不能用于会改状态的请求</b>(<code>POST /pay</code>、<code>POST /transfer</code>…)。
+      否则一笔转账被重放 N 次。</li>
+  </ul>
+</div>
+
+<!-- ============ 10. 自测题 ============ -->
+<h2>九、轮到你了(4 题)</h2>
+<p class="sub">注意:Q4 是"哪条错误"的反向题——先圈题干关键词再读选项。</p>
+
+<div class="quiz" id="q1">
+  <div class="qq"><span class="tag">Q1</span> HTTPS 混合加密里,非对称加密和对称加密分别用在哪一步?</div>
+  <button class="opt" data-ok="1">非对称商量会话密钥,对称加密传输应用数据</button>
+  <button class="opt" data-ok="0">对称商量会话密钥,非对称加密传输应用数据</button>
+  <button class="opt" data-ok="0">全程非对称加密(更安全)</button>
+  <button class="opt" data-ok="0">全程对称加密(更快)</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q2">
+  <div class="qq"><span class="tag">Q2</span> HTTPS 里的数字证书,核心作用是?</div>
+  <button class="opt" data-ok="0">加密 HTTP 报文体,防止窃听</button>
+  <button class="opt" data-ok="1">验证服务器身份(这个公钥真是这个网站的),防冒充</button>
+  <button class="opt" data-ok="0">加速 TLS 握手,减少 RTT</button>
+  <button class="opt" data-ok="0">生成用于加密数据的会话密钥</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q3">
+  <div class="qq"><span class="tag">Q3</span> TLS 1.2 握手为什么必须 2 个 RTT,砍不到 1 个?</div>
+  <button class="opt" data-ok="0">TCP 三次握手额外占了一个 RTT</button>
+  <button class="opt" data-ok="0">服务器需要时间现场生成证书</button>
+  <button class="opt" data-ok="0">必须等浏览器内置 CA 把证书验证完</button>
+  <button class="opt" data-ok="1">客户端的密钥交换消息依赖服务器先发来的证书/DH 参数,有数据依赖必须一来一回</button>
+  <div class="fb"></div>
+</div>
+
+<div class="quiz" id="q4">
+  <div class="qq"><span class="tag">Q4 · 反向题</span> 关于 TLS 1.3,下面<b>哪条说法是错误的</b>?</div>
+  <button class="opt" data-ok="0">删除了 RSA、CBC、SHA-1 等不安全算法,只保留 (EC)DHE</button>
+  <button class="opt" data-ok="0">握手从 2 RTT 精简到 1 RTT</button>
+  <button class="opt" data-ok="0">因为只用 (EC)DHE,所以具备前向安全性</button>
+  <button class="opt" data-ok="1">0-RTT 没有任何安全风险,所有 HTTP 方法都能放心用</button>
+  <div class="fb"></div>
+</div>
+
+<!-- ============ 11. 面试速记口诀 ============ -->
+<h2>十、面试速记口诀</h2>
+<blockquote class="mnemonic">
+  <b>HTTPS = HTTP + TLS,混合加密是灵魂。</b><br>
+  非对称<span style="color:var(--muted)">商量</span>钥匙,对称<span style="color:var(--muted)">开门</span>干活;
+  慢的只用一次,快的干重活。<br><br>
+  <b>证书验身份,不加密。</b>CA 是公证处,浏览器信的是预装根 CA。<br><br>
+  <b>1.2 花两轮,因为客户端要等服务器的证书/DH 参数;</b><br>
+  <b>1.3 砍成一轮,因为算法精简 → 客户端敢预判 → 素材提前塞。</b><br>
+  <span style="color:var(--muted)">安全精简和握手提速,是同一件事。</span><br><br>
+  <b>(EC)DHE = 临时钥匙 + 用完即焚 = 前向安全。</b> RSA 做不到,所以被删。<br><br>
+  <b>0-RTT 靠 PSK,首包带数据;但有重放风险,只许 GET。</b>
+</blockquote>
+
+<!-- ============ 12. 下一步 ============ -->
+<h2>十一、下一步</h2>
+<div class="callout">
+  <p style="margin:4px 0">这节课把 HTTPS 的"加密 + 握手"讲透了。回到复习主线上:</p>
+  <ul style="margin:4px 0">
+    <li>← 上一节 <a href="0001-http-evolution.html"><b>0001 · HTTP/1.1 → 2 → 3 演进</b></a>(应用层 HOL、QUIC)</li>
+    <li>下一节 → <a href="0003-tcp-handshake-2msl.html"><b>0003 · TCP 三次握手 + 四次挥手 + 2MSL</b></a>(为什么不是两次握手)</li>
+  </ul>
+  <p style="margin:6px 0 0" class="sub">
+    ⚠️ 算 RTT 是你的已知弱点:TLS 1.3 单连握手后传第一个字节 = TCP 1 RTT + TLS 1 RTT + HTTP 0 RTT = <b>2 RTT</b>;
+    若复用连接(keep-alive)只算 HTTP 往返。变形题在 0003 里专门练。
+  </p>
+</div>
+
+<footer>
+  <p>📌 <b>HTTPS / TLS 到此完整。</b> 已覆盖:混合加密分工、证书作用、1.2 完整握手、1.3 精简原理、前向安全性、0-RTT 限制。</p>
+  <p>🙋 有不懂<b>直接问我</b>(回对话里复述一遍,别只说"懂了")。</p>
+  <p>来源:RFC 5246(TLS 1.2)、RFC 8446(TLS 1.3)、本项目 <code>teach/reference/network-review.md</code>。</p>
+</footer>
+
+</div>
+<script>
+var FB={
+  q1:{
+    good:'对!非对称只用在握手时安全商量会话密钥(慢,但只用一次);对称加密所有真实数据(快,干重活)。这就是"混合"。',
+    bad:'反了/不全。正确:非对称负责"商量钥匙"(握手时用一次),对称负责"加密数据"(传网页用)。原因:非对称太慢,对称难传钥匙——各取所长。'
+  },
+  q2:{
+    good:'对!证书的核心是验身份——证明"这把公钥真是这网站的",防中间人冒充。加密数据靠的是握手后算出的对称会话密钥,不是证书本身。',
+    bad:'证书不加密数据!它的作用是验证服务器身份(防冒充)。加密靠握手后双方算出的对称会话密钥。把"证书"和"加密"绑死是面试最常踩的坑。'
+  },
+  q3:{
+    good:'对!客户端的 ClientKeyExchange 依赖服务器先发来的东西(RSA 要证书里的公钥、DHE 要 ServerKeyExchange 的 DH 参数),有数据依赖 → 必须一来一回 → 多一个 RTT。这是协议结构,不是网络慢。',
+    bad:'跟 TCP/生成证书/CA 验证时间都无关。真正原因:客户端的密钥交换消息依赖服务器先发来的证书/DH 参数,存在数据依赖,必须先一来一回才能继续。'
+  },
+  q4:{
+    good:'正确,这条是错的——0-RTT 有重放风险!攻击者能截获并原样重发首包,所以只能用于幂等请求(GET),绝不能用于会改状态的 POST(支付、转账等)。',
+    bad:'0-RTT 不是无风险!它有重放(Replay)风险——攻击者可截获首包原样重发。所以只能用于幂等请求(如 GET),不能用于 POST 等会改状态的请求。其他三条(RSA/CBC 删除、1 RTT、前向安全)都正确。'
+  }
+};
+document.querySelectorAll('.quiz').forEach(function(q){
+  var fb=q.querySelector('.fb');
+  q.querySelectorAll('.opt').forEach(function(b){
+    b.addEventListener('click',function(){
+      q.querySelectorAll('.opt').forEach(function(o){o.classList.remove('correct','wrong')});
+      var ok=b.dataset.ok==='1';
+      b.classList.add(ok?'correct':'wrong');
+      if(ok){q.querySelectorAll('.opt').forEach(function(o){if(o.dataset.ok==='1')o.classList.add('correct')});}
+      fb.className='fb show '+(ok?'good':'bad');
+      fb.textContent=ok?FB[q.id].good:FB[q.id].bad;
+    });
+  });
+});
+</script>
+</body>
+</html>
